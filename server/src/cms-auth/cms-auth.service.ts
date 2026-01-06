@@ -25,7 +25,6 @@ import { HostError } from '@error/index';
 @Injectable()
 export class CmsAuthService {
     constructor(
-        //private readonly repository : UserRepositoryService,
         private readonly client: CmsHttpsClientService,
         private readonly repository: UserRepositoryService,
     ) {}
@@ -67,7 +66,6 @@ export class CmsAuthService {
             LoginCmsResponse
         >(url, request);
 
-        // Store token in host info
         host.token = response.token;
         await this.repository.atomicUpdateUser(userId, async (user : User) => {
             user.host_list[uid] = host

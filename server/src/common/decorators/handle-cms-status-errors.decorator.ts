@@ -13,7 +13,6 @@ export function isCmsStatusFailure(response: any): boolean {
         return false;
     }
 
-    // BaseCmsResponse를 확장하는 타입인지 확인
     if ('status' in response) {
         return response.status === 'fail';
     }
@@ -84,7 +83,6 @@ export function HandleCmsStatusErrors() {
         descriptor.value = async function (...args: any[]) {
             const result = await originalMethod.apply(this, args);
 
-            // Promise인 경우 (비동기 메서드)
             if (result instanceof Promise) {
                 return result.then((response) => {
                     checkCmsStatusError(response);
@@ -92,7 +90,6 @@ export function HandleCmsStatusErrors() {
                 });
             }
 
-            // 동기 메서드인 경우
             checkCmsStatusError(result);
 
             return result;

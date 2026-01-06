@@ -177,19 +177,12 @@ export class CmsHttpsClientService {
         Logger.log(request);
         const rv = await this.postAuthenticated(url, request) as any;
         
-        // 1. CMS token 에러 체크 (항상 수행)
-        // CMS에서 토큰이 유효하지 않으면 에러를 던집니다
         checkCmsTokenError(rv);
         
-        // 2. CMS status 에러 체크 (조건부로 스킵 가능)
-        // CMS는 HTTP 201로 응답하지만, body의 status 필드가 'fail'일 수 있습니다.
-        // 하지만 일부 task(예: lockdb)는 CMS 버그로 인해 항상 'fail'을 반환하지만
-        // 실제로는 성공한 경우가 있어서, 콜백으로 스킵 여부를 결정할 수 있습니다.
         const task = requestBody.task;
         const shouldSkip = shouldSkipStatusCheck ? shouldSkipStatusCheck(task, rv) : false;
         
         if (!shouldSkip) {
-            // status 필드가 'fail'이면 에러를 던집니다
             checkCmsStatusError(rv, `CMS request failed: ${rv.note || 'Unknown error'}`);
         }
         

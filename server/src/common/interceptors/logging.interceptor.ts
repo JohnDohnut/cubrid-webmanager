@@ -25,7 +25,6 @@ export class LoggingInterceptor implements NestInterceptor {
 
     const now = Date.now();
 
-    // Log incoming request details
     this.logger.log(
       `Incoming Request: ${request.method} ${request.url}`,
       `IP: ${request.ip}`,
@@ -36,7 +35,6 @@ export class LoggingInterceptor implements NestInterceptor {
     return next.handle().pipe(
       tap({
         next: (data) => {
-          // Log successful response details
           this.logger.log(
             `Outgoing Response: ${request.method} ${request.url} - ${response.statusCode}`,
             `Duration: ${Date.now() - now}ms`,
@@ -44,7 +42,6 @@ export class LoggingInterceptor implements NestInterceptor {
           );
         },
         error: (error) => {
-          // Log error response details
           this.logger.error(
             `Error Response: ${request.method} ${request.url} - ${error.status || 'N/A'}`,
             `Duration: ${Date.now() - now}ms`,

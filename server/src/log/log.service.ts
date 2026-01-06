@@ -34,10 +34,7 @@ export class LogService {
 
         const cmsResponse = await this.client.postAuthenticated<BaseCmsRequest & { broker: string }, LogFileInfoCmsResponse>(url, body);
 
-        // CMS token 에러 체크
         checkCmsTokenError(cmsResponse);
-
-        // CMS status 에러 체크
         checkCmsStatusError(cmsResponse);
 
         Logger.debug(cmsResponse);
@@ -59,10 +56,7 @@ export class LogService {
 
         const cmsResponse = await this.client.postAuthenticated<BaseCmsRequest & { dbname: string }, LogInfoCmsResponse>(url, body);
 
-        // CMS token 에러 체크
         checkCmsTokenError(cmsResponse);
-
-        // CMS status 에러 체크
         checkCmsStatusError(cmsResponse);
 
         const response: GetDatabaseLogListClientResponse = {
@@ -85,10 +79,7 @@ export class LogService {
 
         const cmsResponse = await this.client.postAuthenticated<BaseCmsRequest, LoadAccessLogCmsResponse>(url, body);
 
-        // CMS token 에러 체크
         checkCmsTokenError(cmsResponse);
-
-        // CMS status 에러 체크
         checkCmsStatusError(cmsResponse);
 
         const response: LoadAccessLogClientResponse = {
@@ -131,13 +122,9 @@ export class LogService {
 
         const cmsResponse = await this.client.postAuthenticated<BaseCmsRequest & { path: string; start: string; end: string }, ViewLogCmsResponse>(url, body);
 
-        // CMS token 에러 체크
         checkCmsTokenError(cmsResponse);
-
-        // CMS status 에러 체크
         checkCmsStatusError(cmsResponse);
 
-        // BaseCmsResponse 필드 제외하고 순수 데이터만 반환
         const { __EXEC_TIME, note, status, task, ...dataOnly } = cmsResponse;
         return dataOnly;
     }
@@ -166,13 +153,9 @@ export class LogService {
 
         const cmsResponse = await this.client.postAuthenticated<BaseCmsRequest, GetAdminLogInfoCmsResponse>(url, body);
 
-        // CMS token 에러 체크
         checkCmsTokenError(cmsResponse);
-
-        // CMS status 에러 체크
         checkCmsStatusError(cmsResponse);
 
-        // BaseCmsResponse 필드 제외하고 순수 데이터만 반환
         const { __EXEC_TIME, note, status, task, ...dataOnly } = cmsResponse;
         return dataOnly;
     }

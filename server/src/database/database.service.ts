@@ -83,7 +83,6 @@ export class DatabaseService {
         userId: string,
         hostUid: string,
     ): Promise<StartInfoCmsResponse> {
-        // Find host with full password, token, dbProfiles, etc
         const host = await this.hostService.findHostInternal(userId, hostUid);
 
         const url = `https://${host.address}:${host.port}/cm_api`;
@@ -96,14 +95,11 @@ export class DatabaseService {
             StartInfoCmsResponse | BaseCmsResponse
         >(url, data);
 
-        // CMS token 에러 체크
         checkCmsTokenError(response);
 
-        // CMS는 항상 200/201 HTTP status를 반환하므로 body의 status 필드로 성공 여부 판단
         if (response.status === 'success') {
             return response as StartInfoCmsResponse;
         } else {
-            // status가 "fail"인 경우 에러 던지기
             throw DatabaseError.GetStartInfoFailed({ response });
         }
     }
@@ -125,24 +121,11 @@ export class DatabaseService {
         userId: string,
         hostUid: string,
     ): Promise<StartInfoClientResponse> {
-        // Find host with full password, token, dbProfiles, etc
         const host = await this.hostService.findHostInternal(userId, hostUid);
-
-        // 순수 CMS 응답 가져오기
         const response = await this.startInfoInternal(userId, hostUid);
-
-        // BaseCmsResponse 필드 제외하고 순수 데이터만 반환
         const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
-
-        // 유저의 호스트 객체에서 dbProfiles 추출 (없을 수 있음)
-        // dbProfiles는 { [dbname: string]: DatabaseProfile }
         const dbProfiles = host.dbProfiles || {};
-
-        // CMS 응답: dblist와 activelist는 배열로 옴
-        // dblist[0].dbs가 없는 경우를 대비한 안전한 처리
         const dbs = dataOnly.dblist?.[0]?.dbs || [];
-
-        // activelist[0].active가 없는 경우를 대비한 안전한 처리
         const activeList = dataOnly.activelist?.[0]?.active || [];
 
         const clientResponse: StartInfoClientResponse = {
@@ -188,12 +171,9 @@ export class DatabaseService {
             BaseCmsResponse
         >(url, data);
 
-        // CMS token 에러 체크
         checkCmsTokenError(response);
 
-        // CMS는 항상 200/201 HTTP status를 반환하므로 body의 status 필드로 성공 여부 판단
         if (response.status === 'success') {
-            // 작업 성공 후 최신 상태 반환
             return await this.startInfo(userId, hostUid);
         }
 
@@ -230,12 +210,9 @@ export class DatabaseService {
             BaseCmsResponse
         >(url, data);
 
-        // CMS token 에러 체크
         checkCmsTokenError(response);
 
-        // CMS는 항상 200/201 HTTP status를 반환하므로 body의 status 필드로 성공 여부 판단
         if (response.status === 'success') {
-            // 작업 성공 후 최신 상태 반환
             return await this.startInfo(userId, hostUid);
         }
 
@@ -259,7 +236,6 @@ export class DatabaseService {
         hostUid: string,
         dbname: string,
     ): Promise<StartInfoClientResponse> {
-        // Stop database
         const host = await this.hostService.findHostInternal(userId, hostUid);
         const url = `https://${host.address}:${host.port}/cm_api`;
 
@@ -274,11 +250,9 @@ export class DatabaseService {
             BaseCmsResponse
         >(url, stopRequest);
 
-        // CMS token 에러 체크
         checkCmsTokenError(stopResponse);
 
         if (stopResponse.status === 'success') {
-            // Start database
             const startRequest: StartDatabaseCmsRequest = {
                 task: 'startdb',
                 token: host.token || '',
@@ -290,11 +264,9 @@ export class DatabaseService {
                 BaseCmsResponse
             >(url, startRequest);
 
-            // CMS token 에러 체크
             checkCmsTokenError(startResponse);
 
             if (startResponse.status === 'success') {
-                // 작업 성공 후 최신 상태 반환
                 return await this.startInfo(userId, hostUid);
             } else {
                 throw DatabaseError.StartDatabaseFailed({
@@ -331,7 +303,6 @@ export class DatabaseService {
         databaseId: string,
         databasePassword: string,
     ): Promise<StartInfoClientResponse> {
-        // 유효성 검증 (null/undefined만 체크, 빈 문자열은 허용)
         if (dbname == null || databaseId == null || databasePassword == null) {
             const missingFields = [
                 dbname == null && 'dbname',
@@ -345,20 +316,16 @@ export class DatabaseService {
             );
         }
 
-        // atomicUpdateUser를 사용하여 저장
         await this.repository.atomicUpdateUser(userId, async (user) => {
             const host = user.host_list[hostUid];
             if (!host) {
                 throw HostError.NoSuchHost({ hostUid });
             }
 
-            // 기존 host 객체에 dbProfiles가 없으면 초기화 (하위 호환성)
-            // undefined, null 모두 체크
             if (host.dbProfiles == null) {
                 host.dbProfiles = {};
             }
 
-            // 중복 체크 (초기화 후이므로 안전하게 접근 가능)
             if (host.dbProfiles[dbname]) {
                 throw DatabaseError.DuplicatedDatabaseProfile({
                     dbname,
@@ -366,7 +333,6 @@ export class DatabaseService {
                 });
             }
 
-            // 프로파일 추가
             host.dbProfiles[dbname] = {
                 dbname,
                 id: databaseId,
@@ -376,7 +342,6 @@ export class DatabaseService {
             return user;
         });
 
-        // 프로파일 저장 후 최신 상태 반환 (isProfileExists가 업데이트됨)
         return await this.startInfo(userId, hostUid);
     }
 
@@ -413,10 +378,7 @@ export class DatabaseService {
                 StartInfoCmsResponse | BaseCmsResponse
             >(url, startInfoRequest);
 
-        // 타입 가드: StartInfoCmsResponse인지 확인
         if ('dblist' in startInfo && 'activelist' in startInfo) {
-            // StartInfoCmsResponse 타입
-            // dblist 내에서 dbname 존재 여부 확인
             const dbExists = startInfo.dblist.some((el) =>
                 el.dbs.some((db) => db.dbname === dbname)
             );
@@ -425,7 +387,6 @@ export class DatabaseService {
                 throw DatabaseError.NoSuchDatabase({ dbname, hostUid });
             }
         } else {
-            // BaseCmsResponse 타입 (status === 'fail'인 경우)
             checkCmsTokenError(startInfo);
             throw DatabaseError.InternalError();
         }
@@ -440,17 +401,13 @@ export class DatabaseService {
             DbSpaceInfoCmsResponse | BaseCmsResponse
         >(url, spaceInfoRequest);
 
-        // CMS token 에러 체크
         checkCmsTokenError(response);
 
-        // CMS는 항상 200/201 HTTP status를 반환하므로 body의 status 필드로 성공 여부 판단
         if (response.status === 'success') {
-            // BaseCmsResponse 필드 제외하고 순수 데이터만 반환
             const { __EXEC_TIME, note, status, task, ...dataOnly } =
                 response as DbSpaceInfoCmsResponse;
             return dataOnly;
         } else {
-            // status가 "fail"인 경우 에러 던지기
             throw DatabaseError.GetDBSpaceInfoFailed({ response, dbname });
         }
     }
@@ -501,13 +458,10 @@ export class DatabaseService {
 
         const response = await this.cmsClient.postAuthenticated<AddBackupInfoCmsRequest, AddBackupInfoCmsResponse>(url, request);
 
-        // CMS token 에러 체크
         checkCmsTokenError(response);
 
-        // CMS status 에러 체크
         checkCmsStatusError(response);
 
-        // 성공 시 빈 객체 반환
         return {};
     }
 
@@ -540,17 +494,13 @@ export class DatabaseService {
 
         const response = await this.cmsClient.postAuthenticated<GetBackupInfoCmsRequest, GetBackupInfoCmsResponse>(url, request);
 
-        // CMS token 에러 체크
         checkCmsTokenError(response);
 
-        // CMS status 에러 체크
         checkCmsStatusError(response);
 
-        // CMS 응답에서 동적 키로 저장된 백업 정보 추출
         const { __EXEC_TIME, note, status, task, dbname: responseDbname, ...rest } = response;
         const backupArray = rest[dbname] as any[];
 
-        // 클라이언트 응답 형식으로 변환
         return {
             dbname: responseDbname,
             backups: backupArray || [],
@@ -589,13 +539,10 @@ export class DatabaseService {
 
         const response = await this.cmsClient.postAuthenticated<SetAutoExecQueryCmsRequest, SetAutoExecQueryCmsResponse>(url, request);
 
-        // CMS token 에러 체크
         checkCmsTokenError(response);
 
-        // CMS status 에러 체크
         checkCmsStatusError(response);
 
-        // 성공 시 빈 객체 반환
         return {};
     }
 
@@ -628,22 +575,16 @@ export class DatabaseService {
 
         const response = await this.cmsClient.postAuthenticated<GetAutoExecQueryCmsRequest, GetAutoExecQueryCmsResponse>(url, request);
 
-        // CMS token 에러 체크
         checkCmsTokenError(response);
 
-        // CMS status 에러 체크
         checkCmsStatusError(response);
 
-        // BaseCmsResponse 필드 제외하고 순수 데이터만 반환
         const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
 
-        // CMS 응답에서 @username 필드를 username으로 변환
-        // CMS API가 실제로 @username으로 응답을 보내므로, 클라이언트 타입(username)에 맞게 변환
         const planlist = dataOnly.planlist.map(plan => {
             const queryplan = plan.queryplan.map(query => {
                 const queryAny = query as any;
                 
-                // CMS가 @username으로 보내므로 이를 username으로 변환
                 if (queryAny['@username'] !== undefined) {
                     const { '@username': atUsername, ...rest } = queryAny;
                     return {
@@ -652,7 +593,6 @@ export class DatabaseService {
                     };
                 }
                 
-                // 이미 username으로 온 경우 그대로 사용
                 return queryAny;
             });
 
@@ -669,10 +609,5 @@ export class DatabaseService {
 
     @HandleDatabaseErrors()
     async createDatabase(){
-        //getenv - get default directory
-        //checkfile - db duplication check 
-        //checkdir - db directory check
-        //createdb - create db
-        //setautoaddvol - set auto scale of db.
     }
 }

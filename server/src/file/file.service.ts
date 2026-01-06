@@ -49,7 +49,6 @@ export class FileService {
      */
     @HandleCmsHttpsClientErrors()
     async checkFile(userId: string, hostUid: string): Promise<CheckFileCmsResponse> {
-        // Load user and get host information
         const user = await this.userRepository.loadUserById(userId);
         const host: HostInfo = user.host_list[hostUid];
         
@@ -57,7 +56,6 @@ export class FileService {
             throw HostError.NoSuchHost({ hostUid });
         }
 
-        // Use stored token if available
         if (host.token) {
             try {
                 const authUrl = `https://${host.address}:${host.port}/cm_api`;
@@ -68,23 +66,17 @@ export class FileService {
 
                 const response = await this.cmsHttpsClient.postAuthenticated<CheckFileCmsRequest, CheckFileCmsResponse>(authUrl, checkFileRequest);
                 
-                // CMS token 에러 체크
                 checkCmsTokenError(response);
-                // CMS status 에러 체크 (status === 'fail'인 경우)
                 checkCmsStatusError(response, `Failed to check file: ${response.note || 'Unknown error'}`);
                 
                 return response;
             } catch (error) {
                 Logger.warn(`Token invalid for host ${hostUid}:`, error.message);
-                // Clear invalid token
                 host.token = undefined;
                 await this.userRepository.updateUser(userId, user);
-                
-                // Return error response indicating token refresh needed
                 throw CmsError.InvalidToken();
             }
         }
-        // No token available, client should login first
         throw CmsError.InvalidToken();
     }
 }
