@@ -457,7 +457,7 @@ export class DatabaseService {
     
 
     /**
-     * Add backup information for a database.
+     * Add automated backup schedule information for a database.
      * Returns empty object on success (CMS envelope fields removed).
      *
      * 데이터베이스의 백업 정보를 추가합니다.
@@ -471,7 +471,7 @@ export class DatabaseService {
      * @throws DatabaseError 요청 실패 또는 CMS status가 fail인 경우
      */
     @HandleDatabaseErrors()
-    async addBackupInfo(
+    async addBackupSchedule(
         userId: string,
         hostUid: string,
         dbname: string,
@@ -512,7 +512,7 @@ export class DatabaseService {
     }
 
     /**
-     * Get backup information for a database.
+     * Get automated backup schedule information for a database.
      * Returns domain-only data (CMS envelope removed).
      *
      * 데이터베이스의 백업 정보를 조회합니다.
@@ -525,7 +525,7 @@ export class DatabaseService {
      * @throws DatabaseError 요청 실패 또는 CMS status가 fail인 경우
      */
     @HandleDatabaseErrors()
-    async getBackupInfo(
+    async getBackupSchedule(
         userId: string,
         hostUid: string,
         dbname: string,
