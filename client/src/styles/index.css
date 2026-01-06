@@ -1,0 +1,170 @@
+@import './variables.css';
+@import './customize_antd.css';
+@import url("https://site-assets.fontawesome.com/releases/v6.7.2/css/all.css");
+@import url("https://site-assets.fontawesome.com/releases/v6.7.2/css/sharp-duotone-thin.css");
+@import url("https://site-assets.fontawesome.com/releases/v6.7.2/css/sharp-duotone-solid.css");
+@import url("https://site-assets.fontawesome.com/releases/v6.7.2/css/sharp-duotone-light.css");
+@import url("https://site-assets.fontawesome.com/releases/v6.7.2/css/sharp-thin.css");
+@import url("https://site-assets.fontawesome.com/releases/v6.7.2/css/sharp-regular.css");
+@import url("https://site-assets.fontawesome.com/releases/v6.7.2/css/sharp-solid.css");
+@import url("https://site-assets.fontawesome.com/releases/v6.7.2/css/sharp-light.css");
+@import url("https://site-assets.fontawesome.com/releases/v6.7.2/css/duotone-regular.css");
+@import url("https://site-assets.fontawesome.com/releases/v6.7.2/css/duotone-thin.css");
+@import url("https://site-assets.fontawesome.com/releases/v6.7.2/css/duotone-light.css");
+
+
+
+
+/* =======================================
+   Global Base
+======================================= */
+html {
+    box-sizing: border-box;
+    scroll-behavior: smooth;
+}
+
+*, *::before, *::after {
+    box-sizing: inherit;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--app-font-family);
+    font-size: var(--app-font-size);
+    font-weight: var(--app-font-weight-regular);
+    line-height: var(--app-line-height);
+    color: var(--app-color-text);
+    background-color: var(--app-color-bg-layout);
+    -webkit-font-smoothing: antialiased;
+    height: 100vh;
+}
+
+/* =======================================
+   Headings
+======================================= */
+h1, h2, h3, h4, h5, h6 {
+    margin: 0 0 0.5em;
+    font-weight: var(--app-font-weight-strong);
+    color: var(--app-color-text);
+    line-height: 1.25;
+}
+
+h1 { font-size: var(--app-font-size-h1); }
+h2 { font-size: var(--app-font-size-h2); }
+h3 { font-size: var(--app-font-size-h3); }
+h4 { font-size: var(--app-font-size-h4); }
+h5 { font-size: var(--app-font-size-h5); }
+h6 { font-size: var(--app-font-size-h6); }
+
+/* =======================================
+   Paragraphs & Text
+======================================= */
+p {
+    margin-top: 0;
+    margin-bottom: 1em;
+}
+
+small {
+    font-size: calc(var(--app-font-size) * 0.875);
+    color: var(--app-color-text-secondary);
+}
+
+strong {
+    font-weight: var(--app-font-weight-strong);
+    color: var(--app-color-text-strong);
+}
+
+em {
+    font-style: italic;
+}
+
+/* =======================================
+   Links
+======================================= */
+a {
+    color: var(--app-color-link);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+a:hover {
+    color: var(--app-color-link-hover);
+    text-decoration: underline;
+}
+
+/* =======================================
+   Lists
+======================================= */
+ul, ol {
+    margin: 0 0 1em 1.5em;
+    padding: 0;
+}
+
+li {
+    margin-bottom: 0.5em;
+}
+
+/* =======================================
+   Blockquotes & Code
+======================================= */
+blockquote {
+    margin: 1.5em 0;
+    padding-left: 1em;
+    border-left: 4px solid var(--app-color-border-secondary);
+    color: var(--app-color-text-secondary);
+    font-style: italic;
+}
+
+code {
+    font-family: var(--app-font-family-code);
+    font-size: 0.875rem;
+    background-color: var(--app-color-fill-tertiary);
+    border: 1px solid var(--app-color-border);
+    border-radius: var(--app-border-radius-sm);
+    padding: 0.2em 0.4em;
+    color: var(--app-color-text-code);
+}
+
+/* =======================================
+   Horizontal Rule
+======================================= */
+hr {
+    border: none;
+    border-top: 1px solid var(--app-color-border-secondary);
+    margin: 2em 0;
+}
+
+/* =======================================
+   Responsive Adjustment
+======================================= */
+@media (max-width: 768px) {
+    body {
+        font-size: calc(var(--app-font-size) * 0.95);
+    }
+}
+.folder__icon{
+    color: var(--app-color-folder);
+}
+
+.active__icon{
+    color: var(--app-color-primary);
+}
+.inactive__icon{
+    color: var(--app-color-inactive);
+}
+.error {
+    color: var(--app-color-error);
+}
+button{
+    height: 32px !important;
+}
+button.error{
+    background-color: var(--app-color-error);
+    color: white;
+}
+button.error:hover{
+    background-color: var(--app-color-error) !important;
+    opacity: 0.9;
+    transition: opacity 0.2s ease;
+}

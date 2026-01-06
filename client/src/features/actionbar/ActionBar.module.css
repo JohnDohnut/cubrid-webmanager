@@ -1,0 +1,9 @@
+.layout{
+    display: flex;
+    flex-direction: row;
+    height: 60px;
+    border-bottom: 1px solid var(--app-color-border);
+    width: 100%;
+    background-color: var(--app-color-bg-layout);
+}
+

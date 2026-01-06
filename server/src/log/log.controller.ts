@@ -1,0 +1,170 @@
+import { Body, Controller, Get, Logger, Param, Post, Request } from '@nestjs/common';
+import { LogService } from './log.service';
+import {
+    GetBrokerLogListClientResponse,
+    GetDatabaseLogListClientResponse,
+    LoadAccessLogClientResponse,
+    ViewLogClientResponse,
+    ViewLogClientRequest,
+    GetAdminLogInfoClientResponse,
+} from '../type';
+import { validateRequiredFields } from '@util';
+
+/**
+ * Controller for handling log-related operations.
+ *
+ * 로그 관련 작업을 처리하는 컨트롤러입니다.
+ * - 모든 엔드포인트는 경로 파라미터로 `hostUid`를 받습니다
+ * - RESTful 패턴 준수: /:hostUid/log/{action}/{identifier}
+ *
+ * @category Controllers
+ * @since 1.0.0
+ */
+@Controller(':hostUid/log')
+export class LogController {
+    private readonly logger = new Logger(LogController.name);
+
+    constructor(private readonly logService: LogService) {}
+
+    /**
+     * Get list of broker log files.
+     *
+     * 브로커 로그 파일 목록을 조회합니다.
+     *
+     * @route GET /:hostUid/log/broker/:bname
+     * @param req Express request (contains authenticated user)
+     * @param hostUid Host unique identifier from path parameter
+     * @param bname Broker name from path parameter
+     * @returns GetBrokerLogListClientResponse Broker log file list
+     * @example
+     * // GET /host-uid-1/log/broker/query_editor
+     */
+    @Get('broker/:bname')
+    async getBrokerLogList(
+        @Request() req,
+        @Param('hostUid') hostUid: string,
+        @Param('bname') bname: string,
+    ): Promise<GetBrokerLogListClientResponse> {
+        const userId = req.user.sub;
+        Logger.log(
+            `Getting broker log list: ${bname} on host: ${hostUid}`,
+            'LogController',
+        );
+        return await this.logService.getBrokerLogList(userId, hostUid, bname);
+    }
+
+    /**
+     * Get list of database log files.
+     *
+     * 데이터베이스 로그 파일 목록을 조회합니다.
+     *
+     * @route GET /:hostUid/log/database/:dname
+     * @param req Express request (contains authenticated user)
+     * @param hostUid Host unique identifier from path parameter
+     * @param dname Database name from path parameter
+     * @returns GetDatabaseLogListClientResponse Database log file list
+     * @example
+     * // GET /host-uid-1/log/database/demodb
+     */
+    @Get('database/:dbname')
+    async getDatabaseLogList(
+        @Request() req,
+        @Param('hostUid') hostUid: string,
+        @Param('dbname') dbname: string,
+    ): Promise<GetDatabaseLogListClientResponse> {
+        const userId = req.user.sub;
+        Logger.log(
+            `Getting database log list: ${dbname} on host: ${hostUid}`,
+            'LogController',
+        );
+        return await this.logService.getDatabaseLogList(userId, hostUid, dbname);
+    }
+
+    /**
+     * Get CMS access log and error log.
+     *
+     * CMS 접근 로그 및 에러 로그를 조회합니다.
+     *
+     * @route GET /:hostUid/log/cms
+     * @param req Express request (contains authenticated user)
+     * @param hostUid Host unique identifier from path parameter
+     * @returns LoadAccessLogClientResponse CMS access log and error log
+     * @example
+     * // GET /host-uid-1/log/cms
+     */
+    @Get('cms')
+    async getCMSLogList(
+        @Request() req,
+        @Param('hostUid') hostUid: string,
+    ): Promise<LoadAccessLogClientResponse> {
+        const userId = req.user.sub;
+        Logger.log(`Getting CMS log list for host: ${hostUid}`, 'LogController');
+        return await this.logService.getCMSLogList(userId, hostUid);
+    }
+
+    /**
+     * Get admin log information.
+     *
+     * 관리자 로그 정보를 조회합니다.
+     *
+     * @route GET /:hostUid/log/admin
+     * @param req Express request (contains authenticated user)
+     * @param hostUid Host unique identifier from path parameter
+     * @returns GetAdminLogInfoClientResponse Admin log information without CMS envelope fields
+     * @example
+     * // GET /host-uid-1/log/admin
+     */
+    @Get('admin')
+    async getAdminLogInfo(
+        @Request() req,
+        @Param('hostUid') hostUid: string,
+    ): Promise<GetAdminLogInfoClientResponse> {
+        const userId = req.user.sub;
+        Logger.log(`Getting admin log info for host: ${hostUid}`, 'LogController');
+        return await this.logService.getAdminLogInfo(userId, hostUid);
+    }
+
+    /**
+     * View log file content.
+     * Returns log lines within the specified range.
+     *
+     * 로그 파일 내용을 조회합니다.
+     * 지정된 범위 내의 로그 라인을 반환합니다.
+     *
+     * @route POST /:hostUid/log/view
+     * @param req Express request (contains authenticated user)
+     * @param hostUid Host unique identifier from path parameter
+     * @param body Request body containing path, start, end
+     * @returns ViewLogClientResponse Log file content without CMS envelope fields
+     * @example
+     * // POST /host-uid-1/log/view
+     * // Body: { "path": "/path/to/log.err", "start": "1", "end": "100" }
+     */
+    @Post('view')
+    async viewLog(
+        @Request() req,
+        @Param('hostUid') hostUid: string,
+        @Body() body: ViewLogClientRequest,
+    ): Promise<ViewLogClientResponse> {
+        const userId = req.user.sub;
+
+        validateRequiredFields(
+            body,
+            ['path', 'start', 'end'],
+            'log/view',
+            this.logger,
+        );
+
+        Logger.log(
+            `Viewing log file: ${body.path} (${body.start}-${body.end}) on host: ${hostUid}`,
+            'LogController',
+        );
+        return await this.logService.viewLog(
+            userId,
+            hostUid,
+            body.path,
+            body.start,
+            body.end,
+        );
+    }
+}

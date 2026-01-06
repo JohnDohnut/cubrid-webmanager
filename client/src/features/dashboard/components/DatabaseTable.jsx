@@ -1,0 +1,118 @@
+import {useEffect, useRef, useState} from "react";
+import {useSelector} from "react-redux";
+import {getDatabasesAPI} from "@/features/domain/database/databaseAPI.js";
+import {nanoid} from "nanoid";
+import {Checkbox, Table} from "antd";
+import {
+    deletePrefAutoStartupDatabase,
+    getPrefAutoStartupDatabase,
+    setPrefAutoStartupDatabase
+} from "@/preference/pref.js";
+import styles from '../styles/DatabaseTable.module.css'
+
+
+export const DatabaseTable = (props) =>{
+    const {intervalDashboard} = useSelector((state) => state.global);
+    const { activeTabKey } = useSelector(state => state.tab);
+    const { activeHost } = useSelector(state => state.host);
+    const [data, setData] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    // ✅ useRef to store the interval ID safely
+    const intervalRef = useRef(null);
+
+    const columns = [
+        {
+            title: 'Database',
+            dataIndex: 'database',
+            key: 'database',
+        },
+        {
+            title: 'Auto Startup',
+            dataIndex: 'auto',
+            key: 'auto',
+            render: (value, record) => (
+                <Checkbox
+                    defaultChecked={value}
+                    onClick={({ target }) => {
+                        if (target.checked) {
+                            setPrefAutoStartupDatabase(record);
+                        } else {
+                            deletePrefAutoStartupDatabase(record);
+                        }
+                    }}
+                />
+            ),
+        },
+        {
+            title: 'Status',
+            dataIndex: 'status',
+            key: 'status',
+        }
+    ];
+
+    const getRefreshData = async () => {
+        if (!activeHost?.uid) return;
+
+        const response = await getDatabasesAPI(activeHost);
+        if (response.success) {
+            const prefAuto = getPrefAutoStartupDatabase();
+            const newData = response.result?.map(res => {
+                const prefKey = `${activeHost.uid}.${res.dbname}`;
+                return {
+                    serverId: activeHost.uid,
+                    key: nanoid(4),
+                    database: res.dbname,
+                    auto: prefAuto?.includes(prefKey),
+                    status: res.status === "active" ? "running" : "stopped",
+                };
+            });
+            setData(newData);
+        }
+        setLoading(false);
+    };
+
+    // Run once initially
+    useEffect(() => {
+        if (activeHost.key) {
+            getRefreshData();
+        }
+    }, []);
+
+    // Handle interval updates when panel changes
+    useEffect(() => {
+        // ✅ clear old interval
+        if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+        }
+
+        // ✅ start a new one if this panel is active
+        if (props.uniqueKey === activeTabKey) {
+            if (intervalDashboard) {
+                const value = parseInt(intervalDashboard, 10);
+                intervalRef.current = setInterval(getRefreshData, value * 1000);
+            }
+        }
+
+        // ✅ cleanup when component unmounts
+        return () => {
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+            }
+        };
+    }, [activeTabKey]);
+
+    return (
+        <div className={styles.database}>
+            <Table
+                pagination={false}
+                loading={loading}
+                columns={columns}
+                dataSource={data}
+            />
+        </div>
+    );
+}
+
+export default DatabaseTable;
