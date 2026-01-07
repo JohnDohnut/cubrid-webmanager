@@ -14,7 +14,7 @@ const RenameDB = ()=>{
     const {databases} = useSelector(state => state.database);
     const {renameDB} = useSelector(state => state.sidenav);
     const dispatch = useDispatch();
-    const [server, setServer] = useState({});
+    const [dbname, setDbname] = useState("");
     const [form] = Form.useForm();
     const handleOk = async () => {
         form.validateFields().then(async (values) => {
@@ -24,12 +24,15 @@ const RenameDB = ()=>{
                 rename: values.dbname,
                 dbname: renameDB.node.title,
                 advanced: "off", forcedel: values.forcedel ? "y" : "n"}
-            const response = await renameDBAPI(activeHost, data);
-            if(response.status){
+            const response = await renameDBAPI(activeHost, data)
+                .finally(()=>{
+                    dispatch(setBuffering(false))
+                })
+            if(response.success){
 
                 const newDatabases = databases.map(db=>{
                     if(renameDB.node.key === db.key){
-                        return {...db, dbname: values.dbname, title: value.dbname};
+                        return {...db, dbname: values.dbname, title: values.dbname};
                     }
                     return db
                 })
@@ -56,7 +59,7 @@ const RenameDB = ()=>{
                     Modal.success({
                         title: 'Success',
                         content: `Job Rename Database - 
-                        ${renameDB.node.title + "@" + server.title} has been completed successfully`,
+                        ${renameDB.node.title + "@" + renameDB.node.title} has been completed successfully`,
                         okText: "Close"
                     })
                 handleClose()
@@ -76,6 +79,15 @@ const RenameDB = ()=>{
         }
     },[renameDB])
 
+    useEffect(() => {
+        if(renameDB.open){
+            let path = renameDB.node.dbdir.split("/");
+            path.pop();
+            form.setFieldValue("exvolpath", `${path.join("/")}/${dbname}`);
+        }
+
+    },[dbname])
+
     const handleClose = () => {
         dispatch(setRenameDB({open: false}));
     }
@@ -83,6 +95,7 @@ const RenameDB = ()=>{
 
     return (
         <Modal
+            width={650}
             title="Rename DB"
             open={renameDB.open}
             footer={() => {
@@ -99,6 +112,7 @@ const RenameDB = ()=>{
                     </>
                 )
             }}
+
         >
             <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
                 <Form form={form} layout="horizontal">
@@ -109,7 +123,7 @@ const RenameDB = ()=>{
                                     name="dbname"
                                     labelCol={{span: 6}}
                                     label="Database Name">
-                                    <Input />
+                                    <Input onChange={e => setDbname(e.target.value)} placeholder="Database Name" />
                                 </Form.Item>
                             </Col>
                             <Col span={24}>

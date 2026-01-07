@@ -4,7 +4,7 @@ import {store} from "@/store/store.js";
 import {setErrorModal} from "@/shared/slice/globalSlice.js";
 
 const axiosInstance = axios.create({
-    baseURL: "https://192.168.2.50:8080",
+    baseURL: "https://localhost:8081",
     headers: {
         "Content-Type": "application/json",
     },
