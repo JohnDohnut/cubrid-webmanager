@@ -1,7 +1,0 @@
-{
-    "scripts": {
-      "deploy:linux": "npm run build && npm run pkg:linux && scp dist/webca-server-linux cubrid@192.168.2.36:/home/cubrid",
-      "deploy:win": "npm run build && npm run pkg:win"
-    }
-  }
-  
