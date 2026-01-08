@@ -14,7 +14,6 @@ import { BaseDatabaseRequest as BaseDatabaseRequest } from "./base-database-requ
  * @since 1.0.0
  */
 export type DatabaseLoginClientRequest = BaseDatabaseRequest & {
-    // Profile이 없는 경우에만 필요
     id?: string;
     password?: string;
 };

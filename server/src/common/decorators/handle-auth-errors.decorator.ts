@@ -25,7 +25,6 @@ export function HandleAuthErrors() {
             try {
                 return await originalMethod.apply(this, args);
             } catch (err) {
-                // 모든 에러를 그대로 전달 (변환하지 않음)
                 throw err;
             }
         };

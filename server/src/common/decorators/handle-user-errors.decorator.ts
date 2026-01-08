@@ -30,21 +30,17 @@ export function HandleUserErrors() {
             try {
                 return await originalMethod.apply(this, args);
             } catch (err) {
-                // 이미 AppError로 변환된 에러는 그대로 전달
                 if (err instanceof UserError) {
                     throw err;
                 }
 
-                // 다른 AppError도 그대로 전달
                 if (err instanceof AppError) {
                     throw err;
                 }
 
-                // 시스템/라이브러리 레벨 에러만 UserError로 변환
                 if (err instanceof LockError) {
                     throw UserError.LockOperationFailed({}, err);
                 } else if (err instanceof StorageError) {
-                    // StorageError를 의미에 맞는 UserError로 변환
                     switch (err.code) {
                         case StorageErrorCode.NO_SUCH_FILE:
                         case StorageErrorCode.FILE_NOT_FOUND: // Deprecated
