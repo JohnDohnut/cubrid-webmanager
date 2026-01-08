@@ -114,7 +114,6 @@ export class HostService {
                 const newHost: HostInfo = {
                     uid: uuidv4(),
                     ...hostInfo,
-                    // dbProfiles가 없으면 빈 객체로 초기화
                     dbProfiles: {},
                 };
 
@@ -199,16 +198,14 @@ export class HostService {
                     });
                 }
                 
-                // 기존 호스트 정보를 유지하면서 hostInfo에 제공된 필드만 업데이트
                 const updatedHost: HostInfo = {
-                    uid: hostUid, // Keep the original UID
+                    uid: hostUid,
                     id: hostInfo.id ?? existingHost.id,
                     address: hostInfo.address ?? existingHost.address,
                     port: hostInfo.port ?? existingHost.port,
                     password: hostInfo.password ?? existingHost.password,
                     alias: hostInfo.alias ?? existingHost.alias,
                     token: hostInfo.token ?? existingHost.token,
-                    // hostInfo에 dbProfiles가 있으면 덮어쓰기, 없으면 기존 것 유지
                     dbProfiles: hostInfo.dbProfiles ?? existingHost.dbProfiles ?? {},
                 };
 

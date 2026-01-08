@@ -51,7 +51,6 @@ export function HandleLockFsErrors() {
             try {
                 return await originalMethod.apply(this, args);
             } catch (err) {
-                // This logic is from LockService's handleFsError
                 if (err instanceof AppError) {
                     throw err;
                 }

@@ -214,24 +214,24 @@ export class DatabaseController {
     }
 
     /**
-     * Add backup information for a database.
+     * Add automated backup schedule information for a database.
      * Returns empty object on success.
      *
-     * 데이터베이스의 백업 정보를 추가합니다.
+     * 데이터베이스 백업 자동화(스케줄) 정보를 추가합니다.
      * 성공 시 빈 객체를 반환합니다.
      *
-     * @route POST /:hostUid/database/backup/:dbname
+     * @route POST /:hostUid/database/backup-schedule/:dbname
      * @param req Express request (contains authenticated user)
      * @param hostUid Host unique identifier from path parameter
      * @param dbname Database name from path parameter
-     * @param body Request body containing backup information
+     * @param body Request body containing backup schedule information
      * @returns AddBackupInfoClientResponse Empty object on success
      * @example
-     * // POST /host-uid/database/backup/demodb
+     * // POST /host-uid/database/backup-schedule/demodb
      * // Body: { "backupid": "test_backup", "path": "/path/to/backup", ... }
      */
-    @Post('backup/:dbname')
-    async addBackupInfo(
+    @Post('backup-schedule/:dbname')
+    async addBackupSchedule(
         @Request() req,
         @Param('hostUid') hostUid: string,
         @Param('dbname') dbname: string,
@@ -242,34 +242,34 @@ export class DatabaseController {
         validateRequiredFields(
             body,
             ['backupid', 'path', 'period_type', 'period_date', 'time', 'level'],
-            'database/backup',
+            'database/backup-schedule',
             this.logger,
         );
 
         Logger.log(
-            `Adding backup info for database: ${dbname} on host: ${hostUid}`,
+            `Adding backup schedule for database: ${dbname} on host: ${hostUid}`,
             'DatabaseController',
         );
-        return await this.databaseService.addBackupInfo(userId, hostUid, dbname, body);
+        return await this.databaseService.addBackupSchedule(userId, hostUid, dbname, body);
     }
 
     /**
-     * Get backup information for a database.
+     * Get automated backup schedule information for a database.
      * Returns domain-only data (CMS envelope removed).
      *
-     * 데이터베이스의 백업 정보를 조회합니다.
+     * 데이터베이스 백업 자동화(스케줄) 정보를 조회합니다.
      * CMS 메타 필드를 제거한 순수 데이터만 반환합니다.
      *
-     * @route GET /:hostUid/database/backup/:dbname
+     * @route GET /:hostUid/database/backup-schedule/:dbname
      * @param req Express request (contains authenticated user)
      * @param hostUid Host unique identifier from path parameter
      * @param dbname Database name from path parameter
-     * @returns GetBackupInfoClientResponse Backup information
+     * @returns GetBackupInfoClientResponse Backup schedule information
      * @example
-     * // GET /host-uid/database/backup/demodb
+     * // GET /host-uid/database/backup-schedule/demodb
      */
-    @Get('backup/:dbname')
-    async getBackupInfo(
+    @Get('backup-schedule/:dbname')
+    async getBackupSchedule(
         @Request() req,
         @Param('hostUid') hostUid: string,
         @Param('dbname') dbname: string,
@@ -277,10 +277,10 @@ export class DatabaseController {
         const userId = req.user.sub;
 
         Logger.log(
-            `Getting backup info for database: ${dbname} on host: ${hostUid}`,
+            `Getting backup schedule for database: ${dbname} on host: ${hostUid}`,
             'DatabaseController',
         );
-        return await this.databaseService.getBackupInfo(userId, hostUid, dbname);
+        return await this.databaseService.getBackupSchedule(userId, hostUid, dbname);
     }
 
     /**

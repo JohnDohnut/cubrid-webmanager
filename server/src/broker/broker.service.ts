@@ -31,7 +31,6 @@ export class BrokerService {
         }
         const response = await this.cmsClient.postAuthenticated<BaseCmsRequest, GetBrokersInfoCmsResponse>(url, body);
         
-        // CMS token 에러 체크
         checkCmsTokenError(response);
         
         if(response.status !== 'success'){
@@ -54,7 +53,6 @@ export class BrokerService {
 
         const response = await this.cmsClient.postAuthenticated<HandleBrokerCmsRequest, BaseCmsResponse>(url, body);
         
-        // CMS token 에러 체크
         checkCmsTokenError(response);
         
         if(response.status !== 'success'){
@@ -76,7 +74,6 @@ export class BrokerService {
 
         const response = await this.cmsClient.postAuthenticated<HandleBrokerCmsRequest, BaseCmsResponse>(url, body);
         
-        // CMS token 에러 체크
         checkCmsTokenError(response);
         
         if(response.status !== 'success'){
@@ -141,12 +138,9 @@ export class BrokerService {
 
         const response = await this.cmsClient.postAuthenticated<GetBrokerStatusCmsRequest, GetBrokerStatusCmsResponse>(url, body);
         
-        // CMS token 에러 체크
         checkCmsTokenError(response);
         
-        // CMS는 항상 200/201 HTTP status를 반환하므로 body의 status 필드로 성공 여부 판단
         if (response.status === "success") {
-            // BaseCmsResponse 필드 제외하고 순수 데이터만 반환
             const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
             return dataOnly;
         }
