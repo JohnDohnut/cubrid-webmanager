@@ -23,7 +23,6 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
         context: ExecutionContext,
         status?: any,
     ): TUser {
-        // 사용자가 null이거나 undefined인 경우 (JWT 전략에서 검증 실패)
         if (!user) {
             throw AuthError.InvalidToken(
                 { userId: 'unknown' },

@@ -26,23 +26,19 @@ export function HandleHostErrors() {
             } catch (err) {
                 const contextId = args[0] || 'unknown';
 
-                // 이미 AppError로 변환된 에러는 그대로 전달
                 if (err instanceof AppError) {
                     throw err;
                 }
 
-                // StorageError를 의미에 맞는 HostError로 변환
                 if (err instanceof StorageError) {
                     switch (err.code) {
                         case StorageErrorCode.NO_SUCH_FILE:
-                        case StorageErrorCode.FILE_NOT_FOUND: // Deprecated
-                            // 호스트 파일이 없으면 호스트가 없는 것
+                        case StorageErrorCode.FILE_NOT_FOUND:
                             throw HostError.NoSuchHost(
                                 { userId: contextId, hostUid: err.additionalData?.filePath },
                                 err,
                             );
                         case StorageErrorCode.FILE_ALREADY_EXISTS:
-                            // 호스트 파일이 이미 존재하면 중복 호스트
                             throw HostError.DuplicatedHost(
                                 { userId: contextId },
                                 err,
@@ -60,11 +56,9 @@ export function HandleHostErrors() {
                     }
                 }
 
-                // LockError를 의미에 맞는 HostError로 변환
                 if (err instanceof LockError) {
                     switch (err.code) {
                         case LockErrorCode.LOCK_NOT_FOUND:
-                            // 락 파일이 없으면 호스트 파일도 없을 가능성이 높음
                             if (err.message?.includes('ENOENT')) {
                                 throw HostError.NoSuchHost(
                                     { userId: contextId },
@@ -81,7 +75,6 @@ export function HandleHostErrors() {
                                 err,
                             );
                         case LockErrorCode.LOCK_ALREADY_HELD:
-                            // 락이 이미 보유 중이면 내부 에러
                             throw HostError.InternalError(
                                 {
                                     userId: contextId,
@@ -104,7 +97,6 @@ export function HandleHostErrors() {
                     }
                 }
 
-                // 알 수 없는 에러는 InternalError로 변환
                 throw HostError.InternalError({ userId: contextId }, err);
             }
         };

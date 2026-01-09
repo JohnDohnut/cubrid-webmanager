@@ -55,17 +55,13 @@ export class CmsConfigService {
 
         const response = await this.cmsClient.postAuthenticated<BaseCmsRequest, GetEnvCmsResponse>(url, body);
 
-        // CMS token 에러 체크
         checkCmsTokenError(response);
 
-        // CMS는 항상 200/201 HTTP status를 반환하므로 body의 status 필드로 성공 여부 판단
         if (response.status === 'success') {
-            // BaseCmsResponse 필드 제외하고 순수 데이터만 반환
             const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
             return dataOnly;
         }
 
-        // status가 "fail"인 경우 에러 던지기
         checkCmsStatusError(response, `Failed to get environment info: ${response.note || 'Unknown error'}`);
         throw new Error(`Failed to get environment info: ${response.note || 'Unknown error'}`);
     }
@@ -100,17 +96,13 @@ export class CmsConfigService {
 
         const response = await this.cmsClient.postAuthenticated<BaseCmsRequest & { dbname: string; both: 'n' }, ParamdumpCmsResponse>(url, request);
 
-        // CMS token 에러 체크
         checkCmsTokenError(response);
 
-        // CMS는 항상 200/201 HTTP status를 반환하므로 body의 status 필드로 성공 여부 판단
         if (response.status === 'success') {
-            // BaseCmsResponse 필드 제외하고 순수 데이터만 반환
             const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
             return dataOnly;
         }
 
-        // status가 "fail"인 경우 에러 던지기
         checkCmsStatusError(response, `Failed to get paramdump: ${response.note || 'Unknown error'}`);
         throw new Error(
             `Failed to get paramdump: ${response.note || 'Unknown error'}`,
@@ -147,7 +139,6 @@ export class CmsConfigService {
 
         const response = await this.cmsClient.postAuthenticated<BaseCmsRequest & { dbname: string }, StatdumpCmsResponse>(url, request);
 
-        // CMS token 에러 체크
         checkCmsTokenError(response);
 
         if (response.status === 'success') {
@@ -155,7 +146,6 @@ export class CmsConfigService {
             return dataOnly;
         }
 
-        // status가 "fail"인 경우 에러 던지기
         checkCmsStatusError(response, `Failed to get statdump: ${response.note || 'Unknown error'}`);
         throw new Error(`Failed to get statdump: ${response.note || 'Unknown error'}`);
     }
@@ -189,17 +179,13 @@ export class CmsConfigService {
 
         const response = await this.cmsClient.postAuthenticated<GetAllSysParamCmsRequest, GetAllSysParamCmsResponse>(url, request);
 
-        // CMS token 에러 체크
         checkCmsTokenError(response);
 
-        // CMS는 항상 200/201 HTTP status를 반환하므로 body의 status 필드로 성공 여부 판단
         if (response.status === 'success') {
-            // BaseCmsResponse 필드 제외하고 순수 데이터만 반환
             const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
             return dataOnly;
         }
 
-        // status가 "fail"인 경우 에러 던지기
         checkCmsStatusError(response, `Failed to get all system parameters: ${response.note || 'Unknown error'}`);
         throw new Error(
             `Failed to get all system parameters: ${response.note || 'Unknown error'}`,
@@ -238,16 +224,12 @@ export class CmsConfigService {
 
         const response = await this.cmsClient.postAuthenticated<SetSysParamCmsRequest, BaseCmsResponse>(url, request);
 
-        // CMS token 에러 체크
         checkCmsTokenError(response);
 
-        // CMS는 항상 200/201 HTTP status를 반환하므로 body의 status 필드로 성공 여부 판단
         if (response.status === 'success') {
-            // BaseCmsResponse 필드 제외하고 빈 객체 반환
             return {};
         }
 
-        // status가 "fail"인 경우 에러 던지기
         checkCmsStatusError(response, `Failed to set system parameters: ${response.note || 'Unknown error'}`);
         throw new Error(
             `Failed to set system parameters: ${response.note || 'Unknown error'}`,

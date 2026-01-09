@@ -33,30 +33,25 @@ export function parseConfigParams(
         return params;
     }
 
-    // Get the first conflist entry (usually there's only one)
     const confdata = response.conflist[0]?.confdata || [];
 
     for (let i = 0; i < confdata.length; i++) {
         const line = confdata[i].trim();
 
-        // Skip empty lines
         if (!line) {
             continue;
         }
 
-        // Skip comment lines (starting with #)
         if (line.startsWith('#')) {
             continue;
         }
 
-        // Check for section header: [section]
         const sectionMatch = line.match(/^\[([^\]]+)\]$/);
         if (sectionMatch) {
             currentSection = sectionMatch[1];
             continue;
         }
 
-        // Parse key=value format
         const paramMatch = line.match(/^([^=]+)=(.*)$/);
         if (paramMatch) {
             const key = paramMatch[1].trim();
@@ -66,7 +61,7 @@ export function parseConfigParams(
                 key,
                 value,
                 section: currentSection,
-                lineNumber: i + 1, // 1-based line number
+                lineNumber: i + 1,
             });
         }
     }
@@ -115,17 +110,14 @@ export function parseConfigParamsBySection(
     for (const line of confdata) {
         const trimmed = line.trim();
 
-        // Skip empty lines
         if (!trimmed) {
             continue;
         }
 
-        // Skip comment lines (starting with #)
         if (trimmed.startsWith('#')) {
             continue;
         }
 
-        // Check for section header: [section]
         const sectionMatch = trimmed.match(/^\[([^\]]+)\]$/);
         if (sectionMatch) {
             currentSection = sectionMatch[1];
@@ -135,7 +127,6 @@ export function parseConfigParamsBySection(
             continue;
         }
 
-        // Parse key=value format
         const paramMatch = trimmed.match(/^([^=]+)=(.*)$/);
         if (paramMatch) {
             const key = paramMatch[1].trim();

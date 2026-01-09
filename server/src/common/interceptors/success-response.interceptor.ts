@@ -24,8 +24,6 @@ export class SuccessResponseInterceptor implements NestInterceptor {
     return next.handle().pipe(
       map(data => {
         const statusCode = response.statusCode || HttpStatus.OK;
-        
-        // void 반환 또는 undefined인 경우 null로 변환
         const responseData = data === undefined ? null : data;
         
         return {

@@ -40,7 +40,6 @@ export function validateRequiredFields(
 
     for (const fieldName of fieldNames) {
         const value = body[fieldName];
-        // null과 undefined 모두 체크 (빈 문자열은 허용)
         if (value == null) {
             missingFields.push(fieldName);
         }

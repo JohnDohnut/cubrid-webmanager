@@ -37,7 +37,6 @@ export class StorageService {
         try {
             await fs.mkdir(getStoragePath(), { recursive: true });
         } catch (err) {
-            // Ignore errors if directory already exists
             if (err?.code !== 'EEXIST') {
                 console.warn(
                     'Failed to initialize storage directory:',
