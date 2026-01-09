@@ -23,14 +23,10 @@ import { LogModule } from './log/log.module';
 
 /**
  * Root application module that configures all feature modules and global providers.
- * 모든 기능 모듈과 전역 프로바이더를 구성하는 루트 애플리케이션 모듈입니다.
  *
  * This module serves as the main entry point for the WebCA server application,
  * importing all necessary feature modules and configuring global providers
  * including JWT authentication guard.
- *
- * 이 모듈은 WebCA 서버 애플리케이션의 주요 진입점 역할을 하며,
- * 필요한 모든 기능 모듈을 가져오고 JWT 인증 가드를 포함한 전역 프로바이더를 구성합니다.
  *
  * @category Modules
  * @since 1.0.0

@@ -4,13 +4,9 @@ import * as crypto from 'crypto';
 
 /**
  * Service for encryption and decryption operations.
- * 암호화 및 복호화 작업을 위한 서비스입니다.
  *
  * Provides functionality for data encryption, decryption, and hashing.
  * Uses AES-256-CBC encryption and SHA-256 hashing algorithms.
- *
- * 데이터 암호화, 복호화, 해싱 기능을 제공합니다.
- * AES-256-CBC 암호화와 SHA-256 해싱 알고리즘을 사용합니다.
  *
  * @category Infrastructure Services
  * @since 1.0.0
@@ -22,17 +18,13 @@ export class EncryptionService {
 
     /**
      * Generates a SHA-256 hash of the provided plain text or number.
-     * 제공된 평문 텍스트 또는 숫자의 SHA-256 해시를 생성합니다.
      *
      * This method is commonly used for creating consistent identifiers
      * from user IDs or other data that needs to be hashed for storage
      * or comparison purposes.
      *
-     * 이 메서드는 사용자 ID나 저장 또는 비교 목적으로 해시가 필요한
-     * 기타 데이터로부터 일관된 식별자를 생성하는 데 일반적으로 사용됩니다.
-     *
-     * @param plain - The string or number to hash / 해시할 문자열 또는 숫자
-     * @returns The SHA-256 hash as a hexadecimal string / 16진수 문자열로 된 SHA-256 해시
+     * @param plain - The string or number to hash
+     * @returns The SHA-256 hash as a hexadecimal string
      * @example
      * ```typescript
      * const hash = encryptionService.getHashedValue("user123");

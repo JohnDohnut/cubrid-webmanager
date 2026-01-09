@@ -23,23 +23,23 @@ async function bootstrap() {
             credentials: true,
         });
     } else {
-        // localhost로 시작하는 모든 origin 허용
+        // Allow all origins starting with localhost
         const whitelist = [...allowedOrigins];
         console.log('[main.ts] Production CORS whitelist:', whitelist);
         app.enableCors({
             origin: (origin, callback) => {
                 console.log('[main.ts] Received Origin header:', origin);
-                // origin이 없으면 (같은 origin 요청 등) 허용
+                // Allow if origin is not present (same-origin requests, etc.)
                 if (!origin) {
                     callback(null, true);
                     return;
                 }
-                // localhost로 시작하는 모든 origin 허용
+                // Allow all origins starting with localhost
                 if (origin.startsWith('http://localhost:') || origin.startsWith('https://localhost:')) {
                     callback(null, true);
                     return;
                 }
-                // whitelist에 있는 origin 허용
+                // Allow origins in whitelist
                 if (whitelist.includes(origin)) {
                     callback(null, true);
                     return;

@@ -8,10 +8,6 @@ import {
 
 /**
  * A method decorator that wraps user service methods in a try...catch block.
- * 사용자 서비스 메서드를 try...catch 블록으로 감싸는 메서드 데코레이터입니다.
- *
- * 시스템/라이브러리 레벨 에러(StorageError, LockError)만 UserError로 변환하고,
- * 이미 AppError로 변환된 에러는 그대로 전달합니다.
  *
  * Only converts system/library level errors (StorageError, LockError) to UserError.
  * Already converted AppError instances are passed through as-is.

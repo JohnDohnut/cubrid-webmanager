@@ -1,8 +1,6 @@
 /**
  * Checks if the given string is a valid IPv4 address.
  *
- * 주어진 문자열이 유효한 IPv4 주소인지 확인합니다.
- *
  * @param ip - The string to check.
  * @returns True if the string is a valid IPv4 address, false otherwise.
  * @category Utilities
@@ -16,8 +14,6 @@ export function isValidIPv4(ip: string): boolean {
 
 /**
  * Checks if the given string is a valid IPv6 address.
- *
- * 주어진 문자열이 유효한 IPv6 주소인지 확인합니다.
  *
  * @param ip - The string to check.
  * @returns True if the string is a valid IPv6 address, false otherwise.

@@ -1,8 +1,6 @@
 /**
  * Enumeration of host-related error codes.
  *
- * 호스트 관련 오류 코드 열거형입니다.
- *
  * @category Errors
  * @since 1.0.0
  */

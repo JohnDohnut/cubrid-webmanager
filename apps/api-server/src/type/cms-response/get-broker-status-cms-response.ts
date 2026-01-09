@@ -2,8 +2,6 @@ import { BaseCmsResponse } from './base-cms-response';
 
 /**
  * Application Server information in broker status response.
- * 
- * 브로커 상태 응답의 애플리케이션 서버 정보입니다.
  */
 export type ApplicationServerInfo = {
     as_c: string;
@@ -28,8 +26,6 @@ export type ApplicationServerInfo = {
 
 /**
  * CMS response for broker status request.
- * 
- * 브로커 상태 조회 요청에 대한 CMS 응답입니다.
  */
 export type GetBrokerStatusCmsResponse = BaseCmsResponse & {
     asinfo: ApplicationServerInfo[];

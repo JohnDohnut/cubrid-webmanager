@@ -5,8 +5,8 @@ describe('UserController', () => {
     let controller: UserController;
 
     beforeEach(async () => {
-        // TODO: TestingModule 설정
+        // TODO: Set up TestingModule
     });
 
-    // TODO: 테스트 케이스 작성
+    // TODO: Write test cases
 });

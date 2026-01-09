@@ -8,8 +8,6 @@ import { UserRepositoryModule } from '@repository';
 /**
  * Module for managing file operations.
  *
- * 파일 작업을 관리하기 위한 모듈입니다.
- *
  * @category Modules
  * @since 1.0.0
  */

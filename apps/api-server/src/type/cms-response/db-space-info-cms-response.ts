@@ -3,8 +3,6 @@ import { BaseCmsResponse } from './base-cms-response';
 /**
  * Response type for database space information.
  * 
- * 데이터베이스 공간 정보 응답 타입입니다.
- * 
  * @category CMS Responses
  * @since 1.0.0
  */

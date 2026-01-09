@@ -2,8 +2,7 @@ import { HostInfo, DBInfo } from '@type/index';
 import { ValidationError } from '@error/validation/validation-error';
 
 /**
- * Resolved database authentication information.
- * 프로파일 또는 클라이언트 제공 정보로부터 해결된 DB 인증 정보입니다.
+ * Resolved database authentication information from profile or client-provided credentials.
  */
 export interface ResolvedDBAuth {
     dbname: string;
@@ -14,10 +13,8 @@ export interface ResolvedDBAuth {
 /**
  * Utility service for resolving database authentication information.
  * 
- * DB 인증 정보를 해결하는 유틸리티 서비스입니다.
- * 
- * - Profile이 있는 경우: HostInfo의 dbProfiles에서 id/password를 가져옵니다.
- * - Profile이 없는 경우: 클라이언트에서 제공한 id/password를 사용합니다.
+ * - If profile exists: Gets id/password from HostInfo's dbProfiles.
+ * - If profile doesn't exist: Uses id/password provided by the client.
  * 
  * @category Utilities
  * @since 1.0.0
@@ -25,8 +22,6 @@ export interface ResolvedDBAuth {
 export class DBAuthResolver {
     /**
      * Resolves database authentication information from host profile or client-provided credentials.
-     * 
-     * 호스트 프로파일 또는 클라이언트 제공 자격 증명으로부터 DB 인증 정보를 해결합니다.
      * 
      * @param host - Host information containing dbProfiles
      * @param dbname - Database name
@@ -37,10 +32,10 @@ export class DBAuthResolver {
      * 
      * @example
      * ```typescript
-     * // Profile이 있는 경우
+     * // When profile exists
      * const auth = DBAuthResolver.resolve(host, 'mydb');
      * 
-     * // Profile이 없는 경우
+     * // When profile doesn't exist
      * const auth = DBAuthResolver.resolve(host, 'mydb', 'dbuser', 'dbpass');
      * ```
      */
@@ -78,8 +73,6 @@ export class DBAuthResolver {
 
     /**
      * Checks if a database profile exists for the given dbname.
-     * 
-     * 주어진 dbname에 대한 데이터베이스 프로파일이 존재하는지 확인합니다.
      * 
      * @param host - Host information containing dbProfiles
      * @param dbname - Database name

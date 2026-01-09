@@ -3,27 +3,23 @@ import { BaseCmsResponse } from './base-cms-response';
 /**
  * CMS response type for database statistics dump (statdump).
  *
- * 데이터베이스 통계 덤프(statdump) 응답 타입입니다.
- *
  * @category CMS Responses
  * @since 1.0.0
  */
 export type StatdumpCmsResponse = BaseCmsResponse & {
     /**
      * Database name
-     * 데이터베이스 이름
      */
     dbname: string;
 
     /**
      * Execution timestamp
-     * 실행 시각
      */
     time: string;
 
     /**
-     * NOTE: statdump 응답은 다수의 통계 필드를 문자열로 반환합니다.
-     * 주요 필드를 명시하고, 추가 필드는 인덱스 시그니처로 수용합니다.
+     * NOTE: statdump response returns many statistics fields as strings.
+     * Major fields are explicitly defined, and additional fields are accepted via index signature.
      */
     data_page_buffer_hit_ratio: string;
     num_adaptive_flush_log_pages: string;
@@ -103,7 +99,7 @@ export type StatdumpCmsResponse = BaseCmsResponse & {
     time_ha_replication_delay: string;
 
     /**
-     * 추가 통계 필드를 위한 확장
+     * Extension for additional statistics fields
      */
     [key: string]: string;
 };

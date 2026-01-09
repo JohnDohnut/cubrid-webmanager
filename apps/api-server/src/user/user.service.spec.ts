@@ -9,7 +9,7 @@ describe('UserService', () => {
     let passwordService: jest.Mocked<PasswordService>;
 
     beforeEach(async () => {
-        // TODO: Mock 객체 생성 및 TestingModule 설정
+        // TODO: Create mock objects and set up TestingModule
         const mockRepository = {
             loadUserById: jest.fn(),
             atomicUpdateUser: jest.fn(),
@@ -41,7 +41,7 @@ describe('UserService', () => {
         passwordService = module.get(PasswordService)
     });
 
-    // TODO: 테스트 케이스 작성
+    // TODO: Write test cases
 
     
 });

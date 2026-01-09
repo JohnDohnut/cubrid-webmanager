@@ -7,8 +7,6 @@ import { LockModule } from '@lock/lock.module';
 /**
  * Module for managing user repository operations.
  *
- * 사용자 리포지토리 작업을 관리하기 위한 모듈입니다.
- *
  * @category Modules
  * @since 1.0.0
  */

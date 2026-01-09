@@ -11,11 +11,8 @@ import { BrokerService } from './broker.service';
  * - Start a broker
  * - Restart a broker
  * - Get broker status
- *
- * 브로커 관련 작업을 처리하기 위한 컨트롤러입니다.
- * 브로커의 시작, 중지, 재시작, 목록 조회, 상태 조회를 위한 REST API 엔드포인트를 제공합니다.
- * - 모든 엔드포인트는 경로 파라미터로 `hostUid`를 받습니다
- * - RESTful 패턴 준수: /:hostUid/broker/{action}/{identifier}
+ * - All endpoints receive `hostUid` as a path parameter
+ * - Follows RESTful pattern: /:hostUid/broker/{action}/{identifier}
  *
  * @category Controllers
  * @since 1.0.0
@@ -28,8 +25,6 @@ export class BrokerController {
 
     /**
      * Get list of brokers for a specific host.
-     * 
-     * 특정 호스트의 브로커 목록을 조회합니다.
      * 
      * @route GET /:hostUid/broker/list
      * @param req - Request object containing user information
@@ -51,8 +46,6 @@ export class BrokerController {
 
     /**
      * Stop a broker.
-     * 
-     * 브로커를 중지합니다.
      * 
      * @route POST /:hostUid/broker/stop/:bname
      * @param req - Request object containing user information
@@ -78,8 +71,6 @@ export class BrokerController {
     /**
      * Start a broker.
      * 
-     * 브로커를 시작합니다.
-     * 
      * @route POST /:hostUid/broker/start/:bname
      * @param req - Request object containing user information
      * @param hostUid - Host unique identifier from path parameter
@@ -104,8 +95,6 @@ export class BrokerController {
     /**
      * Restart a broker.
      * 
-     * 브로커를 재시작합니다.
-     * 
      * @route POST /:hostUid/broker/restart/:bname
      * @param req - Request object containing user information
      * @param hostUid - Host unique identifier from path parameter
@@ -129,8 +118,6 @@ export class BrokerController {
 
     /**
      * Get broker status including application server information.
-     * 
-     * 애플리케이션 서버 정보를 포함한 브로커 상태를 조회합니다.
      * 
      * @route GET /:hostUid/broker/status/:bname
      * @param req - Request object containing user information

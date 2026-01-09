@@ -7,8 +7,6 @@ import {
 /**
  * Parses configuration file content and extracts system parameters.
  * 
- * 설정 파일 내용을 파싱하여 시스템 파라미터를 추출합니다.
- * 
  * @param response - CMS response containing configuration data
  * @returns Array of parsed system parameters
  * 
@@ -71,8 +69,6 @@ export function parseConfigParams(
 
 /**
  * Parses configuration file content and groups parameters by section.
- * 
- * 설정 파일 내용을 파싱하여 섹션별로 파라미터를 그룹화합니다.
  * 
  * @param response - CMS response containing configuration data
  * @returns System parameters grouped by section
@@ -147,8 +143,6 @@ export function parseConfigParamsBySection(
 /**
  * Gets a specific parameter value from parsed configuration.
  * 
- * 파싱된 설정에서 특정 파라미터 값을 가져옵니다.
- * 
  * @param grouped - System parameters grouped by section
  * @param section - Section name (optional, searches all sections if not provided)
  * @param key - Parameter key
@@ -171,8 +165,6 @@ export function getConfigParam(
 
 /**
  * Gets all parameters from a specific section.
- * 
- * 특정 섹션의 모든 파라미터를 가져옵니다.
  * 
  * @param grouped - System parameters grouped by section
  * @param section - Section name

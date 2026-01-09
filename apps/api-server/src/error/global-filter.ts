@@ -17,10 +17,6 @@ import { StandardResponse } from '@api-interfaces';
  * It catches various types of exceptions (HttpException, AppError, and others)
  * and formats the response according to RFC 7807 Problem Details for AppError instances.
  *
- * 애플리케이션 전반의 모든 처리되지 않은 예외를 처리하기 위한 전역 예외 필터입니다.
- * 다양한 유형의 예외(HttpException, AppError 및 기타)를 catch하고
- * AppError 인스턴스의 경우 RFC 7807 문제 세부 정보에 따라 응답 형식을 지정합니다.
- *
  * @category Errors
  * @since 1.0.0
  */

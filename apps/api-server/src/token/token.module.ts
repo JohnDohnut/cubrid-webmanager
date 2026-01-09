@@ -8,8 +8,6 @@ import { JwtStrategy } from './jwt-strategy';
 /**
  * Module for managing JWT authentication and token-related functionalities.
  *
- * JWT 인증 및 토큰 관련 기능을 관리하기 위한 모듈입니다.
- *
  * @category Modules
  * @since 1.0.0
  */

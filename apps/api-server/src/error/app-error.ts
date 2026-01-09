@@ -60,8 +60,8 @@ export class AppError extends Error {
     }
 
     /**
-     * 클라이언트에 안전하게 노출할 수 있는 필드만 필터링합니다.
-     * 보안상 민감한 정보는 제외합니다.
+     * Filters only fields that can be safely exposed to the client.
+     * Excludes sensitive information for security purposes.
      * 
      * @private
      */
