@@ -241,9 +241,9 @@
 					"response": []
 				},
 				{
-					"name": "Update User Profile",
+					"name": "Update User Account",
 					"request": {
-						"method": "PUT",
+						"method": "POST",
 						"header": [
 							{
 								"key": "Content-Type",
@@ -252,20 +252,20 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"department\": \"Engineering\",\n  \"user_preference\": {\n    \"dashboardInterval\": 30\n  }\n}"
+							"raw": "{\n  \"department\": \"Engineering\"\n}"
 						},
 						"url": {
-							"raw": "{{base_url}}/user/profile",
+							"raw": "{{base_url}}/user/account",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"user",
-								"profile"
+								"account"
 							]
 						},
 						"description": {
-							"content": "Update user profile information (department and/or preferences).\n\n**URI:**\n```\nPUT /user/profile\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Request Body:**\n```json\n{\n  \"department\": \"Engineering\",\n  \"user_preference\": {\n    \"dashboardInterval\": 30\n  }\n}\n```\n\n**Success Response (200 OK):**\n- Status: `200 OK`\n- Body: No content\n\n**Error Response (400 Bad Request):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Invalid field value\",\n  \"error\": \"Bad Request\"\n}\n```",
+							"content": "Update user information (department).\n\n**URI:**\n```\nPOST /user/account\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Request Body:**\n```json\n{\n  \"department\": \"Engineering\"\n}\n```\n\n**Success Response (200 OK):**\n- Status: `200 OK`\n- Body: No content\n\n**Error Response (400 Bad Request):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Invalid field value\",\n  \"error\": \"Bad Request\"\n}\n```",
 							"type": "text/markdown"
 						}
 					},
@@ -323,7 +323,7 @@
 				{
 					"name": "Add Host",
 					"request": {
-						"method": "GET",
+						"method": "POST",
 						"header": [
 							{
 								"key": "Content-Type",
@@ -562,7 +562,7 @@
 				{
 					"name": "Get Database Volume Info",
 					"request": {
-						"method": "POST",
+						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/{{hostUid}}/database/volume-info/{{dbname}}",
@@ -578,6 +578,120 @@
 						},
 						"description": {
 							"content": "Get database volume/space information for a database on a host. Returns domain-only data (CMS envelope removed).\n\n**URI:**\n```\nGET /:hostUid/database/volume-info/:dbname\n```\n**Example:**\n```\nGET /host-uid-1/database/volume-info/demodb\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `dbname` - Database name\n\n**Success Response (200 OK):**\n```json\n{\n  \"dbname\": \"demodb\",\n  \"pagesize\": \"16384\",\n  \"logpagesize\": \"16384\",\n  \"freespace\": \"1048576\",\n  \"dbinfo\": [\n    {\n      \"type\": \"data\",\n      \"purpose\": \"data\",\n      \"total_size\": \"1073741824\",\n      \"used_size\": \"536870912\",\n      \"free_size\": \"536870912\",\n      \"volume_count\": \"1\"\n    }\n  ],\n  \"fileinfo\": [\n    {\n      \"data_type\": \"data\",\n      \"total_size\": \"1073741824\",\n      \"used_size\": \"536870912\",\n      \"reserved_size\": \"536870912\",\n      \"file_count\": \"1\",\n      \"file_table_size\": \"1048576\"\n    }\n  ],\n  \"spaceinfo\": [\n    {\n      \"spacename\": \"demodb\",\n      \"type\": \"data\",\n      \"location\": \"/home/cubrid/databases/demodb\",\n      \"purpose\": \"data\",\n      \"totalpage\": \"65536\",\n      \"usedpage\": \"32768\",\n      \"freepage\": \"32768\",\n      \"volid\": \"0\"\n    }\n  ]\n}\n```\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Database not found\",\n  \"error\": \"Not Found\"\n}\n```",
+							"type": "text/markdown"
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Backup Schedule",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"backupid\": \"test_backup\",\n  \"path\": \"/path/to/backup\",\n  \"period_type\": \"daily\",\n  \"period_date\": \"1\",\n  \"time\": \"02:00\",\n  \"level\": \"0\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/backup-schedule/{{dbname}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"database",
+								"backup-schedule",
+								"{{dbname}}"
+							]
+						},
+						"description": {
+							"content": "Add automated backup schedule information for a database. Returns empty object on success.\n\n**URI:**\n```\nPOST /:hostUid/database/backup-schedule/:dbname\n```\n**Example:**\n```\nPOST /host-uid-1/database/backup-schedule/demodb\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `dbname` - Database name\n\n**Request Body:**\n```json\n{\n  \"backupid\": \"test_backup\",\n  \"path\": \"/path/to/backup\",\n  \"period_type\": \"daily\",\n  \"period_date\": \"1\",\n  \"time\": \"02:00\",\n  \"level\": \"0\"\n}\n```\n\n**Success Response (200 OK):**\n```json\n{}\n```\n\n**Error Response (400 Bad Request):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Missing required fields\",\n  \"error\": \"Bad Request\"\n}\n```",
+							"type": "text/markdown"
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Backup Schedule",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/backup-schedule/{{dbname}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"database",
+								"backup-schedule",
+								"{{dbname}}"
+							]
+						},
+						"description": {
+							"content": "Get automated backup schedule information for a database. Returns domain-only data (CMS envelope removed).\n\n**URI:**\n```\nGET /:hostUid/database/backup-schedule/:dbname\n```\n**Example:**\n```\nGET /host-uid-1/database/backup-schedule/demodb\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `dbname` - Database name\n\n**Success Response (200 OK):**\n```json\n{\n  \"backupinfo\": [\n    {\n      \"backupid\": \"test_backup\",\n      \"path\": \"/path/to/backup\",\n      \"period_type\": \"daily\",\n      \"period_date\": \"1\",\n      \"time\": \"02:00\",\n      \"level\": \"0\"\n    }\n  ]\n}\n```\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Database not found\",\n  \"error\": \"Not Found\"\n}\n```",
+							"type": "text/markdown"
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Set Auto Exec Query",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"planlist\": [\n    {\n      \"queryplan\": []\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/auto-exec-query/{{dbname}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"database",
+								"auto-exec-query",
+								"{{dbname}}"
+							]
+						},
+						"description": {
+							"content": "Set auto-execution query for a database. Returns empty object on success.\n\n**URI:**\n```\nPOST /:hostUid/database/auto-exec-query/:dbname\n```\n**Example:**\n```\nPOST /host-uid-1/database/auto-exec-query/demodb\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `dbname` - Database name\n\n**Request Body:**\n```json\n{\n  \"planlist\": [\n    {\n      \"queryplan\": []\n    }\n  ]\n}\n```\n\n**Success Response (200 OK):**\n```json\n{}\n```\n\n**Error Response (400 Bad Request):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Missing required fields: planlist\",\n  \"error\": \"Bad Request\"\n}\n```",
+							"type": "text/markdown"
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Auto Exec Query",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/auto-exec-query/{{dbname}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"database",
+								"auto-exec-query",
+								"{{dbname}}"
+							]
+						},
+						"description": {
+							"content": "Get auto-execution query for a database. Returns domain-only data (CMS envelope removed).\n\n**URI:**\n```\nGET /:hostUid/database/auto-exec-query/:dbname\n```\n**Example:**\n```\nGET /host-uid-1/database/auto-exec-query/demodb\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `dbname` - Database name\n\n**Success Response (200 OK):**\n```json\n{\n  \"planlist\": [\n    {\n      \"queryplan\": []\n    }\n  ]\n}\n```\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Database not found\",\n  \"error\": \"Not Found\"\n}\n```",
 							"type": "text/markdown"
 						}
 					},
@@ -660,7 +774,7 @@
 				{
 					"name": "Get Broker List",
 					"request": {
-						"method": "POST",
+						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/{{hostUid}}/broker/list",
@@ -785,7 +899,7 @@
 				{
 					"name": "Check File",
 					"request": {
-						"method": "POST",
+						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/{{hostUid}}/file/checkfile",

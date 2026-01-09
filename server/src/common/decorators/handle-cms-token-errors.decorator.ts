@@ -20,7 +20,6 @@ export function isInvalidTokenError(response: any): boolean {
         return false;
     }
 
-    // BaseCmsResponse를 확장하는 타입인지 확인
     if ('note' in response) {
         return response.note === INVALID_TOKEN_MESSAGE;
     }
@@ -86,7 +85,6 @@ export function HandleCmsTokenErrors() {
         descriptor.value = async function (...args: any[]) {
             const result = await originalMethod.apply(this, args);
 
-            // Promise인 경우 (비동기 메서드)
             if (result instanceof Promise) {
                 return result.then((response) => {
                     if (isInvalidTokenError(response)) {
@@ -96,7 +94,6 @@ export function HandleCmsTokenErrors() {
                 });
             }
 
-            // 동기 메서드인 경우
             if (isInvalidTokenError(result)) {
                 throw CmsError.InvalidToken();
             }

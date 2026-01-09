@@ -33,7 +33,6 @@ export class DatabaseUserService {
      * @returns Database users list
      */
     async getDatabaseUsers(userId: string) {
-        // TODO: Implement
         return [];
     }
 
@@ -61,8 +60,6 @@ export class DatabaseUserService {
         clientPassword?: string,
     ): Promise<boolean> {
         const host = await this.hostService.findHostInternal(userId, hostUid);
-        
-        // DB 인증 정보 해결 (프로파일 우선, 없으면 클라이언트 제공 정보 사용)
         const dbAuth = DBAuthResolver.resolve(host, dbname, clientId, clientPassword);
         
         const url = `https://${host.address}:${host.port}/cm_api`;
@@ -80,10 +77,8 @@ export class DatabaseUserService {
             BaseCmsResponse
         >(url, data);
 
-        // CMS token 에러 체크
         checkCmsTokenError(response);
 
-        // CMS는 항상 200/201 HTTP status를 반환하므로 body의 status 필드로 성공 여부 판단
         if (response.status === 'success') {
             return true;
         }

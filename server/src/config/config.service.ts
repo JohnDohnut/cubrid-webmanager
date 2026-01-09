@@ -32,9 +32,8 @@ export class ConfigService {
     public allowedOrigins: string[] = [];
 
     constructor() {
-        const args = parseArgs(process.argv.slice(2)); // Corrected slice index
+        const args = parseArgs(process.argv.slice(2));
 
-        // 1. Validate required arguments (SEED and SALT)
         if (!args.SEED || !args.SALT) {
             throw new Error(
                 'SEED and SALT must be provided as command-line arguments (e.g., --SEED=... --SALT=...).',
@@ -43,7 +42,6 @@ export class ConfigService {
         this.seed = args.SEED;
         this.salt = args.SALT;
 
-        // 2. Validate PORT
         if (args.PORT) {
             const portNumber = parseInt(args.PORT, 10);
             if (isNaN(portNumber) || portNumber <= 0 || portNumber > 65535) {
@@ -53,15 +51,13 @@ export class ConfigService {
             }
             this.port = args.PORT;
         } else {
-            this.port = '8080'; // Default port
+            this.port = '8080';
         }
 
-        // 3. Set environment and CORS origins
         this.environment = args.ENVIRONMENT || 'development';
-        console.log('[ConfigService] Environment:', this.environment); // DEBUG
+        console.log('[ConfigService] Environment:', this.environment);
         this.setAllowedOrigins(args.ALLOWED_ORIGINS);
 
-        // 4. Derive secret key
         const derived = crypto.pbkdf2Sync(
             this.seed,
             this.salt,
@@ -70,7 +66,6 @@ export class ConfigService {
             'sha256',
         );
         this.secret_key = derived.toString('hex');
-        // This would catch errors from pbkdf2Sync if inputs are wrong type, etc.
     }
 
     /**
@@ -123,7 +118,6 @@ export class ConfigService {
                 this.allowedOrigins = []; // Default to no origins in production if not specified
             }
         } else {
-            // 개발 환경에서는 모든 origin 허용
             this.allowedOrigins = ['*'];
         }
         console.log('[ConfigService] Allowed Origins:', this.allowedOrigins); // DEBUG

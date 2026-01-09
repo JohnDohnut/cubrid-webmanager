@@ -78,7 +78,6 @@ export class LockService {
             });
             return { filePath, release };
         } catch (err: any) {
-            // 에러는 데코레이터에서 처리됨
             throw err;
         }
     }
@@ -136,31 +135,23 @@ export class LockService {
             result = await work();
             return result;
         } catch (error) {
-            // worker 메서드에서 발생한 에러를 저장
             Logger.log('with lock error');
             workerError = error;
-            // 에러는 finally에서 처리 후 던짐
         } finally {
-            // lock 해제는 항상 시도하되, 실패해도 로그만 남기고 무시
-            // release 실패는 치명적이지 않음 (락은 시간이 지나면 자동으로 만료됨)
             try {
                 await this.release(lock);
             } catch (releaseError) {
-                // release 에러는 로그만 남기고 무시 (worker 에러가 우선)
                 Logger.warn(
                     `Lock release failed for ${filename}: ${releaseError.message}`,
                     releaseError.stack,
                 );
-                // release 에러는 무시 (락은 시간이 지나면 자동으로 만료됨)
             }
             
-            // worker 에러가 있으면 던짐
             if (workerError) {
                 throw workerError;
             }
         }
         
-        // TypeScript를 위한 명시적 반환 (실제로는 도달하지 않음)
         return result!;
     }
 }
