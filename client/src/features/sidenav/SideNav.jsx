@@ -20,6 +20,7 @@ import ChangeCMPassword from "@/features/sidenav/components/modal/manageCMUser/C
 import CompactDB from "@/features/sidenav/components/modal/DatabaseManagement/CompactDB.jsx";
 import CheckDB from "@/features/sidenav/components/modal/DatabaseManagement/CheckDB.jsx";
 import RenameDB from "@/features/sidenav/components/modal/DatabaseManagement/RenameDB.jsx";
+import DeleteDB from "@/features/sidenav/components/modal/DatabaseManagement/DeleteDB.jsx";
 
 
 const SideNav = () => {
@@ -37,6 +38,7 @@ const SideNav = () => {
             <CompactDB/>
             <CheckDB/>
             <RenameDB/>
+            <DeleteDB/>
         <div className={styles.layout}>
             <div className={styles.top__menu}>
                 <div className={styles.mode__view}>

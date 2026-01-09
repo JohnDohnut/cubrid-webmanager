@@ -7,7 +7,14 @@ import {useDispatch} from "react-redux";
 import React from "react";
 import {setBuffering} from "@/shared/slice/globalSlice.js";
 import useDatabaseOperation from "@/features/sidenav/hook/useDatabaseOperation.js";
-import {setCheckDB, setCompactDB, setParamDump, setPlanDump, setRenameDB} from "@/features/sidenav/sideNavSlice.js";
+import {
+    setCheckDB,
+    setCompactDB,
+    setDeleteDB,
+    setParamDump,
+    setPlanDump,
+    setRenameDB
+} from "@/features/sidenav/sideNavSlice.js";
 
 const  DatabaseMenu = ({node, clientX, clientY, open, onClose}) =>{
     const {startDatabase, stopDatabase} = useDatabaseOperation()
@@ -107,9 +114,9 @@ const  DatabaseMenu = ({node, clientX, clientY, open, onClose}) =>{
                     label: "Delete Database",
                     key: nanoid(4),
                     disabled: node.status === "active",
-                    // onClick: ()=>{
-                    //     dispatch(setDeleteDB({open: true, node}));
-                    // }
+                    onClick: ()=>{
+                        dispatch(setDeleteDB({open: true, node}));
+                    }
                 },
             ]
         },
