@@ -1,7 +1,7 @@
 import React from "react";
 import {Form, Input, Button, Checkbox, Card, message, Typography} from "antd";
 import {useDispatch} from "react-redux";
-import { useNavigate } from "react-router-dom";
+import {Link, useNavigate} from "react-router-dom";
 import {loginAPI} from "../../features/auth/authAPI.js";
 import {setLogin} from "../../features/auth/authSlice.js";
 import {setBuffering} from "@/shared/slice/globalSlice.js";
@@ -78,9 +78,9 @@ const LoginPage = () => {
                     </Form.Item>
                     <Text>
                         Don’t have an account?{" "}
-                        <a href={"/register"} style={{ cursor: "pointer", color: "var(--color-primary)" }}>
+                        <Link to={"/register"} style={{ cursor: "pointer" }} replace>
                             Register
-                        </a>
+                        </Link>
                     </Text>
                 </Form>
             </Card>
