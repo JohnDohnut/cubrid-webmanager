@@ -8,8 +8,6 @@ import { SecurityModule } from '@security';
 /**
  * Module for handling CMS HTTPS client communications.
  *
- * CMS HTTPS 클라이언트 통신을 처리하기 위한 모듈입니다.
- *
  * @category Modules
  * @since 1.0.0
  */

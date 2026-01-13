@@ -6,9 +6,6 @@ import * as selfsigned from 'selfsigned';
  * Retrieves existing SSL certificates or generates new self-signed certificates if they don't exist.
  * Certificates are stored in an 'ssl' directory relative to the executable path (for pkg) or project root.
  *
- * 기존 SSL 인증서를 검색하거나, 존재하지 않는 경우 새 자체 서명 인증서를 생성합니다.
- * 인증서는 실행 파일 경로(pkg의 경우) 또는 프로젝트 루트를 기준으로 'ssl' 디렉토리에 저장됩니다.
- *
  * @returns An object containing the SSL key and certificate.
  * @category Utilities
  * @since 1.0.0

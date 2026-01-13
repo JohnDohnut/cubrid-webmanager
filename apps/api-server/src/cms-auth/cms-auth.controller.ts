@@ -3,10 +3,8 @@ import { CmsAuthService } from './cms-auth.service';
 
 /**
  * Controller for handling CMS authentication operations.
- *
- * CMS 인증 작업을 처리하기 위한 컨트롤러입니다.
- * - 모든 엔드포인트는 경로 파라미터로 `hostUid`를 받습니다
- * - RESTful 패턴 준수: /:hostUid/cms-auth/{action}
+ * - All endpoints receive `hostUid` as a path parameter
+ * - Follows RESTful pattern: /:hostUid/cms-auth/{action}
  *
  * @category Controllers
  * @since 1.0.0
@@ -17,8 +15,6 @@ export class CmsAuthController {
 
     /**
      * Handles CMS login for a specific host.
-     *
-     * 특정 호스트에 대한 CMS 로그인을 처리합니다.
      *
      * @route POST /:hostUid/cms-auth/login
      * @param request - The Express request object, containing user information from the JWT.

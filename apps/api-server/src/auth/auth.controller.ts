@@ -5,13 +5,9 @@ import { Public } from '@common';
 
 /**
  * Controller for handling authentication operations.
- * 인증 작업을 처리하는 컨트롤러입니다.
  *
  * Provides endpoints for user login and registration. These endpoints are
  * marked as public and do not require JWT authentication.
- *
- * 사용자 로그인과 등록을 위한 엔드포인트를 제공합니다.
- * 이러한 엔드포인트는 공개로 표시되며 JWT 인증이 필요하지 않습니다.
  *
  * @category Controllers
  * @since 1.0.0

@@ -48,11 +48,6 @@ import {
  * - Evaluates CMS body `status` (HTTP code is always 200/201) to decide success
  * - Strips CMS envelope fields for domain-facing return types when needed
  *
- * 데이터베이스 작업을 관리하는 서비스입니다.
- * - CMS 요청(task, token, payload)을 구성하여 CMS HTTPS Client로 전달합니다
- * - CMS 본문 `status`로 성공/실패를 판단합니다(HTTP 200/201이 항상 반환됨)
- * - 필요 시 도메인에 반환할 때 CMS 메타 필드를 제거합니다
- *
  * @category Business Services
  * @since 1.0.0
  */
@@ -68,14 +63,11 @@ export class DatabaseService {
      * Get start information for databases on a host (internal use).
      * Returns raw CMS response without transformation.
      *
-     * 특정 호스트의 데이터베이스 시작 정보를 조회합니다 (내부 사용).
-     * CMS 응답을 변환 없이 그대로 반환합니다.
-     *
      * @internal
-     * @param userId 사용자 ID (JWT)
-     * @param hostUid 호스트 UID
+     * @param userId User ID from JWT
+     * @param hostUid Host UID
      * @returns StartInfoCmsResponse
-     * @throws DatabaseError 요청 실패 또는 CMS status가 fail인 경우
+     * @throws DatabaseError If request fails or CMS status is fail
      */
     @HandleDatabaseErrors()
     async startInfoInternal(
@@ -107,13 +99,10 @@ export class DatabaseService {
      * Get start information for databases on a host.
      * Returns domain-only data (CMS envelope removed).
      *
-     * 특정 호스트의 데이터베이스 시작 정보를 조회합니다.
-     * CMS 메타 필드를 제거한 순수 데이터만 반환합니다.
-     *
-     * @param userId 사용자 ID (JWT)
-     * @param hostUid 호스트 UID
+     * @param userId User ID from JWT
+     * @param hostUid Host UID
      * @returns StartInfoClientResponse
-     * @throws DatabaseError 요청 실패 또는 CMS status가 fail인 경우
+     * @throws DatabaseError If request fails or CMS status is fail
      */
     @HandleDatabaseErrors()
     async startInfo(
@@ -143,13 +132,11 @@ export class DatabaseService {
     /**
      * Start a database on a host.
      *
-     * 특정 호스트의 데이터베이스를 시작합니다.
-     *
-     * @param userId 사용자 ID (JWT)
-     * @param hostUid 호스트 UID
-     * @param dbname 시작할 DB 이름
-     * @returns 성공 시 최신 시작 정보 (StartInfoClientResponse)
-     * @throws DatabaseError CMS status가 fail인 경우
+     * @param userId User ID from JWT
+     * @param hostUid Host UID
+     * @param dbname Database name to start
+     * @returns Latest start info (StartInfoClientResponse) on success
+     * @throws DatabaseError If CMS status is fail
      */
     @HandleDatabaseErrors()
     async startDatabase(
@@ -182,13 +169,11 @@ export class DatabaseService {
     /**
      * Stop a database on a host.
      *
-     * 특정 호스트의 데이터베이스를 중지합니다.
-     *
-     * @param userId 사용자 ID (JWT)
-     * @param hostUid 호스트 UID
-     * @param dbname 중지할 DB 이름
-     * @returns 성공 시 최신 시작 정보 (StartInfoClientResponse)
-     * @throws DatabaseError CMS status가 fail인 경우
+     * @param userId User ID from JWT
+     * @param hostUid Host UID
+     * @param dbname Database name to stop
+     * @returns Latest start info (StartInfoClientResponse) on success
+     * @throws DatabaseError If CMS status is fail
      */
     @HandleDatabaseErrors()
     async stopDatabase(
@@ -221,13 +206,11 @@ export class DatabaseService {
     /**
      * Restart a database (stop then start).
      *
-     * 특정 호스트의 데이터베이스를 재시작합니다(중지 후 시작 순차 수행).
-     *
-     * @param userId 사용자 ID (JWT)
-     * @param hostUid 호스트 UID
-     * @param dbname 재시작할 DB 이름
-     * @returns 성공 시 최신 시작 정보 (StartInfoClientResponse)
-     * @throws DatabaseError 중지/시작 단계에서 실패 시 해당 에러
+     * @param userId User ID from JWT
+     * @param hostUid Host UID
+     * @param dbname Database name to restart
+     * @returns Latest start info (StartInfoClientResponse) on success
+     * @throws DatabaseError If stop/start step fails
      */
     @HandleDatabaseErrors()
     async restartDatabase(
@@ -284,15 +267,13 @@ export class DatabaseService {
     /**
      * Save a database profile for a host.
      *
-     * 호스트에 대한 데이터베이스 프로파일을 저장합니다.
-     *
-     * @param userId 사용자 ID (JWT)
-     * @param hostUid 호스트 UID
-     * @param dbname 데이터베이스 이름
-     * @param databaseId 데이터베이스 사용자 ID
-     * @param databasePassword 데이터베이스 비밀번호
-     * @returns 성공 시 최신 시작 정보 (StartInfoClientResponse)
-     * @throws DatabaseError 프로파일이 이미 존재하거나 저장 실패 시
+     * @param userId User ID from JWT
+     * @param hostUid Host UID
+     * @param dbname Database name
+     * @param databaseId Database user ID
+     * @param databasePassword Database password
+     * @returns Latest start info (StartInfoClientResponse) on success
+     * @throws DatabaseError If profile already exists or save fails
      */
     @HandleDatabaseErrors()
     async saveDatabaseProfile(
@@ -348,14 +329,11 @@ export class DatabaseService {
      * Get database volume/space information for a database on a host.
      * Returns domain-only data (CMS envelope removed).
      *
-     * 특정 호스트의 데이터베이스 볼륨/공간 정보를 조회합니다.
-     * CMS 메타 필드를 제거한 순수 데이터만 반환합니다.
-     *
-     * @param userId 사용자 ID (JWT)
-     * @param hostUid 호스트 UID
-     * @param dbname 데이터베이스 이름
+     * @param userId User ID from JWT
+     * @param hostUid Host UID
+     * @param dbname Database name
      * @returns DatabaseVolumeInfoClientResponse
-     * @throws DatabaseError 요청 실패 또는 CMS status가 fail인 경우
+     * @throws DatabaseError If request fails or CMS status is fail
      */
     @HandleDatabaseErrors()
     async getDBSpaceInfo(
@@ -416,15 +394,12 @@ export class DatabaseService {
      * Add automated backup schedule information for a database.
      * Returns empty object on success (CMS envelope fields removed).
      *
-     * 데이터베이스의 백업 정보를 추가합니다.
-     * 성공 시 빈 객체를 반환합니다 (CMS 메타 필드 제거).
-     *
-     * @param userId 사용자 ID (JWT)
-     * @param hostUid 호스트 UID
-     * @param dbname 데이터베이스 이름
-     * @param backupInfo 백업 정보
-     * @returns AddBackupInfoClientResponse 성공 시 빈 객체
-     * @throws DatabaseError 요청 실패 또는 CMS status가 fail인 경우
+     * @param userId User ID from JWT
+     * @param hostUid Host UID
+     * @param dbname Database name
+     * @param backupInfo Backup information
+     * @returns AddBackupInfoClientResponse Empty object on success
+     * @throws DatabaseError If request fails or CMS status is fail
      */
     @HandleDatabaseErrors()
     async addBackupSchedule(
@@ -468,14 +443,11 @@ export class DatabaseService {
      * Get automated backup schedule information for a database.
      * Returns domain-only data (CMS envelope removed).
      *
-     * 데이터베이스의 백업 정보를 조회합니다.
-     * CMS 메타 필드를 제거한 순수 데이터만 반환합니다.
-     *
-     * @param userId 사용자 ID (JWT)
-     * @param hostUid 호스트 UID
-     * @param dbname 데이터베이스 이름
-     * @returns GetBackupInfoClientResponse 백업 정보
-     * @throws DatabaseError 요청 실패 또는 CMS status가 fail인 경우
+     * @param userId User ID from JWT
+     * @param hostUid Host UID
+     * @param dbname Database name
+     * @returns GetBackupInfoClientResponse Backup information
+     * @throws DatabaseError If request fails or CMS status is fail
      */
     @HandleDatabaseErrors()
     async getBackupSchedule(
@@ -510,15 +482,12 @@ export class DatabaseService {
      * Set auto-execution query for a database.
      * Returns empty object on success (CMS envelope fields removed).
      *
-     * 데이터베이스의 자동 실행 쿼리를 설정합니다.
-     * 성공 시 빈 객체를 반환합니다 (CMS 메타 필드 제거).
-     *
-     * @param userId 사용자 ID (JWT)
-     * @param hostUid 호스트 UID
-     * @param dbname 데이터베이스 이름
-     * @param autoExecQuery 자동 실행 쿼리 설정
-     * @returns SetAutoExecQueryClientResponse 성공 시 빈 객체
-     * @throws DatabaseError 요청 실패 또는 CMS status가 fail인 경우
+     * @param userId User ID from JWT
+     * @param hostUid Host UID
+     * @param dbname Database name
+     * @param autoExecQuery Auto-execution query configuration
+     * @returns SetAutoExecQueryClientResponse Empty object on success
+     * @throws DatabaseError If request fails or CMS status is fail
      */
     @HandleDatabaseErrors()
     async setAutoExecQuery(
@@ -549,14 +518,11 @@ export class DatabaseService {
      * Get auto-execution query for a database.
      * Returns domain-only data (CMS envelope removed).
      *
-     * 데이터베이스의 자동 실행 쿼리를 조회합니다.
-     * CMS 메타 필드를 제거한 순수 데이터만 반환합니다.
-     *
-     * @param userId 사용자 ID (JWT)
-     * @param hostUid 호스트 UID
-     * @param dbname 데이터베이스 이름
-     * @returns GetAutoExecQueryClientResponse 자동 실행 쿼리 정보
-     * @throws DatabaseError 요청 실패 또는 CMS status가 fail인 경우
+     * @param userId User ID from JWT
+     * @param hostUid Host UID
+     * @param dbname Database name
+     * @returns GetAutoExecQueryClientResponse Auto-execution query information
+     * @throws DatabaseError If request fails or CMS status is fail
      */
     @HandleDatabaseErrors()
     async getAutoExecQuery(

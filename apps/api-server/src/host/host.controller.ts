@@ -18,14 +18,10 @@ import { HostService } from './host.service';
 
 /**
  * Controller for managing host-related operations.
- * 호스트 관련 작업을 관리하는 컨트롤러입니다.
  *
  * Handles HTTP requests for host management including adding, updating,
  * retrieving, and deleting hosts. All operations require user authentication.
- *
- * 호스트 추가, 업데이트, 조회, 삭제를 포함한 호스트 관리를 위한
- * HTTP 요청을 처리합니다. 모든 작업은 사용자 인증이 필요합니다.
- * - RESTful 패턴 준수: /host (목록/추가), /host/:hostUid (조회/수정/삭제)
+ * - Follows RESTful pattern: /host (list/add), /host/:hostUid (get/update/delete)
  *
  * @category Controllers
  * @since 1.0.0

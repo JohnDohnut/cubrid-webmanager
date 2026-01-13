@@ -1,8 +1,6 @@
 /**
  * Enumeration of database-related error codes.
  * 
- * 데이터베이스 관련 오류 코드 열거형입니다.
- * 
  * @category Errors
  * @since 1.0.0
  */

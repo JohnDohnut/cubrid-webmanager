@@ -4,9 +4,6 @@ import { ValidationErrorCode } from './validation-error-code';
 /**
  * Error class for validation-related operations.
  * Used for request body validation, form validation, etc.
- * 
- * 유효성 검사 관련 작업을 위한 에러 클래스입니다.
- * 요청 본문 검증, 폼 검증 등에 사용됩니다.
  */
 export class ValidationError extends AppError {
     constructor(
@@ -64,9 +61,6 @@ export class ValidationError extends AppError {
     /**
      * Creates a validation error for missing database credentials.
      * Used when database profile doesn't exist and client must provide credentials.
-     * 
-     * 데이터베이스 자격 증명 누락을 나타내는 유효성 검사 오류를 생성합니다.
-     * 데이터베이스 프로파일이 없을 때 클라이언트가 자격 증명을 제공해야 하는 경우에 사용됩니다.
      * 
      * @param dbname - Database name
      * @param missingFields - Array of missing credential field names (e.g., ['id', 'password'])

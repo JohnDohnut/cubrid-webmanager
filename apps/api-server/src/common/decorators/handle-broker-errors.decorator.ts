@@ -6,10 +6,6 @@ import { AppError, BrokerError, CmsError, HostError } from '@error';
  * It translates underlying errors (like CmsError or HostError) into more specific
  * BrokerError types.
  *
- * 브로커 서비스 메서드를 try...catch 블록으로 감싸는 메서드 데코레이터입니다.
- *
- * 하위 에러(CmsError 또는 HostError)를 더 구체적인 BrokerError 타입으로 변환합니다.
- *
  * @category Decorators
  * @since 1.0.0
  */

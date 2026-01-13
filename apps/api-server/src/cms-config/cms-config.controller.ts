@@ -7,13 +7,8 @@ import { GetEnvClientResponse, GetAllSysParamClientResponse, ParamdumpClientResp
  *
  * Provides REST API endpoints for retrieving environment information
  * from CMS hosts including CUBRID version, broker version, database paths, and system information.
- *
- * CMS 환경 구성 작업을 처리하기 위한 컨트롤러입니다.
- *
- * CUBRID 버전, 브로커 버전, 데이터베이스 경로, 시스템 정보 등
- * CMS 호스트의 환경 정보를 조회하는 REST API 엔드포인트를 제공합니다.
- * - 모든 엔드포인트는 경로 파라미터로 `hostUid`를 받습니다
- * - RESTful 패턴 준수: /:hostUid/cms-config/{action}
+ * - All endpoints receive `hostUid` as a path parameter
+ * - Follows RESTful pattern: /:hostUid/cms-config/{action}
  *
  * @category Controllers
  * @since 1.0.0
@@ -27,9 +22,6 @@ export class CmsConfigController {
     /**
      * Get environment information from a CMS host.
      * Returns environment variables and system information without CMS envelope fields.
-     *
-     * CMS 호스트의 환경 정보를 조회합니다.
-     * CMS 메타 필드를 제거한 환경 변수 및 시스템 정보를 반환합니다.
      *
      * @route GET /:hostUid/cms-config/env
      * @param req - Express request (contains authenticated user)
@@ -53,9 +45,6 @@ export class CmsConfigController {
     /**
      * Get database parameters dump from a CMS host.
      * Returns database server parameters without CMS envelope fields.
-     *
-     * CMS 호스트의 데이터베이스 파라미터 덤프를 조회합니다.
-     * CMS 메타 필드를 제거한 데이터베이스 서버 파라미터를 반환합니다.
      *
      * @route GET /:hostUid/cms-config/param-dump
      * @param req - Express request (contains authenticated user)
@@ -89,9 +78,6 @@ export class CmsConfigController {
      * Get database statistics dump from a CMS host.
      * Returns database statistics without CMS envelope fields.
      *
-     * CMS 호스트의 데이터베이스 통계 덤프(statdump)를 조회합니다.
-     * CMS 메타 필드를 제거한 통계 정보를 반환합니다.
-     *
      * @route GET /:hostUid/cms-config/stat-dump/:dbname
      * @param req - Express request (contains authenticated user)
      * @param hostUid - Host unique identifier from path parameter
@@ -119,9 +105,6 @@ export class CmsConfigController {
     /**
      * Get all system parameters from a configuration file on a CMS host.
      * Returns configuration file content without CMS envelope fields.
-     *
-     * CMS 호스트의 설정 파일에서 모든 시스템 파라미터를 조회합니다.
-     * CMS 메타 필드를 제거한 설정 파일 내용을 반환합니다.
      *
      * @route GET /:hostUid/cms-config/all-sys-param
      * @param req - Express request (contains authenticated user)
@@ -154,9 +137,6 @@ export class CmsConfigController {
     /**
      * Set system parameters in a configuration file on a CMS host.
      * Updates configuration file with provided data.
-     *
-     * CMS 호스트의 설정 파일에 시스템 파라미터를 설정합니다.
-     * 제공된 데이터로 설정 파일을 업데이트합니다.
      *
      * @route POST /:hostUid/cms-config/set-sys-param
      * @param req - Express request (contains authenticated user)

@@ -5,13 +5,9 @@ import { UserPreference } from './user-preferencs';
 
 /**
  * User interface representing a user in the system.
- * 시스템의 사용자를 나타내는 사용자 인터페이스입니다.
  *
  * Contains user information including authentication details,
  * department, and associated host lists.
- *
- * 인증 세부정보, 부서, 연결된 호스트 목록을 포함한
- * 사용자 정보를 포함합니다.
  *
  * @category Types
  * @since 1.0.0

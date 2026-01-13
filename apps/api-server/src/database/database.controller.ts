@@ -23,12 +23,6 @@ import { DatabaseService } from './database.service';
  * - All endpoints receive `hostUid` as a path parameter
  * - Follows RESTful pattern: /:hostUid/database/{action}/{identifier}
  *
- * 데이터베이스 작업을 처리하는 컨트롤러입니다.
- * - 시작 정보 조회 및 DB 시작/중지/재시작 REST 엔드포인트 제공
- * - 인증 필요, JWT의 `req.user.sub`에서 사용자 ID를 추출합니다
- * - 모든 엔드포인트는 경로 파라미터로 `hostUid`를 받습니다
- * - RESTful 패턴 준수: /:hostUid/database/{action}/{identifier}
- *
  * @category Controllers
  * @since 1.0.0
  */
@@ -41,8 +35,6 @@ export class DatabaseController {
     /**
      * Get start information for databases on a host.
      * Returns only domain data (BaseCmsResponse fields stripped out).
-     *
-     * 호스트의 데이터베이스 시작 정보를 조회합니다. CMS 메타 필드(BaseCmsResponse)는 제거한 순수 데이터만 반환합니다.
      *
      * @route GET /:hostUid/database/start-info
      * @param req Express request (contains authenticated user)
@@ -65,13 +57,13 @@ export class DatabaseController {
 
     /**
      * Start a database on a host.
-     * 성공 시 최신 시작 정보를 반환하고, 실패 시 도메인 에러(DatabaseError)를 던집니다.
+     * Returns latest start info on success, throws domain error (DatabaseError) on failure.
      *
      * @route POST /:hostUid/database/start/:dbname
      * @param req Express request (contains authenticated user)
      * @param hostUid Host unique identifier from path parameter
      * @param dbname Database name from path parameter
-     * @returns StartInfoClientResponse 최신 데이터베이스 시작 정보
+     * @returns StartInfoClientResponse Latest database start information
      * @example
      * // POST /host-uid/database/start/demodb
      */
@@ -90,13 +82,13 @@ export class DatabaseController {
 
     /**
      * Stop a database on a host.
-     * 성공 시 최신 시작 정보를 반환하고, 실패 시 도메인 에러(DatabaseError)를 던집니다.
+     * Returns latest start info on success, throws domain error (DatabaseError) on failure.
      *
      * @route POST /:hostUid/database/stop/:dbname
      * @param req Express request (contains authenticated user)
      * @param hostUid Host unique identifier from path parameter
      * @param dbname Database name from path parameter
-     * @returns StartInfoClientResponse 최신 데이터베이스 시작 정보
+     * @returns StartInfoClientResponse Latest database start information
      * @example
      * // POST /host-uid/database/stop/demodb
      */
@@ -115,13 +107,13 @@ export class DatabaseController {
 
     /**
      * Restart a database on a host (stop → start sequence).
-     * 성공 시 최신 시작 정보를 반환하고, 중지/시작 단계별 실패 시 해당 도메인 에러를 던집니다.
+     * Returns latest start info on success, throws domain error for each step failure.
      *
      * @route POST /:hostUid/database/restart/:dbname
      * @param req Express request (contains authenticated user)
      * @param hostUid Host unique identifier from path parameter
      * @param dbname Database name from path parameter
-     * @returns StartInfoClientResponse 최신 데이터베이스 시작 정보
+     * @returns StartInfoClientResponse Latest database start information
      * @example
      * // POST /host-uid/database/restart/demodb
      */
@@ -141,14 +133,14 @@ export class DatabaseController {
 
     /**
      * Save a database profile for a host.
-     * 성공 시 최신 시작 정보를 반환합니다 (isProfileExists가 업데이트됨).
+     * Returns latest start info on success (isProfileExists is updated).
      *
      * @route POST /:hostUid/database/register/:dbname
      * @param req Express request (contains authenticated user)
      * @param hostUid Host unique identifier from path parameter
      * @param dbname Database name from path parameter
      * @param body Request body containing `id`, `password`
-     * @returns StartInfoClientResponse 최신 데이터베이스 시작 정보
+     * @returns StartInfoClientResponse Latest database start information
      * @example
      * // POST /host-uid/database/register/demodb
      * // Body: { "id": "user", "password": "pass" }
@@ -182,14 +174,11 @@ export class DatabaseController {
      * Get database volume/space information for a database on a host.
      * Returns domain-only data (CMS envelope removed).
      *
-     * 특정 호스트의 데이터베이스 볼륨/공간 정보를 조회합니다.
-     * CMS 메타 필드를 제거한 순수 데이터만 반환합니다.
-     *
      * @route GET /:hostUid/database/volume-info/:dbname
      * @param req Express request (contains authenticated user)
      * @param hostUid Host unique identifier from path parameter
      * @param dbname Database name from path parameter
-     * @returns DatabaseVolumeInfoClientResponse 데이터베이스 볼륨/공간 정보
+     * @returns DatabaseVolumeInfoClientResponse Database volume/space information
      * @example
      * // POST /host-uid/database/volume-info/demodb
      */
@@ -216,9 +205,6 @@ export class DatabaseController {
     /**
      * Add automated backup schedule information for a database.
      * Returns empty object on success.
-     *
-     * 데이터베이스 백업 자동화(스케줄) 정보를 추가합니다.
-     * 성공 시 빈 객체를 반환합니다.
      *
      * @route POST /:hostUid/database/backup-schedule/:dbname
      * @param req Express request (contains authenticated user)
@@ -257,9 +243,6 @@ export class DatabaseController {
      * Get automated backup schedule information for a database.
      * Returns domain-only data (CMS envelope removed).
      *
-     * 데이터베이스 백업 자동화(스케줄) 정보를 조회합니다.
-     * CMS 메타 필드를 제거한 순수 데이터만 반환합니다.
-     *
      * @route GET /:hostUid/database/backup-schedule/:dbname
      * @param req Express request (contains authenticated user)
      * @param hostUid Host unique identifier from path parameter
@@ -286,9 +269,6 @@ export class DatabaseController {
     /**
      * Set auto-execution query for a database.
      * Returns empty object on success.
-     *
-     * 데이터베이스의 자동 실행 쿼리를 설정합니다.
-     * 성공 시 빈 객체를 반환합니다.
      *
      * @route POST /:hostUid/database/auto-exec-query/:dbname
      * @param req Express request (contains authenticated user)
@@ -326,9 +306,6 @@ export class DatabaseController {
     /**
      * Get auto-execution query for a database.
      * Returns domain-only data (CMS envelope removed).
-     *
-     * 데이터베이스의 자동 실행 쿼리를 조회합니다.
-     * CMS 메타 필드를 제거한 순수 데이터만 반환합니다.
      *
      * @route GET /:hostUid/database/auto-exec-query/:dbname
      * @param req Express request (contains authenticated user)

@@ -14,13 +14,9 @@ import { checkCmsTokenError, checkCmsStatusError } from '@common';
 
 /**
  * Service for file operations.
- * 파일 작업을 위한 서비스입니다.
  * 
  * Provides business logic for file management operations including
  * file checking, uploading, downloading, and listing.
- * 
- * 파일 검사, 업로드, 다운로드, 목록 조회를 포함한 파일 관리 작업을 위한
- * 비즈니스 로직을 제공합니다.
  * 
  * @category Business Services
  * @since 1.0.0
@@ -35,7 +31,6 @@ export class FileService {
 
     /**
      * Checks if a file exists on the specified CMS host.
-     * 지정된 CMS 호스트에서 파일이 존재하는지 확인합니다.
      * 
      * @param {string} userId - The unique identifier of the user
      * @param {string} hostUid - The unique identifier of the host

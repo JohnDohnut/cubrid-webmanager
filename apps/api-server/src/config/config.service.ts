@@ -3,22 +3,16 @@ import * as crypto from 'crypto';
 
 /**
  * Service for managing application configuration.
- * 애플리케이션 구성을 관리하는 서비스입니다.
  *
  * This service handles the parsing and validation of command-line arguments
  * and provides access to configuration values throughout the application.
  * It generates cryptographic keys from provided seed and salt values.
- *
- * 이 서비스는 명령줄 인수의 구문 분석 및 검증을 처리하고
- * 애플리케이션 전체에서 구성 값에 대한 액세스를 제공합니다.
- * 제공된 시드와 솔트 값으로부터 암호화 키를 생성합니다.
  *
  * @category Infrastructure Services
  * @since 1.0.0
  * @example
  * ```typescript
  * // Start application with required arguments
- * // 필수 인수와 함께 애플리케이션 시작
  * node app.js --SEED=myseed --SALT=mysalt --PORT=8080
  * ```
  */

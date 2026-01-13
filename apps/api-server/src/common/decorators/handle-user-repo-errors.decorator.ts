@@ -4,19 +4,12 @@ import { StorageError, StorageErrorCode } from '@error/storage/storage-error';
 
 /**
  * A method decorator that wraps a repository method in a try...catch block.
- * 리포지토리 메서드를 try...catch 블록으로 감싸는 메서드 데코레이터입니다.
  *
  * It provides centralized handling for LockError and StorageError, translating
  * them into the appropriate domain-specific UserError.
  *
- * LockError와 StorageError에 대한 중앙 집중식 처리를 제공하여
- * 적절한 도메인별 UserError로 변환합니다.
- *
  * @assumption This decorator assumes that the first argument of the decorated
  * method is a string (e.g., userId) that can be used for logging context.
- *
- * @가정 이 데코레이터는 데코레이팅된 메서드의 첫 번째 인수가
- * 로깅 컨텍스트에 사용할 수 있는 문자열(예: userId)이라고 가정합니다.
  *
  * @category Decorators
  * @since 1.0.0

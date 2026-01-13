@@ -11,8 +11,6 @@ import { LoginDBCmsRequest } from '@type/cms-request';
 /**
  * Service for managing database users.
  * 
- * 데이터베이스 사용자 관리를 위한 서비스입니다.
- * 
  * @category Business Services
  * @since 1.0.0
  */
@@ -27,9 +25,7 @@ export class DatabaseUserService {
     /**
      * Get list of database users for a specific host.
      * 
-     * 특정 호스트의 데이터베이스 사용자 목록을 조회합니다.
-     * 
-     * @param userId 사용자 ID (JWT)
+     * @param userId User ID from JWT
      * @returns Database users list
      */
     async getDatabaseUsers(userId: string) {
@@ -39,15 +35,13 @@ export class DatabaseUserService {
     /**
      * Login to a database using profile or client-provided credentials.
      *
-     * 프로파일 또는 클라이언트 제공 자격 증명을 사용하여 데이터베이스에 로그인합니다.
-     *
-     * @param userId 사용자 ID (JWT)
-     * @param hostUid 호스트 UID
-     * @param dbname 데이터베이스 이름
-     * @param clientId 클라이언트 제공 DB 사용자 ID (프로파일이 없는 경우 필수)
-     * @param clientPassword 클라이언트 제공 DB 비밀번호 (프로파일이 없는 경우 필수)
-     * @returns 성공 시 true
-     * @throws DatabaseError CMS status가 fail인 경우 또는 프로파일이 없고 자격 증명이 제공되지 않은 경우
+     * @param userId User ID from JWT
+     * @param hostUid Host UID
+     * @param dbname Database name
+     * @param clientId Client-provided DB user ID (required if profile doesn't exist)
+     * @param clientPassword Client-provided DB password (required if profile doesn't exist)
+     * @returns true on success
+     * @throws DatabaseError If CMS status is fail or profile doesn't exist and credentials are not provided
      */
     @HandleHostErrors()
     @HandleCmsHttpsClientErrors()

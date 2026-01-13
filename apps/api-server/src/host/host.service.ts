@@ -224,9 +224,6 @@ export class HostService {
      * This method is used as infrastructure service by other business services.
      * Errors from this method will be converted to domain errors by the calling service's decorators.
      *
-     * 다른 비즈니스 서비스에서 인프라 서비스로 사용되는 메서드입니다.
-     * 이 메서드의 에러는 호출하는 서비스의 데코레이터에 의해 도메인 에러로 변환됩니다.
-     *
      * @param {string} userId - The unique identifier of the user.
      * @param {string} hostUid - The unique identifier of the host to find.
      * @returns {Promise<HostInfo>} The found host object with password.

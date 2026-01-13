@@ -7,8 +7,6 @@ import { UserRepositoryModule } from '@repository';
 /**
  * Module for handling CMS authentication functionalities.
  *
- * CMS 인증 기능을 처리하기 위한 모듈입니다.
- *
  * @category Modules
  * @since 1.0.0
  */

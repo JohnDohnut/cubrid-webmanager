@@ -119,8 +119,6 @@ export class BrokerService {
     /**
      * Get broker status including application server information.
      * 
-     * 애플리케이션 서버 정보를 포함한 브로커 상태를 조회합니다.
-     * 
      * @param userId - User ID
      * @param hostUid - Host unique identifier
      * @param bname - Broker name

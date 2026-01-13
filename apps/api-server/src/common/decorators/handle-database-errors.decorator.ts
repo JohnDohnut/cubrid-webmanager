@@ -2,10 +2,6 @@ import { AppError } from '@error/index';
 
 /**
  * A method decorator that wraps database service methods in a try...catch block.
- * 데이터베이스 서비스 메서드를 try...catch 블록으로 감싸는 메서드 데코레이터입니다.
- *
- * 에러를 변환하지 않고 그대로 전달합니다. 시스템/라이브러리 레벨 에러는
- * 하위 데코레이터에서 이미 AppError로 변환되었으므로 그대로 전달합니다.
  *
  * Errors are passed through as-is. System/library level errors are already
  * converted to AppError by lower-level decorators.

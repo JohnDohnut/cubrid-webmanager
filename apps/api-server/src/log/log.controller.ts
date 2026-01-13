@@ -13,9 +13,8 @@ import { validateRequiredFields } from '@util';
 /**
  * Controller for handling log-related operations.
  *
- * 로그 관련 작업을 처리하는 컨트롤러입니다.
- * - 모든 엔드포인트는 경로 파라미터로 `hostUid`를 받습니다
- * - RESTful 패턴 준수: /:hostUid/log/{action}/{identifier}
+ * - All endpoints receive `hostUid` as a path parameter
+ * - Follows RESTful pattern: /:hostUid/log/{action}/{identifier}
  *
  * @category Controllers
  * @since 1.0.0
@@ -28,8 +27,6 @@ export class LogController {
 
     /**
      * Get list of broker log files.
-     *
-     * 브로커 로그 파일 목록을 조회합니다.
      *
      * @route GET /:hostUid/log/broker/:bname
      * @param req Express request (contains authenticated user)
@@ -56,8 +53,6 @@ export class LogController {
     /**
      * Get list of database log files.
      *
-     * 데이터베이스 로그 파일 목록을 조회합니다.
-     *
      * @route GET /:hostUid/log/database/:dname
      * @param req Express request (contains authenticated user)
      * @param hostUid Host unique identifier from path parameter
@@ -83,8 +78,6 @@ export class LogController {
     /**
      * Get CMS access log and error log.
      *
-     * CMS 접근 로그 및 에러 로그를 조회합니다.
-     *
      * @route GET /:hostUid/log/cms
      * @param req Express request (contains authenticated user)
      * @param hostUid Host unique identifier from path parameter
@@ -104,8 +97,6 @@ export class LogController {
 
     /**
      * Get admin log information.
-     *
-     * 관리자 로그 정보를 조회합니다.
      *
      * @route GET /:hostUid/log/admin
      * @param req Express request (contains authenticated user)
@@ -127,9 +118,6 @@ export class LogController {
     /**
      * View log file content.
      * Returns log lines within the specified range.
-     *
-     * 로그 파일 내용을 조회합니다.
-     * 지정된 범위 내의 로그 라인을 반환합니다.
      *
      * @route POST /:hostUid/log/view
      * @param req Express request (contains authenticated user)

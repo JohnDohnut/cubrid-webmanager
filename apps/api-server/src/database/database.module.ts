@@ -11,9 +11,6 @@ import { DatabaseUserService } from './user/database-user.service';
  * Module for managing database functionalities.
  * Provides database start information and management operations.
  *
- * 데이터베이스 기능을 관리하기 위한 모듈입니다.
- * 데이터베이스 시작 정보 및 관리 작업을 제공합니다.
- *
  * @category Modules
  * @since 1.0.0
  */

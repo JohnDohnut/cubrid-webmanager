@@ -4,9 +4,6 @@ import { BaseCmsResponse } from './base-cms-response';
  * Server parameter configuration.
  * All parameter values are returned as strings from CMS API.
  * 
- * 서버 파라미터 설정입니다.
- * CMS API에서 모든 파라미터 값은 문자열로 반환됩니다.
- * 
  * @category CMS Responses
  * @since 1.0.0
  */
@@ -223,28 +220,20 @@ export type ServerParameter = {
  * Response type for paramdump request.
  * Contains database server parameters configuration.
  * 
- * paramdump 요청에 대한 응답 타입입니다.
- * 데이터베이스 서버 파라미터 설정을 포함합니다.
- * 
  * @category CMS Responses
  * @since 1.0.0
  */
 export type ParamdumpCmsResponse = BaseCmsResponse & {
     /**
      * Database name
-     * 데이터베이스 이름
      */
     dbname: string;
 
     /**
      * Server parameters array
-     * 서버 파라미터 배열
      * 
      * Note: Typically contains a single ServerParameter object,
      * but defined as array for compatibility with CMS API response format.
-     * 
-     * 참고: 일반적으로 단일 ServerParameter 객체를 포함하지만,
-     * CMS API 응답 형식과의 호환성을 위해 배열로 정의됩니다.
      */
     server: ServerParameter[];
 };

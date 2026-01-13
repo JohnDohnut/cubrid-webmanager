@@ -17,11 +17,6 @@ import { HandleCmsConfigErrors, checkCmsTokenError, checkCmsStatusError } from '
  * Provides methods to retrieve environment information from CMS hosts
  * including CUBRID version, broker version, database paths, and system information.
  *
- * CMS 환경 구성 작업을 관리하는 서비스입니다.
- *
- * CUBRID 버전, 브로커 버전, 데이터베이스 경로, 시스템 정보 등
- * CMS 호스트의 환경 정보를 조회하는 메서드를 제공합니다.
- *
  * @category Business Services
  * @since 1.0.0
  */
@@ -36,9 +31,6 @@ export class CmsConfigService {
     /**
      * Get environment information from a CMS host.
      * Returns domain-only data (CMS envelope removed).
-     *
-     * CMS 호스트의 환경 정보를 조회합니다.
-     * CMS 메타 필드를 제거한 순수 데이터만 반환합니다.
      *
      * @param userId - User ID from JWT
      * @param hostUid - Host unique identifier
@@ -70,9 +62,6 @@ export class CmsConfigService {
     /**
      * Get database parameters dump from a CMS host.
      * Returns domain-only data (CMS envelope removed).
-     *
-     * CMS 호스트의 데이터베이스 파라미터 덤프를 조회합니다.
-     * CMS 메타 필드를 제거한 순수 데이터만 반환합니다.
      *
      * @param userId - User ID from JWT
      * @param hostUid - Host unique identifier
@@ -114,9 +103,6 @@ export class CmsConfigService {
      * Get database statistics dump from a CMS host.
      * Returns domain-only data (CMS envelope removed).
      *
-     * CMS 호스트의 데이터베이스 통계 덤프(statdump)를 조회합니다.
-     * CMS 메타 필드를 제거한 순수 데이터만 반환합니다.
-     *
      * @param userId - User ID from JWT
      * @param hostUid - Host unique identifier
      * @param dbname - Database name
@@ -154,9 +140,6 @@ export class CmsConfigService {
     /**
      * Get all system parameters from a configuration file on a CMS host.
      * Returns domain-only data (CMS envelope removed).
-     *
-     * CMS 호스트의 설정 파일에서 모든 시스템 파라미터를 조회합니다.
-     * CMS 메타 필드를 제거한 순수 데이터만 반환합니다.
      *
      * @param userId - User ID from JWT
      * @param hostUid - Host unique identifier
@@ -196,9 +179,6 @@ export class CmsConfigService {
     /**
      * Set system parameters in a configuration file on a CMS host.
      * Returns domain-only data (CMS envelope removed).
-     *
-     * CMS 호스트의 설정 파일에 시스템 파라미터를 설정합니다.
-     * CMS 메타 필드를 제거한 순수 데이터만 반환합니다.
      *
      * @param userId - User ID from JWT
      * @param hostUid - Host unique identifier

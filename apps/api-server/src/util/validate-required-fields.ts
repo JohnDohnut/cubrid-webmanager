@@ -5,9 +5,6 @@ import { ValidationError } from '@error/validation/validation-error';
  * Validates that required fields are present in the request body.
  * Throws ValidationError if any fields are missing.
  *
- * 요청 body에 필수 필드가 있는지 검증합니다.
- * 누락된 필드가 있으면 ValidationError를 던집니다.
- *
  * @param body - Request body object to validate
  * @param fieldNames - Array of required field names to check
  * @param endpoint - Endpoint path for error context (e.g., 'database/start')

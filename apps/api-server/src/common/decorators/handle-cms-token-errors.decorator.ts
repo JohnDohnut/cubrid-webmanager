@@ -3,14 +3,12 @@ import { BaseCmsResponse } from '@type/cms-response/base-cms-response';
 
 /**
  * Invalid token error message from CMS.
- * CMS에서 반환하는 유효하지 않은 토큰 오류 메시지입니다.
  */
 const INVALID_TOKEN_MESSAGE =
     'Request is rejected due to invalid token. Please reconnect.';
 
 /**
  * Checks if a CMS response indicates an invalid token error.
- * CMS 응답이 유효하지 않은 토큰 오류를 나타내는지 확인합니다.
  *
  * @param response - The CMS response to check
  * @returns true if the response indicates an invalid token
@@ -31,17 +29,14 @@ export function isInvalidTokenError(response: any): boolean {
  * Checks a CMS response for invalid token errors and throws CmsError.InvalidToken() if found.
  * This is a helper function that can be used directly in service methods.
  *
- * CMS 응답에서 유효하지 않은 토큰 오류를 확인하고, 발견되면 CmsError.InvalidToken()을 던집니다.
- * 서비스 메서드에서 직접 사용할 수 있는 헬퍼 함수입니다.
- *
  * @param response - The CMS response to check
  * @throws CmsError.InvalidToken if the response indicates an invalid token
  * @example
  * ```typescript
  * async startInfo(...): Promise<StartInfoClientResponse> {
  *   const response = await this.cmsClient.postAuthenticated(...);
- *   checkCmsTokenError(response);  // 자동으로 token 에러 체크
- *   // ... 나머지 처리
+ *   checkCmsTokenError(response);  // Automatically checks for token errors
+ *   // ... rest of processing
  * }
  * ```
  */
@@ -53,13 +48,9 @@ export function checkCmsTokenError(response: any): void {
 
 /**
  * A method decorator that automatically checks CMS responses for invalid token errors.
- * CMS 응답에서 유효하지 않은 토큰 오류를 자동으로 확인하는 메서드 데코레이터입니다.
  *
  * This decorator wraps methods that return CMS responses and checks if the response
  * indicates an invalid token. If so, it throws CmsError.InvalidToken().
- *
- * 이 데코레이터는 CMS 응답을 반환하는 메서드를 감싸고, 응답이 유효하지 않은 토큰을
- * 나타내는지 확인합니다. 그렇다면 CmsError.InvalidToken()을 던집니다.
  *
  * @category Decorators
  * @since 1.0.0
@@ -69,7 +60,7 @@ export function checkCmsTokenError(response: any): void {
  *   @HandleCmsTokenErrors()
  *   async startInfo(userId: string, hostUid: string): Promise<StartInfoCmsResponse> {
  *     const response = await this.cmsClient.postAuthenticated(...);
- *     return response;  // 데코레이터가 자동으로 token 에러 체크
+ *     return response;  // Decorator automatically checks for token errors
  *   }
  * }
  * ```

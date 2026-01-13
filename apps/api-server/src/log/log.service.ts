@@ -95,8 +95,6 @@ export class LogService {
      * View broker log file content.
      * Returns log lines within the specified range.
      *
-     * 브로커 로그 파일 내용을 조회합니다.
-     * 지정된 범위 내의 로그 라인을 반환합니다.
      *
      * @param userId - User ID from JWT
      * @param hostUid - Host unique identifier
@@ -135,8 +133,6 @@ export class LogService {
      * Get admin log information from a CMS host.
      * Returns admin log file information without CMS envelope fields.
      *
-     * CMS 호스트의 관리자 로그 정보를 조회합니다.
-     * CMS 메타 필드를 제거한 관리자 로그 파일 정보를 반환합니다.
      *
      * @param userId - User ID from JWT
      * @param hostUid - Host unique identifier
