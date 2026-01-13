@@ -15,6 +15,7 @@ import {
     setPlanDump,
     setRenameDB
 } from "@/features/sidenav/sideNavSlice.js";
+import {setBackupDB} from "../../sideNavSlice";
 
 const  DatabaseMenu = ({node, clientX, clientY, open, onClose}) =>{
     const {startDatabase, stopDatabase} = useDatabaseOperation()
@@ -98,9 +99,9 @@ const  DatabaseMenu = ({node, clientX, clientY, open, onClose}) =>{
                 {
                     label: "Backup Database",
                     key: nanoid(4),
-                    // onClick: ()=>{
-                    //     dispatch(setBackupDB({open: true, node}));
-                    // }
+                    onClick: ()=>{
+                        dispatch(setBackupDB({open: true, node}));
+                    }
                 },
                 {
                     label: "Restore DB",
