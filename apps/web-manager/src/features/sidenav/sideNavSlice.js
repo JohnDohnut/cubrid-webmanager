@@ -12,6 +12,7 @@ const initialState = {
     checkDB: {open: false},
     changeCMPassword: {open: false},
     renameDB: {open: false},
+    deleteDB: {open: false},
 
 
 }
@@ -52,6 +53,9 @@ const sideNavSlice = createSlice({
         },
         setRenameDB: (state, action) => {
             state.renameDB = action.payload
+        },
+        setDeleteDB: (state, action) => {
+            state.deleteDB = action.payload
         }
 
     },
@@ -61,5 +65,5 @@ export const { setHostHeight, setBackupModal,
     setQueryPlanModal, setCreateDBUser,
     setParamDump, setPlanDump, setOptimizeDB,
     setChangeCMPassword, setCompactDB, setCheckDB,
-    setRenameDB} = sideNavSlice.actions
+    setRenameDB,setDeleteDB} = sideNavSlice.actions
 export default sideNavSlice.reducer

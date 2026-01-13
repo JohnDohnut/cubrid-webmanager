@@ -27,6 +27,14 @@ export const getDatabasesAPI = async (host) => {
     return { result: databases, success: true };
 }
 
+export const loginDatabaseAPI = async (host, data) => {
+    const {id, password, dbname} = data;
+    const url = `/${host.uid}/database/users/login/${dbname}`
+    const response = await axios.post(url, {id, password});
+    return {result: response.data, success: true};
+
+}
+
 export const getDBSpaceAPI = async (host, db) => {
     const url = `/${host.uid}/database/volume-info/${db.dbname}`
     const {data} = await axios.get(url);
@@ -67,6 +75,15 @@ export const checkDBAPI = async (host, data) => {
 export const renameDBAPI = async (host, data) => {
     const payload = {
         task: "renamedb",
+        ...data
+    }
+    const response = await getResponse(host, payload)
+    return {result: response, success: true};
+}
+
+export const deleteDBAPI = async (host, data) => {
+    const payload = {
+        task: "deletedb",
         ...data
     }
     const response = await getResponse(host, payload)

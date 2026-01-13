@@ -21,6 +21,8 @@ export * from './update-host-client-request';
 export * from './check-file-client-request';
 export * from './view-log-client-request';
 export * from './add-backup-info-client-request';
+export * from './set-backup-info-client-request';
+export * from './delete-backup-info-client-request';
 export * from './get-backup-info-client-request';
 export * from './set-auto-exec-query-client-request';
 export * from './get-auto-exec-query-client-request';
