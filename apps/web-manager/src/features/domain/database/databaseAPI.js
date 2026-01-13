@@ -89,3 +89,12 @@ export const deleteDBAPI = async (host, data) => {
     const response = await getResponse(host, payload)
     return {result: response, success: true};
 }
+
+export const backupDBAPI = async (host, data) => {
+    const payload = {
+        task: "backupdb",
+        ...data
+    }
+    const response = await getResponse(host, payload)
+    return {result: response, success: true};
+}
