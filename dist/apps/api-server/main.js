@@ -20,23 +20,23 @@ const _broker_1 = __webpack_require__(194);
 const config_module_1 = __webpack_require__(7);
 const config_service_1 = __webpack_require__(8);
 const _host_1 = __webpack_require__(202);
-const _lock_1 = __webpack_require__(273);
-const _monitoring_1 = __webpack_require__(276);
+const _lock_1 = __webpack_require__(277);
+const _monitoring_1 = __webpack_require__(280);
 const common_1 = __webpack_require__(6);
 const core_1 = __webpack_require__(1);
 const _repository_1 = __webpack_require__(10);
 const _security_1 = __webpack_require__(185);
-const _storage_1 = __webpack_require__(282);
+const _storage_1 = __webpack_require__(286);
 const _token_1 = __webpack_require__(186);
-const _user_1 = __webpack_require__(283);
-const app_controller_1 = __webpack_require__(287);
-const app_service_1 = __webpack_require__(288);
-const cms_auth_module_1 = __webpack_require__(289);
-const cms_config_module_1 = __webpack_require__(292);
-const file_module_1 = __webpack_require__(295);
-const database_module_1 = __webpack_require__(298);
-const cms_https_client_module_1 = __webpack_require__(274);
-const log_module_1 = __webpack_require__(303);
+const _user_1 = __webpack_require__(287);
+const app_controller_1 = __webpack_require__(291);
+const app_service_1 = __webpack_require__(292);
+const cms_auth_module_1 = __webpack_require__(293);
+const cms_config_module_1 = __webpack_require__(296);
+const file_module_1 = __webpack_require__(299);
+const database_module_1 = __webpack_require__(302);
+const cms_https_client_module_1 = __webpack_require__(278);
+const log_module_1 = __webpack_require__(307);
 /**
  * Root application module that configures all feature modules and global providers.
  * 모든 기능 모듈과 전역 프로바이더를 구성하는 루트 애플리케이션 모듈입니다.
@@ -86,9 +86,9 @@ exports.AppModule = AppModule = tslib_1.__decorate([
     })
 ], AppModule);
 // Export controllers and services for documentation
-var app_controller_2 = __webpack_require__(287);
+var app_controller_2 = __webpack_require__(291);
 Object.defineProperty(exports, "AppController", ({ enumerable: true, get: function () { return app_controller_2.AppController; } }));
-var app_service_2 = __webpack_require__(288);
+var app_service_2 = __webpack_require__(292);
 Object.defineProperty(exports, "AppService", ({ enumerable: true, get: function () { return app_service_2.AppService; } }));
 
 
@@ -5230,7 +5230,7 @@ const common_1 = __webpack_require__(6);
 const broker_controller_1 = __webpack_require__(196);
 const broker_service_1 = __webpack_require__(197);
 const _host_1 = __webpack_require__(202);
-const cms_https_client_module_1 = __webpack_require__(274);
+const cms_https_client_module_1 = __webpack_require__(278);
 /**
  * Module for managing broker-related functionalities.
  * Provides broker control operations including start, stop, restart, and list.
@@ -5846,7 +5846,7 @@ Object.defineProperty(exports, "HostModule", ({ enumerable: true, get: function 
 var host_controller_1 = __webpack_require__(204);
 Object.defineProperty(exports, "HostController", ({ enumerable: true, get: function () { return host_controller_1.HostController; } }));
 // Export service
-var host_service_1 = __webpack_require__(262);
+var host_service_1 = __webpack_require__(266);
 Object.defineProperty(exports, "HostService", ({ enumerable: true, get: function () { return host_service_1.HostService; } }));
 
 
@@ -5860,10 +5860,10 @@ exports.HostService = exports.HostController = exports.HostModule = void 0;
 const tslib_1 = __webpack_require__(3);
 const common_1 = __webpack_require__(6);
 const host_controller_1 = __webpack_require__(204);
-const host_service_1 = __webpack_require__(262);
+const host_service_1 = __webpack_require__(266);
 const _repository_1 = __webpack_require__(10);
 const _security_1 = __webpack_require__(185);
-const _lock_1 = __webpack_require__(273);
+const _lock_1 = __webpack_require__(277);
 /**
  * Host management module for handling host-related operations.
  * 호스트 관련 작업을 처리하는 호스트 관리 모듈입니다.
@@ -5893,7 +5893,7 @@ exports.HostModule = HostModule = tslib_1.__decorate([
 // Export controllers and services for documentation
 var host_controller_2 = __webpack_require__(204);
 Object.defineProperty(exports, "HostController", ({ enumerable: true, get: function () { return host_controller_2.HostController; } }));
-var host_service_2 = __webpack_require__(262);
+var host_service_2 = __webpack_require__(266);
 Object.defineProperty(exports, "HostService", ({ enumerable: true, get: function () { return host_service_2.HostService; } }));
 
 
@@ -5908,7 +5908,7 @@ exports.HostController = void 0;
 const tslib_1 = __webpack_require__(3);
 const common_1 = __webpack_require__(6);
 const _api_interfaces_1 = __webpack_require__(205);
-const host_service_1 = __webpack_require__(262);
+const host_service_1 = __webpack_require__(266);
 /**
  * Controller for managing host-related operations.
  * 호스트 관련 작업을 관리하는 컨트롤러입니다.
@@ -6050,7 +6050,7 @@ const tslib_1 = __webpack_require__(3);
 // Export all request types
 tslib_1.__exportStar(__webpack_require__(206), exports);
 // Export all response types
-tslib_1.__exportStar(__webpack_require__(233), exports);
+tslib_1.__exportStar(__webpack_require__(235), exports);
 
 
 /***/ }),
@@ -6088,6 +6088,8 @@ tslib_1.__exportStar(__webpack_require__(229), exports);
 tslib_1.__exportStar(__webpack_require__(230), exports);
 tslib_1.__exportStar(__webpack_require__(231), exports);
 tslib_1.__exportStar(__webpack_require__(232), exports);
+tslib_1.__exportStar(__webpack_require__(233), exports);
+tslib_1.__exportStar(__webpack_require__(234), exports);
 
 
 /***/ }),
@@ -6300,22 +6302,36 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 /***/ }),
 /* 233 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
+/* 234 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
+/* 235 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const tslib_1 = __webpack_require__(3);
 // Response exports
-tslib_1.__exportStar(__webpack_require__(234), exports);
-tslib_1.__exportStar(__webpack_require__(235), exports);
 tslib_1.__exportStar(__webpack_require__(236), exports);
 tslib_1.__exportStar(__webpack_require__(237), exports);
 tslib_1.__exportStar(__webpack_require__(238), exports);
 tslib_1.__exportStar(__webpack_require__(239), exports);
 tslib_1.__exportStar(__webpack_require__(240), exports);
-// Client response aliases
 tslib_1.__exportStar(__webpack_require__(241), exports);
 tslib_1.__exportStar(__webpack_require__(242), exports);
+// Client response aliases
 tslib_1.__exportStar(__webpack_require__(243), exports);
 tslib_1.__exportStar(__webpack_require__(244), exports);
 tslib_1.__exportStar(__webpack_require__(245), exports);
@@ -6335,22 +6351,10 @@ tslib_1.__exportStar(__webpack_require__(258), exports);
 tslib_1.__exportStar(__webpack_require__(259), exports);
 tslib_1.__exportStar(__webpack_require__(260), exports);
 tslib_1.__exportStar(__webpack_require__(261), exports);
-
-
-/***/ }),
-/* 234 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-
-
-/***/ }),
-/* 235 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
+tslib_1.__exportStar(__webpack_require__(262), exports);
+tslib_1.__exportStar(__webpack_require__(263), exports);
+tslib_1.__exportStar(__webpack_require__(264), exports);
+tslib_1.__exportStar(__webpack_require__(265), exports);
 
 
 /***/ }),
@@ -6375,22 +6379,6 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CreateLoginResponse = CreateLoginResponse;
-/**
- * Factory function to create a login response.
- * 로그인 응답을 생성하는 팩토리 함수입니다.
- *
- * @param token - The JWT token to include in the response / 응답에 포함할 JWT 토큰
- * @returns LoginResponse object containing the token / 토큰을 포함하는 LoginResponse 객체
- * @category Responses
- * @since 1.0.0
- */
-function CreateLoginResponse(token) {
-    const response = {
-        token: token,
-    };
-    return response;
-}
 
 
 /***/ }),
@@ -6407,6 +6395,22 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.CreateLoginResponse = CreateLoginResponse;
+/**
+ * Factory function to create a login response.
+ * 로그인 응답을 생성하는 팩토리 함수입니다.
+ *
+ * @param token - The JWT token to include in the response / 응답에 포함할 JWT 토큰
+ * @returns LoginResponse object containing the token / 토큰을 포함하는 LoginResponse 객체
+ * @category Responses
+ * @since 1.0.0
+ */
+function CreateLoginResponse(token) {
+    const response = {
+        token: token,
+    };
+    return response;
+}
 
 
 /***/ }),
@@ -6579,6 +6583,38 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 /***/ }),
 /* 262 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
+/* 263 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
+/* 264 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
+/* 265 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
+/* 266 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -6592,7 +6628,7 @@ const index_1 = __webpack_require__(36);
 const common_1 = __webpack_require__(6);
 const _repository_1 = __webpack_require__(10);
 const index_2 = __webpack_require__(68);
-const _util_1 = __webpack_require__(263);
+const _util_1 = __webpack_require__(267);
 const uuid_1 = __webpack_require__(67);
 /**
  * Service for managing host-related operations.
@@ -6868,34 +6904,34 @@ exports.HostService = HostService = HostService_1 = tslib_1.__decorate([
 
 
 /***/ }),
-/* 263 */
+/* 267 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getSectionParams = exports.getConfigParam = exports.parseConfigParamsBySection = exports.parseConfigParams = exports.validateRequiredFields = exports.ResolvedDBAuth = exports.DBAuthResolver = exports.isValidIPv6 = exports.isValidIPv4 = exports.resolveUserFilePath = exports.getStoragePath = exports.getOrCreateSSLCert = exports.passwordValidityChecker = exports.omitHashMap = exports.omitPasswordHashMap = exports.omitPasswordArray = exports.omitPassword = void 0;
 // Export utility functions
-var omit_password_1 = __webpack_require__(264);
+var omit_password_1 = __webpack_require__(268);
 Object.defineProperty(exports, "omitPassword", ({ enumerable: true, get: function () { return omit_password_1.omitPassword; } }));
 Object.defineProperty(exports, "omitPasswordArray", ({ enumerable: true, get: function () { return omit_password_1.omitPasswordArray; } }));
 Object.defineProperty(exports, "omitPasswordHashMap", ({ enumerable: true, get: function () { return omit_password_1.omitPasswordHashMap; } }));
 Object.defineProperty(exports, "omitHashMap", ({ enumerable: true, get: function () { return omit_password_1.omitHashMap; } }));
-var password_validity_checker_1 = __webpack_require__(265);
+var password_validity_checker_1 = __webpack_require__(269);
 Object.defineProperty(exports, "passwordValidityChecker", ({ enumerable: true, get: function () { return password_validity_checker_1.passwordValidityChecker; } }));
-var ssl_util_1 = __webpack_require__(266);
+var ssl_util_1 = __webpack_require__(270);
 Object.defineProperty(exports, "getOrCreateSSLCert", ({ enumerable: true, get: function () { return ssl_util_1.getOrCreateSSLCert; } }));
 var resolve_storage_path_1 = __webpack_require__(27);
 Object.defineProperty(exports, "getStoragePath", ({ enumerable: true, get: function () { return resolve_storage_path_1.getStoragePath; } }));
 Object.defineProperty(exports, "resolveUserFilePath", ({ enumerable: true, get: function () { return resolve_storage_path_1.resolveUserFilePath; } }));
-var ip_checker_1 = __webpack_require__(269);
+var ip_checker_1 = __webpack_require__(273);
 Object.defineProperty(exports, "isValidIPv4", ({ enumerable: true, get: function () { return ip_checker_1.isValidIPv4; } }));
 Object.defineProperty(exports, "isValidIPv6", ({ enumerable: true, get: function () { return ip_checker_1.isValidIPv6; } }));
-var db_auth_resolver_1 = __webpack_require__(270);
+var db_auth_resolver_1 = __webpack_require__(274);
 Object.defineProperty(exports, "DBAuthResolver", ({ enumerable: true, get: function () { return db_auth_resolver_1.DBAuthResolver; } }));
 Object.defineProperty(exports, "ResolvedDBAuth", ({ enumerable: true, get: function () { return db_auth_resolver_1.ResolvedDBAuth; } }));
-var validate_required_fields_1 = __webpack_require__(271);
+var validate_required_fields_1 = __webpack_require__(275);
 Object.defineProperty(exports, "validateRequiredFields", ({ enumerable: true, get: function () { return validate_required_fields_1.validateRequiredFields; } }));
-var parse_config_params_1 = __webpack_require__(272);
+var parse_config_params_1 = __webpack_require__(276);
 Object.defineProperty(exports, "parseConfigParams", ({ enumerable: true, get: function () { return parse_config_params_1.parseConfigParams; } }));
 Object.defineProperty(exports, "parseConfigParamsBySection", ({ enumerable: true, get: function () { return parse_config_params_1.parseConfigParamsBySection; } }));
 Object.defineProperty(exports, "getConfigParam", ({ enumerable: true, get: function () { return parse_config_params_1.getConfigParam; } }));
@@ -6903,7 +6939,7 @@ Object.defineProperty(exports, "getSectionParams", ({ enumerable: true, get: fun
 
 
 /***/ }),
-/* 264 */
+/* 268 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -6980,7 +7016,7 @@ function omitHashMap(hashMap, keys) {
 
 
 /***/ }),
-/* 265 */
+/* 269 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -7006,16 +7042,16 @@ function passwordValidityChecker(password) {
 
 
 /***/ }),
-/* 266 */
+/* 270 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getOrCreateSSLCert = getOrCreateSSLCert;
 const tslib_1 = __webpack_require__(3);
-const fs = tslib_1.__importStar(__webpack_require__(267));
+const fs = tslib_1.__importStar(__webpack_require__(271));
 const path = tslib_1.__importStar(__webpack_require__(28));
-const selfsigned = tslib_1.__importStar(__webpack_require__(268));
+const selfsigned = tslib_1.__importStar(__webpack_require__(272));
 /**
  * Retrieves existing SSL certificates or generates new self-signed certificates if they don't exist.
  * Certificates are stored in an 'ssl' directory relative to the executable path (for pkg) or project root.
@@ -7070,19 +7106,19 @@ function getOrCreateSSLCert() {
 
 
 /***/ }),
-/* 267 */
+/* 271 */
 /***/ ((module) => {
 
 module.exports = require("fs");
 
 /***/ }),
-/* 268 */
+/* 272 */
 /***/ ((module) => {
 
 module.exports = require("selfsigned");
 
 /***/ }),
-/* 269 */
+/* 273 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -7120,7 +7156,7 @@ function isValidIPv6(ip) {
 
 
 /***/ }),
-/* 270 */
+/* 274 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -7201,7 +7237,7 @@ exports.DBAuthResolver = DBAuthResolver;
 
 
 /***/ }),
-/* 271 */
+/* 275 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -7251,7 +7287,7 @@ function validateRequiredFields(body, fieldNames, endpoint, logger) {
 
 
 /***/ }),
-/* 272 */
+/* 276 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -7418,7 +7454,7 @@ function getSectionParams(grouped, section) {
 
 
 /***/ }),
-/* 273 */
+/* 277 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -7433,7 +7469,7 @@ Object.defineProperty(exports, "LockService", ({ enumerable: true, get: function
 
 
 /***/ }),
-/* 274 */
+/* 278 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -7443,7 +7479,7 @@ const tslib_1 = __webpack_require__(3);
 const common_1 = __webpack_require__(6);
 const axios_1 = __webpack_require__(199);
 const cms_https_client_service_1 = __webpack_require__(198);
-const cms_https_client_controller_1 = __webpack_require__(275);
+const cms_https_client_controller_1 = __webpack_require__(279);
 const _host_1 = __webpack_require__(202);
 const _security_1 = __webpack_require__(185);
 /**
@@ -7468,7 +7504,7 @@ exports.CmsHttpsClientModule = CmsHttpsClientModule = tslib_1.__decorate([
 
 
 /***/ }),
-/* 275 */
+/* 279 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -7543,19 +7579,19 @@ exports.CmsHttpsClientController = CmsHttpsClientController = tslib_1.__decorate
 
 
 /***/ }),
-/* 276 */
+/* 280 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.MonitoringModule = void 0;
 // Export module
-var monitoring_module_1 = __webpack_require__(277);
+var monitoring_module_1 = __webpack_require__(281);
 Object.defineProperty(exports, "MonitoringModule", ({ enumerable: true, get: function () { return monitoring_module_1.MonitoringModule; } }));
 
 
 /***/ }),
-/* 277 */
+/* 281 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -7563,12 +7599,12 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.MonitoringModule = void 0;
 const tslib_1 = __webpack_require__(3);
 const common_1 = __webpack_require__(6);
-const ha_monitoring_controller_1 = __webpack_require__(278);
-const ha_monitoring_service_1 = __webpack_require__(279);
-const resource_monitoring_controller_1 = __webpack_require__(280);
-const resource_monitoring_service_1 = __webpack_require__(281);
+const ha_monitoring_controller_1 = __webpack_require__(282);
+const ha_monitoring_service_1 = __webpack_require__(283);
+const resource_monitoring_controller_1 = __webpack_require__(284);
+const resource_monitoring_service_1 = __webpack_require__(285);
 const _host_1 = __webpack_require__(202);
-const cms_https_client_module_1 = __webpack_require__(274);
+const cms_https_client_module_1 = __webpack_require__(278);
 /**
  * Module for managing monitoring functionalities.
  * Includes HA (High Availability) and resource monitoring operations.
@@ -7593,7 +7629,7 @@ exports.MonitoringModule = MonitoringModule = tslib_1.__decorate([
 
 
 /***/ }),
-/* 278 */
+/* 282 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -7620,7 +7656,7 @@ exports.HaMonitoringController = HaMonitoringController = tslib_1.__decorate([
 
 
 /***/ }),
-/* 279 */
+/* 283 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -7647,7 +7683,7 @@ exports.HaMonitoringService = HaMonitoringService = tslib_1.__decorate([
 
 
 /***/ }),
-/* 280 */
+/* 284 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -7656,7 +7692,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ResourceMonitoringController = void 0;
 const tslib_1 = __webpack_require__(3);
 const common_1 = __webpack_require__(6);
-const resource_monitoring_service_1 = __webpack_require__(281);
+const resource_monitoring_service_1 = __webpack_require__(285);
 /**
  * Controller for handling resource monitoring operations.
  *
@@ -7698,7 +7734,7 @@ exports.ResourceMonitoringController = ResourceMonitoringController = tslib_1.__
 
 
 /***/ }),
-/* 281 */
+/* 285 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -7751,7 +7787,7 @@ exports.ResourceMonitoringService = ResourceMonitoringService = tslib_1.__decora
 
 
 /***/ }),
-/* 282 */
+/* 286 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -7766,25 +7802,25 @@ Object.defineProperty(exports, "StorageService", ({ enumerable: true, get: funct
 
 
 /***/ }),
-/* 283 */
+/* 287 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UserService = exports.UserController = exports.UserModule = void 0;
 // Export module
-var user_module_1 = __webpack_require__(284);
+var user_module_1 = __webpack_require__(288);
 Object.defineProperty(exports, "UserModule", ({ enumerable: true, get: function () { return user_module_1.UserModule; } }));
 // Export controller
-var user_controller_1 = __webpack_require__(285);
+var user_controller_1 = __webpack_require__(289);
 Object.defineProperty(exports, "UserController", ({ enumerable: true, get: function () { return user_controller_1.UserController; } }));
 // Export service
-var user_service_1 = __webpack_require__(286);
+var user_service_1 = __webpack_require__(290);
 Object.defineProperty(exports, "UserService", ({ enumerable: true, get: function () { return user_service_1.UserService; } }));
 
 
 /***/ }),
-/* 284 */
+/* 288 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -7792,10 +7828,10 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UserService = exports.UserController = exports.UserModule = void 0;
 const tslib_1 = __webpack_require__(3);
 const common_1 = __webpack_require__(6);
-const user_controller_1 = __webpack_require__(285);
+const user_controller_1 = __webpack_require__(289);
 const _repository_1 = __webpack_require__(10);
 const _security_1 = __webpack_require__(185);
-const user_service_1 = __webpack_require__(286);
+const user_service_1 = __webpack_require__(290);
 const _token_1 = __webpack_require__(186);
 /**
  * User management module for handling user-related operations.
@@ -7823,14 +7859,14 @@ exports.UserModule = UserModule = tslib_1.__decorate([
     })
 ], UserModule);
 // Export controllers and services for documentation
-var user_controller_2 = __webpack_require__(285);
+var user_controller_2 = __webpack_require__(289);
 Object.defineProperty(exports, "UserController", ({ enumerable: true, get: function () { return user_controller_2.UserController; } }));
-var user_service_2 = __webpack_require__(286);
+var user_service_2 = __webpack_require__(290);
 Object.defineProperty(exports, "UserService", ({ enumerable: true, get: function () { return user_service_2.UserService; } }));
 
 
 /***/ }),
-/* 285 */
+/* 289 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -7839,7 +7875,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UserController = void 0;
 const tslib_1 = __webpack_require__(3);
 const common_1 = __webpack_require__(6);
-const user_service_1 = __webpack_require__(286);
+const user_service_1 = __webpack_require__(290);
 const index_1 = __webpack_require__(68);
 /**
  * Controller for handling user-related operations.
@@ -8041,7 +8077,7 @@ exports.UserController = UserController = tslib_1.__decorate([
 
 
 /***/ }),
-/* 286 */
+/* 290 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -8053,7 +8089,7 @@ const common_1 = __webpack_require__(6);
 const _repository_1 = __webpack_require__(10);
 const _security_1 = __webpack_require__(185);
 const user_error_1 = __webpack_require__(40);
-const _util_1 = __webpack_require__(263);
+const _util_1 = __webpack_require__(267);
 const _common_1 = __webpack_require__(32);
 const index_1 = __webpack_require__(68);
 /**
@@ -8300,7 +8336,7 @@ exports.UserService = UserService = tslib_1.__decorate([
 
 
 /***/ }),
-/* 287 */
+/* 291 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -8309,7 +8345,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AppController = void 0;
 const tslib_1 = __webpack_require__(3);
 const common_1 = __webpack_require__(6);
-const app_service_1 = __webpack_require__(288);
+const app_service_1 = __webpack_require__(292);
 /**
  * Root controller for handling basic application endpoints.
  *
@@ -8376,7 +8412,7 @@ exports.AppController = AppController = tslib_1.__decorate([
 
 
 /***/ }),
-/* 288 */
+/* 292 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -8418,7 +8454,7 @@ exports.AppService = AppService = tslib_1.__decorate([
 
 
 /***/ }),
-/* 289 */
+/* 293 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -8426,9 +8462,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CmsAuthModule = void 0;
 const tslib_1 = __webpack_require__(3);
 const common_1 = __webpack_require__(6);
-const cms_auth_service_1 = __webpack_require__(290);
-const cms_auth_controller_1 = __webpack_require__(291);
-const cms_https_client_module_1 = __webpack_require__(274);
+const cms_auth_service_1 = __webpack_require__(294);
+const cms_auth_controller_1 = __webpack_require__(295);
+const cms_https_client_module_1 = __webpack_require__(278);
 const _repository_1 = __webpack_require__(10);
 /**
  * Module for handling CMS authentication functionalities.
@@ -8452,7 +8488,7 @@ exports.CmsAuthModule = CmsAuthModule = tslib_1.__decorate([
 
 
 /***/ }),
-/* 290 */
+/* 294 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -8553,7 +8589,7 @@ exports.CmsAuthService = CmsAuthService = tslib_1.__decorate([
 
 
 /***/ }),
-/* 291 */
+/* 295 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -8562,7 +8598,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CmsAuthController = void 0;
 const tslib_1 = __webpack_require__(3);
 const common_1 = __webpack_require__(6);
-const cms_auth_service_1 = __webpack_require__(290);
+const cms_auth_service_1 = __webpack_require__(294);
 /**
  * Controller for handling CMS authentication operations.
  *
@@ -8611,7 +8647,7 @@ exports.CmsAuthController = CmsAuthController = tslib_1.__decorate([
 
 
 /***/ }),
-/* 292 */
+/* 296 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -8619,10 +8655,10 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CmsConfigModule = void 0;
 const tslib_1 = __webpack_require__(3);
 const common_1 = __webpack_require__(6);
-const cms_config_controller_1 = __webpack_require__(293);
-const cms_config_service_1 = __webpack_require__(294);
+const cms_config_controller_1 = __webpack_require__(297);
+const cms_config_service_1 = __webpack_require__(298);
 const _host_1 = __webpack_require__(202);
-const cms_https_client_module_1 = __webpack_require__(274);
+const cms_https_client_module_1 = __webpack_require__(278);
 /**
  * Module for managing CMS configuration operations.
  *
@@ -8651,7 +8687,7 @@ exports.CmsConfigModule = CmsConfigModule = tslib_1.__decorate([
 
 
 /***/ }),
-/* 293 */
+/* 297 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -8661,7 +8697,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CmsConfigController = void 0;
 const tslib_1 = __webpack_require__(3);
 const common_1 = __webpack_require__(6);
-const cms_config_service_1 = __webpack_require__(294);
+const cms_config_service_1 = __webpack_require__(298);
 /**
  * Controller for handling CMS environment configuration operations.
  *
@@ -8841,7 +8877,7 @@ exports.CmsConfigController = CmsConfigController = CmsConfigController_1 = tsli
 
 
 /***/ }),
-/* 294 */
+/* 298 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -9061,7 +9097,7 @@ exports.CmsConfigService = CmsConfigService = tslib_1.__decorate([
 
 
 /***/ }),
-/* 295 */
+/* 299 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -9069,10 +9105,10 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FileModule = void 0;
 const tslib_1 = __webpack_require__(3);
 const common_1 = __webpack_require__(6);
-const file_service_1 = __webpack_require__(296);
-const file_controller_1 = __webpack_require__(297);
-const cms_https_client_module_1 = __webpack_require__(274);
-const cms_auth_module_1 = __webpack_require__(289);
+const file_service_1 = __webpack_require__(300);
+const file_controller_1 = __webpack_require__(301);
+const cms_https_client_module_1 = __webpack_require__(278);
+const cms_auth_module_1 = __webpack_require__(293);
 const _repository_1 = __webpack_require__(10);
 /**
  * Module for managing file operations.
@@ -9096,7 +9132,7 @@ exports.FileModule = FileModule = tslib_1.__decorate([
 
 
 /***/ }),
-/* 296 */
+/* 300 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -9106,7 +9142,7 @@ exports.FileService = void 0;
 const tslib_1 = __webpack_require__(3);
 const common_1 = __webpack_require__(6);
 const cms_https_client_service_1 = __webpack_require__(198);
-const cms_auth_service_1 = __webpack_require__(290);
+const cms_auth_service_1 = __webpack_require__(294);
 const _repository_1 = __webpack_require__(10);
 const index_1 = __webpack_require__(36);
 const handle_cms_https_client_errors_decorator_1 = __webpack_require__(56);
@@ -9187,7 +9223,7 @@ exports.FileService = FileService = tslib_1.__decorate([
 
 
 /***/ }),
-/* 297 */
+/* 301 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -9196,7 +9232,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FileController = void 0;
 const tslib_1 = __webpack_require__(3);
 const common_1 = __webpack_require__(6);
-const file_service_1 = __webpack_require__(296);
+const file_service_1 = __webpack_require__(300);
 /**
  * Controller for file operations.
  * 파일 작업을 관리하는 컨트롤러입니다.
@@ -9248,7 +9284,7 @@ exports.FileController = FileController = tslib_1.__decorate([
 
 
 /***/ }),
-/* 298 */
+/* 302 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -9256,13 +9292,13 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DatabaseModule = void 0;
 const tslib_1 = __webpack_require__(3);
 const common_1 = __webpack_require__(6);
-const database_controller_1 = __webpack_require__(299);
-const database_service_1 = __webpack_require__(300);
+const database_controller_1 = __webpack_require__(303);
+const database_service_1 = __webpack_require__(304);
 const _host_1 = __webpack_require__(202);
-const cms_https_client_module_1 = __webpack_require__(274);
+const cms_https_client_module_1 = __webpack_require__(278);
 const _repository_1 = __webpack_require__(10);
-const database_user_controller_1 = __webpack_require__(301);
-const database_user_service_1 = __webpack_require__(302);
+const database_user_controller_1 = __webpack_require__(305);
+const database_user_service_1 = __webpack_require__(306);
 /**
  * Module for managing database functionalities.
  * Provides database start information and management operations.
@@ -9286,7 +9322,7 @@ exports.DatabaseModule = DatabaseModule = tslib_1.__decorate([
 
 
 /***/ }),
-/* 299 */
+/* 303 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -9297,8 +9333,8 @@ exports.DatabaseController = void 0;
 const tslib_1 = __webpack_require__(3);
 const common_1 = __webpack_require__(6);
 const _api_interfaces_1 = __webpack_require__(205);
-const _util_1 = __webpack_require__(263);
-const database_service_1 = __webpack_require__(300);
+const _util_1 = __webpack_require__(267);
+const database_service_1 = __webpack_require__(304);
 /**
  * Controller for handling database operations.
  *
@@ -9621,7 +9657,7 @@ exports.DatabaseController = DatabaseController = DatabaseController_1 = tslib_1
 
 
 /***/ }),
-/* 300 */
+/* 304 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -10136,7 +10172,7 @@ exports.DatabaseService = DatabaseService = tslib_1.__decorate([
 
 
 /***/ }),
-/* 301 */
+/* 305 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -10146,7 +10182,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DatabaseUserController = void 0;
 const tslib_1 = __webpack_require__(3);
 const common_1 = __webpack_require__(6);
-const database_user_service_1 = __webpack_require__(302);
+const database_user_service_1 = __webpack_require__(306);
 /**
  * Controller for managing database users.
  *
@@ -10230,7 +10266,7 @@ exports.DatabaseUserController = DatabaseUserController = DatabaseUserController
 
 
 /***/ }),
-/* 302 */
+/* 306 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -10243,7 +10279,7 @@ const database_error_1 = __webpack_require__(41);
 const _host_1 = __webpack_require__(202);
 const common_1 = __webpack_require__(6);
 const _repository_1 = __webpack_require__(10);
-const db_auth_resolver_1 = __webpack_require__(270);
+const db_auth_resolver_1 = __webpack_require__(274);
 const cms_https_client_service_1 = __webpack_require__(198);
 /**
  * Service for managing database users.
@@ -10319,7 +10355,7 @@ exports.DatabaseUserService = DatabaseUserService = tslib_1.__decorate([
 
 
 /***/ }),
-/* 303 */
+/* 307 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -10327,9 +10363,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.LogModule = void 0;
 const tslib_1 = __webpack_require__(3);
 const common_1 = __webpack_require__(6);
-const log_controller_1 = __webpack_require__(304);
-const log_service_1 = __webpack_require__(305);
-const cms_https_client_module_1 = __webpack_require__(274);
+const log_controller_1 = __webpack_require__(308);
+const log_service_1 = __webpack_require__(309);
+const cms_https_client_module_1 = __webpack_require__(278);
 const _host_1 = __webpack_require__(202);
 let LogModule = class LogModule {
 };
@@ -10345,7 +10381,7 @@ exports.LogModule = LogModule = tslib_1.__decorate([
 
 
 /***/ }),
-/* 304 */
+/* 308 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -10355,9 +10391,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.LogController = void 0;
 const tslib_1 = __webpack_require__(3);
 const common_1 = __webpack_require__(6);
-const log_service_1 = __webpack_require__(305);
+const log_service_1 = __webpack_require__(309);
 const _api_interfaces_1 = __webpack_require__(205);
-const _util_1 = __webpack_require__(263);
+const _util_1 = __webpack_require__(267);
 /**
  * Controller for handling log-related operations.
  *
@@ -10517,7 +10553,7 @@ exports.LogController = LogController = LogController_1 = tslib_1.__decorate([
 
 
 /***/ }),
-/* 305 */
+/* 309 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -10648,7 +10684,7 @@ exports.LogService = LogService = tslib_1.__decorate([
 
 
 /***/ }),
-/* 306 */
+/* 310 */
 /***/ ((module) => {
 
 module.exports = require("module-alias/register");
@@ -10689,8 +10725,8 @@ var exports = __webpack_exports__;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core_1 = __webpack_require__(1);
 const app_module_1 = __webpack_require__(2);
-__webpack_require__(306);
-const ssl_util_1 = __webpack_require__(266);
+__webpack_require__(310);
+const ssl_util_1 = __webpack_require__(270);
 const global_filter_1 = __webpack_require__(50);
 const config_service_1 = __webpack_require__(8);
 const _common_1 = __webpack_require__(32); // Updated import
