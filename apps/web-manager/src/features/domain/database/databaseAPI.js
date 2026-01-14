@@ -41,6 +41,17 @@ export const getDBSpaceAPI = async (host, db) => {
     return { result: data, success: true };
 }
 
+export const getDBSSizeAPI = async (host, data) => {
+    const payload = {
+        task: "getdbsize",
+        ...data
+    }
+    const response = await getResponse(host, payload)
+    return {result: response, success: true};
+}
+
+
+
 export const startDatabaseAPI = async (host, db) => {
     const url = `/${host.uid}/database/start/${db.dbname}`
     const {data} = await axios.post(url);
@@ -93,6 +104,15 @@ export const deleteDBAPI = async (host, data) => {
 export const backupDBAPI = async (host, data) => {
     const payload = {
         task: "backupdb",
+        ...data
+    }
+    const response = await getResponse(host, payload)
+    return {result: response, success: true};
+}
+
+export const copyDBAPI = async (host, data) => {
+    const payload = {
+        task: "copydb",
         ...data
     }
     const response = await getResponse(host, payload)

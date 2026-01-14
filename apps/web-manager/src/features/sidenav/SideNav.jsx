@@ -22,6 +22,8 @@ import CheckDB from "@/features/sidenav/components/modal/DatabaseManagement/Chec
 import RenameDB from "@/features/sidenav/components/modal/DatabaseManagement/RenameDB.jsx";
 import DeleteDB from "@/features/sidenav/components/modal/DatabaseManagement/DeleteDB.jsx";
 import BackupDB from "./components/modal/DatabaseManagement/BackupDB";
+import RestoreDB from "./components/modal/DatabaseManagement/RestoreDB";
+import CopyDB from "./components/modal/DatabaseManagement/CopyDB";
 
 
 const SideNav = () => {
@@ -41,6 +43,8 @@ const SideNav = () => {
             <RenameDB/>
             <DeleteDB/>
             <BackupDB/>
+            <RestoreDB/>
+            <CopyDB/>
         <div className={styles.layout}>
             <div className={styles.top__menu}>
                 <div className={styles.mode__view}>
