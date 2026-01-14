@@ -15,7 +15,7 @@ import {
     setPlanDump,
     setRenameDB
 } from "@/features/sidenav/sideNavSlice.js";
-import {setBackupDB} from "../../sideNavSlice";
+import {setBackupDB, setCopyDB, setRestoreDB} from "../../sideNavSlice";
 
 const  DatabaseMenu = ({node, clientX, clientY, open, onClose}) =>{
     const {startDatabase, stopDatabase} = useDatabaseOperation()
@@ -74,14 +74,14 @@ const  DatabaseMenu = ({node, clientX, clientY, open, onClose}) =>{
                         dispatch(setCheckDB({open: true, node}));
                     }
                 },
-                // {
-                //     label: "Copy Database",
-                //     key: nanoid(4),
-                //     disabled: node.status === "active",
-                //     // onClick: () => {
-                //     //     dispatch(setCopyDB({open: true, node}));
-                //     // }
-                // },
+                {
+                    label: "Copy Database",
+                    key: nanoid(4),
+                    disabled: node.status === "active",
+                    onClick: () => {
+                        dispatch(setCopyDB({open: true, node}));
+                    }
+                },
 
                 {
                     label: "Create Database",
@@ -107,9 +107,9 @@ const  DatabaseMenu = ({node, clientX, clientY, open, onClose}) =>{
                     label: "Restore DB",
                     key: nanoid(4),
                     disabled: node.status === "active",
-                    // onClick: ()=>{
-                    //     dispatch(setRestoreDB({open: true, node}));
-                    // }
+                    onClick: ()=>{
+                        dispatch(setRestoreDB({open: true, node}));
+                    }
                 },
                 {
                     label: "Delete Database",
