@@ -1,4 +1,6 @@
 import axios from './axiosInstant.js'
+import {store} from "../store/store";
+import {setErrorModal} from "../shared/slice/globalSlice";
 
 export const requestCMAPI = (server, payload)=>{
     const {uid} = server;
@@ -23,6 +25,12 @@ export const getResponse = async (server, payload) => {
             const {data} = await requestCMAPI(server, payload);
             return {...data};
         }
+        if(data.status === "failure"){
+            store.dispatch(setErrorModal({open: true,
+                title: data.title || "Error",
+                message: data.note || "Something went wrong",}));
+        }
+
         return {...data, success: data.status === "success" };
     }catch(error){
         if (error.response.status === 401) {

@@ -1,18 +1,20 @@
 import { getResponse } from "@/api/endPoint.js";
 import { isNotEmpty } from "@/lib/utils.js";
-import axios from '/src/api/axiosInstant.js'
+import axios from '@/api/axiosInstant.js'
 
 const getListDatabase = (data)=>{
-    let databases = []
-    if (isNotEmpty(data.activelist)) {
-        for (let db of data.activelist.active) {
-            databases.push({ ...db, status: "active" });
-        }
-    }
+    const  databases = []
+    // if (isNotEmpty(data.activelist)) {
+    //     for (let db of data.activelist.active) {
+    //         databases.push({ ...db, status: "active" });
+    //     }
+    // }
     if (isNotEmpty(data.dblist)) {
-        for (let db of data.dblist.dbs) {
-            if (!databases.some(obj => obj.dbname === db.dbname)) {
+        for (const db of data.dblist.dbs) {
+            if (!data.activelist.active.some(obj => obj.dbname === db.dbname)) {
                 databases.push({ ...db, status: "inactive" });
+            }else{
+                databases.push({ ...db, status: "active" });
             }
         }
     }
@@ -117,4 +119,13 @@ export const copyDBAPI = async (host, data) => {
     }
     const response = await getResponse(host, payload)
     return {result: response, success: true};
+}
+
+export const addVolumeAPI = async (host, data) => {
+    const payload = {
+        task: "addvoldb",
+        ...data
+    }
+    const response = await getResponse(host, payload)
+    return {result: response, success: response.success};
 }
