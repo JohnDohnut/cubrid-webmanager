@@ -15,6 +15,8 @@ import {
     StartInfoClientResponse,
     AddBackupInfoClientRequest,
     AddBackupInfoClientResponse,
+    SetBackupInfoClientRequest,
+    SetBackupInfoClientResponse,
     GetBackupInfoClientRequest,
     GetBackupInfoClientResponse,
     SetAutoExecQueryClientRequest,
@@ -28,6 +30,7 @@ import {
     StartDatabaseCmsRequest,
     StopDatabaseCmsRequest,
     AddBackupInfoCmsRequest,
+    SetBackupInfoCmsRequest,
     GetBackupInfoCmsRequest,
     SetAutoExecQueryCmsRequest,
     GetAutoExecQueryCmsRequest,
@@ -36,6 +39,7 @@ import {
     DbSpaceInfoCmsResponse,
     StartInfoCmsResponse,
     AddBackupInfoCmsResponse,
+    SetBackupInfoCmsResponse,
     GetBackupInfoCmsResponse,
     SetAutoExecQueryCmsResponse,
     GetAutoExecQueryCmsResponse,
@@ -437,6 +441,60 @@ export class DatabaseService {
         checkCmsStatusError(response);
 
         return {};
+    }
+
+    /**
+     * Set automated backup schedule information for a database.
+     * Returns empty object on success (CMS envelope fields removed).
+     *
+     * @param userId User ID from JWT
+     * @param hostUid Host UID
+     * @param dbname Database name
+     * @param backupInfo Backup information
+     * @returns SetBackupInfoClientResponse Empty object on success
+     * @throws DatabaseError If request fails or CMS status is fail
+     */
+    @HandleDatabaseErrors()
+    async setBackupSchedule(
+        userId: string,
+        hostUid: string,
+        dbname: string,
+        backupInfo: SetBackupInfoClientRequest,
+    ): Promise<SetBackupInfoClientResponse> {
+        const host = await this.hostService.findHostInternal(userId, hostUid);
+        const url = `https://${host.address}:${host.port}/cm_api`;
+        const request: SetBackupInfoCmsRequest = {
+            task: 'setbackupinfo',
+            token: host.token || '',
+            dbname: dbname,
+            backupid: backupInfo.backupid,
+            path: backupInfo.path,
+            period_type: backupInfo.period_type,
+            period_date: backupInfo.period_date,
+            time: backupInfo.time,
+            level: backupInfo.level,
+            archivedel: backupInfo.archivedel,
+            updatestatus: backupInfo.updatestatus,
+            storeold: backupInfo.storeold,
+            onoff: backupInfo.onoff,
+            zip: backupInfo.zip,
+            check: backupInfo.check,
+            mt: backupInfo.mt,
+            bknum: backupInfo.bknum,
+        };
+
+        const response = await this.cmsClient.postAuthenticated<SetBackupInfoCmsRequest, SetBackupInfoCmsResponse>(url, request);
+
+        checkCmsTokenError(response);
+
+        checkCmsStatusError(response);
+
+        return {
+            __EXEC_TIME: response.__EXEC_TIME,
+            note: response.note,
+            status: response.status as 'success' | 'error',
+            task: 'setbackupinfo',
+        };
     }
 
     /**
