@@ -17,6 +17,8 @@ import {
     AddBackupInfoClientResponse,
     SetBackupInfoClientRequest,
     SetBackupInfoClientResponse,
+    DeleteBackupInfoClientRequest,
+    DeleteBackupInfoClientResponse,
     GetBackupInfoClientRequest,
     GetBackupInfoClientResponse,
     SetAutoExecQueryClientRequest,
@@ -31,6 +33,7 @@ import {
     StopDatabaseCmsRequest,
     AddBackupInfoCmsRequest,
     SetBackupInfoCmsRequest,
+    DeleteBackupInfoCmsRequest,
     GetBackupInfoCmsRequest,
     SetAutoExecQueryCmsRequest,
     GetAutoExecQueryCmsRequest,
@@ -40,6 +43,7 @@ import {
     StartInfoCmsResponse,
     AddBackupInfoCmsResponse,
     SetBackupInfoCmsResponse,
+    DeleteBackupInfoCmsResponse,
     GetBackupInfoCmsResponse,
     SetAutoExecQueryCmsResponse,
     GetAutoExecQueryCmsResponse,
@@ -494,6 +498,47 @@ export class DatabaseService {
             note: response.note,
             status: response.status as 'success' | 'error',
             task: 'setbackupinfo',
+        };
+    }
+
+    /**
+     * Delete automated backup schedule information for a database.
+     * Returns response with execution details.
+     *
+     * @param userId User ID from JWT
+     * @param hostUid Host UID
+     * @param dbname Database name
+     * @param backupInfo Backup information to delete
+     * @returns DeleteBackupInfoClientResponse Response with execution details
+     * @throws DatabaseError If request fails or CMS status is fail
+     */
+    @HandleDatabaseErrors()
+    async deleteBackupSchedule(
+        userId: string,
+        hostUid: string,
+        dbname: string,
+        backupInfo: DeleteBackupInfoClientRequest,
+    ): Promise<DeleteBackupInfoClientResponse> {
+        const host = await this.hostService.findHostInternal(userId, hostUid);
+        const url = `https://${host.address}:${host.port}/cm_api`;
+        const request: DeleteBackupInfoCmsRequest = {
+            task: 'deletebackupinfo',
+            token: host.token || '',
+            dbname: dbname, // Use path parameter dbname
+            backupid: backupInfo.backupid,
+        };
+
+        const response = await this.cmsClient.postAuthenticated<DeleteBackupInfoCmsRequest, DeleteBackupInfoCmsResponse>(url, request);
+
+        checkCmsTokenError(response);
+
+        checkCmsStatusError(response);
+
+        return {
+            __EXEC_TIME: response.__EXEC_TIME,
+            note: response.note,
+            status: response.status as 'success' | 'error',
+            task: 'deletebackupinfo',
         };
     }
 
