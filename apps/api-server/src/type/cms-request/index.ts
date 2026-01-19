@@ -23,6 +23,7 @@ export * from './get-all-sys-param-cms-request';
 export * from './set-sys-param-cms-request';
 export * from './get-admin-log-info-cms-request';
 export * from './add-backup-info-cms-request';
+export * from './set-backup-info-cms-request';
 export * from './get-backup-info-cms-request';
 export * from './set-auto-exec-query-cms-request';
 export * from './get-auto-exec-query-cms-request';
