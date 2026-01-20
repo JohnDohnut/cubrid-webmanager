@@ -1,9 +1,13 @@
-import { Body, Controller, Get, Logger, Param, Post, Request } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Logger, Param, Post, Put, Request } from '@nestjs/common';
 import {
     DatabaseVolumeInfoClientResponse,
     StartInfoClientResponse,
     AddBackupInfoClientRequest,
     AddBackupInfoClientResponse,
+    SetBackupInfoClientRequest,
+    SetBackupInfoClientResponse,
+    DeleteBackupInfoClientRequest,
+    DeleteBackupInfoClientResponse,
     GetBackupInfoClientRequest,
     GetBackupInfoClientResponse,
     SetAutoExecQueryClientRequest,
@@ -237,6 +241,80 @@ export class DatabaseController {
             'DatabaseController',
         );
         return await this.databaseService.addBackupSchedule(userId, hostUid, dbname, body);
+    }
+
+    /**
+     * Set automated backup schedule information for a database.
+     * Returns empty object on success.
+     *
+     * @route PUT /:hostUid/database/backup-schedule/:dbname
+     * @param req Express request (contains authenticated user)
+     * @param hostUid Host unique identifier from path parameter
+     * @param dbname Database name from path parameter
+     * @param body Request body containing backup schedule information
+     * @returns SetBackupInfoClientResponse Empty object on success
+     * @example
+     * // PUT /host-uid/database/backup-schedule/demodb
+     * // Body: { "backupid": "t2", "path": "/path/to/backup", ... }
+     */
+    @Put('backup-schedule/:dbname')
+    async setBackupSchedule(
+        @Request() req,
+        @Param('hostUid') hostUid: string,
+        @Param('dbname') dbname: string,
+        @Body() body: SetBackupInfoClientRequest,
+    ): Promise<SetBackupInfoClientResponse> {
+        const userId = req.user.sub;
+
+        validateRequiredFields(
+            body,
+            ['backupid', 'path', 'period_type', 'period_date', 'time', 'level'],
+            'database/backup-schedule',
+            this.logger,
+        );
+
+        Logger.log(
+            `Setting backup schedule for database: ${dbname} on host: ${hostUid}`,
+            'DatabaseController',
+        );
+        return await this.databaseService.setBackupSchedule(userId, hostUid, dbname, body);
+    }
+
+    /**
+     * Delete automated backup schedule information for a database.
+     * Returns response with execution details.
+     *
+     * @route DELETE /:hostUid/database/backup-schedule/:dbname
+     * @param req Express request (contains authenticated user)
+     * @param hostUid Host unique identifier from path parameter
+     * @param dbname Database name from path parameter
+     * @param body Request body containing backup ID to delete
+     * @returns DeleteBackupInfoClientResponse Response with execution details
+     * @example
+     * // DELETE /host-uid/database/backup-schedule/demodb
+     * // Body: { "backupid": "t2" }
+     */
+    @Delete('backup-schedule/:dbname')
+    async deleteBackupSchedule(
+        @Request() req,
+        @Param('hostUid') hostUid: string,
+        @Param('dbname') dbname: string,
+        @Body() body: DeleteBackupInfoClientRequest,
+    ): Promise<DeleteBackupInfoClientResponse> {
+        const userId = req.user.sub;
+
+        validateRequiredFields(
+            body,
+            ['backupid'],
+            'database/backup-schedule',
+            this.logger,
+        );
+
+        Logger.log(
+            `Deleting backup schedule for database: ${dbname} on host: ${hostUid}`,
+            'DatabaseController',
+        );
+        return await this.databaseService.deleteBackupSchedule(userId, hostUid, dbname, body);
     }
 
     /**

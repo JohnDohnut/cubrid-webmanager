@@ -29,6 +29,7 @@ import useFetchLog from "@/features/sidenav/hook/useFetchLog.js";
 import UsersMenu from "@/features/sidenav/components/menus/UsersMenu.jsx";
 import ManageDBUser from "@/features/sidenav/components/modal/ManageDBUser.jsx";
 import UserMenu from "@/features/sidenav/components/menus/UserMenu.jsx";
+import DatabaseSpaceMenu from "./menus/DatabaseSpaceMenu";
 
 
 const menus = [
@@ -39,6 +40,7 @@ const menus = [
     {type: "broker", Screen: BrokerMenu},
     {type: "users", Screen: UsersMenu},
     {type: "user", Screen: UserMenu},
+    {type: "database_space", Screen: DatabaseSpaceMenu}
 ]
 
 

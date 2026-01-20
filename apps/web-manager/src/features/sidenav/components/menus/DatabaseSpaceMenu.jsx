@@ -4,31 +4,32 @@ import {nanoid} from "nanoid";
 
 import {useDispatch, useSelector} from "react-redux";
 import {setQueryPlanModal} from "@/features/sidenav/sideNavSlice.js";
+import {setAddVolume} from "../../sideNavSlice";
 
 
 
-const QueryMenu = ({node, clientX, clientY, open, onClose})=>{
+const DatabaseSpaceMenu = ({node, clientX, clientY, open, onClose})=>{
     console.log(clientX, clientY);
-    const {hosts} = useSelector(state => state.host);
+
     const dispatch = useDispatch();
 
     const menuItems = [
         {
-            label: "Add Query Plan",
+            label: "Add Volume",
             key: nanoid(4),
             icon: <PlusOutlined />,
             onClick: ()=>{
                 const updateNode = {...node, icon: null};
-                dispatch(setQueryPlanModal({open: true, node: updateNode, type: "add"}))
+                dispatch(setAddVolume({open: true, node: updateNode, type: "add"}))
             },
         },
         {
-            label: "Auto Query Log",
+            label: "Set Volume",
             key: nanoid(4),
             icon: <PlusOutlined />
         },
         {
-            label: "Refresh",
+            label: "View Database",
             key: nanoid(4),
             icon: <ApiOutlined />
         },
@@ -46,4 +47,4 @@ const QueryMenu = ({node, clientX, clientY, open, onClose})=>{
     )
 }
 
-export default QueryMenu
+export default DatabaseSpaceMenu
