@@ -81,7 +81,7 @@ const RenameDB = ()=>{
 
     useEffect(() => {
         if(renameDB.open){
-            let path = renameDB.node.dbdir.split("/");
+            const path = renameDB.node.dbdir.split("/");
             path.pop();
             form.setFieldValue("exvolpath", `${path.join("/")}/${dbname}`);
         }

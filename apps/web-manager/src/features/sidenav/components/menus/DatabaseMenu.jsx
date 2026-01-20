@@ -15,6 +15,7 @@ import {
     setPlanDump,
     setRenameDB
 } from "@/features/sidenav/sideNavSlice.js";
+import {setBackupDB, setCopyDB, setRestoreDB} from "../../sideNavSlice";
 
 const  DatabaseMenu = ({node, clientX, clientY, open, onClose}) =>{
     const {startDatabase, stopDatabase} = useDatabaseOperation()
@@ -73,14 +74,14 @@ const  DatabaseMenu = ({node, clientX, clientY, open, onClose}) =>{
                         dispatch(setCheckDB({open: true, node}));
                     }
                 },
-                // {
-                //     label: "Copy Database",
-                //     key: nanoid(4),
-                //     disabled: node.status === "active",
-                //     // onClick: () => {
-                //     //     dispatch(setCopyDB({open: true, node}));
-                //     // }
-                // },
+                {
+                    label: "Copy Database",
+                    key: nanoid(4),
+                    disabled: node.status === "active",
+                    onClick: () => {
+                        dispatch(setCopyDB({open: true, node}));
+                    }
+                },
 
                 {
                     label: "Create Database",
@@ -98,17 +99,17 @@ const  DatabaseMenu = ({node, clientX, clientY, open, onClose}) =>{
                 {
                     label: "Backup Database",
                     key: nanoid(4),
-                    // onClick: ()=>{
-                    //     dispatch(setBackupDB({open: true, node}));
-                    // }
+                    onClick: ()=>{
+                        dispatch(setBackupDB({open: true, node}));
+                    }
                 },
                 {
                     label: "Restore DB",
                     key: nanoid(4),
                     disabled: node.status === "active",
-                    // onClick: ()=>{
-                    //     dispatch(setRestoreDB({open: true, node}));
-                    // }
+                    onClick: ()=>{
+                        dispatch(setRestoreDB({open: true, node}));
+                    }
                 },
                 {
                     label: "Delete Database",
