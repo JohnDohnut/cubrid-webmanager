@@ -1,5 +1,5 @@
-import React, {useEffect, useState} from "react";
-import {Modal, Form, Input, Select, Checkbox, Button} from "antd";
+import React, { useState} from "react";
+import {Modal, Checkbox, Button} from "antd";
 import {useDispatch, useSelector} from "react-redux";
 import styles from '../../../styles/Modal.module.css'
 import {setBuffering} from "@/shared/slice/globalSlice.js";
