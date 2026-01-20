@@ -25,6 +25,7 @@ import BackupDB from "./components/modal/DatabaseManagement/BackupDB";
 import RestoreDB from "./components/modal/DatabaseManagement/RestoreDB";
 import CopyDB from "./components/modal/DatabaseManagement/CopyDB";
 import AddVolume from "./components/modal/DatabaseSpace/AddVolume";
+import SetAutoVolume from "./components/modal/DatabaseSpace/SetAutoVolume";
 
 
 const SideNav = () => {
@@ -47,6 +48,7 @@ const SideNav = () => {
             <RestoreDB/>
             <CopyDB/>
             <AddVolume/>
+            <SetAutoVolume/>
         <div className={styles.layout}>
             <div className={styles.top__menu}>
                 <div className={styles.mode__view}>
