@@ -1,7 +1,7 @@
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
-import { CmsForwardClientRequest, GetEnvClientResponse, GetAllSysParamClientResponse, ParamdumpClientResponse, SetSysParamClientResponse, StatdumpClientResponse } from '@api-interfaces';
+import { CmsForwardClientRequest, GetEnvClientResponse, GetAllSysParamClientResponse, ParamdumpClientResponse, SetSysParamClientResponse, StatdumpClientResponse, AddDbnameToServerClientRequest, AddDbnameToServerClientResponse, RemoveDbnameFromServerClientRequest, RemoveDbnameFromServerClientResponse } from '@api-interfaces';
 import { ParamdumpCmsRequest, SetSysParamCmsRequest, StatdumpCmsRequest, BaseCmsRequest } from '@type';
 import { GetEnvCmsResponse } from '@type/cms-response/get-env-cms-response';
 import { GetAllSysParamCmsRequest } from '@type/cms-request/get-all-sys-param-cms-request';
@@ -10,6 +10,7 @@ import { ParamdumpCmsResponse } from '@type/cms-response/paramdump-cms-response'
 import { StatdumpCmsResponse } from '@type/cms-response/statdump-cms-response';
 import { BaseCmsResponse } from '@type/cms-response/base-cms-response';
 import { HandleCmsConfigErrors, checkCmsTokenError, checkCmsStatusError } from '@common';
+import { ConfigError } from '@error/config/config-error';
 
 /**
  * Service for managing CMS environment configuration operations.
@@ -171,9 +172,7 @@ export class CmsConfigService {
         }
 
         checkCmsStatusError(response, `Failed to get all system parameters: ${response.note || 'Unknown error'}`);
-        throw new Error(
-            `Failed to get all system parameters: ${response.note || 'Unknown error'}`,
-        );
+        throw ConfigError.GetAllSysParamFailed(confname, { note: response.note });
     }
 
     /**
@@ -212,9 +211,143 @@ export class CmsConfigService {
         }
 
         checkCmsStatusError(response, `Failed to set system parameters: ${response.note || 'Unknown error'}`);
-        throw new Error(
-            `Failed to set system parameters: ${response.note || 'Unknown error'}`,
-        );
+        throw ConfigError.SetSysParamFailed(confname, { note: response.note });
+    }
+
+    /**
+     * Add a database name to the server parameter in a configuration file.
+     * Gets current configuration, appends dbname to server parameter, and updates.
+     *
+     * @param userId - User ID from JWT
+     * @param hostUid - Host unique identifier
+     * @param request - Request containing confname and dbname
+     * @returns AddDbnameToServerClientResponse Empty object on success (CMS envelope fields removed)
+     * @throws Error if the request fails, server parameter not found, or dbname already exists
+     */
+    @HandleCmsConfigErrors()
+    async addDbnameToServerParam(
+        userId: string,
+        hostUid: string,
+        request: AddDbnameToServerClientRequest,
+    ): Promise<AddDbnameToServerClientResponse> {
+        // Get current configuration
+        const currentConfig = await this.getAllSystemParam(userId, hostUid, request.confname);
+
+        if (!currentConfig.conflist || currentConfig.conflist.length === 0) {
+            throw ConfigError.NoConflistData(request.confname);
+        }
+
+        const confdata = currentConfig.conflist[0].confdata;
+        if (!confdata || confdata.length === 0) {
+            throw ConfigError.NoConfdata(request.confname);
+        }
+
+        // Find the server parameter line
+        let serverLineIndex = -1;
+        let serverLine = '';
+        for (let i = 0; i < confdata.length; i++) {
+            const line = confdata[i].trim();
+            if (line.startsWith('server=')) {
+                serverLineIndex = i;
+                serverLine = line;
+                break;
+            }
+        }
+
+        if (serverLineIndex === -1) {
+            throw ConfigError.ServerParamNotFound(request.confname);
+        }
+
+        // Parse existing server values
+        const serverValue = serverLine.substring(7); // Remove "server=" prefix
+        const existingDbnames = serverValue
+            ? serverValue.split(',').map(db => db.trim()).filter(db => db.length > 0)
+            : [];
+
+        // Check if dbname already exists
+        if (existingDbnames.includes(request.dbname)) {
+            throw ConfigError.DbnameAlreadyExists(request.confname, request.dbname);
+        }
+
+        // Append new dbname
+        const updatedDbnames = [...existingDbnames, request.dbname];
+        const updatedServerLine = `server=${updatedDbnames.join(',')}`;
+
+        // Update confdata with new server line
+        const updatedConfdata = [...confdata];
+        updatedConfdata[serverLineIndex] = updatedServerLine;
+
+        // Set updated configuration
+        return await this.setSystemParam(userId, hostUid, request.confname, updatedConfdata);
+    }
+
+    /**
+     * Remove a database name from the server parameter in a configuration file.
+     * Gets current configuration, removes dbname from server parameter, and updates.
+     *
+     * @param userId - User ID from JWT
+     * @param hostUid - Host unique identifier
+     * @param request - Request containing confname and dbname
+     * @returns RemoveDbnameFromServerClientResponse Empty object on success (CMS envelope fields removed)
+     * @throws Error if the request fails, server parameter not found, or dbname does not exist
+     */
+    @HandleCmsConfigErrors()
+    async removeDbnameFromServerParam(
+        userId: string,
+        hostUid: string,
+        request: RemoveDbnameFromServerClientRequest,
+    ): Promise<RemoveDbnameFromServerClientResponse> {
+        // Get current configuration
+        const currentConfig = await this.getAllSystemParam(userId, hostUid, request.confname);
+
+        if (!currentConfig.conflist || currentConfig.conflist.length === 0) {
+            throw ConfigError.NoConflistData(request.confname);
+        }
+
+        const confdata = currentConfig.conflist[0].confdata;
+        if (!confdata || confdata.length === 0) {
+            throw ConfigError.NoConfdata(request.confname);
+        }
+
+        // Find the server parameter line
+        let serverLineIndex = -1;
+        let serverLine = '';
+        for (let i = 0; i < confdata.length; i++) {
+            const line = confdata[i].trim();
+            if (line.startsWith('server=')) {
+                serverLineIndex = i;
+                serverLine = line;
+                break;
+            }
+        }
+
+        if (serverLineIndex === -1) {
+            throw ConfigError.ServerParamNotFound(request.confname);
+        }
+
+        // Parse existing server values
+        const serverValue = serverLine.substring(7); // Remove "server=" prefix
+        const existingDbnames = serverValue
+            ? serverValue.split(',').map(db => db.trim()).filter(db => db.length > 0)
+            : [];
+
+        // Check if dbname exists
+        if (!existingDbnames.includes(request.dbname)) {
+            throw ConfigError.DbnameNotFound(request.confname, request.dbname);
+        }
+
+        // Remove dbname
+        const updatedDbnames = existingDbnames.filter(db => db !== request.dbname);
+        const updatedServerLine = updatedDbnames.length > 0
+            ? `server=${updatedDbnames.join(',')}`
+            : 'server=';
+
+        // Update confdata with new server line
+        const updatedConfdata = [...confdata];
+        updatedConfdata[serverLineIndex] = updatedServerLine;
+
+        // Set updated configuration
+        return await this.setSystemParam(userId, hostUid, request.confname, updatedConfdata);
     }
 }
 
