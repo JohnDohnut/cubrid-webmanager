@@ -1,6 +1,7 @@
 import { getResponse } from "@/api/endPoint.js";
 import { isNotEmpty } from "@/lib/utils.js";
 import axios from '@/api/axiosInstant.js'
+import {data} from "framer-motion/m";
 
 const getListDatabase = (data)=>{
     const  databases = []
@@ -128,4 +129,24 @@ export const addVolumeAPI = async (host, data) => {
     }
     const response = await getResponse(host, payload)
     return {result: response, success: response.success};
+}
+
+
+export const getAutoVolumeAPI = async (host, data) => {
+    const payload = {
+        task: "getautoaddvol",
+        ...data
+    }
+    const response = await getResponse(host, payload)
+    return {result: response, success: true};
+}
+
+export const setAutoVolumeAPI = async (host, data) => {
+
+    const payload = {
+        task: "setautoaddvol",
+        ...data,
+    }
+    const response = await getResponse(host, payload)
+    return {result: response, success: true};
 }

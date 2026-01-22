@@ -168,3 +168,13 @@ button.error:hover{
     opacity: 0.9;
     transition: opacity 0.2s ease;
 }
+
+.border__text{
+    position: absolute;
+    top: -12px;
+    padding: 0 6px;
+    margin-left: 16px;
+    font-weight: 500;
+    background-color: white;
+    transform: translateX(-8%);
+}
