@@ -11,6 +11,7 @@ import LogManagerErrorTable from "@/features/sidenav/components/contents/log/Log
 import LogServerErrorTable from "@/features/sidenav/components/contents/log/LogServerErrorTable.jsx";
 import BrokerStatus from "@/features/sidenav/components/contents/broker/BrokerStatus.jsx";
 import SQLEditor from "@/components/common/editor/SQLEditor.jsx";
+import ViewDatabase from "@/features/sidenav/components/contents/database/ViewDatabase";
 
 export const TAB_SCREEN = {
     "host":  Dashboard,
@@ -26,4 +27,5 @@ export const TAB_SCREEN = {
     "log_server_error": LogServerErrorTable,
     "broker": BrokerStatus,
     "sql_editor": SQLEditor,
+    "view_database": ViewDatabase,
 }
