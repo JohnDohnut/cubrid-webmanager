@@ -5,6 +5,7 @@ import {nanoid} from "nanoid";
 import {useDispatch, useSelector} from "react-redux";
 import {setQueryPlanModal} from "@/features/sidenav/sideNavSlice.js";
 import {setAddVolume, setAutoVolume} from "../../sideNavSlice";
+import {addTab} from "../../../../shared/slice/tabSlice";
 
 
 
@@ -35,7 +36,10 @@ const DatabaseSpaceMenu = ({node, clientX, clientY, open, onClose})=>{
         {
             label: "View Database",
             key: nanoid(4),
-            icon: <ApiOutlined />
+            icon: <ApiOutlined />,
+            onClick: ()=>{
+                dispatch(addTab({...node, type: "view_database"}));
+            }
         },
 
     ]
