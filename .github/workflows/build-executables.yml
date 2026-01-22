@@ -1,10 +1,8 @@
 name: Build Executables
 
 on:
-  push:
-    branches: [main]
-    tags:
-      - 'v*'
+  pull_request:
+    branches: [develop]
   workflow_dispatch:
     inputs:
       platform:
@@ -20,7 +18,7 @@ jobs:
   build-windows:
     name: Build Windows Executable
     runs-on: windows-latest
-    if: github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all' || (github.event_name == 'push' && !github.event.inputs.platform)
+    if: github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all' || (github.event_name == 'pull_request' && !github.event.inputs.platform)
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -50,7 +48,7 @@ jobs:
   build-linux:
     name: Build Linux Executable
     runs-on: ubuntu-latest
-    if: github.event.inputs.platform == 'linux' || github.event.inputs.platform == 'all' || (github.event_name == 'push' && !github.event.inputs.platform)
+    if: github.event.inputs.platform == 'linux' || github.event.inputs.platform == 'all' || (github.event_name == 'pull_request' && !github.event.inputs.platform)
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

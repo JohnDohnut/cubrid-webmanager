@@ -129,10 +129,19 @@ describe('StorageService', () => {
     });
 
     describe('Safe methods (with lock)', () => {
-        it('read() should call lockService.withLock and readUnsafe', async () => {
+        it('read() should call lockService.withLock and execute readUnsafe within the lock', async () => {
             const readUnsafeSpy = jest
                 .spyOn(service, 'readUnsafe')
                 .mockResolvedValue('data');
+
+            let capturedWorker: (() => Promise<any>) | null = null;
+            lockService.withLock.mockImplementation(
+                async (filename: string, work: () => Promise<any>) => {
+                    expect(filename).toBe('test.txt');
+                    capturedWorker = work;
+                    return work();
+                },
+            );
 
             const result = await service.read('test.txt');
 
@@ -140,59 +149,104 @@ describe('StorageService', () => {
                 'test.txt',
                 expect.any(Function),
             );
-            expect(readUnsafeSpy).toHaveBeenCalled();
+            expect(capturedWorker).toBeDefined();
+            expect(readUnsafeSpy).toHaveBeenCalledWith('test.txt');
             expect(result).toBe('data');
         });
 
-        it('write() should call lockService.withLock and writeUnsafe', async () => {
+        it('write() should call lockService.withLock and execute writeUnsafe within the lock', async () => {
             const writeUnsafeSpy = jest
                 .spyOn(service, 'writeUnsafe')
                 .mockResolvedValue(undefined);
 
+            let capturedWorker: (() => Promise<any>) | null = null;
+            lockService.withLock.mockImplementation(
+                async (filename: string, work: () => Promise<any>) => {
+                    expect(filename).toBe('test.txt');
+                    capturedWorker = work;
+                    return work();
+                },
+            );
+
+            // service.write()를 호출하면 내부적으로 lockService.withLock이 호출되어야 함
             await service.write('test.txt', 'data');
 
+            // 검증: lockService.withLock이 service.write() 내부에서 호출되었는지 확인
             expect(lockService.withLock).toHaveBeenCalledWith(
                 'test.txt',
                 expect.any(Function),
             );
+            expect(capturedWorker).toBeDefined();
+            // 검증: withLock 내부에서 writeUnsafe가 호출되었는지 확인
             expect(writeUnsafeSpy).toHaveBeenCalledWith('test.txt', 'data');
         });
 
-        it('create() should call lockService.withLock and createUnsafe', async () => {
+        it('create() should call lockService.withLock and execute createUnsafe within the lock', async () => {
             const createUnsafeSpy = jest
                 .spyOn(service, 'createUnsafe')
                 .mockResolvedValue(undefined);
 
-            await service.create('test.txt');
+            let capturedWorker: (() => Promise<any>) | null = null;
+            lockService.withLock.mockImplementation(
+                async (filename: string, work: () => Promise<any>) => {
+                    expect(filename).toBe('test.txt');
+                    capturedWorker = work;
+                    return work();
+                },
+            );
+
+            const result = await service.create('test.txt');
 
             expect(lockService.withLock).toHaveBeenCalledWith(
                 'test.txt',
                 expect.any(Function),
             );
+            expect(capturedWorker).toBeDefined();
             expect(createUnsafeSpy).toHaveBeenCalledWith('test.txt');
+            expect(result).toBe('test.txt');
         });
 
-        it('createAndWrite() should call lockService.withLock and createAndWriteUnsafe', async () => {
+        it('createAndWrite() should call lockService.withLock and execute createAndWriteUnsafe within the lock', async () => {
             const createAndWriteUnsafeSpy = jest
                 .spyOn(service, 'createAndWriteUnsafe')
                 .mockResolvedValue(undefined);
 
-            await service.createAndWrite('test.txt', 'data');
+            let capturedWorker: (() => Promise<any>) | null = null;
+            lockService.withLock.mockImplementation(
+                async (filename: string, work: () => Promise<any>) => {
+                    expect(filename).toBe('test.txt');
+                    capturedWorker = work;
+                    return work();
+                },
+            );
+
+            const result = await service.createAndWrite('test.txt', 'data');
 
             expect(lockService.withLock).toHaveBeenCalledWith(
                 'test.txt',
                 expect.any(Function),
             );
+            expect(capturedWorker).toBeDefined();
             expect(createAndWriteUnsafeSpy).toHaveBeenCalledWith(
                 'test.txt',
                 'data',
             );
+            expect(result).toBe('test.txt');
         });
 
-        it('delete() should call lockService.withLock and deleteUnsafe', async () => {
+        it('delete() should call lockService.withLock and execute deleteUnsafe within the lock', async () => {
             const deleteUnsafeSpy = jest
                 .spyOn(service, 'deleteUnsafe')
                 .mockResolvedValue(undefined);
+
+            let capturedWorker: (() => Promise<any>) | null = null;
+            lockService.withLock.mockImplementation(
+                async (filename: string, work: () => Promise<any>) => {
+                    expect(filename).toBe('test.txt');
+                    capturedWorker = work;
+                    return work();
+                },
+            );
 
             await service.delete('test.txt');
 
@@ -200,6 +254,7 @@ describe('StorageService', () => {
                 'test.txt',
                 expect.any(Function),
             );
+            expect(capturedWorker).toBeDefined();
             expect(deleteUnsafeSpy).toHaveBeenCalledWith('test.txt');
         });
     });
