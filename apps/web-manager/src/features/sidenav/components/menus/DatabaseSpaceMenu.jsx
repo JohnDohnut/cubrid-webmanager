@@ -4,7 +4,7 @@ import {nanoid} from "nanoid";
 
 import {useDispatch, useSelector} from "react-redux";
 import {setQueryPlanModal} from "@/features/sidenav/sideNavSlice.js";
-import {setAddVolume} from "../../sideNavSlice";
+import {setAddVolume, setAutoVolume} from "../../sideNavSlice";
 
 
 
@@ -20,13 +20,17 @@ const DatabaseSpaceMenu = ({node, clientX, clientY, open, onClose})=>{
             icon: <PlusOutlined />,
             onClick: ()=>{
                 const updateNode = {...node, icon: null};
-                dispatch(setAddVolume({open: true, node: updateNode, type: "add"}))
+                dispatch(setAddVolume({open: true, node: updateNode}))
             },
         },
         {
-            label: "Set Volume",
+            label: "Set Auto Volume",
             key: nanoid(4),
-            icon: <PlusOutlined />
+            icon: <PlusOutlined />,
+            onClick: ()=>{
+                const updateNode = {...node, icon: null};
+                dispatch(setAutoVolume({open: true, node: updateNode}))
+            }
         },
         {
             label: "View Database",
