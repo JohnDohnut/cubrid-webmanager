@@ -6,6 +6,7 @@
  */
 export type CheckFileCmsResponse = {
     __EXEC_TIME: string;
+    existfile?: string;
     note: string;
     status: string;
     task: string;

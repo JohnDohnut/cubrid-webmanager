@@ -7,6 +7,9 @@
  * @since 1.0.0
  */
 export type CheckFileRequest = {
-    hostUid: string;
+    /**
+     * Optional file paths to check
+     */
+    file?: string[];
 };
 
