@@ -8,117 +8,102 @@ import { BaseCmsRequest } from './base-cms-request';
  */
 export type UnloadDatabaseCmsRequest = BaseCmsRequest & {
     /**
-     * Task type - must be 'unloaddb'
+     * Task name - must be "unloaddb"
      */
     task: 'unloaddb';
 
     /**
-     * Database name to unload
+     * Database name (required)
      */
     dbname: string;
 
     /**
-     * PATH of output directory
+     * Output directory path (required)
      */
     targetdir: string;
 
     /**
-     * Whether to use hash file
-     * 
-     * Values: "yes" | "no"
-     * If "yes", hashdir is valid
+     * Unload target: "schema", "object", or "both" (required)
+     */
+    target: 'schema' | 'object' | 'both';
+
+    /**
+     * Database user ID 
+     */
+    dbuser: string;
+
+    /**
+     * Database user password 
+     */
+    dbpasswd: string;
+
+    /**
+     * Whether to use hash file: "yes" or "no" (optional)
      */
     usehash?: 'yes' | 'no';
 
     /**
-     * FILE for hash
-     * Default: generate by tmpnam()
-     * Valid only when usehash is "yes"
+     * Hash file path (optional, required if usehash is "yes")
      */
     hashdir?: string;
 
     /**
-     * Unload schema/object or both
+     * Class list to unload (optional)
      */
-    target?: string;
+    class?: Array<{
+        /**
+         * Class name to unload
+         */
+        classname: string;
+    }>;
 
     /**
-     * Unload class list, if field doesn't exist, all class is target
-     * Format: Array of objects with classname property
-     * Example: [{"classname": "dba.test"}]
-     */
-    class?: Array<{ classname: string }>;
-
-    /**
-     * Unload class name
-     */
-    classname?: string;
-
-    /**
-     * Include referenced tables
-     * Values: "yes" | "no"
+     * Include referenced tables: "yes" or "no" (optional)
      */
     ref?: 'yes' | 'no';
 
     /**
-     * Include specified class only
-     * Values: "yes" | "no"
+     * Include specified class only: "yes" or "no" (optional)
      */
     classonly?: 'yes' | 'no';
 
     /**
-     * Extract the same schema file as the DBA
+     * Extract the same schema file as the DBA: "yes" or "no" (optional)
      */
-    'as-dba'?: string;
+    'as-dba'?: 'yes' | 'no';
 
     /**
-     * Skip with option of indexes
+     * Skip with option of indexes: "yes" or "no" (optional)
      */
-    'skip-index-detail'?: string;
+    'skip-index-detail'?: 'yes' | 'no';
 
     /**
-     * Split schema information by object
+     * Split schema information by object: "yes" or "no" (optional)
      */
     'split-schema-files'?: 'yes' | 'no';
 
     /**
-     * Use '"' where an identifier begins and ends
-     * Default: don't use
-     * Values: "yes" | "no"
+     * Use '"' where an identifier begins and ends: "yes" or "no" (optional, default: "no")
      */
     delimit?: 'yes' | 'no';
 
     /**
-     * Estimated NUMBER of instances
-     * Default: auto computed
+     * Estimated number of instances (optional, default: auto computed)
      */
-    estimate?: string;
+    estimate?: string | 'none';
 
     /**
-     * PREFIX for output files
-     * Default: the database name
+     * Prefix for output files (optional, default: database name)
      */
-    prefix?: string;
+    prefix?: string | 'none';
 
     /**
-     * NUMBER of cached pages
-     * Default: 100
+     * Number of cached pages (optional, default: 100)
      */
-    cach?: string;
+    cache?: string | 'none';
 
     /**
-     * lo file COUNT per a directory
-     * Default: 0
+     * LO file count per directory (optional, default: 0)
      */
-    lofile?: string;
-
-    /**
-     * ID for dbuser
-     */
-    dbuser?: string;
-
-    /**
-     * Password for dbuser
-     */
-    dbpasswd?: string;
+    lofile?: string | 'none';
 };
