@@ -8,11 +8,6 @@ import { BaseCmsRequest } from './base-cms-request';
  */
 export type UnloadDatabaseCmsRequest = BaseCmsRequest & {
     /**
-     * Task name - must be "unloaddb"
-     */
-    task: 'unloaddb';
-
-    /**
      * Database name (required)
      */
     dbname: string;
