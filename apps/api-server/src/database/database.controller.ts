@@ -15,6 +15,7 @@ import {
     GetAutoExecQueryClientRequest,
     GetAutoExecQueryClientResponse,
     SaveDatabaseProfileRequest,
+    UnloadDatabaseRequest,
 } from '@api-interfaces';
 import { validateRequiredFields } from '@util';
 import { DatabaseService } from './database.service';
@@ -406,6 +407,43 @@ export class DatabaseController {
             'DatabaseController',
         );
         return await this.databaseService.getAutoExecQuery(userId, hostUid, dbname);
+    }
+
+    /**
+     * Unload a database.
+     * Returns empty object on success.
+     *
+     * @route POST /:hostUid/database/unload/:dbname
+     * @param req Express request (contains authenticated user)
+     * @param hostUid Host unique identifier from path parameter
+     * @param dbname Database name from path parameter
+     * @param body Request body containing unload configuration
+     * @returns Empty object on success
+     * @example
+     * // POST /host-uid/database/unload/demodb
+     * // Body: { "targetdir": "/path/to/backup", "isSchemaIncluded": true, "isDataIncluded": true, "dbuser": "user", "dbpasswd": "pass" }
+     */
+    @Post('unload/:dbname')
+    async unloadDatabase(
+        @Request() req,
+        @Param('hostUid') hostUid: string,
+        @Param('dbname') dbname: string,
+        @Body() body: UnloadDatabaseRequest,
+    ): Promise<{}> {
+        const userId = req.user.sub;
+
+        validateRequiredFields(
+            body,
+            ['targetdir', 'isSchemaIncluded', 'isDataIncluded', 'dbuser', 'dbpasswd'],
+            'database/unload',
+            this.logger,
+        );
+
+        Logger.log(
+            `Unloading database: ${dbname} on host: ${hostUid}`,
+            'DatabaseController',
+        );
+        return await this.databaseService.unloadDatabase(userId, hostUid, dbname, body);
     }
 
 }

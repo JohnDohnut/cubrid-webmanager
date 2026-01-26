@@ -651,6 +651,41 @@
 						"description": "Get auto-execution query for a database. Returns domain-only data (CMS envelope removed).\n\n**URI:**\n```\nGET /:hostUid/database/auto-exec-query/:dbname\n```\n**Example:**\n```\nGET /host-uid-1/database/auto-exec-query/demodb\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `dbname` - Database name\n\n**Success Response (200 OK):**\n```json\n{\n  \"planlist\": [\n    {\n      \"queryplan\": []\n    }\n  ]\n}\n```\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Database not found\",\n  \"error\": \"Not Found\"\n}\n```"
 					},
 					"response": []
+				},
+				{
+					"name": "Unload Database",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"targetdir\": \"/path/to/backup\",\n  \"isSchemaIncluded\": true,\n  \"isDataIncluded\": true,\n  \"dbuser\": \"dba\",\n  \"dbpasswd\": \"dbapassword\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/unload/{{dbname}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"database",
+								"unload",
+								"{{dbname}}"
+							]
+						},
+						"description": "Unload a database. Returns empty object on success.\n\n**URI:**\n```\nPOST /:hostUid/database/unload/:dbname\n```\n**Example:**\n```\nPOST /host-uid-1/database/unload/demodb\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `dbname` - Database name\n\n**Request Body (Required Fields):**\n```json\n{\n  \"targetdir\": \"/path/to/backup\",\n  \"isSchemaIncluded\": true,\n  \"isDataIncluded\": true,\n  \"dbuser\": \"dba\",\n  \"dbpasswd\": \"dbapassword\"\n}\n```\n\n**Request Body (With Optional Fields):**\n```json\n{\n  \"targetdir\": \"/path/to/backup\",\n  \"isSchemaIncluded\": true,\n  \"isDataIncluded\": true,\n  \"dbuser\": \"dba\",\n  \"dbpasswd\": \"dbapassword\",\n  \"usehash\": \"yes\",\n  \"hashdir\": \"/path/to/hash\",\n  \"class\": [\n    {\n      \"classname\": \"test\"\n    }\n  ],\n  \"ref\": \"yes\",\n  \"classonly\": \"yes\",\n  \"as-dba\": \"yes\",\n  \"skip-index-detail\": \"yes\",\n  \"split-schema-files\": \"yes\",\n  \"delimit\": \"yes\",\n  \"estimate\": \"1000\",\n  \"prefix\": \"backup\",\n  \"cache\": \"100\",\n  \"lofile\": \"10\"\n}\n```\n\n**Target Determination:**\n- Both `isSchemaIncluded` and `isDataIncluded` are `true` → `target: \"both\"`\n- Only `isSchemaIncluded` is `true` → `target: \"schema\"`\n- Only `isDataIncluded` is `true` → `target: \"object\"`\n- Both are `false` → Error: `InvalidParameter`\n\n**Success Response (200 OK):**\n```json\n{}\n```\n\n**Error Response (400 Bad Request):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Both isSchemaIncluded and isDataIncluded cannot be false\",\n  \"error\": \"Bad Request\"\n}\n```\n\n**Error Response (400 Bad Request - Missing Fields):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Missing required fields: targetdir, isSchemaIncluded, isDataIncluded, dbuser, dbpasswd\",\n  \"error\": \"Bad Request\"\n}\n```"
+					},
+					"response": []
 				}
 			],
 			"description": "Database management endpoints. All endpoints require JWT authentication."

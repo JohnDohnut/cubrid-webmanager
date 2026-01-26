@@ -8,6 +8,11 @@ import { BaseCmsRequest } from './base-cms-request';
  */
 export type UnloadDatabaseCmsRequest = BaseCmsRequest & {
     /**
+     * Database name to unload
+     */
+    dbname: string;
+
+    /**
      * PATH of output directory
      */
     targetdir: string;

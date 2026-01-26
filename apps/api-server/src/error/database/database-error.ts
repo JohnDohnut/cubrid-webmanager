@@ -278,4 +278,20 @@ export class DatabaseError extends AppError {
             originalError,
         );
     }
+
+    /**
+     * Creates an error indicating invalid parameter.
+     */
+    static InvalidParameter(
+        message: string,
+        additionalData?: Record<string, any>,
+        originalError?: Error,
+    ) {
+        return new DatabaseError(
+            'DATABASE',
+            DatabaseErrorCode.INVALID_PARAMETER,
+            { message, ...additionalData },
+            originalError,
+        );
+    }
 }

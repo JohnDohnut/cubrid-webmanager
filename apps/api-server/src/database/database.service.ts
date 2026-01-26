@@ -3,6 +3,7 @@ import {
   checkCmsTokenError,
   checkCmsStatusError,
   HandleDatabaseErrors,
+  HandleCmsStatusErrors,
 } from '@common';
 import { DatabaseError } from '@error/database/database-error';
 import { HostError } from '@error/index';
@@ -30,6 +31,7 @@ import {
   GetAutoExecQueryClientResponse,
   CreateDatabaseClientRequest,
   CreateDatabaseClientResponse,
+  UnloadDatabaseRequest,
 } from '@api-interfaces';
 import { GetCreatedbInfoClientResponse } from '@api-interfaces/response/get-createdb-info-client-response';
 import { BaseCmsRequest, BaseCmsResponse } from '@type';
@@ -45,6 +47,7 @@ import {
   GetAutoExecQueryCmsRequest,
   CreateDatabaseCmsRequest,
   CheckFileCmsRequest,
+  UnloadDatabaseCmsRequest,
 } from '@type/cms-request';
 import {
   DbSpaceInfoCmsResponse,
@@ -57,6 +60,7 @@ import {
   GetAutoExecQueryCmsResponse,
   CreateDatabaseCmsResponse,
   CheckFileCmsResponse,
+  UnloadDatabaseCmsResponse,
 } from '@type/cms-response';
 
 /**
@@ -814,5 +818,81 @@ export class DatabaseService {
 
 
     return {};
+  }
+
+  /**
+   * Unload a database.
+   * Returns empty object on success.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param dbname Database name
+   * @param request Client request containing unload information
+   * @returns Empty object on success
+   * @throws DatabaseError If request fails or parameters are invalid
+   */
+  @HandleDatabaseErrors()
+  @HandleCmsStatusErrors()
+  async unloadDatabase(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    request: UnloadDatabaseRequest,
+  ): Promise<{}> {
+    const host = await this.hostService.findHostInternal(userId, hostUid);
+    const url = `https://${host.address}:${host.port}/cm_api`;
+
+    // Determine target based on isSchemaIncluded and isDataIncluded
+    let target: 'schema' | 'object' | 'both';
+    
+    if (request.isSchemaIncluded && request.isDataIncluded) {
+      target = 'both';
+    } else if (request.isSchemaIncluded) {
+      target = 'schema';
+    } else if (request.isDataIncluded) {
+      target = 'object';
+    } else {
+      throw DatabaseError.InvalidParameter(
+        'Both isSchemaIncluded and isDataIncluded cannot be false',
+        {
+          isSchemaIncluded: request.isSchemaIncluded,
+          isDataIncluded: request.isDataIncluded,
+        },
+      );
+    }
+
+    // Build CMS request from client request
+    const cmsRequest: UnloadDatabaseCmsRequest = {
+      task: 'unloaddb',
+      token: host.token || '',
+      dbname: dbname,
+      targetdir: request.targetdir,
+      target: target,
+      dbuser: request.dbuser,
+      dbpasswd: request.dbpasswd,
+      usehash: request.usehash,
+      hashdir: request.hashdir,
+      class: request.class,
+      ref: request.ref,
+      classonly: request.classonly,
+      'as-dba': request['as-dba'],
+      'skip-index-detail': request['skip-index-detail'],
+      'split-schema-files': request['split-schema-files'],
+      delimit: request.delimit,
+      estimate: request.estimate,
+      prefix: request.prefix,
+      cache: request.cache,
+      lofile: request.lofile,
+    };
+
+    const response = await this.cmsClient.postAuthenticated<
+      UnloadDatabaseCmsRequest,
+      UnloadDatabaseCmsResponse
+    >(url, cmsRequest);
+
+    checkCmsTokenError(response);
+    checkCmsStatusError(response);
+
+    return response.result;
   }
 }
