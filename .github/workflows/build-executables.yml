@@ -1,54 +1,14 @@
-name: Build Executables
+name: Build Test
 
 on:
   pull_request:
     branches: [develop]
   workflow_dispatch:
-    inputs:
-      platform:
-        description: 'Platform to build for'
-        required: true
-        type: choice
-        options:
-          - windows
-          - linux
-          - all
 
 jobs:
-  build-windows:
-    name: Build Windows Executable
-    runs-on: windows-latest
-    if: github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all' || (github.event_name == 'pull_request' && !github.event.inputs.platform)
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build project
-        run: npx nx build api-server
-
-      - name: Build Windows executable
-        run: npx nx build:exe api-server --configuration=windows
-
-      - name: Upload Windows executable
-        uses: actions/upload-artifact@v4
-        with:
-          name: api-server-windows
-          path: dist/executables/api-server.exe
-          retention-days: 30
-
-  build-linux:
-    name: Build Linux Executable
+  build:
+    name: Build Test
     runs-on: ubuntu-latest
-    if: github.event.inputs.platform == 'linux' || github.event.inputs.platform == 'all' || (github.event_name == 'pull_request' && !github.event.inputs.platform)
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -62,15 +22,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build project
-        run: npx nx build api-server
-
-      - name: Build Linux executable
-        run: npx nx build:exe api-server --configuration=linux
-
-      - name: Upload Linux executable
-        uses: actions/upload-artifact@v4
-        with:
-          name: api-server-linux
-          path: dist/executables/api-server-linux
-          retention-days: 30
+      - name: Build all projects
+        run: npx nx run-many --target=build --all
