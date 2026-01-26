@@ -21,12 +21,13 @@ export function HandleCmsConfigErrors() {
             try {
                 return await originalMethod.apply(this, args);
             } catch (err) {
-                // If it's already an AppError (ConfigError, CmsError, HostError, etc.), let it pass through
-                if (err instanceof AppError) {
+                // Handle specific error types first (before AppError check)
+                // Handle ConfigError - pass through as ConfigError
+                if (err instanceof ConfigError) {
                     throw err;
                 }
 
-                // Handle HostError (e.g., if findHostInternal fails)
+                // Handle HostError (e.g., if findHostInternal fails) - pass through as-is
                 if (err instanceof HostError) {
                     throw err;
                 }
@@ -36,17 +37,20 @@ export function HandleCmsConfigErrors() {
                     throw err;
                 }
 
-                // Handle ConfigError - pass through as ConfigError
-                if (err instanceof ConfigError) {
-                    throw err;
+                // If it's already an AppError (other types), convert to ConfigError.Unknown
+                if (err instanceof AppError) {
+                    throw ConfigError.Unknown({
+                        originalCode: err.code,
+                        originalMessage: err.message,
+                        ...err.additionalData,
+                    }, err);
                 }
                 
-                // For any other unknown errors, wrap them as ConfigError
+                // For any other unknown errors, wrap them as ConfigError.Unknown
                 console.error(`[HandleCmsConfigErrors] Unknown error in ${propertyKey}:`, err);
-                throw ConfigError.GetAllSysParamFailed('unknown', {
-                    message: err instanceof Error ? err.message : String(err),
-                    originalError: err instanceof Error ? err : undefined,
-                });
+                throw ConfigError.Unknown({
+                    originalMessage: err instanceof Error ? err.message : String(err),
+                }, err instanceof Error ? err : undefined);
             }
         };
 

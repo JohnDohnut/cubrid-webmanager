@@ -263,4 +263,19 @@ export class DatabaseError extends AppError {
             originalError,
         )
     }
+
+    /**
+     * Creates an error for an unknown database-related issue.
+     */
+    static Unknown(
+        additionalData?: Record<string, any>,
+        originalError?: Error,
+    ) {
+        return new DatabaseError(
+            'DATABASE',
+            DatabaseErrorCode.UNKNOWN,
+            additionalData,
+            originalError,
+        );
+    }
 }

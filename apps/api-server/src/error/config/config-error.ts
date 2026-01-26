@@ -130,4 +130,19 @@ export class ConfigError extends AppError {
             originalError,
         );
     }
+
+    /**
+     * Creates an error for an unknown configuration-related issue.
+     */
+    static Unknown(
+        additionalData?: Record<string, any>,
+        originalError?: Error,
+    ) {
+        return new ConfigError(
+            'CONFIG',
+            ConfigErrorCode.UNKNOWN,
+            additionalData,
+            originalError,
+        );
+    }
 }
