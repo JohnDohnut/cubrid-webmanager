@@ -9,5 +9,5 @@
  * @since 1.0.0
  */
 export function passwordValidityChecker(password: string) {
-    return true;
+  return true;
 }

@@ -13,7 +13,7 @@ import {
   SetBackupInfoClientRequest,
   SetBackupInfoClientResponse,
   StartInfoClientResponse,
-  UnloadDatabaseRequest
+  UnloadDatabaseRequest,
 } from '@api-interfaces';
 import { GetCreatedbInfoClientResponse } from '@api-interfaces/response/get-createdb-info-client-response';
 import { CmsConfigService } from '@cms-config/cms-config.service';
@@ -43,7 +43,7 @@ import {
   SetBackupInfoCmsRequest,
   StartDatabaseCmsRequest,
   StopDatabaseCmsRequest,
-  UnloadDatabaseCmsRequest
+  UnloadDatabaseCmsRequest,
 } from '@type/cms-request';
 import {
   AddBackupInfoCmsResponse,
@@ -55,7 +55,7 @@ import {
   SetAutoExecQueryCmsResponse,
   SetBackupInfoCmsResponse,
   StartInfoCmsResponse,
-  UnloadDatabaseCmsResponse
+  UnloadDatabaseCmsResponse,
 } from '@type/cms-response';
 import { convertExvolArrayToCmsFormat } from '@util';
 
@@ -78,8 +78,8 @@ export class DatabaseService {
     private readonly cmsClient: CmsHttpsClientService,
     private readonly repository: UserRepositoryService,
     private readonly cmsConfigService: CmsConfigService,
-    private readonly fileService: FileService,
-  ) { }
+    private readonly fileService: FileService
+  ) {}
 
   /**
    * Get start information for databases on a host (internal use).
@@ -92,10 +92,7 @@ export class DatabaseService {
    * @throws DatabaseError If request fails or CMS status is fail
    */
   @HandleDatabaseErrors()
-  async startInfoInternal(
-    userId: string,
-    hostUid: string,
-  ): Promise<StartInfoCmsResponse> {
+  async startInfoInternal(userId: string, hostUid: string): Promise<StartInfoCmsResponse> {
     const host = await this.hostService.findHostInternal(userId, hostUid);
 
     const url = `https://${host.address}:${host.port}/cm_api`;
@@ -127,10 +124,7 @@ export class DatabaseService {
    * @throws DatabaseError If request fails or CMS status is fail
    */
   @HandleDatabaseErrors()
-  async startInfo(
-    userId: string,
-    hostUid: string,
-  ): Promise<StartInfoClientResponse> {
+  async startInfo(userId: string, hostUid: string): Promise<StartInfoClientResponse> {
     const host = await this.hostService.findHostInternal(userId, hostUid);
     const response = await this.startInfoInternal(userId, hostUid);
     const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
@@ -164,7 +158,7 @@ export class DatabaseService {
   async startDatabase(
     userId: string,
     hostUid: string,
-    dbname: string,
+    dbname: string
   ): Promise<StartInfoClientResponse> {
     const host = await this.hostService.findHostInternal(userId, hostUid);
     const url = `https://${host.address}:${host.port}/cm_api`;
@@ -201,7 +195,7 @@ export class DatabaseService {
   async stopDatabase(
     userId: string,
     hostUid: string,
-    dbname: string,
+    dbname: string
   ): Promise<StartInfoClientResponse> {
     const host = await this.hostService.findHostInternal(userId, hostUid);
     const url = `https://${host.address}:${host.port}/cm_api`;
@@ -238,7 +232,7 @@ export class DatabaseService {
   async restartDatabase(
     userId: string,
     hostUid: string,
-    dbname: string,
+    dbname: string
   ): Promise<StartInfoClientResponse> {
     const host = await this.hostService.findHostInternal(userId, hostUid);
     const url = `https://${host.address}:${host.port}/cm_api`;
@@ -303,7 +297,7 @@ export class DatabaseService {
     hostUid: string,
     dbname: string,
     databaseId: string,
-    databasePassword: string,
+    databasePassword: string
   ): Promise<StartInfoClientResponse> {
     if (dbname == null || databaseId == null || databasePassword == null) {
       const missingFields = [
@@ -312,10 +306,7 @@ export class DatabaseService {
         databasePassword == null && 'password',
       ].filter(Boolean) as string[];
 
-      throw ValidationError.MissingDBCredentials(
-        dbname || 'unknown',
-        missingFields,
-      );
+      throw ValidationError.MissingDBCredentials(dbname || 'unknown', missingFields);
     }
 
     await this.repository.atomicUpdateUser(userId, async (user) => {
@@ -361,7 +352,7 @@ export class DatabaseService {
   async getDBSpaceInfo(
     userId: string,
     hostUid: string,
-    dbname: string,
+    dbname: string
   ): Promise<DatabaseVolumeInfoClientResponse> {
     const host = await this.hostService.findHostInternal(userId, hostUid);
     const url = `https://${host.address}:${host.port}/cm_api`;
@@ -377,9 +368,7 @@ export class DatabaseService {
     >(url, startInfoRequest);
 
     if ('dblist' in startInfo && 'activelist' in startInfo) {
-      const dbExists = startInfo.dblist.some((el) =>
-        el.dbs.some((db) => db.dbname === dbname),
-      );
+      const dbExists = startInfo.dblist.some((el) => el.dbs.some((db) => db.dbname === dbname));
 
       if (!dbExists) {
         throw DatabaseError.NoSuchDatabase({ dbname, hostUid });
@@ -402,8 +391,7 @@ export class DatabaseService {
     checkCmsTokenError(response);
 
     if (response.status === 'success') {
-      const { __EXEC_TIME, note, status, task, ...dataOnly } =
-        response as DbSpaceInfoCmsResponse;
+      const { __EXEC_TIME, note, status, task, ...dataOnly } = response as DbSpaceInfoCmsResponse;
       return dataOnly;
     } else {
       throw DatabaseError.GetDBSpaceInfoFailed({ response, dbname });
@@ -426,7 +414,7 @@ export class DatabaseService {
     userId: string,
     hostUid: string,
     dbname: string,
-    backupInfo: AddBackupInfoClientRequest,
+    backupInfo: AddBackupInfoClientRequest
   ): Promise<AddBackupInfoClientResponse> {
     const host = await this.hostService.findHostInternal(userId, hostUid);
     const url = `https://${host.address}:${host.port}/cm_api`;
@@ -478,7 +466,7 @@ export class DatabaseService {
     userId: string,
     hostUid: string,
     dbname: string,
-    backupInfo: SetBackupInfoClientRequest,
+    backupInfo: SetBackupInfoClientRequest
   ): Promise<SetBackupInfoClientResponse> {
     const host = await this.hostService.findHostInternal(userId, hostUid);
     const url = `https://${host.address}:${host.port}/cm_api`;
@@ -535,7 +523,7 @@ export class DatabaseService {
     userId: string,
     hostUid: string,
     dbname: string,
-    backupInfo: DeleteBackupInfoClientRequest,
+    backupInfo: DeleteBackupInfoClientRequest
   ): Promise<DeleteBackupInfoClientResponse> {
     const host = await this.hostService.findHostInternal(userId, hostUid);
     const url = `https://${host.address}:${host.port}/cm_api`;
@@ -577,7 +565,7 @@ export class DatabaseService {
   async getBackupSchedule(
     userId: string,
     hostUid: string,
-    dbname: string,
+    dbname: string
   ): Promise<GetBackupInfoClientResponse> {
     const host = await this.hostService.findHostInternal(userId, hostUid);
     const url = `https://${host.address}:${host.port}/cm_api`;
@@ -596,14 +584,7 @@ export class DatabaseService {
 
     checkCmsStatusError(response);
 
-    const {
-      __EXEC_TIME,
-      note,
-      status,
-      task,
-      dbname: responseDbname,
-      ...rest
-    } = response;
+    const { __EXEC_TIME, note, status, task, dbname: responseDbname, ...rest } = response;
     const backupArray = rest[dbname] as any[];
 
     return {
@@ -628,7 +609,7 @@ export class DatabaseService {
     userId: string,
     hostUid: string,
     dbname: string,
-    autoExecQuery: SetAutoExecQueryClientRequest,
+    autoExecQuery: SetAutoExecQueryClientRequest
   ): Promise<SetAutoExecQueryClientResponse> {
     const host = await this.hostService.findHostInternal(userId, hostUid);
     const url = `https://${host.address}:${host.port}/cm_api`;
@@ -665,7 +646,7 @@ export class DatabaseService {
   async getAutoExecQuery(
     userId: string,
     hostUid: string,
-    dbname: string,
+    dbname: string
   ): Promise<GetAutoExecQueryClientResponse> {
     const host = await this.hostService.findHostInternal(userId, hostUid);
     const url = `https://${host.address}:${host.port}/cm_api`;
@@ -722,10 +703,7 @@ export class DatabaseService {
    * @throws DatabaseError If request fails
    */
   @HandleDatabaseErrors()
-  async getCreatedbInfo(
-    userId: string,
-    hostUid: string,
-  ): Promise<GetCreatedbInfoClientResponse> {
+  async getCreatedbInfo(userId: string, hostUid: string): Promise<GetCreatedbInfoClientResponse> {
     const envInfo = await this.cmsConfigService.getEnv(userId, hostUid);
 
     return {
@@ -749,14 +727,13 @@ export class DatabaseService {
   async createDatabase(
     userId: string,
     hostUid: string,
-    request: CreateDatabaseClientRequest,
+    request: CreateDatabaseClientRequest
   ): Promise<CreateDatabaseClientResponse> {
     const host = await this.hostService.findHostInternal(userId, hostUid);
     const url = `https://${host.address}:${host.port}/cm_api`;
 
     // Collect files to check before parsing exvol
     const filesToCheck: string[] = [];
-
 
     // Add exvol volume paths (before parsing/converting)
     if (request.exvol && Array.isArray(request.exvol)) {
@@ -784,9 +761,7 @@ export class DatabaseService {
     }
 
     // Convert exvol from client format to CMS format
-    const cmsExvol = request.exvol
-      ? convertExvolArrayToCmsFormat(request.exvol)
-      : [];
+    const cmsExvol = request.exvol ? convertExvolArrayToCmsFormat(request.exvol) : [];
 
     // Build CMS request from client request
     const cmsRequest: CreateDatabaseCmsRequest = {
@@ -812,7 +787,6 @@ export class DatabaseService {
     checkCmsTokenError(response);
     checkCmsStatusError(response);
 
-
     return {};
   }
 
@@ -833,7 +807,7 @@ export class DatabaseService {
     userId: string,
     hostUid: string,
     dbname: string,
-    request: UnloadDatabaseRequest,
+    request: UnloadDatabaseRequest
   ): Promise<{}> {
     const host = await this.hostService.findHostInternal(userId, hostUid);
     const url = `https://${host.address}:${host.port}/cm_api`;
@@ -853,7 +827,7 @@ export class DatabaseService {
         {
           isSchemaIncluded: request.isSchemaIncluded,
           isDataIncluded: request.isDataIncluded,
-        },
+        }
       );
     }
 

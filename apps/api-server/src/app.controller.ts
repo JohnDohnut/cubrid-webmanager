@@ -12,41 +12,41 @@ import { AppService } from './app.service';
  */
 @Controller()
 export class AppController {
-    constructor(private readonly appService: AppService) {}
+  constructor(private readonly appService: AppService) {}
 
-    /**
-     * Handles GET requests to the root endpoint.
-     *
-     * Returns a simple string response indicating the server is running
-     * and responding to GET requests.
-     *
-     * @returns {string} A confirmation message for GET requests
-     * @example
-     * ```typescript
-     * // GET /
-     * // Returns: "GET / "
-     * ```
-     */
-    @Get()
-    getHello(): string {
-        return 'GET / ';
-    }
+  /**
+   * Handles GET requests to the root endpoint.
+   *
+   * Returns a simple string response indicating the server is running
+   * and responding to GET requests.
+   *
+   * @returns {string} A confirmation message for GET requests
+   * @example
+   * ```typescript
+   * // GET /
+   * // Returns: "GET / "
+   * ```
+   */
+  @Get()
+  getHello(): string {
+    return 'GET / ';
+  }
 
-    /**
-     * Handles POST requests to the root endpoint.
-     *
-     * Returns a simple string response indicating the server is running
-     * and responding to POST requests.
-     *
-     * @returns {string} A confirmation message for POST requests
-     * @example
-     * ```typescript
-     * // POST /
-     * // Returns: "POST /"
-     * ```
-     */
-    @Post()
-    postNothing(): string {
-        return 'POST /';
-    }
+  /**
+   * Handles POST requests to the root endpoint.
+   *
+   * Returns a simple string response indicating the server is running
+   * and responding to POST requests.
+   *
+   * @returns {string} A confirmation message for POST requests
+   * @example
+   * ```typescript
+   * // POST /
+   * // Returns: "POST /"
+   * ```
+   */
+  @Post()
+  postNothing(): string {
+    return 'POST /';
+  }
 }

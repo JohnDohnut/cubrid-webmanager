@@ -16,4 +16,3 @@ describe('DatabaseUserService', () => {
     expect(service).toBeDefined();
   });
 });
-

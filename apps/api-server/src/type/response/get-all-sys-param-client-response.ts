@@ -8,8 +8,4 @@ import { GetAllSysParamCmsResponse } from '@type/cms-response/get-all-sys-param-
  * @category Responses
  * @since 1.0.0
  */
-export type GetAllSysParamClientResponse = Omit<
-    GetAllSysParamCmsResponse,
-    keyof BaseCmsResponse
->;
-
+export type GetAllSysParamClientResponse = Omit<GetAllSysParamCmsResponse, keyof BaseCmsResponse>;

@@ -1,5 +1,5 @@
-import { DBInfo } from "./db-info";
-import { HashMap } from "./collections";
+import { DBInfo } from './db-info';
+import { HashMap } from './collections';
 
 /**
  * Interface representing host information.
@@ -10,13 +10,13 @@ import { HashMap } from "./collections";
  * @category Types
  * @since 1.0.0
  */
-export type  HostInfo = {
-    uid: string;
-    id: string;
-    token?: string;
-    address: string;
-    port: number;
-    password: string;
-    alias?: string;
-    dbProfiles: HashMap<DBInfo>;
+export type HostInfo = {
+  uid: string;
+  id: string;
+  token?: string;
+  address: string;
+  port: number;
+  password: string;
+  alias?: string;
+  dbProfiles: HashMap<DBInfo>;
 };

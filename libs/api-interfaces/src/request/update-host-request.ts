@@ -8,6 +8,6 @@ import { HostInfo } from '@type/host-info';
  *
  * @category Requests
  * @since 1.0.0
-*/
+ */
 
 export type UpdateHostRequest = Omit<HostInfo, 'uid'>;

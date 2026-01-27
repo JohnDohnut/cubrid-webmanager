@@ -5,13 +5,13 @@
  * @since 1.0.0
  */
 export type RemoveDbnameFromServerClientRequest = {
-    /**
-     * Configuration file name (e.g., "cubridconf", "broker.conf")
-     */
-    confname: string;
+  /**
+   * Configuration file name (e.g., "cubridconf", "broker.conf")
+   */
+  confname: string;
 
-    /**
-     * Database name to remove from the server parameter
-     */
-    dbname: string;
+  /**
+   * Database name to remove from the server parameter
+   */
+  dbname: string;
 };

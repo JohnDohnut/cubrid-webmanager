@@ -5,6 +5,5 @@ import { BaseCmsRequest } from './base-cms-request';
  * This type is kept for backward compatibility but will be removed in future versions.
  */
 export type CmsForwardRequestWithoutToken = Omit<BaseCmsRequest, 'token'> & {
-    hostUid: string;
+  hostUid: string;
 };
-

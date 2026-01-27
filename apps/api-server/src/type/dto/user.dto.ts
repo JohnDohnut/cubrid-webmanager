@@ -8,6 +8,6 @@
  * @since 1.0.0
  */
 export class UserDTO {
-    id: string;
-    password: string;
+  id: string;
+  password: string;
 }

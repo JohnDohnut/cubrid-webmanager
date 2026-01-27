@@ -1,32 +1,32 @@
-import { createSlice } from '@reduxjs/toolkit'
-import {getIntervalDashboard} from "@/preference/pref.js";
+import { createSlice } from '@reduxjs/toolkit';
+import { getIntervalDashboard } from '@/preference/pref.js';
 
 const initialState = {
-    intervalDashboard: getIntervalDashboard(), // default = 10, 0 is no refresh
-    buffering: false,
-    deleteConfirm: {open: false},
-    errorModal: {open: false},
-}
+  intervalDashboard: getIntervalDashboard(), // default = 10, 0 is no refresh
+  buffering: false,
+  deleteConfirm: { open: false },
+  errorModal: { open: false },
+};
 
 const globalSlice = createSlice({
-    name: 'global',
-    initialState,
-    reducers: {
-        setIntervalDashboard: (state, action) => {
-            state.intervalDashboard = action.payload
-        },
-        setBuffering: (state, action) => {
-            state.buffering = action.payload
-        },
-        setDeleteConfirm: (state, action) => {
-            state.deleteConfirm = action.payload
-        },
-        setErrorModal: (state, action) => {
-            state.errorModal = action.payload
-        }
+  name: 'global',
+  initialState,
+  reducers: {
+    setIntervalDashboard: (state, action) => {
+      state.intervalDashboard = action.payload;
     },
-})
+    setBuffering: (state, action) => {
+      state.buffering = action.payload;
+    },
+    setDeleteConfirm: (state, action) => {
+      state.deleteConfirm = action.payload;
+    },
+    setErrorModal: (state, action) => {
+      state.errorModal = action.payload;
+    },
+  },
+});
 
-export const { setIntervalDashboard, setBuffering,
-    setDeleteConfirm, setErrorModal} = globalSlice.actions
-export default globalSlice.reducer
+export const { setIntervalDashboard, setBuffering, setDeleteConfirm, setErrorModal } =
+  globalSlice.actions;
+export default globalSlice.reducer;

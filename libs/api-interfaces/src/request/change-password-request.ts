@@ -8,6 +8,6 @@
  * @since 1.0.0
  */
 export interface ChangePasswordRequest {
-    oldPassword: string;
-    newPassword: string;
+  oldPassword: string;
+  newPassword: string;
 }

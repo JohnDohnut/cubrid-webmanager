@@ -10,23 +10,22 @@ import { BaseCmsResponse, CmsGetHostStatResponse } from '@type/cms-response';
  */
 @Controller(':hostUid/resource-monitoring') // Base path for this controller
 export class ResourceMonitoringController {
-    constructor(private readonly resourceMonitoringService: ResourceMonitoringService) {}
+  constructor(private readonly resourceMonitoringService: ResourceMonitoringService) {}
 
-    /**
-     * Retrieves raw host statistics (gethoststat) from the CMS API.
-     * The client is expected to perform further calculations.
-     *
-     * @param hostUid The UID of the host.
-     * @param req The request object containing user information.
-     * @returns A promise that resolves with the raw CmsGetHostStatResponse.
-     */
-    @Get('get-host-stat') // Specific endpoint for get-host-stat
-    async getHostStat(
-        @Param('hostUid') hostUid: string,
-        @Request() req,
-    ): Promise<Omit<CmsGetHostStatResponse, keyof BaseCmsResponse>> {
-        const userId = req.user.sub;
-        return await this.resourceMonitoringService.getHostStat(userId, hostUid);
-    }
+  /**
+   * Retrieves raw host statistics (gethoststat) from the CMS API.
+   * The client is expected to perform further calculations.
+   *
+   * @param hostUid The UID of the host.
+   * @param req The request object containing user information.
+   * @returns A promise that resolves with the raw CmsGetHostStatResponse.
+   */
+  @Get('get-host-stat') // Specific endpoint for get-host-stat
+  async getHostStat(
+    @Param('hostUid') hostUid: string,
+    @Request() req
+  ): Promise<Omit<CmsGetHostStatResponse, keyof BaseCmsResponse>> {
+    const userId = req.user.sub;
+    return await this.resourceMonitoringService.getHostStat(userId, hostUid);
+  }
 }
-

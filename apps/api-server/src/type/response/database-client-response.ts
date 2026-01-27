@@ -6,16 +6,16 @@ import { StartInfoCmsResponse } from '@type/cms-response/start-info-cms-response
  * Strips CMS envelope fields from StartInfoCmsResponse.
  */
 export type StartInfoClientResponse = {
-    activelist: {
-        active: {
-            dbname: string;
-        }[];
-    };
-    dblist: {
-        dbs: {
-            dbdir: string;
-            dbname: string;
-            isProfileExists : boolean;
-        }[];
-    };
+  activelist: {
+    active: {
+      dbname: string;
+    }[];
+  };
+  dblist: {
+    dbs: {
+      dbdir: string;
+      dbname: string;
+      isProfileExists: boolean;
+    }[];
+  };
 };

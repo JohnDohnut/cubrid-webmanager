@@ -10,14 +10,14 @@ import * as path from 'path';
  * @since 1.0.0
  */
 export function getStoragePath() {
-    const isPkg = !!(process as any).pkg;
-    
-    if (isPkg) {
-        const executableDir = path.dirname(process.execPath);
-        return path.join(executableDir, 'storage');
-    } else {
-        return path.resolve(__dirname, '..', '..', 'storage');
-    }
+  const isPkg = !!(process as any).pkg;
+
+  if (isPkg) {
+    const executableDir = path.dirname(process.execPath);
+    return path.join(executableDir, 'storage');
+  } else {
+    return path.resolve(__dirname, '..', '..', 'storage');
+  }
 }
 
 /**
@@ -29,6 +29,6 @@ export function getStoragePath() {
  * @since 1.0.0
  */
 export function resolveUserFilePath(filename: string) {
-    const storageDir = getStoragePath();
-    return path.join(storageDir, filename);
+  const storageDir = getStoragePath();
+  return path.join(storageDir, filename);
 }

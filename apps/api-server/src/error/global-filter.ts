@@ -1,10 +1,10 @@
 import {
-    ExceptionFilter,
-    Catch,
-    ArgumentsHost,
-    HttpException,
-    HttpStatus,
-    Logger,
+  ExceptionFilter,
+  Catch,
+  ArgumentsHost,
+  HttpException,
+  HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import { BaseExceptionFilter } from '@nestjs/core';
 import { Response } from 'express';
@@ -22,77 +22,78 @@ import { StandardResponse } from '@api-interfaces';
  */
 @Catch()
 export class GlobalExceptionFilter extends BaseExceptionFilter {
-    private readonly logger = new Logger(GlobalExceptionFilter.name);
+  private readonly logger = new Logger(GlobalExceptionFilter.name);
 
-    catch(exception: any, host: ArgumentsHost) {
-        const ctx = host.switchToHttp();
-        const res = ctx.getResponse<Response>();
-        const req = ctx.getRequest();
+  catch(exception: any, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const res = ctx.getResponse<Response>();
+    const req = ctx.getRequest();
 
-        let status: number;
-        let note: string;
-        let errorData: any = null;
+    let status: number;
+    let note: string;
+    let errorData: any = null;
 
-        if (exception instanceof HttpException) {
-            status = exception.getStatus();
-            const exceptionResponse = exception.getResponse();
+    if (exception instanceof HttpException) {
+      status = exception.getStatus();
+      const exceptionResponse = exception.getResponse();
 
-            if (typeof exceptionResponse === 'string') {
-                note = exceptionResponse;
-            } else if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
-                const responseObj = exceptionResponse as any;
-                note = responseObj.message || responseObj.detail || exception.message || 'An error occurred';
-                if (responseObj.detail || responseObj.message) {
-                    errorData = { message: responseObj.message || responseObj.detail };
-                }
-            } else {
-                note = exception.message || 'An error occurred';
-            }
-
-            this.logger.error(
-                'HttpException',
-                `HTTP Exception: ${exception.message}`,
-                exception.stack,
-                `${req.method} ${req.url}`,
-            );
-        } else if (exception instanceof AppError) {
-            const problemDetails = exception.toProblemDetails(req.url);
-
-            status = problemDetails.status;
-            note = problemDetails.detail || problemDetails.title || exception.message || 'An error occurred';
-            
-            errorData = {
-                code: problemDetails.code,
-                type: problemDetails.type,
-                title: problemDetails.title,
-            };
-
-            const logDetails = exception.toLogDetails(req.url);
-            this.logger.error(
-                'App Error',
-                `App Error [${exception.kind}:${exception.code}]: ${exception.message}`,
-                JSON.stringify(logDetails, null, 2),
-                `${req.method} ${req.url}`,
-            );
+      if (typeof exceptionResponse === 'string') {
+        note = exceptionResponse;
+      } else if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
+        const responseObj = exceptionResponse as any;
+        note =
+          responseObj.message || responseObj.detail || exception.message || 'An error occurred';
+        if (responseObj.detail || responseObj.message) {
+          errorData = { message: responseObj.message || responseObj.detail };
         }
-        else {
-            status = HttpStatus.INTERNAL_SERVER_ERROR;
-            note = exception?.message || 'An unexpected error occurred';
+      } else {
+        note = exception.message || 'An error occurred';
+      }
 
-            this.logger.error(
-                'Other Errors',
-                `Unknown Error: ${exception?.message || 'No message'}`,
-                exception?.stack || 'No stack trace',
-                `${req.method} ${req.url}`,
-            );
-        }
+      this.logger.error(
+        'HttpException',
+        `HTTP Exception: ${exception.message}`,
+        exception.stack,
+        `${req.method} ${req.url}`
+      );
+    } else if (exception instanceof AppError) {
+      const problemDetails = exception.toProblemDetails(req.url);
 
-        const standardResponse: StandardResponse = {
-            data: errorData,
-            status: status,
-            note: note,
-        };
+      status = problemDetails.status;
+      note =
+        problemDetails.detail || problemDetails.title || exception.message || 'An error occurred';
 
-        res.status(status).json(standardResponse);
+      errorData = {
+        code: problemDetails.code,
+        type: problemDetails.type,
+        title: problemDetails.title,
+      };
+
+      const logDetails = exception.toLogDetails(req.url);
+      this.logger.error(
+        'App Error',
+        `App Error [${exception.kind}:${exception.code}]: ${exception.message}`,
+        JSON.stringify(logDetails, null, 2),
+        `${req.method} ${req.url}`
+      );
+    } else {
+      status = HttpStatus.INTERNAL_SERVER_ERROR;
+      note = exception?.message || 'An unexpected error occurred';
+
+      this.logger.error(
+        'Other Errors',
+        `Unknown Error: ${exception?.message || 'No message'}`,
+        exception?.stack || 'No stack trace',
+        `${req.method} ${req.url}`
+      );
     }
+
+    const standardResponse: StandardResponse = {
+      data: errorData,
+      status: status,
+      note: note,
+    };
+
+    res.status(status).json(standardResponse);
+  }
 }

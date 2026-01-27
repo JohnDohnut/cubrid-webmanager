@@ -12,10 +12,9 @@ import { UserRepositoryModule } from '@repository';
  * @since 1.0.0
  */
 @Module({
-    imports: [CmsHttpsClientModule, CmsAuthModule, UserRepositoryModule],
-    providers: [FileService],
-    controllers: [FileController],
-    exports: [FileService],
+  imports: [CmsHttpsClientModule, CmsAuthModule, UserRepositoryModule],
+  providers: [FileService],
+  controllers: [FileController],
+  exports: [FileService],
 })
 export class FileModule {}
-

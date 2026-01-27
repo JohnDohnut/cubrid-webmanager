@@ -9,46 +9,48 @@ import { AppError, DatabaseError, CmsError, HostError } from '@error/index';
  * @since 1.0.0
  */
 export function HandleDatabaseErrors() {
-    return function (
-        target: any,
-        propertyKey: string,
-        descriptor: PropertyDescriptor,
-    ) {
-        const originalMethod = descriptor.value;
-        descriptor.value = async function (...args: any[]) {
-            try {
-                return await originalMethod.apply(this, args);
-            } catch (err) {
-                // Handle DatabaseError first - pass through as-is
-                if (err instanceof DatabaseError) {
-                    throw err;
-                }
+  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+    const originalMethod = descriptor.value;
+    descriptor.value = async function (...args: any[]) {
+      try {
+        return await originalMethod.apply(this, args);
+      } catch (err) {
+        // Handle DatabaseError first - pass through as-is
+        if (err instanceof DatabaseError) {
+          throw err;
+        }
 
-                // Handle CmsError - pass through as-is (already appropriate error type)
-                if (err instanceof CmsError) {
-                    throw err;
-                }
+        // Handle CmsError - pass through as-is (already appropriate error type)
+        if (err instanceof CmsError) {
+          throw err;
+        }
 
-                // Handle HostError - pass through as-is (already appropriate error type)
-                if (err instanceof HostError) {
-                    throw err;
-                }
+        // Handle HostError - pass through as-is (already appropriate error type)
+        if (err instanceof HostError) {
+          throw err;
+        }
 
-                // If it's already an AppError (other types), convert to DatabaseError.Unknown
-                if (err instanceof AppError) {
-                    throw DatabaseError.Unknown({
-                        originalCode: err.code,
-                        originalMessage: err.message,
-                        ...err.additionalData,
-                    }, err);
-                }
-                
-                // For any other unknown errors, wrap them as DatabaseError.Unknown
-                console.error(`[HandleDatabaseErrors] Unknown error in ${propertyKey}:`, err);
-                throw DatabaseError.Unknown({
-                    originalMessage: err instanceof Error ? err.message : String(err),
-                }, err instanceof Error ? err : undefined);
-            }
-        };
+        // If it's already an AppError (other types), convert to DatabaseError.Unknown
+        if (err instanceof AppError) {
+          throw DatabaseError.Unknown(
+            {
+              originalCode: err.code,
+              originalMessage: err.message,
+              ...err.additionalData,
+            },
+            err
+          );
+        }
+
+        // For any other unknown errors, wrap them as DatabaseError.Unknown
+        console.error(`[HandleDatabaseErrors] Unknown error in ${propertyKey}:`, err);
+        throw DatabaseError.Unknown(
+          {
+            originalMessage: err instanceof Error ? err.message : String(err),
+          },
+          err instanceof Error ? err : undefined
+        );
+      }
     };
+  };
 }

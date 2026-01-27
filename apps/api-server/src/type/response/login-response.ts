@@ -7,7 +7,7 @@
  * @since 1.0.0
  */
 export type LoginResponse = {
-    token: string;
+  token: string;
 };
 
 /**
@@ -19,8 +19,8 @@ export type LoginResponse = {
  * @since 1.0.0
  */
 export function CreateLoginResponse(token: string) {
-    const response: LoginResponse = {
-        token: token,
-    };
-    return response;
+  const response: LoginResponse = {
+    token: token,
+  };
+  return response;
 }

@@ -8,7 +8,6 @@ import { AccessLogEntry, ErrorLogEntry } from '@type/cms-response/load-access-lo
  * @since 1.0.0
  */
 export type LoadAccessLogClientResponse = {
-    accesslog: AccessLogEntry[];
-    errorlog: ErrorLogEntry[];
+  accesslog: AccessLogEntry[];
+  errorlog: ErrorLogEntry[];
 };
-

@@ -1,4 +1,4 @@
 export type BrokerRequest = {
-    hostUid: string;
-    bname: string;
-}
+  hostUid: string;
+  bname: string;
+};

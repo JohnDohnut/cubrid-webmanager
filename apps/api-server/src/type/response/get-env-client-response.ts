@@ -6,4 +6,3 @@ import { GetEnvCmsResponse } from '@type/cms-response/get-env-cms-response';
  * Strips CMS envelope fields from GetEnvCmsResponse.
  */
 export type GetEnvClientResponse = Omit<GetEnvCmsResponse, keyof BaseCmsResponse>;
-

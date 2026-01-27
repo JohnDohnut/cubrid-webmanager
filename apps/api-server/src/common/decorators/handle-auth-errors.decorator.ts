@@ -11,18 +11,14 @@ import { AuthError } from '@error/auth/auth-error';
  * @since 1.0.0
  */
 export function HandleAuthErrors() {
-    return function (
-        target: any,
-        propertyKey: string,
-        descriptor: PropertyDescriptor,
-    ) {
-        const originalMethod = descriptor.value;
-        descriptor.value = async function (...args: any[]) {
-            try {
-                return await originalMethod.apply(this, args);
-            } catch (err) {
-                throw err;
-            }
-        };
+  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+    const originalMethod = descriptor.value;
+    descriptor.value = async function (...args: any[]) {
+      try {
+        return await originalMethod.apply(this, args);
+      } catch (err) {
+        throw err;
+      }
     };
+  };
 }

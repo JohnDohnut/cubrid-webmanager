@@ -6,5 +6,3 @@ import { StatdumpCmsResponse } from '@type/cms-response/statdump-cms-response';
  * Removes CMS envelope fields.
  */
 export type StatdumpClientResponse = Omit<StatdumpCmsResponse, keyof BaseCmsResponse>;
-
-

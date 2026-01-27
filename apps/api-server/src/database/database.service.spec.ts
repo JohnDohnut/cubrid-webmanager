@@ -138,17 +138,9 @@ describe('DatabaseService', () => {
 
       cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
 
-      const result = await service.unloadDatabase(
-        mockUserId,
-        mockHostUid,
-        mockDbname,
-        request,
-      );
+      const result = await service.unloadDatabase(mockUserId, mockHostUid, mockDbname, request);
 
-      expect(hostService.findHostInternal).toHaveBeenCalledWith(
-        mockUserId,
-        mockHostUid,
-      );
+      expect(hostService.findHostInternal).toHaveBeenCalledWith(mockUserId, mockHostUid);
       expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
         `https://${mockHost.address}:${mockHost.port}/cm_api`,
         expect.objectContaining({
@@ -159,14 +151,10 @@ describe('DatabaseService', () => {
           target: 'both',
           dbuser: request.dbuser,
           dbpasswd: request.dbpasswd,
-        }),
+        })
       );
-      expect(common.checkCmsTokenError).toHaveBeenCalledWith(
-        mockSuccessResponse,
-      );
-      expect(common.checkCmsStatusError).toHaveBeenCalledWith(
-        mockSuccessResponse,
-      );
+      expect(common.checkCmsTokenError).toHaveBeenCalledWith(mockSuccessResponse);
+      expect(common.checkCmsStatusError).toHaveBeenCalledWith(mockSuccessResponse);
       expect(result).toEqual(mockSuccessResponse.result);
     });
 
@@ -179,18 +167,13 @@ describe('DatabaseService', () => {
 
       cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
 
-      const result = await service.unloadDatabase(
-        mockUserId,
-        mockHostUid,
-        mockDbname,
-        request,
-      );
+      const result = await service.unloadDatabase(mockUserId, mockHostUid, mockDbname, request);
 
       expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
           target: 'schema',
-        }),
+        })
       );
       expect(result).toEqual(mockSuccessResponse.result);
     });
@@ -204,18 +187,13 @@ describe('DatabaseService', () => {
 
       cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
 
-      const result = await service.unloadDatabase(
-        mockUserId,
-        mockHostUid,
-        mockDbname,
-        request,
-      );
+      const result = await service.unloadDatabase(mockUserId, mockHostUid, mockDbname, request);
 
       expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
           target: 'object',
-        }),
+        })
       );
       expect(result).toEqual(mockSuccessResponse.result);
     });
@@ -258,7 +236,7 @@ describe('DatabaseService', () => {
           prefix: 'backup',
           cach: '100',
           lofile: '10',
-        }),
+        })
       );
     });
 
@@ -270,11 +248,11 @@ describe('DatabaseService', () => {
       };
 
       await expect(
-        service.unloadDatabase(mockUserId, mockHostUid, mockDbname, request),
+        service.unloadDatabase(mockUserId, mockHostUid, mockDbname, request)
       ).rejects.toThrow(DatabaseError);
 
       await expect(
-        service.unloadDatabase(mockUserId, mockHostUid, mockDbname, request),
+        service.unloadDatabase(mockUserId, mockHostUid, mockDbname, request)
       ).rejects.toThrow('Both isSchemaIncluded and isDataIncluded cannot be false');
 
       expect(cmsClient.postAuthenticated).not.toHaveBeenCalled();
@@ -282,11 +260,11 @@ describe('DatabaseService', () => {
 
     it('should throw HostError when host is not found', async () => {
       hostService.findHostInternal.mockRejectedValue(
-        HostError.NoSuchHost({ hostUid: mockHostUid }),
+        HostError.NoSuchHost({ hostUid: mockHostUid })
       );
 
       await expect(
-        service.unloadDatabase(mockUserId, mockHostUid, mockDbname, baseRequest),
+        service.unloadDatabase(mockUserId, mockHostUid, mockDbname, baseRequest)
       ).rejects.toThrow(HostError);
 
       expect(cmsClient.postAuthenticated).not.toHaveBeenCalled();
@@ -301,7 +279,7 @@ describe('DatabaseService', () => {
       cmsClient.postAuthenticated.mockRejectedValue(cmsError);
 
       await expect(
-        service.unloadDatabase(mockUserId, mockHostUid, mockDbname, baseRequest),
+        service.unloadDatabase(mockUserId, mockHostUid, mockDbname, baseRequest)
       ).rejects.toThrow(CmsError);
     });
 
@@ -320,7 +298,7 @@ describe('DatabaseService', () => {
       });
 
       await expect(
-        service.unloadDatabase(mockUserId, mockHostUid, mockDbname, baseRequest),
+        service.unloadDatabase(mockUserId, mockHostUid, mockDbname, baseRequest)
       ).rejects.toThrow(DatabaseError);
     });
 
@@ -339,7 +317,7 @@ describe('DatabaseService', () => {
       });
 
       await expect(
-        service.unloadDatabase(mockUserId, mockHostUid, mockDbname, baseRequest),
+        service.unloadDatabase(mockUserId, mockHostUid, mockDbname, baseRequest)
       ).rejects.toThrow(DatabaseError);
     });
   });
@@ -422,9 +400,7 @@ describe('DatabaseService', () => {
       };
       cmsClient.postAuthenticated.mockResolvedValue(failedResponse);
 
-      await expect(service.startInfo(mockUserId, mockHostUid)).rejects.toThrow(
-        DatabaseError,
-      );
+      await expect(service.startInfo(mockUserId, mockHostUid)).rejects.toThrow(DatabaseError);
     });
   });
 
@@ -448,11 +424,7 @@ describe('DatabaseService', () => {
     it('should successfully start database', async () => {
       cmsClient.postAuthenticated.mockResolvedValue(mockBaseResponse);
 
-      const result = await service.startDatabase(
-        mockUserId,
-        mockHostUid,
-        mockDbname,
-      );
+      const result = await service.startDatabase(mockUserId, mockHostUid, mockDbname);
 
       expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
         `https://${mockHost.address}:${mockHost.port}/cm_api`,
@@ -460,7 +432,7 @@ describe('DatabaseService', () => {
           task: 'startdb',
           token: mockHost.token,
           dbname: mockDbname,
-        }),
+        })
       );
       expect(common.checkCmsTokenError).toHaveBeenCalled();
       expect(result).toEqual(mockStartInfoResponse);
@@ -474,9 +446,9 @@ describe('DatabaseService', () => {
       };
       cmsClient.postAuthenticated.mockResolvedValue(failedResponse);
 
-      await expect(
-        service.startDatabase(mockUserId, mockHostUid, mockDbname),
-      ).rejects.toThrow(DatabaseError);
+      await expect(service.startDatabase(mockUserId, mockHostUid, mockDbname)).rejects.toThrow(
+        DatabaseError
+      );
     });
   });
 
@@ -500,11 +472,7 @@ describe('DatabaseService', () => {
     it('should successfully stop database', async () => {
       cmsClient.postAuthenticated.mockResolvedValue(mockBaseResponse);
 
-      const result = await service.stopDatabase(
-        mockUserId,
-        mockHostUid,
-        mockDbname,
-      );
+      const result = await service.stopDatabase(mockUserId, mockHostUid, mockDbname);
 
       expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
         `https://${mockHost.address}:${mockHost.port}/cm_api`,
@@ -512,7 +480,7 @@ describe('DatabaseService', () => {
           task: 'stopdb',
           token: mockHost.token,
           dbname: mockDbname,
-        }),
+        })
       );
       expect(result).toEqual(mockStartInfoResponse);
     });
@@ -525,9 +493,9 @@ describe('DatabaseService', () => {
       };
       cmsClient.postAuthenticated.mockResolvedValue(failedResponse);
 
-      await expect(
-        service.stopDatabase(mockUserId, mockHostUid, mockDbname),
-      ).rejects.toThrow(DatabaseError);
+      await expect(service.stopDatabase(mockUserId, mockHostUid, mockDbname)).rejects.toThrow(
+        DatabaseError
+      );
     });
   });
 
@@ -560,11 +528,7 @@ describe('DatabaseService', () => {
         .mockResolvedValueOnce(mockBaseResponse) // stop
         .mockResolvedValueOnce(mockStartResponse); // start
 
-      const result = await service.restartDatabase(
-        mockUserId,
-        mockHostUid,
-        mockDbname,
-      );
+      const result = await service.restartDatabase(mockUserId, mockHostUid, mockDbname);
 
       expect(cmsClient.postAuthenticated).toHaveBeenCalledTimes(2);
       expect(result).toEqual(mockStartInfoResponse);
@@ -578,9 +542,9 @@ describe('DatabaseService', () => {
       };
       cmsClient.postAuthenticated.mockResolvedValueOnce(failedResponse);
 
-      await expect(
-        service.restartDatabase(mockUserId, mockHostUid, mockDbname),
-      ).rejects.toThrow(DatabaseError);
+      await expect(service.restartDatabase(mockUserId, mockHostUid, mockDbname)).rejects.toThrow(
+        DatabaseError
+      );
     });
 
     it('should throw DatabaseError when start fails', async () => {
@@ -593,9 +557,9 @@ describe('DatabaseService', () => {
         .mockResolvedValueOnce(mockBaseResponse) // stop succeeds
         .mockResolvedValueOnce(failedResponse); // start fails
 
-      await expect(
-        service.restartDatabase(mockUserId, mockHostUid, mockDbname),
-      ).rejects.toThrow(DatabaseError);
+      await expect(service.restartDatabase(mockUserId, mockHostUid, mockDbname)).rejects.toThrow(
+        DatabaseError
+      );
     });
   });
 
@@ -626,7 +590,7 @@ describe('DatabaseService', () => {
         mockHostUid,
         mockDbname,
         'dba',
-        'password',
+        'password'
       );
 
       expect(repository.atomicUpdateUser).toHaveBeenCalled();
@@ -635,15 +599,15 @@ describe('DatabaseService', () => {
 
     it('should throw ValidationError when credentials are missing', async () => {
       await expect(
-        service.saveDatabaseProfile(mockUserId, mockHostUid, '', 'dba', 'password'),
+        service.saveDatabaseProfile(mockUserId, mockHostUid, '', 'dba', 'password')
       ).rejects.toThrow();
 
       await expect(
-        service.saveDatabaseProfile(mockUserId, mockHostUid, mockDbname, '', 'password'),
+        service.saveDatabaseProfile(mockUserId, mockHostUid, mockDbname, '', 'password')
       ).rejects.toThrow();
 
       await expect(
-        service.saveDatabaseProfile(mockUserId, mockHostUid, mockDbname, 'dba', ''),
+        service.saveDatabaseProfile(mockUserId, mockHostUid, mockDbname, 'dba', '')
       ).rejects.toThrow();
     });
 
@@ -664,13 +628,7 @@ describe('DatabaseService', () => {
       });
 
       await expect(
-        service.saveDatabaseProfile(
-          mockUserId,
-          mockHostUid,
-          mockDbname,
-          'dba',
-          'password',
-        ),
+        service.saveDatabaseProfile(mockUserId, mockHostUid, mockDbname, 'dba', 'password')
       ).rejects.toThrow(DatabaseError);
     });
 
@@ -685,13 +643,7 @@ describe('DatabaseService', () => {
       });
 
       await expect(
-        service.saveDatabaseProfile(
-          mockUserId,
-          mockHostUid,
-          mockDbname,
-          'dba',
-          'password',
-        ),
+        service.saveDatabaseProfile(mockUserId, mockHostUid, mockDbname, 'dba', 'password')
       ).rejects.toThrow(HostError);
     });
   });
@@ -711,11 +663,7 @@ describe('DatabaseService', () => {
     it('should successfully get database space info', async () => {
       cmsClient.postAuthenticated.mockResolvedValue(mockDbSpaceInfoResponse);
 
-      const result = await service.getDBSpaceInfo(
-        mockUserId,
-        mockHostUid,
-        mockDbname,
-      );
+      const result = await service.getDBSpaceInfo(mockUserId, mockHostUid, mockDbname);
 
       expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
         `https://${mockHost.address}:${mockHost.port}/cm_api`,
@@ -723,7 +671,7 @@ describe('DatabaseService', () => {
           task: 'dbspaceinfo',
           token: mockHost.token,
           dbname: mockDbname,
-        }),
+        })
       );
       expect(common.checkCmsTokenError).toHaveBeenCalled();
       expect(common.checkCmsStatusError).toHaveBeenCalled();
@@ -769,7 +717,7 @@ describe('DatabaseService', () => {
         mockUserId,
         mockHostUid,
         mockDbname,
-        mockRequest,
+        mockRequest
       );
 
       expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
@@ -779,7 +727,7 @@ describe('DatabaseService', () => {
           dbname: mockDbname,
           backupid: mockRequest.backupid,
           path: mockRequest.path,
-        }),
+        })
       );
       expect(result).toEqual({});
     });
@@ -818,7 +766,7 @@ describe('DatabaseService', () => {
         mockUserId,
         mockHostUid,
         mockDbname,
-        mockRequest,
+        mockRequest
       );
 
       expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
@@ -826,7 +774,7 @@ describe('DatabaseService', () => {
         expect.objectContaining({
           task: 'setbackupinfo',
           dbname: mockDbname,
-        }),
+        })
       );
       expect(result).toEqual({});
     });
@@ -852,7 +800,7 @@ describe('DatabaseService', () => {
         mockUserId,
         mockHostUid,
         mockDbname,
-        mockRequest,
+        mockRequest
       );
 
       expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
@@ -861,7 +809,7 @@ describe('DatabaseService', () => {
           task: 'deletebackupinfo',
           dbname: mockDbname,
           backupid: mockRequest.backupid,
-        }),
+        })
       );
       expect(result).toBeDefined();
     });
@@ -880,18 +828,14 @@ describe('DatabaseService', () => {
     it('should successfully get backup schedule', async () => {
       cmsClient.postAuthenticated.mockResolvedValue(mockResponse);
 
-      const result = await service.getBackupSchedule(
-        mockUserId,
-        mockHostUid,
-        mockDbname,
-      );
+      const result = await service.getBackupSchedule(mockUserId, mockHostUid, mockDbname);
 
       expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
           task: 'getbackupinfo',
           dbname: mockDbname,
-        }),
+        })
       );
       expect(result).toEqual({
         dbname: 'testdb',
@@ -924,7 +868,7 @@ describe('DatabaseService', () => {
         mockUserId,
         mockHostUid,
         mockDbname,
-        mockRequest,
+        mockRequest
       );
 
       expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
@@ -933,7 +877,7 @@ describe('DatabaseService', () => {
           task: 'setautoexecquery',
           dbname: mockDbname,
           planlist: mockRequest.planlist,
-        }),
+        })
       );
       expect(result).toEqual({});
     });
@@ -951,21 +895,16 @@ describe('DatabaseService', () => {
     it('should successfully get auto exec query', async () => {
       cmsClient.postAuthenticated.mockResolvedValue(mockResponse);
 
-      const result = await service.getAutoExecQuery(
-        mockUserId,
-        mockHostUid,
-        mockDbname,
-      );
+      const result = await service.getAutoExecQuery(mockUserId, mockHostUid, mockDbname);
 
       expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
           task: 'getautoexecquery',
           dbname: mockDbname,
-        }),
+        })
       );
       expect(result).toEqual({ planlist: [] });
     });
   });
 });
-

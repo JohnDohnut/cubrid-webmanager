@@ -1,16 +1,12 @@
+import styles from './ActionButton.module.css';
 
-import styles from "./ActionButton.module.css";
-
-
-const ActionButtons = ({title, icon, ...res}) => {
-
-    return (
-        <div className={styles.button__layout} {...res}>
-            {icon}
-            <div>{title}</div>
-        </div>
-    )
-}
-
+const ActionButtons = ({ title, icon, ...res }) => {
+  return (
+    <div className={styles.button__layout} {...res}>
+      {icon}
+      <div>{title}</div>
+    </div>
+  );
+};
 
 export default ActionButtons;

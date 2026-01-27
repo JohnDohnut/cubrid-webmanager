@@ -8,7 +8,6 @@ import { LogFileInfoContainer } from '@type/cms-response/get-log-file-info-cms-r
  * @since 1.0.0
  */
 export type GetBrokerLogListClientResponse = {
-    broker: string;
-    logfileinfo: LogFileInfoContainer[];
+  broker: string;
+  logfileinfo: LogFileInfoContainer[];
 };
-
