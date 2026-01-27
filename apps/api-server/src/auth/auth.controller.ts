@@ -1,6 +1,7 @@
 import { Body, Controller, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { UserDTO, LoginResponse, CreateLoginResponse } from '@type/index';
+import { UserDTO } from '@type/index';
+import { LoginResponse, CreateLoginResponse } from '@api-interfaces';
 import { Public } from '@common';
 
 /**

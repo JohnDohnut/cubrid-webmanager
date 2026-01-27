@@ -1,13 +1,15 @@
 import { Body, Controller, Delete, Get, Post, Request, Patch, Put } from '@nestjs/common';
 import { UserService } from './user.service';
 import {
-  ChangePasswordRequest,
-  UpdateUserInfoRequest,
-  UserResponse,
   UpdateUserDto,
   UserPreference,
   UserPreferenceDto,
 } from '@type/index';
+import {
+  ChangePasswordRequest,
+  UpdateUserInfoRequest,
+  UserResponse,
+} from '@api-interfaces';
 
 /**
  * Controller for handling user-related operations.
