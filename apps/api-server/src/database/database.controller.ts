@@ -16,6 +16,7 @@ import {
   GetAutoExecQueryClientResponse,
   SaveDatabaseProfileRequest,
   UnloadDatabaseRequest,
+  UnloadInfoClientResponse,
 } from '@api-interfaces';
 import { validateRequiredFields } from '@util';
 import { DatabaseService } from './database.service';
@@ -421,5 +422,27 @@ export class DatabaseController {
 
     Logger.log(`Unloading database: ${dbname} on host: ${hostUid}`, 'DatabaseController');
     return await this.databaseService.unloadDatabase(userId, hostUid, dbname, body);
+  }
+
+  /**
+   * Get unload information for databases on a host.
+   * Returns domain-only data (CMS envelope removed).
+   *
+   * @route GET /:hostUid/database/unload-info
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @returns UnloadInfoClientResponse Unload information without CMS envelope fields
+   * @example
+   * // GET /host-uid/database/unload-info
+   */
+  @Get('unload-info')
+  async getUnloadInfo(
+    @Request() req,
+    @Param('hostUid') hostUid: string
+  ): Promise<UnloadInfoClientResponse> {
+    const userId = req.user.sub;
+
+    Logger.log(`Getting unload info for host: ${hostUid}`, 'DatabaseController');
+    return await this.databaseService.getUnloadInfo(userId, hostUid);
   }
 }

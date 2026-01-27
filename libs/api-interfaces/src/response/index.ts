@@ -33,3 +33,4 @@ export * from './create-database-client-response';
 export * from './get-createdb-info-client-response';
 export * from './add-dbname-to-server-client-response';
 export * from './remove-dbname-from-server-client-response';
+export * from './unload-info-client-response';
