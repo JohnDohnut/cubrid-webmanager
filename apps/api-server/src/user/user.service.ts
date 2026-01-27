@@ -6,13 +6,15 @@ import { passwordValidityChecker, omitPassword } from '@util';
 import { HandleUserErrors } from '@common';
 import {
   User,
-  ChangePasswordRequest,
-  UpdateUserInfoRequest,
-  UserResponse,
   UpdateUserDto,
   UserPreference,
   UserPreferenceDto,
 } from '@type/index';
+import {
+  ChangePasswordRequest,
+  UpdateUserInfoRequest,
+  UserResponse,
+} from '@api-interfaces';
 
 /**
  * Service for managing user-related operations.

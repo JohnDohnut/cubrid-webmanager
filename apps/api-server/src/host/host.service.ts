@@ -8,11 +8,13 @@ import {
   SafeHostList,
   HostInfo,
   User,
+} from '@type/index';
+import {
   AddHostRequest,
   UpdateHostRequest,
   GetHostsResponse,
   HostResponse,
-} from '@type/index';
+} from '@api-interfaces';
 import { omitPassword, omitPasswordArray, omitPasswordHashMap, omitHashMap } from '@util';
 import { v4 as uuidv4 } from 'uuid';
 
