@@ -17,3 +17,9 @@ export {
     getConfigParam,
     getSectionParams,
 } from './parse-config-params';
+export {
+    parseExvolString,
+    parseExvolArray,
+    convertExvolInfoToCmsFormat,
+    convertExvolArrayToCmsFormat,
+} from './parse-exvol';

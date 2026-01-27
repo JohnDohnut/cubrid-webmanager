@@ -21,34 +21,35 @@ export function HandleBrokerErrors() {
             try {
                 return await originalMethod.apply(this, args);
             } catch (err) {
-                // If it's already an AppError, let it pass through, unless it's a CmsError or HostError.
-                if (err instanceof AppError && !(err instanceof CmsError) && !(err instanceof HostError)) {
+                // Handle BrokerError first - pass through as-is
+                if (err instanceof BrokerError) {
                     throw err;
                 }
 
-                // Handle CmsError
+                // Handle CmsError - pass through as-is (already appropriate error type)
                 if (err instanceof CmsError) {
-                    throw BrokerError.GetBrokersFailed({
-                        originalCode: err.code,
-                        originalMessage: err.message,
-                        ...err.additionalData,
-                    }, err);
+                    throw err;
                 }
 
-                // Handle HostError (e.g., if findHostInternal fails)
+                // Handle HostError - pass through as-is (already appropriate error type)
                 if (err instanceof HostError) {
-                    throw BrokerError.GetBrokersFailed({
+                    throw err;
+                }
+
+                // If it's already an AppError (other types), convert to BrokerError.Unknown
+                if (err instanceof AppError) {
+                    throw BrokerError.Unknown({
                         originalCode: err.code,
                         originalMessage: err.message,
                         ...err.additionalData,
                     }, err);
                 }
                 
-                // For any other unknown errors, wrap them.
+                // For any other unknown errors, wrap them as BrokerError.Unknown
                 console.error(`[HandleBrokerErrors] Unknown error in ${propertyKey}:`, err);
-                throw BrokerError.GetBrokersFailed({
-                    originalMessage: err.message,
-                }, err);
+                throw BrokerError.Unknown({
+                    originalMessage: err instanceof Error ? err.message : String(err),
+                }, err instanceof Error ? err : undefined);
             }
         };
 

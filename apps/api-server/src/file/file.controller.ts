@@ -1,6 +1,6 @@
-import { Controller, Get, Param, Request } from '@nestjs/common';
+import { Body, Controller, Param, Post, Request } from '@nestjs/common';
 import { FileService } from './file.service';
-import { CheckFileClientResponse } from '@api-interfaces';
+import { CheckFileClientRequest, CheckFileClientResponse } from '@api-interfaces';
 
 /**
  * Controller for file operations.
@@ -27,13 +27,14 @@ export class FileController {
      * @example
      * // POST /host-uid/file/checkfile
      */
-    @Get('checkfile')
+    @Post('checkfile')
     async checkFile(
         @Request() request: any,
-        @Param('hostUid') hostUid: string
+        @Param('hostUid') hostUid: string,
+        @Body() body: CheckFileClientRequest,
     ): Promise<CheckFileClientResponse> {
         const userId = request.user.sub;
-        return await this.fileService.checkFile(userId, hostUid);
+        return await this.fileService.checkFile(userId, hostUid, body);
     }
 }
 

@@ -14,6 +14,7 @@ export * from './cms/cms-error';
 export * from './validation/validation-error';
 export * from './monitoring/resource-monitoring-error';
 export * from './monitoring/resource-monitoring-error-code';
+export * from './config';
 
 // Global error handling
 export * from './global-filter';

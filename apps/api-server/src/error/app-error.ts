@@ -14,7 +14,8 @@ export type ErrorKind =
     | 'INTERNAL'
     | 'CMS'
     | 'DATABASE'
-    | 'VALIDATION';
+    | 'VALIDATION'
+    | 'CONFIG';
 
 /**
  * Base error class for all application errors.

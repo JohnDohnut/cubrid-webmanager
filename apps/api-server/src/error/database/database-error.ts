@@ -151,4 +151,131 @@ export class DatabaseError extends AppError {
             originalError,
         );
     }
+
+    /**
+     * Creates an error indicating an invalid volume string.
+     */
+    static InvalidVolumeString(
+        message: string,
+        additionalData?: Record<string, any>,
+        originalError?: Error,
+    ) {
+        return new DatabaseError(
+            'DATABASE',
+            DatabaseErrorCode.INVALID_VOLUME_STRING,
+            { message, ...additionalData },
+            originalError,
+        );
+    }
+
+    /**
+     * Creates an error indicating an invalid volume format.
+     */
+    static InvalidVolumeFormat(
+        expectedFormat: string,
+        receivedValue: any,
+        additionalData?: Record<string, any>,
+        originalError?: Error,
+    ) {
+        return new DatabaseError(
+            'DATABASE',
+            DatabaseErrorCode.INVALID_VOLUME_FORMAT,
+            { expectedFormat, receivedValue, ...additionalData },
+            originalError,
+        );
+    }
+
+    /**
+     * Creates an error indicating invalid volume information.
+     */
+    static InvalidVolumeInfo(
+        message: string,
+        additionalData?: Record<string, any>,
+        originalError?: Error,
+    ) {
+        return new DatabaseError(
+            'DATABASE',
+            DatabaseErrorCode.INVALID_VOLUME_INFO,
+            { message, ...additionalData },
+            originalError,
+        );
+    }
+
+    /**
+     * Creates an error indicating invalid volume size.
+     */
+    static InvalidVolumeSize(
+        message: string,
+        additionalData?: Record<string, any>,
+        originalError?: Error,
+    ) {
+        return new DatabaseError(
+            'DATABASE',
+            DatabaseErrorCode.INVALID_VOLUME_SIZE,
+            { message, ...additionalData },
+            originalError,
+        );
+    }
+
+    /**
+     * Creates an error indicating that parsing a volume failed.
+     */
+    static ParseVolumeFailed(
+        volumeName: string,
+        originalError?: Error,
+        additionalData?: Record<string, any>,
+    ) {
+        return new DatabaseError(
+            'DATABASE',
+            DatabaseErrorCode.PARSE_VOLUME_FAILED,
+            { volumeName, ...additionalData },
+            originalError,
+        );
+    }
+
+    /**
+     * Creates an error indicating that converting a volume failed.
+     */
+    static ConvertVolumeFailed(
+        volumeName: string,
+        originalError?: Error,
+        additionalData?: Record<string, any>,
+    ) {
+        return new DatabaseError(
+            'DATABASE',
+            DatabaseErrorCode.CONVERT_VOLUME_FAILED,
+            { volumeName, ...additionalData },
+            originalError,
+        );
+    }
+
+    static DuplicatedFile(
+        volumeName : string,
+        originalError? : Error,
+        additionalData?: Record<string, any>
+    ) {
+        return new DatabaseError(
+            'DATABASE',
+            DatabaseErrorCode.DUPLICATED_FILE,
+            {
+                volumeName, ...additionalData
+            },
+            originalError,
+        )
+    }
+
+    /**
+     * Creates an error for an unknown database-related issue.
+     */
+    static Unknown(
+        additionalData?: Record<string, any>,
+        originalError?: Error,
+    ) {
+        return new DatabaseError(
+            'DATABASE',
+            DatabaseErrorCode.UNKNOWN,
+            additionalData,
+            originalError,
+        );
+    }
 }

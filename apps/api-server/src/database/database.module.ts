@@ -6,6 +6,8 @@ import { CmsHttpsClientModule } from '@cms-https-client/cms-https-client.module'
 import { UserRepositoryModule } from '@repository';
 import { DatabaseUserController } from './user/database-user.controller';
 import { DatabaseUserService } from './user/database-user.service';
+import { CmsConfigModule } from '@cms-config/cms-config.module';
+import { FileModule } from '@file/file.module';
 
 /**
  * Module for managing database functionalities.
@@ -17,7 +19,7 @@ import { DatabaseUserService } from './user/database-user.service';
 @Module({
   controllers: [DatabaseController, DatabaseUserController],
   providers: [DatabaseService, DatabaseUserService],
-  imports: [HostModule, CmsHttpsClientModule, UserRepositoryModule]
+  imports: [HostModule, CmsHttpsClientModule, UserRepositoryModule, CmsConfigModule, FileModule]
 })
 export class DatabaseModule {}
 

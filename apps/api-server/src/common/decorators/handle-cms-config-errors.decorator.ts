@@ -1,11 +1,10 @@
-import { AppError, CmsError, HostError } from '@error';
+import { AppError, CmsError, HostError, ConfigError } from '@error';
 
 /**
  * A method decorator that wraps CMS config service methods in a try...catch block.
  *
- * It translates underlying errors (like CmsError or HostError) into appropriate error types.
- * Since CmsConfigService currently throws generic Error, we pass through CmsError
- * and convert HostError to a more descriptive error.
+ * It translates underlying errors (like CmsError, HostError, or ConfigError) into appropriate error types.
+ * ConfigError instances are passed through as-is.
  *
  * @category Decorators
  * @since 1.0.0
@@ -22,28 +21,36 @@ export function HandleCmsConfigErrors() {
             try {
                 return await originalMethod.apply(this, args);
             } catch (err) {
-                // If it's already an AppError, let it pass through, unless it's a CmsError or HostError.
-                if (err instanceof AppError && !(err instanceof CmsError) && !(err instanceof HostError)) {
+                // Handle specific error types first (before AppError check)
+                // Handle ConfigError - pass through as ConfigError
+                if (err instanceof ConfigError) {
                     throw err;
                 }
 
-                // Handle CmsError - pass through as CmsError since CmsConfigService may handle it
+                // Handle HostError (e.g., if findHostInternal fails) - pass through as-is
+                if (err instanceof HostError) {
+                    throw err;
+                }
+
+                // Handle CmsError - pass through as CmsError
                 if (err instanceof CmsError) {
                     throw err;
                 }
 
-                // Handle HostError (e.g., if findHostInternal fails)
-                if (err instanceof HostError) {
-                    throw new Error(
-                        `Failed to access CMS config: ${err.message || 'Host not found or inaccessible'}`,
-                    );
+                // If it's already an AppError (other types), convert to ConfigError.Unknown
+                if (err instanceof AppError) {
+                    throw ConfigError.Unknown({
+                        originalCode: err.code,
+                        originalMessage: err.message,
+                        ...err.additionalData,
+                    }, err);
                 }
                 
-                // For any other unknown errors, wrap them.
+                // For any other unknown errors, wrap them as ConfigError.Unknown
                 console.error(`[HandleCmsConfigErrors] Unknown error in ${propertyKey}:`, err);
-                throw new Error(
-                    `CMS config operation failed: ${err.message || 'Unknown error'}`,
-                );
+                throw ConfigError.Unknown({
+                    originalMessage: err instanceof Error ? err.message : String(err),
+                }, err instanceof Error ? err : undefined);
             }
         };
 

@@ -133,7 +133,9 @@
       "main.js"
     ],
     "assets": [
-      "assets/**/*"
+      "assets/**/*",
+      "node_modules/axios/**/*",
+      "node_modules/@nestjs/axios/**/*"
     ],
     "targets": [
       "node18-win-x64",
