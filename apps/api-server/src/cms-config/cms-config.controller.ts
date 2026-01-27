@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Logger, Param, Post, Request } from '@nestjs/common';
 import { CmsConfigService } from './cms-config.service';
-import { GetEnvClientResponse, GetAllSysParamClientResponse, ParamdumpClientResponse, SetSysParamClientResponse, StatdumpClientResponse } from '@api-interfaces';
+import { GetEnvClientResponse, GetAllSysParamClientResponse, ParamdumpClientResponse, SetSysParamClientResponse, StatdumpClientResponse, AddDbnameToServerClientRequest, AddDbnameToServerClientResponse, RemoveDbnameFromServerClientRequest, RemoveDbnameFromServerClientResponse } from '@api-interfaces';
 
 /**
  * Controller for handling CMS environment configuration operations.
@@ -164,6 +164,72 @@ export class CmsConfigController {
             hostUid,
             body.confname,
             body.confdata,
+        );
+        return response;
+    }
+
+    /**
+     * Add a database name to the server parameter in a configuration file.
+     * Gets current configuration, appends dbname to server parameter, and updates.
+     *
+     * @route POST /:hostUid/cms-config/add-dbname-to-server
+     * @param req - Express request (contains authenticated user)
+     * @param hostUid - Host unique identifier from path parameter
+     * @param body - Request body containing confname and dbname
+     * @returns AddDbnameToServerClientResponse Empty object on success (CMS envelope fields removed)
+     * @example
+     * // POST /host-uid/cms-config/add-dbname-to-server
+     * // Body: { "confname": "cubridconf", "dbname": "testdb" }
+     */
+    @Post('add-dbname-to-server')
+    async addDbnameToServer(
+        @Request() req,
+        @Param('hostUid') hostUid: string,
+        @Body() body: AddDbnameToServerClientRequest,
+    ): Promise<AddDbnameToServerClientResponse> {
+        const userId = req.user.sub;
+
+        Logger.log(
+            `Adding dbname ${body.dbname} to server parameter for host: ${hostUid}, confname: ${body.confname}`,
+            'CmsConfigController',
+        );
+        const response = await this.cmsConfigService.addDbnameToServerParam(
+            userId,
+            hostUid,
+            body,
+        );
+        return response;
+    }
+
+    /**
+     * Remove a database name from the server parameter in a configuration file.
+     * Gets current configuration, removes dbname from server parameter, and updates.
+     *
+     * @route POST /:hostUid/cms-config/remove-dbname-from-server
+     * @param req - Express request (contains authenticated user)
+     * @param hostUid - Host unique identifier from path parameter
+     * @param body - Request body containing confname and dbname
+     * @returns RemoveDbnameFromServerClientResponse Empty object on success (CMS envelope fields removed)
+     * @example
+     * // POST /host-uid/cms-config/remove-dbname-from-server
+     * // Body: { "confname": "cubridconf", "dbname": "testdb" }
+     */
+    @Post('remove-dbname-from-server')
+    async removeDbnameFromServer(
+        @Request() req,
+        @Param('hostUid') hostUid: string,
+        @Body() body: RemoveDbnameFromServerClientRequest,
+    ): Promise<RemoveDbnameFromServerClientResponse> {
+        const userId = req.user.sub;
+
+        Logger.log(
+            `Removing dbname ${body.dbname} from server parameter for host: ${hostUid}, confname: ${body.confname}`,
+            'CmsConfigController',
+        );
+        const response = await this.cmsConfigService.removeDbnameFromServerParam(
+            userId,
+            hostUid,
+            body,
         );
         return response;
     }

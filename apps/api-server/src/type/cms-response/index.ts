@@ -18,6 +18,7 @@ export * from './get-admin-log-info-cms-response';
 export * from './get-host-stat-cms-response';
 export * from './add-backup-info-cms-response';
 export * from './set-backup-info-cms-response';
+export * from './delete-backup-info-cms-response';
 export * from './get-backup-info-cms-response';
 export * from './set-auto-exec-query-cms-response';
 export * from './get-auto-exec-query-cms-response';

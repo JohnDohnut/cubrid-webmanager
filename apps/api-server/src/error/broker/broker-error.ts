@@ -46,4 +46,16 @@ export class BrokerError extends AppError {
             originalError,
         );
     }
+
+    static Unknown(
+        additionalData?: Record<string, any>,
+        originalError?: Error,
+    ) {
+        return new BrokerError(
+            'CMS',
+            BrokerErrorCode.UNKNOWN,
+            additionalData,
+            originalError,
+        );
+    }
 }

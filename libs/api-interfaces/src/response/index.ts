@@ -30,3 +30,6 @@ export * from './get-backup-info-client-response';
 export * from './set-auto-exec-query-client-response';
 export * from './get-auto-exec-query-client-response';
 export * from './create-database-client-response';
+export * from './get-createdb-info-client-response';
+export * from './add-dbname-to-server-client-response';
+export * from './remove-dbname-from-server-client-response';

@@ -1,0 +1,16 @@
+/**
+ * Enumeration of configuration-related error codes.
+ * 
+ * @category Errors
+ * @since 1.0.0
+ */
+export enum ConfigErrorCode {
+    NO_CONFLIST_DATA = 'NO_CONFLIST_DATA',
+    NO_CONFDATA = 'NO_CONFDATA',
+    SERVER_PARAM_NOT_FOUND = 'SERVER_PARAM_NOT_FOUND',
+    DBNAME_ALREADY_EXISTS = 'DBNAME_ALREADY_EXISTS',
+    DBNAME_NOT_FOUND = 'DBNAME_NOT_FOUND',
+    GET_ALL_SYS_PARAM_FAILED = 'GET_ALL_SYS_PARAM_FAILED',
+    SET_SYS_PARAM_FAILED = 'SET_SYS_PARAM_FAILED',
+    UNKNOWN = 'UNKNOWN',
+}

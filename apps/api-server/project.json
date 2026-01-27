@@ -73,6 +73,7 @@
       "dependsOn": ["build"],
       "options": {
         "commands": [
+          "cd dist/apps/api-server && npm install --production",
           "node -e \"const fs=require('fs');const r=JSON.parse(fs.readFileSync('package.json','utf8'));const b=JSON.parse(fs.readFileSync('dist/apps/api-server/package.json','utf8'));if(!r.pkg)throw new Error('pkg config not found');b.pkg=r.pkg;fs.writeFileSync('dist/apps/api-server/package.json',JSON.stringify(b,null,2));\"",
           "pkg dist/apps/api-server/package.json"
         ],
@@ -81,6 +82,7 @@
       "configurations": {
         "windows": {
           "commands": [
+            "cd dist/apps/api-server && npm install --production",
             "node -e \"const fs=require('fs');const r=JSON.parse(fs.readFileSync('package.json','utf8'));const b=JSON.parse(fs.readFileSync('dist/apps/api-server/package.json','utf8'));if(!r.pkg)throw new Error('pkg config not found');b.pkg={...r.pkg,targets:['node18-win-x64']};b.bin={'api-server':'main.js'};fs.writeFileSync('dist/apps/api-server/package.json',JSON.stringify(b,null,2));\"",
             "pkg dist/apps/api-server/package.json --targets node18-win-x64 --output dist/executables/api-server.exe"
           ],
@@ -88,6 +90,7 @@
         },
         "linux": {
           "commands": [
+            "cd dist/apps/api-server && npm install --production",
             "node -e \"const fs=require('fs');const r=JSON.parse(fs.readFileSync('package.json','utf8'));const b=JSON.parse(fs.readFileSync('dist/apps/api-server/package.json','utf8'));if(!r.pkg)throw new Error('pkg config not found');b.pkg={...r.pkg,targets:['node18-linux-x64']};b.bin={'api-server':'main.js'};fs.writeFileSync('dist/apps/api-server/package.json',JSON.stringify(b,null,2));\"",
             "pkg dist/apps/api-server/package.json --targets node18-linux-x64 --output dist/executables/api-server-linux"
           ],
@@ -95,6 +98,7 @@
         },
         "macos": {
           "commands": [
+            "cd dist/apps/api-server && npm install --production",
             "node -e \"const fs=require('fs');const r=JSON.parse(fs.readFileSync('package.json','utf8'));const b=JSON.parse(fs.readFileSync('dist/apps/api-server/package.json','utf8'));if(!r.pkg)throw new Error('pkg config not found');b.pkg={...r.pkg,targets:['node18-macos-x64']};b.bin={'api-server':'main.js'};fs.writeFileSync('dist/apps/api-server/package.json',JSON.stringify(b,null,2));\"",
             "pkg dist/apps/api-server/package.json --targets node18-macos-x64 --output dist/executables/api-server-macos"
           ],
@@ -102,6 +106,7 @@
         },
         "all": {
           "commands": [
+            "cd dist/apps/api-server && npm install --production",
             "node -e \"const fs=require('fs');const r=JSON.parse(fs.readFileSync('package.json','utf8'));const b=JSON.parse(fs.readFileSync('dist/apps/api-server/package.json','utf8'));if(!r.pkg)throw new Error('pkg config not found');b.pkg=r.pkg;b.bin={'api-server':'main.js'};fs.writeFileSync('dist/apps/api-server/package.json',JSON.stringify(b,null,2));\"",
             "pkg dist/apps/api-server/package.json"
           ],
