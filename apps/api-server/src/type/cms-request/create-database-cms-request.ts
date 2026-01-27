@@ -76,4 +76,5 @@ export type CreateDatabaseCmsRequest = BaseCmsRequest & {
    * Values: "YES" | "NO"
    */
   overwrite_config_file: string;
+
 };

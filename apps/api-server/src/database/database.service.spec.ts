@@ -907,4 +907,119 @@ describe('DatabaseService', () => {
       expect(result).toEqual({ planlist: [] });
     });
   });
+
+  describe('getUnloadInfo', () => {
+    const mockResponse = {
+      __EXEC_TIME: '0 ms',
+      note: 'none',
+      status: 'success',
+      task: 'unloadinfo',
+      database: [
+        {
+          dbname: 'test4',
+          object: '/home/cubrid/CUBRID-11.4.4.1832-7f8f019-Linux.x86_64/databases/test4/test4_objects;2026.01.27 12:17',
+          schema: '/home/cubrid/CUBRID-11.4.4.1832-7f8f019-Linux.x86_64/databases/test4/test4_schema;2026.01.27 12:17',
+        },
+        {
+          dbname: 'demodb',
+          object: '/home/cubrid/CUBRID-11.4.4.1832-7f8f019-Linux.x86_64/databases/demodb/demodb_objects;2026.01.27 12:02',
+          schema: '/home/cubrid/CUBRID-11.4.4.1832-7f8f019-Linux.x86_64/databases/demodb/demodb_schema;2026.01.27 12:02',
+        },
+      ],
+    };
+
+    it('should successfully get unload info', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue(mockResponse);
+
+      const result = await service.getUnloadInfo(mockUserId, mockHostUid);
+
+      expect(hostService.findHostInternal).toHaveBeenCalledWith(mockUserId, mockHostUid);
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.stringContaining('https://localhost:8001/cm_api'),
+        expect.objectContaining({
+          task: 'unloadinfo',
+          token: 'test-token',
+        })
+      );
+      expect(common.checkCmsTokenError).toHaveBeenCalledWith(mockResponse);
+      expect(common.checkCmsStatusError).toHaveBeenCalledWith(mockResponse);
+      expect(result).toEqual({
+        database: mockResponse.database,
+      });
+    });
+
+    it('should return empty database array when CMS returns empty array', async () => {
+      const emptyResponse = {
+        __EXEC_TIME: '0 ms',
+        note: 'none',
+        status: 'success',
+        task: 'unloadinfo',
+        database: [],
+      };
+      cmsClient.postAuthenticated.mockResolvedValue(emptyResponse);
+
+      const result = await service.getUnloadInfo(mockUserId, mockHostUid);
+
+      expect(result).toEqual({
+        database: [],
+      });
+    });
+
+    it('should throw DatabaseError when HostError occurs', async () => {
+      hostService.findHostInternal.mockRejectedValue(HostError.NoSuchHost());
+
+      await expect(service.getUnloadInfo(mockUserId, mockHostUid)).rejects.toThrow(
+        HostError
+      );
+    });
+
+    it('should throw DatabaseError when CmsError occurs', async () => {
+      const cmsError = CmsError.RequestFailed({
+        message: 'CMS request failed',
+        response: {},
+      });
+      cmsClient.postAuthenticated.mockRejectedValue(cmsError);
+
+      await expect(service.getUnloadInfo(mockUserId, mockHostUid)).rejects.toThrow(
+        CmsError
+      );
+    });
+
+    it('should throw DatabaseError when CMS token error occurs', async () => {
+      const tokenErrorResponse = {
+        __EXEC_TIME: '0 ms',
+        note: 'Invalid token',
+        status: 'fail',
+        task: 'unloadinfo',
+      };
+      cmsClient.postAuthenticated.mockResolvedValue(tokenErrorResponse);
+      (common.checkCmsTokenError as jest.Mock).mockImplementation(() => {
+        throw CmsError.InvalidToken();
+      });
+
+      await expect(service.getUnloadInfo(mockUserId, mockHostUid)).rejects.toThrow(
+        CmsError
+      );
+    });
+
+    it('should throw DatabaseError when CMS status error occurs', async () => {
+      const statusErrorResponse = {
+        __EXEC_TIME: '0 ms',
+        note: 'Request failed',
+        status: 'fail',
+        task: 'unloadinfo',
+      };
+      cmsClient.postAuthenticated.mockResolvedValue(statusErrorResponse);
+      (common.checkCmsStatusError as jest.Mock).mockImplementation(() => {
+        throw CmsError.RequestFailed({
+          message: 'CMS request failed: Request failed',
+          response: statusErrorResponse,
+        });
+      });
+
+      await expect(service.getUnloadInfo(mockUserId, mockHostUid)).rejects.toThrow(
+        CmsError
+      );
+    });
+  });
 });

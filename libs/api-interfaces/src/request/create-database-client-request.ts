@@ -107,4 +107,5 @@ export type CreateDatabaseClientRequest = {
    * Values: "YES" | "NO"
    */
   overwrite_config_file: 'YES' | 'NO';
+
 };

@@ -30,3 +30,4 @@ export * from './set-auto-exec-query-cms-request';
 export * from './get-auto-exec-query-cms-request';
 export * from './unload-database-cms-request';
 export * from './unload-info-cms-request';
+export * from './heartbeat-list-cms-request';
