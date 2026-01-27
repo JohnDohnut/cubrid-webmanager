@@ -780,7 +780,6 @@ export class DatabaseService {
       exvol: cmsExvol,
       charset: request.charset,
       overwrite_config_file: request.overwrite_config_file,
-      overwrite_exvol_file: request.overwrite_exvol_file,
     };
 
     const response = await this.cmsClient.postAuthenticated<
