@@ -234,7 +234,7 @@ describe('DatabaseService', () => {
         delimit: 'yes',
         estimate: '1000',
         prefix: 'backup',
-        cache: '100',
+        cach: '100',
         lofile: '10',
       };
 
@@ -256,7 +256,7 @@ describe('DatabaseService', () => {
           delimit: 'yes',
           estimate: '1000',
           prefix: 'backup',
-          cache: '100',
+          cach: '100',
           lofile: '10',
         }),
       );

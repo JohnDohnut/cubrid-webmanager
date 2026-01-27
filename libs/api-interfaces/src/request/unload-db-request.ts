@@ -102,7 +102,7 @@ export type UnloadDatabaseRequest =  {
     /**
      * Number of cached pages (optional, default: 100)
      */
-    cache?: string | 'none';
+    cach?: string | 'none';
 
     /**
      * LO file count per directory (optional, default: 0)

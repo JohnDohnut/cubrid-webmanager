@@ -1,67 +1,63 @@
+import {
+  AddBackupInfoClientRequest,
+  AddBackupInfoClientResponse,
+  CreateDatabaseClientRequest,
+  CreateDatabaseClientResponse,
+  DatabaseVolumeInfoClientResponse,
+  DeleteBackupInfoClientRequest,
+  DeleteBackupInfoClientResponse,
+  GetAutoExecQueryClientResponse,
+  GetBackupInfoClientResponse,
+  SetAutoExecQueryClientRequest,
+  SetAutoExecQueryClientResponse,
+  SetBackupInfoClientRequest,
+  SetBackupInfoClientResponse,
+  StartInfoClientResponse,
+  UnloadDatabaseRequest
+} from '@api-interfaces';
+import { GetCreatedbInfoClientResponse } from '@api-interfaces/response/get-createdb-info-client-response';
+import { CmsConfigService } from '@cms-config/cms-config.service';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import {
-  checkCmsTokenError,
   checkCmsStatusError,
-  HandleDatabaseErrors,
+  checkCmsTokenError,
   HandleCmsStatusErrors,
+  HandleDatabaseErrors,
 } from '@common';
 import { DatabaseError } from '@error/database/database-error';
 import { HostError } from '@error/index';
 import { ValidationError } from '@error/validation/validation-error';
+import { FileService } from '@file/file.service';
 import { HostService } from '@host';
 import { Injectable, Logger } from '@nestjs/common';
 import { UserRepositoryService } from '@repository';
-import { CmsConfigService } from '@cms-config/cms-config.service';
-import { convertExvolArrayToCmsFormat } from '@util';
-import { FileService } from '@file/file.service';
-import {
-  DatabaseVolumeInfoClientResponse,
-  StartInfoClientResponse,
-  AddBackupInfoClientRequest,
-  AddBackupInfoClientResponse,
-  SetBackupInfoClientRequest,
-  SetBackupInfoClientResponse,
-  DeleteBackupInfoClientRequest,
-  DeleteBackupInfoClientResponse,
-  GetBackupInfoClientRequest,
-  GetBackupInfoClientResponse,
-  SetAutoExecQueryClientRequest,
-  SetAutoExecQueryClientResponse,
-  GetAutoExecQueryClientRequest,
-  GetAutoExecQueryClientResponse,
-  CreateDatabaseClientRequest,
-  CreateDatabaseClientResponse,
-  UnloadDatabaseRequest,
-} from '@api-interfaces';
-import { GetCreatedbInfoClientResponse } from '@api-interfaces/response/get-createdb-info-client-response';
 import { BaseCmsRequest, BaseCmsResponse } from '@type';
 import {
-  DbSpaceInfoCmsRequest,
-  StartDatabaseCmsRequest,
-  StopDatabaseCmsRequest,
   AddBackupInfoCmsRequest,
-  SetBackupInfoCmsRequest,
+  CreateDatabaseCmsRequest,
+  DbSpaceInfoCmsRequest,
   DeleteBackupInfoCmsRequest,
+  GetAutoExecQueryCmsRequest,
   GetBackupInfoCmsRequest,
   SetAutoExecQueryCmsRequest,
-  GetAutoExecQueryCmsRequest,
-  CreateDatabaseCmsRequest,
-  CheckFileCmsRequest,
-  UnloadDatabaseCmsRequest,
+  SetBackupInfoCmsRequest,
+  StartDatabaseCmsRequest,
+  StopDatabaseCmsRequest,
+  UnloadDatabaseCmsRequest
 } from '@type/cms-request';
 import {
-  DbSpaceInfoCmsResponse,
-  StartInfoCmsResponse,
   AddBackupInfoCmsResponse,
-  SetBackupInfoCmsResponse,
+  CreateDatabaseCmsResponse,
+  DbSpaceInfoCmsResponse,
   DeleteBackupInfoCmsResponse,
+  GetAutoExecQueryCmsResponse,
   GetBackupInfoCmsResponse,
   SetAutoExecQueryCmsResponse,
-  GetAutoExecQueryCmsResponse,
-  CreateDatabaseCmsResponse,
-  CheckFileCmsResponse,
-  UnloadDatabaseCmsResponse,
+  SetBackupInfoCmsResponse,
+  StartInfoCmsResponse,
+  UnloadDatabaseCmsResponse
 } from '@type/cms-response';
+import { convertExvolArrayToCmsFormat } from '@util';
 
 /**
  * Service for managing database operations.
@@ -83,7 +79,7 @@ export class DatabaseService {
     private readonly repository: UserRepositoryService,
     private readonly cmsConfigService: CmsConfigService,
     private readonly fileService: FileService,
-  ) {}
+  ) { }
 
   /**
    * Get start information for databases on a host (internal use).
@@ -731,7 +727,7 @@ export class DatabaseService {
     hostUid: string,
   ): Promise<GetCreatedbInfoClientResponse> {
     const envInfo = await this.cmsConfigService.getEnv(userId, hostUid);
-    
+
     return {
       defaultDbDirectory: envInfo.CUBRID_DATABASES || '',
       cubridVersion: envInfo.CUBRIDVER,
@@ -844,7 +840,7 @@ export class DatabaseService {
 
     // Determine target based on isSchemaIncluded and isDataIncluded
     let target: 'schema' | 'object' | 'both';
-    
+
     if (request.isSchemaIncluded && request.isDataIncluded) {
       target = 'both';
     } else if (request.isSchemaIncluded) {
@@ -881,7 +877,7 @@ export class DatabaseService {
       delimit: request.delimit,
       estimate: request.estimate,
       prefix: request.prefix,
-      cache: request.cache,
+      cach: request.cach,
       lofile: request.lofile,
     };
 
