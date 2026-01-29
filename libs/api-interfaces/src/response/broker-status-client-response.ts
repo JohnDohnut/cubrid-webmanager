@@ -6,4 +6,3 @@ import { GetBrokerStatusCmsResponse } from '@type/cms-response/get-broker-status
  * Strips CMS envelope fields from GetBrokerStatusCmsResponse.
  */
 export type GetBrokerStatusClientResponse = Omit<GetBrokerStatusCmsResponse, keyof BaseCmsResponse>;
-

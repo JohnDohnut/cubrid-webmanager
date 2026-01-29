@@ -1,6 +1,6 @@
 # Dependencies
 node_modules/
-# package-lock.json은 버전 관리에 포함 (의존성 버전 고정)
+# package-lock.json is included in version control (dependency version lock)
 
 # Build outputs
 dist/
@@ -74,7 +74,7 @@ vite.config.*.timestamp*
 storage/
 dist/storage/
 
-# Executables (빌드된 실행 파일)
+# Executables (built executable files)
 dist/executables/
 
 # SSL certificates

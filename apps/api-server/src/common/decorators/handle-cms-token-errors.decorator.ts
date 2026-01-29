@@ -4,8 +4,7 @@ import { BaseCmsResponse } from '@type/cms-response/base-cms-response';
 /**
  * Invalid token error message from CMS.
  */
-const INVALID_TOKEN_MESSAGE =
-    'Request is rejected due to invalid token. Please reconnect.';
+const INVALID_TOKEN_MESSAGE = 'Request is rejected due to invalid token. Please reconnect.';
 
 /**
  * Checks if a CMS response indicates an invalid token error.
@@ -14,15 +13,15 @@ const INVALID_TOKEN_MESSAGE =
  * @returns true if the response indicates an invalid token
  */
 export function isInvalidTokenError(response: any): boolean {
-    if (!response || typeof response !== 'object') {
-        return false;
-    }
-
-    if ('note' in response) {
-        return response.note === INVALID_TOKEN_MESSAGE;
-    }
-
+  if (!response || typeof response !== 'object') {
     return false;
+  }
+
+  if ('note' in response) {
+    return response.note === INVALID_TOKEN_MESSAGE;
+  }
+
+  return false;
 }
 
 /**
@@ -41,9 +40,9 @@ export function isInvalidTokenError(response: any): boolean {
  * ```
  */
 export function checkCmsTokenError(response: any): void {
-    if (isInvalidTokenError(response)) {
-        throw CmsError.InvalidToken();
-    }
+  if (isInvalidTokenError(response)) {
+    throw CmsError.InvalidToken();
+  }
 }
 
 /**
@@ -66,33 +65,28 @@ export function checkCmsTokenError(response: any): void {
  * ```
  */
 export function HandleCmsTokenErrors() {
-    return function (
-        target: any,
-        propertyKey: string,
-        descriptor: PropertyDescriptor,
-    ) {
-        const originalMethod = descriptor.value;
+  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+    const originalMethod = descriptor.value;
 
-        descriptor.value = async function (...args: any[]) {
-            const result = await originalMethod.apply(this, args);
+    descriptor.value = async function (...args: any[]) {
+      const result = await originalMethod.apply(this, args);
 
-            if (result instanceof Promise) {
-                return result.then((response) => {
-                    if (isInvalidTokenError(response)) {
-                        throw CmsError.InvalidToken();
-                    }
-                    return response;
-                });
-            }
+      if (result instanceof Promise) {
+        return result.then((response) => {
+          if (isInvalidTokenError(response)) {
+            throw CmsError.InvalidToken();
+          }
+          return response;
+        });
+      }
 
-            if (isInvalidTokenError(result)) {
-                throw CmsError.InvalidToken();
-            }
+      if (isInvalidTokenError(result)) {
+        throw CmsError.InvalidToken();
+      }
 
-            return result;
-        };
-
-        return descriptor;
+      return result;
     };
-}
 
+    return descriptor;
+  };
+}

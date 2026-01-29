@@ -8,10 +8,9 @@ import { LogContentContainer } from '@type/cms-response/view-log-cms-response';
  * @since 1.0.0
  */
 export type ViewLogClientResponse = {
-    end: string;
-    log: LogContentContainer[];
-    path: string;
-    start: string;
-    total: string;
+  end: string;
+  log: LogContentContainer[];
+  path: string;
+  start: string;
+  total: string;
 };
-

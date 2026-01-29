@@ -8,8 +8,4 @@ import { ParamdumpCmsResponse } from '@type/cms-response/paramdump-cms-response'
  * @category Responses
  * @since 1.0.0
  */
-export type ParamdumpClientResponse = Omit<
-    ParamdumpCmsResponse,
-    keyof BaseCmsResponse
->;
-
+export type ParamdumpClientResponse = Omit<ParamdumpCmsResponse, keyof BaseCmsResponse>;

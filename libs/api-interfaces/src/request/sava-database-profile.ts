@@ -1,6 +1,6 @@
-import { BaseDatabaseRequest } from "./base-database-request";
+import { BaseDatabaseRequest } from './base-database-request';
 
 export type SaveDatabaseProfileRequest = BaseDatabaseRequest & {
-    id : string;
-    password : string;
-}
+  id: string;
+  password: string;
+};

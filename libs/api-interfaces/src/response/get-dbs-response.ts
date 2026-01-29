@@ -11,5 +11,5 @@ import { DBInfo } from '@type/db-info';
  * @since 1.0.0
  */
 export type GetDbsResponse = {
-    db_list: HashMap<Omit<DBInfo, 'password'>>;
+  db_list: HashMap<Omit<DBInfo, 'password'>>;
 };

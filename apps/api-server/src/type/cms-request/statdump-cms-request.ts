@@ -7,20 +7,18 @@ import { BaseCmsRequest } from './base-cms-request';
  * @since 1.0.0
  */
 export type StatdumpCmsRequest = BaseCmsRequest & {
-    /**
-     * Host unique identifier
-     */
-    hostUid: string;
+  /**
+   * Host unique identifier
+   */
+  hostUid: string;
 
-    /**
-     * Task type - must be 'statdump'
-     */
-    task: 'statdump';
+  /**
+   * Task type - must be 'statdump'
+   */
+  task: 'statdump';
 
-    /**
-     * Database name to retrieve statistics for
-     */
-    dbname: string;
+  /**
+   * Database name to retrieve statistics for
+   */
+  dbname: string;
 };
-
-

@@ -16,10 +16,10 @@ import { LockModule } from '@lock';
  * @since 1.0.0
  */
 @Module({
-    controllers: [HostController],
-    providers: [HostService],
-    imports: [UserRepositoryModule, SecurityModule, LockModule],
-    exports : [HostService]
+  controllers: [HostController],
+  providers: [HostService],
+  imports: [UserRepositoryModule, SecurityModule, LockModule],
+  exports: [HostService],
 })
 export class HostModule {}
 

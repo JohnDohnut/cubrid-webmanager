@@ -1,18 +1,18 @@
-import { createSlice } from '@reduxjs/toolkit'
+import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
-    users: [],
-}
+  users: [],
+};
 
 const DBUserSlice = createSlice({
-    name: 'DBUser',
-    initialState,
-    reducers: {
-        setDBUsers: (state, action) => {
-            state.users = action.payload
-        }
+  name: 'DBUser',
+  initialState,
+  reducers: {
+    setDBUsers: (state, action) => {
+      state.users = action.payload;
     },
-})
+  },
+});
 
-export const { setDBUsers} = DBUserSlice.actions
-export default DBUserSlice.reducer
+export const { setDBUsers } = DBUserSlice.actions;
+export default DBUserSlice.reducer;

@@ -14,10 +14,9 @@ import { CmsHttpsClientModule } from '@cms-https-client/cms-https-client.module'
  * @since 1.0.0
  */
 @Module({
-    imports: [HostModule, CmsHttpsClientModule],
-    controllers: [HaMonitoringController, ResourceMonitoringController],
-    providers: [HaMonitoringService, ResourceMonitoringService],
-    exports: [HaMonitoringService, ResourceMonitoringService],
+  imports: [HostModule, CmsHttpsClientModule],
+  controllers: [HaMonitoringController, ResourceMonitoringController],
+  providers: [HaMonitoringService, ResourceMonitoringService],
+  exports: [HaMonitoringService, ResourceMonitoringService],
 })
 export class MonitoringModule {}
-

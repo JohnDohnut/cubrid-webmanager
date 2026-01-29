@@ -2,11 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import { CmsAuthService } from '@cms-auth/cms-auth.service';
 import { UserRepositoryService } from '@repository';
-import {
-  CheckFileCmsRequest,
-  CheckFileCmsResponse,
-  HostInfo,
-} from '@type/index';
+import { CheckFileCmsRequest, CheckFileCmsResponse, HostInfo } from '@type/index';
 import { CheckFileClientRequest } from '@api-interfaces';
 import { AppError, HostError } from '@error/index';
 import { HandleCmsHttpsClientErrors } from '@decorators/handle-cms-https-client-errors.decorator';
@@ -28,7 +24,7 @@ export class FileService {
   constructor(
     private readonly cmsHttpsClient: CmsHttpsClientService,
     private readonly cmsAuthService: CmsAuthService,
-    private readonly userRepository: UserRepositoryService,
+    private readonly userRepository: UserRepositoryService
   ) {}
 
   /**
@@ -44,7 +40,7 @@ export class FileService {
   async checkFile(
     userId: string,
     hostUid: string,
-    request: CheckFileClientRequest,
+    request: CheckFileClientRequest
   ): Promise<CheckFileCmsResponse> {
     const user = await this.userRepository.loadUserById(userId);
     const host: HostInfo = user.host_list[hostUid];
@@ -57,14 +53,12 @@ export class FileService {
     const checkFileRequest: CheckFileCmsRequest = {
       task: 'checkfile',
       token: host.token,
-      ...(request.file && request.file.length > 0
-        ? { file: request.file }
-        : {}),
+      ...(request.file && request.file.length > 0 ? { file: request.file } : {}),
     };
 
     // Log outgoing CMS request
     this.logger.debug(
-      `CMS checkfile request -> host: ${hostUid}, files: ${request.file?.length ?? 0}, payload: ${JSON.stringify(checkFileRequest)}`,
+      `CMS checkfile request -> host: ${hostUid}, files: ${request.file?.length ?? 0}, payload: ${JSON.stringify(checkFileRequest)}`
     );
 
     const response = await this.cmsHttpsClient.postAuthenticated<
@@ -75,10 +69,7 @@ export class FileService {
     this.logger.debug(`CMS checkfile response <- ${JSON.stringify(response)}`);
 
     checkCmsTokenError(response);
-    checkCmsStatusError(
-      response,
-      `Failed to check file: ${response.note || 'Unknown error'}`,
-    );
+    checkCmsStatusError(response, `Failed to check file: ${response.note || 'Unknown error'}`);
 
     // Return CMS response as-is (existfile: string)
     return response;
@@ -94,10 +85,7 @@ export class FileService {
    * @throws {CmsError} If CMS call fails or token is invalid
    */
   @HandleCmsHttpsClientErrors()
-  async checkfileInternal(
-    host: HostInfo,
-    files: string[],
-  ): Promise<CheckFileCmsResponse> {
+  async checkfileInternal(host: HostInfo, files: string[]): Promise<CheckFileCmsResponse> {
     if (!host.token) {
       throw CmsError.InvalidToken();
     }
@@ -111,7 +99,7 @@ export class FileService {
 
     // Log outgoing CMS request
     this.logger.debug(
-      `CMS checkfile request (internal) -> host: ${host.address}:${host.port}, files: ${files.length}, payload: ${JSON.stringify(checkFileRequest)}`,
+      `CMS checkfile request (internal) -> host: ${host.address}:${host.port}, files: ${files.length}, payload: ${JSON.stringify(checkFileRequest)}`
     );
 
     const response = await this.cmsHttpsClient.postAuthenticated<
@@ -123,10 +111,7 @@ export class FileService {
     this.logger.debug(`CMS checkfile response (internal) <- ${JSON.stringify(response)}`);
 
     checkCmsTokenError(response);
-    checkCmsStatusError(
-      response,
-      `Failed to check file: ${response.note || 'Unknown error'}`,
-    );
+    checkCmsStatusError(response, `Failed to check file: ${response.note || 'Unknown error'}`);
 
     // Return CMS response as-is (existfile: string)
     return response;

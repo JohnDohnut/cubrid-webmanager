@@ -10,48 +10,53 @@ import { AppError, ResourceMonitoringError, CmsError, HostError } from '@error';
  * @since 1.0.0
  */
 export function HandleResourceMonitoringErrors() {
-    return function (
-        target: any,
-        propertyKey: string,
-        descriptor: PropertyDescriptor,
-    ) {
-        const originalMethod = descriptor.value;
+  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+    const originalMethod = descriptor.value;
 
-        descriptor.value = async function (...args: any[]) {
-            try {
-                return await originalMethod.apply(this, args);
-            } catch (err) {
-                // If it's already an AppError, let it pass through, unless it's a CmsError or HostError.
-                if (err instanceof AppError && !(err instanceof CmsError) && !(err instanceof HostError)) {
-                    throw err;
-                }
+    descriptor.value = async function (...args: any[]) {
+      try {
+        return await originalMethod.apply(this, args);
+      } catch (err) {
+        // If it's already an AppError, let it pass through, unless it's a CmsError or HostError.
+        if (err instanceof AppError && !(err instanceof CmsError) && !(err instanceof HostError)) {
+          throw err;
+        }
 
-                // Handle CmsError
-                if (err instanceof CmsError) {
-                    throw ResourceMonitoringError.CmsApiFailure({
-                        originalCode: err.code,
-                        originalMessage: err.message,
-                        ...err.additionalData,
-                    }, err);
-                }
+        // Handle CmsError
+        if (err instanceof CmsError) {
+          throw ResourceMonitoringError.CmsApiFailure(
+            {
+              originalCode: err.code,
+              originalMessage: err.message,
+              ...err.additionalData,
+            },
+            err
+          );
+        }
 
-                // Handle HostError (e.g., if findHostInternal fails)
-                if (err instanceof HostError) {
-                    throw ResourceMonitoringError.HostNotFound({
-                        originalCode: err.code,
-                        originalMessage: err.message,
-                        ...err.additionalData,
-                    }, err);
-                }
-                
-                // For any other unknown errors, wrap them.
-                console.error(`[HandleResourceMonitoringErrors] Unknown error in ${propertyKey}:`, err);
-                throw ResourceMonitoringError.Unknown({
-                    originalMessage: err.message,
-                }, err);
-            }
-        };
+        // Handle HostError (e.g., if findHostInternal fails)
+        if (err instanceof HostError) {
+          throw ResourceMonitoringError.HostNotFound(
+            {
+              originalCode: err.code,
+              originalMessage: err.message,
+              ...err.additionalData,
+            },
+            err
+          );
+        }
 
-        return descriptor;
+        // For any other unknown errors, wrap them.
+        console.error(`[HandleResourceMonitoringErrors] Unknown error in ${propertyKey}:`, err);
+        throw ResourceMonitoringError.Unknown(
+          {
+            originalMessage: err.message,
+          },
+          err
+        );
+      }
     };
+
+    return descriptor;
+  };
 }

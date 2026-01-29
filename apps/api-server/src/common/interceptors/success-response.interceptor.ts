@@ -1,4 +1,10 @@
-import { CallHandler, ExecutionContext, Injectable, NestInterceptor, HttpStatus } from '@nestjs/common';
+import {
+  CallHandler,
+  ExecutionContext,
+  Injectable,
+  NestInterceptor,
+  HttpStatus,
+} from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { StandardResponse } from '@api-interfaces';
@@ -16,18 +22,18 @@ import { StandardResponse } from '@api-interfaces';
 export class SuccessResponseInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<StandardResponse> {
     const response = context.switchToHttp().getResponse();
-    
+
     return next.handle().pipe(
-      map(data => {
+      map((data) => {
         const statusCode = response.statusCode || HttpStatus.OK;
         const responseData = data === undefined ? null : data;
-        
+
         return {
           data: responseData,
           status: statusCode,
           note: 'success',
         };
-      }),
+      })
     );
   }
 }

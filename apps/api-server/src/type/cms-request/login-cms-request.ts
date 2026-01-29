@@ -8,9 +8,9 @@ import { BaseCmsRequest } from './base-cms-request';
  * @since 1.0.0
  */
 export type LoginCmsRequest = Omit<BaseCmsRequest, 'token'> & {
-    host?: string;
-    port?: string;
-    id: string;
-    password: string;
-    clientver?: string;
+  host?: string;
+  port?: string;
+  id: string;
+  password: string;
+  clientver?: string;
 };

@@ -7,10 +7,10 @@ import { AppError } from '@error/app-error';
  * @since 1.0.0
  */
 export enum CmsErrorCode {
-    REQUEST_FAILED = 'REQUEST_FAILED',
-    NO_RESPONSE = 'NO_RESPONSE',
-    INVALID_TOKEN = 'INVALID_TOKEN',
-    UNKNOWN = 'UNKNOWN',
+  REQUEST_FAILED = 'REQUEST_FAILED',
+  NO_RESPONSE = 'NO_RESPONSE',
+  INVALID_TOKEN = 'INVALID_TOKEN',
+  UNKNOWN = 'UNKNOWN',
 }
 
 /**
@@ -21,72 +21,40 @@ export enum CmsErrorCode {
  * @since 1.0.0
  */
 export class CmsError extends AppError {
-    constructor(
-        kind: 'CMS',
-        code: CmsErrorCode,
-        additionalData?: Record<string, any>,
-        originalError?: Error,
-    ) {
-        super(kind, code, additionalData, originalError);
-    }
-    
-    /**
-     * Creates an error indicating that the request to the CMS API failed.
-     */
-    static RequestFailed(
-        additionalData?: Record<string, any>,
-        originalError?: Error,
-    ) {
-        return new CmsError(
-            'CMS',
-            CmsErrorCode.REQUEST_FAILED,
-            additionalData,
-            originalError,
-        );
-    }
+  constructor(
+    kind: 'CMS',
+    code: CmsErrorCode,
+    additionalData?: Record<string, any>,
+    originalError?: Error
+  ) {
+    super(kind, code, additionalData, originalError);
+  }
 
-    /**
-     * Creates an error indicating that no response was received from the CMS API.
-     */
-    static NoResponse(
-        additionalData?: Record<string, any>,
-        originalError?: Error,
-    ) {
-        return new CmsError(
-            'CMS',
-            CmsErrorCode.NO_RESPONSE,
-            additionalData,
-            originalError,
-        );
-    }
+  /**
+   * Creates an error indicating that the request to the CMS API failed.
+   */
+  static RequestFailed(additionalData?: Record<string, any>, originalError?: Error) {
+    return new CmsError('CMS', CmsErrorCode.REQUEST_FAILED, additionalData, originalError);
+  }
 
-    /**
-     * Creates an error for an unknown CMS issue.
-     */
-    static Unknown(
-        additionalData?: Record<string, any>,
-        originalError?: Error,
-    ) {
-        return new CmsError(
-            'CMS',
-            CmsErrorCode.UNKNOWN,
-            additionalData,
-            originalError,
-        );
-    }
+  /**
+   * Creates an error indicating that no response was received from the CMS API.
+   */
+  static NoResponse(additionalData?: Record<string, any>, originalError?: Error) {
+    return new CmsError('CMS', CmsErrorCode.NO_RESPONSE, additionalData, originalError);
+  }
 
-    /**
-     * Creates an error indicating an invalid authentication token for CMS.
-     */
-    static InvalidToken(
-        additionalData?: Record<string, any>,
-        originalError?: Error,
-    ) {
-        return new CmsError(
-            'CMS',
-            CmsErrorCode.INVALID_TOKEN,
-            additionalData,
-            originalError,
-        );
-    }
+  /**
+   * Creates an error for an unknown CMS issue.
+   */
+  static Unknown(additionalData?: Record<string, any>, originalError?: Error) {
+    return new CmsError('CMS', CmsErrorCode.UNKNOWN, additionalData, originalError);
+  }
+
+  /**
+   * Creates an error indicating an invalid authentication token for CMS.
+   */
+  static InvalidToken(additionalData?: Record<string, any>, originalError?: Error) {
+    return new CmsError('CMS', CmsErrorCode.INVALID_TOKEN, additionalData, originalError);
+  }
 }

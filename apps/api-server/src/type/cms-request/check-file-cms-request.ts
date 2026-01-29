@@ -8,6 +8,6 @@ import { BaseCmsRequest } from './base-cms-request';
  * @since 1.0.0
  */
 export type CheckFileCmsRequest = BaseCmsRequest & {
-    task: 'checkfile';
-    file?: string[];
+  task: 'checkfile';
+  file?: string[];
 };

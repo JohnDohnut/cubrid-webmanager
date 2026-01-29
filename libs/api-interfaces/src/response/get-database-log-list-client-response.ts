@@ -8,7 +8,6 @@ import { DatabaseLogInfoContainer } from '@type/cms-response/get-database-log-in
  * @since 1.0.0
  */
 export type GetDatabaseLogListClientResponse = {
-    dbname: string;
-    loginfo: DatabaseLogInfoContainer[];
+  dbname: string;
+  loginfo: DatabaseLogInfoContainer[];
 };
-

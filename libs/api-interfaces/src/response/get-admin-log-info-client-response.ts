@@ -8,9 +8,8 @@ import { AdminLogInfoEntry } from '@type/cms-response/get-admin-log-info-cms-res
  * @since 1.0.0
  */
 export type GetAdminLogInfoClientResponse = {
-    /**
-     * Array of admin log information entries
-     */
-    adminloginfo: AdminLogInfoEntry[];
+  /**
+   * Array of admin log information entries
+   */
+  adminloginfo: AdminLogInfoEntry[];
 };
-

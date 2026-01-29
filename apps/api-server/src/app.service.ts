@@ -11,20 +11,20 @@ import { Injectable } from '@nestjs/common';
  */
 @Injectable()
 export class AppService {
-    /**
-     * Returns a simple greeting message.
-     *
-     * This method provides a basic "Hello World!" response that can be used
-     * for testing and health check purposes.
-     *
-     * @returns {string} A simple greeting message
-     * @example
-     * ```typescript
-     * const message = appService.getHello();
-     * console.log(message); // "Hello World!"
-     * ```
-     */
-    getHello(): string {
-        return 'Hello World!';
-    }
+  /**
+   * Returns a simple greeting message.
+   *
+   * This method provides a basic "Hello World!" response that can be used
+   * for testing and health check purposes.
+   *
+   * @returns {string} A simple greeting message
+   * @example
+   * ```typescript
+   * const message = appService.getHello();
+   * console.log(message); // "Hello World!"
+   * ```
+   */
+  getHello(): string {
+    return 'Hello World!';
+  }
 }
