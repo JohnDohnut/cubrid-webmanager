@@ -6,17 +6,9 @@
  */
 export type UnloadDatabaseRequest = {
   /**
-   * Task name - must be "unloaddb"
-   */
-
-  /**
    * Output directory path (required)
    */
   targetdir: string;
-
-  /**
-   * Unload target: "schema", "object", or "both" (required)
-   */
 
   /**
    * Is unloaddb request includes unloading schema
@@ -49,14 +41,11 @@ export type UnloadDatabaseRequest = {
   hashdir?: string;
 
   /**
-   * Class list to unload (optional)
+   * Unload class list, if field doesn't exist, all class is target
+   * Format: Array of objects with classname property
+   * Example: [{"classname": "dba.test"}]
    */
-  class?: Array<{
-    /**
-     * Class name to unload
-     */
-    classname: string;
-  }>;
+  class?: Array<{ classname: string }>;
 
   /**
    * Include referenced tables: "yes" or "no" (optional)
@@ -94,7 +83,7 @@ export type UnloadDatabaseRequest = {
   estimate?: string | 'none';
 
   /**
-   * Prefix for output files (optional, default: database name)
+   * Prefix for output files (optional, default: the database name)
    */
   prefix?: string | 'none';
 
