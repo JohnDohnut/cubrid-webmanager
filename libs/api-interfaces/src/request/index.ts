@@ -30,3 +30,4 @@ export * from './create-database-client-request';
 export * from './sava-database-profile';
 export * from './add-dbname-to-server-client-request';
 export * from './remove-dbname-from-server-client-request';
+export * from './unload-db-request';

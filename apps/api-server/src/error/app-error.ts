@@ -35,6 +35,9 @@ export class AppError extends Error {
     }
 
     toProblemDetails(requestUrl?: string) {
+        // Use additionalData.message if available (e.g., CMS error messages), otherwise use this.message (code)
+        const detailMessage = this.additionalData?.message || this.message;
+        
         const baseResponse = {
             type: `/errors/${this.kind.toLowerCase()}/${this.code.toLowerCase()}`,
             title: this.code
@@ -46,14 +49,16 @@ export class AppError extends Error {
                 )
                 .join(' '),
             status: this.getHttpStatus(),
-            detail: this.message,
+            detail: detailMessage,
             code: this.code,
         };
 
         if (this.additionalData) {
             const safeFields = this.getSafeFieldsForClient(this.additionalData);
-            if (Object.keys(safeFields).length > 0) {
-                return { ...baseResponse, ...safeFields };
+            // Exclude 'message' from safeFields since it's already used in detail
+            const { message, ...fieldsWithoutMessage } = safeFields;
+            if (Object.keys(fieldsWithoutMessage).length > 0) {
+                return { ...baseResponse, ...fieldsWithoutMessage };
             }
         }
 
