@@ -470,6 +470,40 @@
 					"response": []
 				},
 				{
+					"name": "Create Database",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"dbname\": \"testdb\",\n  \"numpage\": \"1000\",\n  \"pagesize\": \"16384\",\n  \"logsize\": \"100\",\n  \"logpagesize\": \"16384\",\n  \"genvolpath\": \"/home/cubrid/databases/testdb\",\n  \"logvolpath\": \"/home/cubrid/databases/testdb\",\n  \"charset\": \"ko_KR.utf8\",\n  \"overwrite_config_file\": \"YES\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/create",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"database",
+								"create"
+							]
+						},
+						"description": "Create a new database. Returns empty object on success.\n\n**URI:**\n```\nPOST /:hostUid/database/create\n```\n**Example:**\n```\nPOST /host-uid-1/database/create\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n\n**Request Body (Required Fields):**\n```json\n{\n  \"dbname\": \"testdb\",\n  \"numpage\": \"1000\",\n  \"pagesize\": \"16384\",\n  \"logsize\": \"100\",\n  \"logpagesize\": \"16384\",\n  \"genvolpath\": \"/home/cubrid/databases/testdb\",\n  \"logvolpath\": \"/home/cubrid/databases/testdb\",\n  \"charset\": \"ko_KR.utf8\",\n  \"overwrite_config_file\": \"YES\"\n}\n```\n\n**Request Body (With Extended Volumes):**\n```json\n{\n  \"dbname\": \"testdb\",\n  \"numpage\": \"1000\",\n  \"pagesize\": \"16384\",\n  \"logsize\": \"100\",\n  \"logpagesize\": \"16384\",\n  \"genvolpath\": \"/home/cubrid/databases/testdb\",\n  \"logvolpath\": \"/home/cubrid/databases/testdb\",\n  \"charset\": \"ko_KR.utf8\",\n  \"overwrite_config_file\": \"YES\",\n  \"exvol\": [\n    {\n      \"testdb_data_x001\": {\n        \"type\": \"data\",\n        \"size\": 512,\n        \"pagesize\": 16384,\n        \"volpath\": \"/home/cubrid/databases/testdb\"\n      },\n      \"testdb_index_x001\": {\n        \"type\": \"index\",\n        \"size\": 256,\n        \"pagesize\": 16384,\n        \"volpath\": \"/home/cubrid/databases/testdb\"\n      }\n    }\n  ]\n}\n```\n\n**Success Response (200 OK):**\n```json\n{}\n```\n\n**Error Response (400 Bad Request - Missing Fields):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Missing required fields: dbname, numpage, pagesize, logsize, logpagesize, genvolpath, logvolpath, charset, overwrite_config_file\",\n  \"error\": \"Bad Request\"\n}\n```\n\n**Error Response (400 Bad Request - Duplicated File):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"File already exists: /path/to/file\",\n  \"error\": \"Bad Request\",\n  \"existfile\": \"/path/to/file\"\n}\n```"
+					},
+					"response": []
+				},
+				{
 					"name": "Get Database Volume Info",
 					"request": {
 						"method": "GET",
