@@ -13,7 +13,7 @@ export function isCmsStatusFailure(response: any): boolean {
     }
 
     if ('status' in response) {
-        return response.status === 'fail';
+        return response.status === 'fail' || response.status === 'failure';
     }
 
     return false;
@@ -37,8 +37,11 @@ export function isCmsStatusFailure(response: any): boolean {
  */
 export function checkCmsStatusError(response: any, errorMessage?: string): void {
     if (isCmsStatusFailure(response)) {
+        // Use custom error message if provided, otherwise use response.note if it's user-friendly
+        // response.note from CMS typically contains user-friendly error messages (e.g., "Invalid password")
+        const message = errorMessage || (response.note ? `CMS request failed: ${response.note}` : 'CMS request failed');
         throw CmsError.RequestFailed({
-            message: errorMessage || `CMS request failed: ${response.note || 'Unknown error'}`,
+            message: message,
             response: response,
         });
     }

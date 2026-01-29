@@ -1,63 +1,63 @@
+import {
+  AddBackupInfoClientRequest,
+  AddBackupInfoClientResponse,
+  CreateDatabaseClientRequest,
+  CreateDatabaseClientResponse,
+  DatabaseVolumeInfoClientResponse,
+  DeleteBackupInfoClientRequest,
+  DeleteBackupInfoClientResponse,
+  GetAutoExecQueryClientResponse,
+  GetBackupInfoClientResponse,
+  SetAutoExecQueryClientRequest,
+  SetAutoExecQueryClientResponse,
+  SetBackupInfoClientRequest,
+  SetBackupInfoClientResponse,
+  StartInfoClientResponse,
+  UnloadDatabaseRequest
+} from '@api-interfaces';
+import { GetCreatedbInfoClientResponse } from '@api-interfaces/response/get-createdb-info-client-response';
+import { CmsConfigService } from '@cms-config/cms-config.service';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import {
-  checkCmsTokenError,
   checkCmsStatusError,
+  checkCmsTokenError,
+  HandleCmsStatusErrors,
   HandleDatabaseErrors,
 } from '@common';
 import { DatabaseError } from '@error/database/database-error';
 import { HostError } from '@error/index';
 import { ValidationError } from '@error/validation/validation-error';
+import { FileService } from '@file/file.service';
 import { HostService } from '@host';
 import { Injectable, Logger } from '@nestjs/common';
 import { UserRepositoryService } from '@repository';
-import { CmsConfigService } from '@cms-config/cms-config.service';
-import { convertExvolArrayToCmsFormat } from '@util';
-import { FileService } from '@file/file.service';
-import {
-  DatabaseVolumeInfoClientResponse,
-  StartInfoClientResponse,
-  AddBackupInfoClientRequest,
-  AddBackupInfoClientResponse,
-  SetBackupInfoClientRequest,
-  SetBackupInfoClientResponse,
-  DeleteBackupInfoClientRequest,
-  DeleteBackupInfoClientResponse,
-  GetBackupInfoClientRequest,
-  GetBackupInfoClientResponse,
-  SetAutoExecQueryClientRequest,
-  SetAutoExecQueryClientResponse,
-  GetAutoExecQueryClientRequest,
-  GetAutoExecQueryClientResponse,
-  CreateDatabaseClientRequest,
-  CreateDatabaseClientResponse,
-} from '@api-interfaces';
-import { GetCreatedbInfoClientResponse } from '@api-interfaces/response/get-createdb-info-client-response';
 import { BaseCmsRequest, BaseCmsResponse } from '@type';
 import {
-  DbSpaceInfoCmsRequest,
-  StartDatabaseCmsRequest,
-  StopDatabaseCmsRequest,
   AddBackupInfoCmsRequest,
-  SetBackupInfoCmsRequest,
+  CreateDatabaseCmsRequest,
+  DbSpaceInfoCmsRequest,
   DeleteBackupInfoCmsRequest,
+  GetAutoExecQueryCmsRequest,
   GetBackupInfoCmsRequest,
   SetAutoExecQueryCmsRequest,
-  GetAutoExecQueryCmsRequest,
-  CreateDatabaseCmsRequest,
-  CheckFileCmsRequest,
+  SetBackupInfoCmsRequest,
+  StartDatabaseCmsRequest,
+  StopDatabaseCmsRequest,
+  UnloadDatabaseCmsRequest
 } from '@type/cms-request';
 import {
-  DbSpaceInfoCmsResponse,
-  StartInfoCmsResponse,
   AddBackupInfoCmsResponse,
-  SetBackupInfoCmsResponse,
+  CreateDatabaseCmsResponse,
+  DbSpaceInfoCmsResponse,
   DeleteBackupInfoCmsResponse,
+  GetAutoExecQueryCmsResponse,
   GetBackupInfoCmsResponse,
   SetAutoExecQueryCmsResponse,
-  GetAutoExecQueryCmsResponse,
-  CreateDatabaseCmsResponse,
-  CheckFileCmsResponse,
+  SetBackupInfoCmsResponse,
+  StartInfoCmsResponse,
+  UnloadDatabaseCmsResponse
 } from '@type/cms-response';
+import { convertExvolArrayToCmsFormat } from '@util';
 
 /**
  * Service for managing database operations.
@@ -79,7 +79,7 @@ export class DatabaseService {
     private readonly repository: UserRepositoryService,
     private readonly cmsConfigService: CmsConfigService,
     private readonly fileService: FileService,
-  ) {}
+  ) { }
 
   /**
    * Get start information for databases on a host (internal use).
@@ -727,7 +727,7 @@ export class DatabaseService {
     hostUid: string,
   ): Promise<GetCreatedbInfoClientResponse> {
     const envInfo = await this.cmsConfigService.getEnv(userId, hostUid);
-    
+
     return {
       defaultDbDirectory: envInfo.CUBRID_DATABASES || '',
       cubridVersion: envInfo.CUBRIDVER,
@@ -814,5 +814,81 @@ export class DatabaseService {
 
 
     return {};
+  }
+
+  /**
+   * Unload a database.
+   * Returns empty object on success.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param dbname Database name
+   * @param request Client request containing unload information
+   * @returns Empty object on success
+   * @throws DatabaseError If request fails or parameters are invalid
+   */
+  @HandleDatabaseErrors()
+  @HandleCmsStatusErrors()
+  async unloadDatabase(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    request: UnloadDatabaseRequest,
+  ): Promise<{}> {
+    const host = await this.hostService.findHostInternal(userId, hostUid);
+    const url = `https://${host.address}:${host.port}/cm_api`;
+
+    // Determine target based on isSchemaIncluded and isDataIncluded
+    let target: 'schema' | 'object' | 'both';
+
+    if (request.isSchemaIncluded && request.isDataIncluded) {
+      target = 'both';
+    } else if (request.isSchemaIncluded) {
+      target = 'schema';
+    } else if (request.isDataIncluded) {
+      target = 'object';
+    } else {
+      throw DatabaseError.InvalidParameter(
+        'Both isSchemaIncluded and isDataIncluded cannot be false',
+        {
+          isSchemaIncluded: request.isSchemaIncluded,
+          isDataIncluded: request.isDataIncluded,
+        },
+      );
+    }
+
+    // Build CMS request from client request
+    const cmsRequest: UnloadDatabaseCmsRequest = {
+      task: 'unloaddb',
+      token: host.token || '',
+      dbname: dbname,
+      targetdir: request.targetdir,
+      target: target,
+      dbuser: request.dbuser,
+      dbpasswd: request.dbpasswd,
+      usehash: request.usehash,
+      hashdir: request.hashdir,
+      class: request.class,
+      ref: request.ref,
+      classonly: request.classonly,
+      'as-dba': request['as-dba'],
+      'skip-index-detail': request['skip-index-detail'],
+      'split-schema-files': request['split-schema-files'],
+      delimit: request.delimit,
+      estimate: request.estimate,
+      prefix: request.prefix,
+      cach: request.cach,
+      lofile: request.lofile,
+    };
+
+    const response = await this.cmsClient.postAuthenticated<
+      UnloadDatabaseCmsRequest,
+      UnloadDatabaseCmsResponse
+    >(url, cmsRequest);
+
+    checkCmsTokenError(response);
+    checkCmsStatusError(response);
+
+    return response.result;
   }
 }
