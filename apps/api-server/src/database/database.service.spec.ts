@@ -15,6 +15,7 @@ import {
 } from '@api-interfaces';
 import { UnloadDatabaseCmsResponse } from '@type/cms-response';
 import * as common from '@common';
+import { HostInfo } from '../type';
 
 // Mock the checkCmsTokenError and checkCmsStatusError functions
 jest.mock('@common', () => ({
@@ -31,13 +32,15 @@ describe('DatabaseService', () => {
   let cmsConfigService: jest.Mocked<CmsConfigService>;
   let fileService: jest.Mocked<FileService>;
 
-  const mockHost = {
+  const mockHost : HostInfo = {
     uid: 'host-uid-1',
     id: 'host-1',
     address: 'localhost',
     port: 8001,
     password: 'host-password',
     token: 'test-token',
+    isInitialLogin : false,
+    haType : 'None',
     dbProfiles: {},
   };
 

@@ -18,5 +18,7 @@ export type HostInfo = {
   port: number;
   password: string;
   alias?: string;
+  isInitialLogin : boolean;
+  haType : 'None' | 'Master' | 'Slave' | 'Replica';
   dbProfiles: HashMap<DBInfo>;
 };

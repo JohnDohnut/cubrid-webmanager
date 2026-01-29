@@ -9,6 +9,8 @@ import {
 } from '@type/index';
 import { UserRepositoryService } from '@repository';
 import { HostError } from '@error/index';
+import { CmsConfigService } from '@cms-config/cms-config.service';
+import { parseConfigParamsBySection, getConfigParam } from '@util';
 
 /**
  * Service for handling authentication with the CMS (Central Management System).
@@ -22,7 +24,8 @@ import { HostError } from '@error/index';
 export class CmsAuthService {
   constructor(
     private readonly client: CmsHttpsClientService,
-    private readonly repository: UserRepositoryService
+    private readonly repository: UserRepositoryService,
+    private readonly cmsConfigService: CmsConfigService
   ) {}
 
   /**
@@ -56,6 +59,38 @@ export class CmsAuthService {
     const response = await this.client.postPublic<LoginCmsRequest, LoginCmsResponse>(url, request);
 
     host.token = response.token;
+    
+    // Check HA mode after successful login
+    try {
+      const sysParamsResponse = await this.cmsConfigService.getAllSystemParamInternal(
+        userId,
+        uid,
+        'cubridconf'
+      );
+      
+      // Use utility function to parse config params
+      const grouped = parseConfigParamsBySection(sysParamsResponse);
+      
+      // Search for ha_mode in all sections
+      let haMode: string | undefined;
+      for (const section in grouped) {
+        haMode = getConfigParam(grouped, section, 'ha_mode');
+        if (haMode) {
+          break;
+        }
+      }
+      
+      if (haMode === 'on') {
+        Logger.log(`HA mode is enabled for host: ${uid}`, 'CmsAuthService');
+      }
+    } catch (error) {
+      // If getAllSystemParamInternal fails, log but don't fail the login
+      Logger.warn(
+        `Failed to check HA mode for host ${uid}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'CmsAuthService'
+      );
+    }
+    
     await this.repository.atomicUpdateUser(userId, async (user: User) => {
       user.host_list[uid] = host;
       return user;

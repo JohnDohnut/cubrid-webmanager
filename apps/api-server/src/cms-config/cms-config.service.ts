@@ -164,21 +164,21 @@ export class CmsConfigService {
   }
 
   /**
-   * Get all system parameters from a configuration file on a CMS host.
-   * Returns domain-only data (CMS envelope removed).
+   * Get all system parameters from a configuration file on a CMS host (internal use).
+   * Returns full CMS response including envelope fields.
    *
    * @param userId - User ID from JWT
    * @param hostUid - Host unique identifier
    * @param confname - Configuration file name (e.g., "cubridconf", "broker.conf")
-   * @returns GetAllSysParamClientResponse System parameters without CMS envelope fields
+   * @returns GetAllSysParamCmsResponse Full CMS response with envelope fields
    * @throws Error if the request fails or CMS status is not success
    */
   @HandleCmsConfigErrors()
-  async getAllSystemParam(
+  async getAllSystemParamInternal(
     userId: string,
     hostUid: string,
     confname: string
-  ): Promise<GetAllSysParamClientResponse> {
+  ): Promise<GetAllSysParamCmsResponse> {
     const host = await this.hostService.findHostInternal(userId, hostUid);
     const url = `https://${host.address}:${host.port}/cm_api`;
     const request: GetAllSysParamCmsRequest = {
@@ -195,8 +195,7 @@ export class CmsConfigService {
     checkCmsTokenError(response);
 
     if (response.status === 'success') {
-      const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
-      return dataOnly;
+      return response;
     }
 
     checkCmsStatusError(
@@ -204,6 +203,27 @@ export class CmsConfigService {
       `Failed to get all system parameters: ${response.note || 'Unknown error'}`
     );
     throw ConfigError.GetAllSysParamFailed(confname, { note: response.note });
+  }
+
+  /**
+   * Get all system parameters from a configuration file on a CMS host.
+   * Returns domain-only data (CMS envelope removed).
+   *
+   * @param userId - User ID from JWT
+   * @param hostUid - Host unique identifier
+   * @param confname - Configuration file name (e.g., "cubridconf", "broker.conf")
+   * @returns GetAllSysParamClientResponse System parameters without CMS envelope fields
+   * @throws Error if the request fails or CMS status is not success
+   */
+  @HandleCmsConfigErrors()
+  async getAllSystemParam(
+    userId: string,
+    hostUid: string,
+    confname: string
+  ): Promise<GetAllSysParamClientResponse> {
+    const response = await this.getAllSystemParamInternal(userId, hostUid, confname);
+    const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
+    return dataOnly;
   }
 
   /**

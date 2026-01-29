@@ -212,6 +212,8 @@ export class HostService {
         alias: hostInfo.alias ?? existingHost.alias,
         token: hostInfo.token ?? existingHost.token,
         dbProfiles: hostInfo.dbProfiles ?? existingHost.dbProfiles ?? {},
+        isInitialLogin : true,
+        haType:'None'
       };
 
       user.host_list[hostUid] = updatedHost;
