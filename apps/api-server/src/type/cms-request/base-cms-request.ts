@@ -5,6 +5,6 @@
  * @since 1.0.0
  */
 export type BaseCmsRequest = {
-    task: string;
-    token: string;
+  task: string;
+  token: string;
 };

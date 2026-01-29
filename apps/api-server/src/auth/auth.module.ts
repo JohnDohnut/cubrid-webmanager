@@ -17,10 +17,10 @@ import { AuthService } from './auth.service';
  * @since 1.0.0
  */
 @Module({
-    controllers: [AuthController],
-    providers: [AuthService],
-    imports: [SecurityModule, ConfigModule, UserRepositoryModule, TokenModule],
-    exports: [],
+  controllers: [AuthController],
+  providers: [AuthService],
+  imports: [SecurityModule, ConfigModule, UserRepositoryModule, TokenModule],
+  exports: [],
 })
 export class AuthModule {}
 

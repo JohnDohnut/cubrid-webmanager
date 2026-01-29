@@ -16,4 +16,3 @@ describe('DatabaseController', () => {
     expect(controller).toBeDefined();
   });
 });
-

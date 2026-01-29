@@ -11,9 +11,9 @@ import { UserRepositoryModule } from '@repository';
  * @since 1.0.0
  */
 @Module({
-    imports: [CmsHttpsClientModule, UserRepositoryModule],
-    providers: [CmsAuthService],
-    controllers: [CmsAuthController],
-    exports: [CmsAuthService],
+  imports: [CmsHttpsClientModule, UserRepositoryModule],
+  providers: [CmsAuthService],
+  controllers: [CmsAuthController],
+  exports: [CmsAuthService],
 })
 export class CmsAuthModule {}

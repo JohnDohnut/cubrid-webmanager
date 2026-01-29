@@ -2,18 +2,17 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ResourceMonitoringService } from './resource-monitoring.service';
 
 describe('ResourceMonitoringService', () => {
-    let service: ResourceMonitoringService;
+  let service: ResourceMonitoringService;
 
-    beforeEach(async () => {
-        const module: TestingModule = await Test.createTestingModule({
-            providers: [ResourceMonitoringService],
-        }).compile();
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [ResourceMonitoringService],
+    }).compile();
 
-        service = module.get<ResourceMonitoringService>(ResourceMonitoringService);
-    });
+    service = module.get<ResourceMonitoringService>(ResourceMonitoringService);
+  });
 
-    it('should be defined', () => {
-        expect(service).toBeDefined();
-    });
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
 });
-

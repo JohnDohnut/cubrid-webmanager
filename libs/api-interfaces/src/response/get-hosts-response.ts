@@ -9,5 +9,5 @@ import { SafeHostList } from '@type/collections';
  * @since 1.0.0
  */
 export type GetHostsResponse = {
-    host_list: SafeHostList;
+  host_list: SafeHostList;
 };

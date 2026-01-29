@@ -7,7 +7,7 @@ import { HostModule } from '@host';
 @Module({
   controllers: [LogController],
   providers: [LogService],
-  exports : [LogService],
-  imports : [CmsHttpsClientModule, HostModule],
+  exports: [LogService],
+  imports: [CmsHttpsClientModule, HostModule],
 })
 export class LogModule {}

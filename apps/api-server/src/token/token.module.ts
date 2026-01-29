@@ -12,19 +12,19 @@ import { JwtStrategy } from './jwt-strategy';
  * @since 1.0.0
  */
 @Module({
-    imports: [
-        ConfigModule,
-        PassportModule,
-        JwtModule.registerAsync({
-            imports: [ConfigModule],
-            inject: [ConfigService],
-            useFactory: (config: ConfigService) => ({
-                secret: config.getSecretKey(),
-                signOptions: { expiresIn: '1h' },
-            }),
-        }),
-    ],
-    exports: [JwtModule, PassportModule],
-    providers: [JwtStrategy],
+  imports: [
+    ConfigModule,
+    PassportModule,
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        secret: config.getSecretKey(),
+        signOptions: { expiresIn: '1h' },
+      }),
+    }),
+  ],
+  exports: [JwtModule, PassportModule],
+  providers: [JwtStrategy],
 })
 export class TokenModule {}

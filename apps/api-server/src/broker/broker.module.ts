@@ -12,9 +12,9 @@ import { CmsHttpsClientModule } from '@cms-https-client/cms-https-client.module'
  * @since 1.0.0
  */
 @Module({
-    controllers: [BrokerController],
-    providers: [BrokerService],
-    imports : [HostModule, CmsHttpsClientModule],
-    exports : [BrokerService]
+  controllers: [BrokerController],
+  providers: [BrokerService],
+  imports: [HostModule, CmsHttpsClientModule],
+  exports: [BrokerService],
 })
 export class BrokerModule {}

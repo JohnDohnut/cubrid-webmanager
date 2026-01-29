@@ -6,5 +6,5 @@
  * @since 1.0.0
  */
 export type LoginCmsResponse = {
-    token: string;
+  token: string;
 };

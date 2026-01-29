@@ -1,9 +1,9 @@
 export class UserPreferenceDto {
-    dashboardInterval?: number;
-    brokerStatusInterval?: number;
+  dashboardInterval?: number;
+  brokerStatusInterval?: number;
 }
 
 export class UpdateUserDto {
-    department?: string;
-    user_preference?: UserPreferenceDto;
+  department?: string;
+  user_preference?: UserPreferenceDto;
 }

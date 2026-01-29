@@ -17,39 +17,32 @@ import { ValidationError } from '@error/validation/validation-error';
  * ```
  */
 export function validateRequiredFields(
-    body: any,
-    fieldNames: string[],
-    endpoint: string,
-    logger?: Logger,
+  body: any,
+  fieldNames: string[],
+  endpoint: string,
+  logger?: Logger
 ): void {
-    if (!body) {
-        const missingFields = fieldNames;
-        if (logger) {
-            logger.error(
-                `Missing required fields: ${missingFields.join(', ')}`,
-                'Validation',
-            );
-        }
-        throw ValidationError.MissingRequiredField(missingFields, { endpoint });
+  if (!body) {
+    const missingFields = fieldNames;
+    if (logger) {
+      logger.error(`Missing required fields: ${missingFields.join(', ')}`, 'Validation');
     }
+    throw ValidationError.MissingRequiredField(missingFields, { endpoint });
+  }
 
-    const missingFields: string[] = [];
+  const missingFields: string[] = [];
 
-    for (const fieldName of fieldNames) {
-        const value = body[fieldName];
-        if (value == null) {
-            missingFields.push(fieldName);
-        }
+  for (const fieldName of fieldNames) {
+    const value = body[fieldName];
+    if (value == null) {
+      missingFields.push(fieldName);
     }
+  }
 
-    if (missingFields.length > 0) {
-        if (logger) {
-            logger.error(
-                `Missing required fields: ${missingFields.join(', ')}`,
-                'Validation',
-            );
-        }
-        throw ValidationError.MissingRequiredField(missingFields, { endpoint });
+  if (missingFields.length > 0) {
+    if (logger) {
+      logger.error(`Missing required fields: ${missingFields.join(', ')}`, 'Validation');
     }
+    throw ValidationError.MissingRequiredField(missingFields, { endpoint });
+  }
 }
-

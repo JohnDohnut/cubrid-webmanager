@@ -1,2 +1,2 @@
-export const prefAutoStartupDatabase = "pref.autoStartupDatabase"
-export const prefIntervalDashboard = "pref.intervalDashboard"
+export const prefAutoStartupDatabase = 'pref.autoStartupDatabase';
+export const prefIntervalDashboard = 'pref.intervalDashboard';

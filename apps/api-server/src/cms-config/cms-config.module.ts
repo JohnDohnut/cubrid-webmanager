@@ -14,9 +14,9 @@ import { CmsHttpsClientModule } from '@cms-https-client/cms-https-client.module'
  * @since 1.0.0
  */
 @Module({
-    imports: [HostModule, CmsHttpsClientModule],
-    controllers: [CmsConfigController],
-    providers: [CmsConfigService],
-    exports: [CmsConfigService],
+  imports: [HostModule, CmsHttpsClientModule],
+  controllers: [CmsConfigController],
+  providers: [CmsConfigService],
+  exports: [CmsConfigService],
 })
 export class CmsConfigModule {}

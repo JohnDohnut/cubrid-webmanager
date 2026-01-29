@@ -19,7 +19,6 @@ import { FileModule } from '@file/file.module';
 @Module({
   controllers: [DatabaseController, DatabaseUserController],
   providers: [DatabaseService, DatabaseUserService],
-  imports: [HostModule, CmsHttpsClientModule, UserRepositoryModule, CmsConfigModule, FileModule]
+  imports: [HostModule, CmsHttpsClientModule, UserRepositoryModule, CmsConfigModule, FileModule],
 })
 export class DatabaseModule {}
-

@@ -8,15 +8,15 @@ import { BaseCmsResponse } from '@type/cms-response/base-cms-response';
  * @returns true if the response indicates a failure
  */
 export function isCmsStatusFailure(response: any): boolean {
-    if (!response || typeof response !== 'object') {
-        return false;
-    }
-
-    if ('status' in response) {
-        return response.status === 'fail' || response.status === 'failure';
-    }
-
+  if (!response || typeof response !== 'object') {
     return false;
+  }
+
+  if ('status' in response) {
+    return response.status === 'fail' || response.status === 'failure';
+  }
+
+  return false;
 }
 
 /**
@@ -36,15 +36,17 @@ export function isCmsStatusFailure(response: any): boolean {
  * ```
  */
 export function checkCmsStatusError(response: any, errorMessage?: string): void {
-    if (isCmsStatusFailure(response)) {
-        // Use custom error message if provided, otherwise use response.note if it's user-friendly
-        // response.note from CMS typically contains user-friendly error messages (e.g., "Invalid password")
-        const message = errorMessage || (response.note ? `CMS request failed: ${response.note}` : 'CMS request failed');
-        throw CmsError.RequestFailed({
-            message: message,
-            response: response,
-        });
-    }
+  if (isCmsStatusFailure(response)) {
+    // Use custom error message if provided, otherwise use response.note if it's user-friendly
+    // response.note from CMS typically contains user-friendly error messages (e.g., "Invalid password")
+    const message =
+      errorMessage ||
+      (response.note ? `CMS request failed: ${response.note}` : 'CMS request failed');
+    throw CmsError.RequestFailed({
+      message: message,
+      response: response,
+    });
+  }
 }
 
 /**
@@ -68,29 +70,24 @@ export function checkCmsStatusError(response: any, errorMessage?: string): void 
  * ```
  */
 export function HandleCmsStatusErrors() {
-    return function (
-        target: any,
-        propertyKey: string,
-        descriptor: PropertyDescriptor,
-    ) {
-        const originalMethod = descriptor.value;
+  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+    const originalMethod = descriptor.value;
 
-        descriptor.value = async function (...args: any[]) {
-            const result = await originalMethod.apply(this, args);
+    descriptor.value = async function (...args: any[]) {
+      const result = await originalMethod.apply(this, args);
 
-            if (result instanceof Promise) {
-                return result.then((response) => {
-                    checkCmsStatusError(response);
-                    return response;
-                });
-            }
+      if (result instanceof Promise) {
+        return result.then((response) => {
+          checkCmsStatusError(response);
+          return response;
+        });
+      }
 
-            checkCmsStatusError(result);
+      checkCmsStatusError(result);
 
-            return result;
-        };
-
-        return descriptor;
+      return result;
     };
-}
 
+    return descriptor;
+  };
+}

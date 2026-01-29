@@ -11,8 +11,8 @@ import { LockModule } from '@lock/lock.module';
  * @since 1.0.0
  */
 @Module({
-    providers: [UserRepositoryService],
-    imports: [SecurityModule, StorageModule, LockModule],
-    exports: [UserRepositoryService],
+  providers: [UserRepositoryService],
+  imports: [SecurityModule, StorageModule, LockModule],
+  exports: [UserRepositoryService],
 })
 export class UserRepositoryModule {}

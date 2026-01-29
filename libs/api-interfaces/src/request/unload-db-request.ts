@@ -1,111 +1,99 @@
-
 /**
  * Request type for unloading a database.
- * 
+ *
  * @category Requests
  * @since 1.0.0
  */
-export type UnloadDatabaseRequest =  {
-    /**
-     * Task name - must be "unloaddb"
-     */
+export type UnloadDatabaseRequest = {
+  /**
+   * Output directory path (required)
+   */
+  targetdir: string;
 
-    /**
-     * Output directory path (required)
-     */
-    targetdir: string;
+  /**
+   * Is unloaddb request includes unloading schema
+   */
+  isSchemaIncluded: boolean;
 
-    /**
-     * Unload target: "schema", "object", or "both" (required)
-     */
+  /**
+   * IS unloaddb request includes unloading data
+   */
+  isDataIncluded: boolean;
 
-    /**
-     * Is unloaddb request includes unloading schema
-     */
-    isSchemaIncluded : boolean;
+  /**
+   * Database user ID
+   */
+  dbuser: string;
 
-    /**
-     * IS unloaddb request includes unloading data
-     */
-    isDataIncluded:boolean;
+  /**
+   * Database user password
+   */
+  dbpasswd: string;
 
-    /**
-     * Database user ID 
-     */
-    dbuser: string;
+  /**
+   * Whether to use hash file: "yes" or "no" (optional)
+   */
+  usehash?: 'yes' | 'no';
 
-    /**
-     * Database user password 
-     */
-    dbpasswd: string;
+  /**
+   * Hash file path (optional, required if usehash is "yes")
+   */
+  hashdir?: string;
 
-    /**
-     * Whether to use hash file: "yes" or "no" (optional)
-     */
-    usehash?: 'yes' | 'no';
+  /**
+   * Unload class list, if field doesn't exist, all class is target
+   * Format: Array of objects with classname property
+   * Example: [{"classname": "dba.test"}]
+   */
+  class?: Array<{ classname: string }>;
 
-    /**
-     * Hash file path (optional, required if usehash is "yes")
-     */
-    hashdir?: string;
+  /**
+   * Include referenced tables: "yes" or "no" (optional)
+   */
+  ref?: 'yes' | 'no';
 
-    /**
-     * Class list to unload (optional)
-     */
-    class?: Array<{
-        /**
-         * Class name to unload
-         */
-        classname: string;
-    }>;
+  /**
+   * Include specified class only: "yes" or "no" (optional)
+   */
+  classonly?: 'yes' | 'no';
 
-    /**
-     * Include referenced tables: "yes" or "no" (optional)
-     */
-    ref?: 'yes' | 'no';
+  /**
+   * Extract the same schema file as the DBA: "yes" or "no" (optional)
+   */
+  'as-dba'?: 'yes' | 'no';
 
-    /**
-     * Include specified class only: "yes" or "no" (optional)
-     */
-    classonly?: 'yes' | 'no';
+  /**
+   * Skip with option of indexes: "yes" or "no" (optional)
+   */
+  'skip-index-detail'?: 'yes' | 'no';
 
-    /**
-     * Extract the same schema file as the DBA: "yes" or "no" (optional)
-     */
-    'as-dba'?: 'yes' | 'no';
+  /**
+   * Split schema information by object: "yes" or "no" (optional)
+   */
+  'split-schema-files'?: 'yes' | 'no';
 
-    /**
-     * Skip with option of indexes: "yes" or "no" (optional)
-     */
-    'skip-index-detail'?: 'yes' | 'no';
+  /**
+   * Use '"' where an identifier begins and ends: "yes" or "no" (optional, default: "no")
+   */
+  delimit?: 'yes' | 'no';
 
-    /**
-     * Split schema information by object: "yes" or "no" (optional)
-     */
-    'split-schema-files'?: 'yes' | 'no';
+  /**
+   * Estimated number of instances (optional, default: auto computed)
+   */
+  estimate?: string | 'none';
 
-    /**
-     * Use '"' where an identifier begins and ends: "yes" or "no" (optional, default: "no")
-     */
-    delimit?: 'yes' | 'no';
+  /**
+   * Prefix for output files (optional, default: the database name)
+   */
+  prefix?: string | 'none';
 
-    /**
-     * Estimated number of instances (optional, default: auto computed)
-     */
-    estimate?: string | 'none';
+  /**
+   * Number of cached pages (optional, default: 100)
+   */
+  cach?: string | 'none';
 
-    /**
-     * Prefix for output files (optional, default: database name)
-     */
-    prefix?: string | 'none';
-
-    /**
-     * Number of cached pages (optional, default: 100)
-     */
-    cach?: string | 'none';
-
-    /**
-     * LO file count per directory (optional, default: 0)
-     */
-    lofile?: string | 'none';
+  /**
+   * LO file count per directory (optional, default: 0)
+   */
+  lofile?: string | 'none';
 };

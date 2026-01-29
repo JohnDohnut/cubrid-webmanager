@@ -16,10 +16,10 @@ import { TokenModule } from '@token';
  * @since 1.0.0
  */
 @Module({
-    controllers: [UserController],
-    providers: [UserService],
-    imports: [UserRepositoryModule, SecurityModule, TokenModule],
-    exports: [UserService],
+  controllers: [UserController],
+  providers: [UserService],
+  imports: [UserRepositoryModule, SecurityModule, TokenModule],
+  exports: [UserService],
 })
 export class UserModule {}
 

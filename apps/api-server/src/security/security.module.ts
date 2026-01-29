@@ -11,8 +11,8 @@ import { PassportModule } from '@nestjs/passport';
  * @since 1.0.0
  */
 @Module({
-    imports: [ConfigModule, PassportModule],
-    exports: [EncryptionService, PasswordService],
-    providers: [EncryptionService, PasswordService],
+  imports: [ConfigModule, PassportModule],
+  exports: [EncryptionService, PasswordService],
+  providers: [EncryptionService, PasswordService],
 })
 export class SecurityModule {}

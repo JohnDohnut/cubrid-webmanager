@@ -19,124 +19,124 @@ import { BrokerService } from './broker.service';
  */
 @Controller(':hostUid/broker')
 export class BrokerController {
-    private readonly logger = new Logger(BrokerController.name);
+  private readonly logger = new Logger(BrokerController.name);
 
-    constructor(private readonly brokerService: BrokerService) {}
+  constructor(private readonly brokerService: BrokerService) {}
 
-    /**
-     * Get list of brokers for a specific host.
-     * 
-     * @route GET /:hostUid/broker/list
-     * @param req - Request object containing user information
-     * @param hostUid - Host unique identifier from path parameter
-     * @returns List of brokers
-     * @example
-     * // POST /host-uid/broker/list
-     */
-    @Get('list')
-    async getBrokers(
-        @Request() req,
-        @Param('hostUid') hostUid: string,
-    ): Promise<BrokerListClientResponse> {
-        const userId = req.user.sub;
-        
-        const response = await this.brokerService.getBrokers(userId, hostUid);
-        return response;
-    }
+  /**
+   * Get list of brokers for a specific host.
+   *
+   * @route GET /:hostUid/broker/list
+   * @param req - Request object containing user information
+   * @param hostUid - Host unique identifier from path parameter
+   * @returns List of brokers
+   * @example
+   * // POST /host-uid/broker/list
+   */
+  @Get('list')
+  async getBrokers(
+    @Request() req,
+    @Param('hostUid') hostUid: string
+  ): Promise<BrokerListClientResponse> {
+    const userId = req.user.sub;
 
-    /**
-     * Stop a broker.
-     * 
-     * @route POST /:hostUid/broker/stop/:bname
-     * @param req - Request object containing user information
-     * @param hostUid - Host unique identifier from path parameter
-     * @param bname - Broker name from path parameter
-     * @returns Response indicating success or failure
-     * @example
-     * // POST /host-uid/broker/stop/query_editor
-     */
-    @Post('stop/:bname')
-    async stopBroker(
-        @Request() req,
-        @Param('hostUid') hostUid: string,
-        @Param('bname') bname: string,
-    ): Promise<BaseCmsResponse> {
-        const userId = req.user.sub;
-        
-        Logger.log(`Stopping broker: ${bname} on host: ${hostUid}`, 'BrokerController');
-        const response = await this.brokerService.stopBroker(userId, hostUid, bname);
-        return response;
-    }
+    const response = await this.brokerService.getBrokers(userId, hostUid);
+    return response;
+  }
 
-    /**
-     * Start a broker.
-     * 
-     * @route POST /:hostUid/broker/start/:bname
-     * @param req - Request object containing user information
-     * @param hostUid - Host unique identifier from path parameter
-     * @param bname - Broker name from path parameter
-     * @returns Response indicating success or failure
-     * @example
-     * // POST /host-uid/broker/start/query_editor
-     */
-    @Post('start/:bname')
-    async startBroker(
-        @Request() req,
-        @Param('hostUid') hostUid: string,
-        @Param('bname') bname: string,
-    ): Promise<BaseCmsResponse> {
-        const userId = req.user.sub;
-        
-        Logger.log(`Starting broker: ${bname} on host: ${hostUid}`, 'BrokerController');
-        const response = await this.brokerService.startBroker(userId, hostUid, bname);
-        return response;
-    }
+  /**
+   * Stop a broker.
+   *
+   * @route POST /:hostUid/broker/stop/:bname
+   * @param req - Request object containing user information
+   * @param hostUid - Host unique identifier from path parameter
+   * @param bname - Broker name from path parameter
+   * @returns Response indicating success or failure
+   * @example
+   * // POST /host-uid/broker/stop/query_editor
+   */
+  @Post('stop/:bname')
+  async stopBroker(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('bname') bname: string
+  ): Promise<BaseCmsResponse> {
+    const userId = req.user.sub;
 
-    /**
-     * Restart a broker.
-     * 
-     * @route POST /:hostUid/broker/restart/:bname
-     * @param req - Request object containing user information
-     * @param hostUid - Host unique identifier from path parameter
-     * @param bname - Broker name from path parameter
-     * @returns Boolean indicating success
-     * @example
-     * // POST /host-uid/broker/restart/query_editor
-     */
-    @Post('restart/:bname')
-    async restartBroker(
-        @Request() req,
-        @Param('hostUid') hostUid: string,
-        @Param('bname') bname: string,
-    ): Promise<boolean> {
-        const userId = req.user.sub;
-        
-        Logger.log(`Restarting broker: ${bname} on host: ${hostUid}`, 'BrokerController');
-        const response: boolean = await this.brokerService.restartBroker(userId, hostUid, bname);
-        return response;
-    }
+    Logger.log(`Stopping broker: ${bname} on host: ${hostUid}`, 'BrokerController');
+    const response = await this.brokerService.stopBroker(userId, hostUid, bname);
+    return response;
+  }
 
-    /**
-     * Get broker status including application server information.
-     * 
-     * @route GET /:hostUid/broker/status/:bname
-     * @param req - Request object containing user information
-     * @param hostUid - Host unique identifier from path parameter
-     * @param bname - Broker name from path parameter
-     * @returns Broker status data without BaseCmsResponse fields
-     * @example
-     * // POST /host-uid/broker/status/query_editor
-     */
-    @Get('status/:bname')
-    async getBrokerStatus(
-        @Request() req,
-        @Param('hostUid') hostUid: string,
-        @Param('bname') bname: string,
-    ): Promise<GetBrokerStatusClientResponse> {
-        const userId = req.user.sub;
-        
-        Logger.log(`Getting broker status: ${bname} on host: ${hostUid}`, 'BrokerController');
-        const response = await this.brokerService.getBrokerStatus(userId, hostUid, bname);
-        return response;
-    }
+  /**
+   * Start a broker.
+   *
+   * @route POST /:hostUid/broker/start/:bname
+   * @param req - Request object containing user information
+   * @param hostUid - Host unique identifier from path parameter
+   * @param bname - Broker name from path parameter
+   * @returns Response indicating success or failure
+   * @example
+   * // POST /host-uid/broker/start/query_editor
+   */
+  @Post('start/:bname')
+  async startBroker(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('bname') bname: string
+  ): Promise<BaseCmsResponse> {
+    const userId = req.user.sub;
+
+    Logger.log(`Starting broker: ${bname} on host: ${hostUid}`, 'BrokerController');
+    const response = await this.brokerService.startBroker(userId, hostUid, bname);
+    return response;
+  }
+
+  /**
+   * Restart a broker.
+   *
+   * @route POST /:hostUid/broker/restart/:bname
+   * @param req - Request object containing user information
+   * @param hostUid - Host unique identifier from path parameter
+   * @param bname - Broker name from path parameter
+   * @returns Boolean indicating success
+   * @example
+   * // POST /host-uid/broker/restart/query_editor
+   */
+  @Post('restart/:bname')
+  async restartBroker(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('bname') bname: string
+  ): Promise<boolean> {
+    const userId = req.user.sub;
+
+    Logger.log(`Restarting broker: ${bname} on host: ${hostUid}`, 'BrokerController');
+    const response: boolean = await this.brokerService.restartBroker(userId, hostUid, bname);
+    return response;
+  }
+
+  /**
+   * Get broker status including application server information.
+   *
+   * @route GET /:hostUid/broker/status/:bname
+   * @param req - Request object containing user information
+   * @param hostUid - Host unique identifier from path parameter
+   * @param bname - Broker name from path parameter
+   * @returns Broker status data without BaseCmsResponse fields
+   * @example
+   * // POST /host-uid/broker/status/query_editor
+   */
+  @Get('status/:bname')
+  async getBrokerStatus(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('bname') bname: string
+  ): Promise<GetBrokerStatusClientResponse> {
+    const userId = req.user.sub;
+
+    Logger.log(`Getting broker status: ${bname} on host: ${hostUid}`, 'BrokerController');
+    const response = await this.brokerService.getBrokerStatus(userId, hostUid, bname);
+    return response;
+  }
 }

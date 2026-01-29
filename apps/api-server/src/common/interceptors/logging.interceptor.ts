@@ -44,8 +44,8 @@ export class LoggingInterceptor implements NestInterceptor {
             `Error Message: ${error.message}`,
             error.stack
           );
-        }
-      }),
+        },
+      })
     );
   }
 }

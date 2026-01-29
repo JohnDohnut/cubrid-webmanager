@@ -1,8 +1,24 @@
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
-import { CmsForwardClientRequest, GetEnvClientResponse, GetAllSysParamClientResponse, ParamdumpClientResponse, SetSysParamClientResponse, StatdumpClientResponse, AddDbnameToServerClientRequest, AddDbnameToServerClientResponse, RemoveDbnameFromServerClientRequest, RemoveDbnameFromServerClientResponse } from '@api-interfaces';
-import { ParamdumpCmsRequest, SetSysParamCmsRequest, StatdumpCmsRequest, BaseCmsRequest } from '@type';
+import {
+  CmsForwardClientRequest,
+  GetEnvClientResponse,
+  GetAllSysParamClientResponse,
+  ParamdumpClientResponse,
+  SetSysParamClientResponse,
+  StatdumpClientResponse,
+  AddDbnameToServerClientRequest,
+  AddDbnameToServerClientResponse,
+  RemoveDbnameFromServerClientRequest,
+  RemoveDbnameFromServerClientResponse,
+} from '@api-interfaces';
+import {
+  ParamdumpCmsRequest,
+  SetSysParamCmsRequest,
+  StatdumpCmsRequest,
+  BaseCmsRequest,
+} from '@type';
 import { GetEnvCmsResponse } from '@type/cms-response/get-env-cms-response';
 import { GetAllSysParamCmsRequest } from '@type/cms-request/get-all-sys-param-cms-request';
 import { GetAllSysParamCmsResponse } from '@type/cms-response/get-all-sys-param-cms-response';
@@ -23,331 +39,356 @@ import { ConfigError } from '@error/config/config-error';
  */
 @Injectable()
 export class CmsConfigService {
+  constructor(
+    private readonly hostService: HostService,
+    private readonly cmsClient: CmsHttpsClientService
+  ) {}
 
-    constructor(
-        private readonly hostService : HostService,
-        private readonly cmsClient : CmsHttpsClientService,
-    ){}
+  /**
+   * Get environment information from a CMS host.
+   * Returns domain-only data (CMS envelope removed).
+   *
+   * @param userId - User ID from JWT
+   * @param hostUid - Host unique identifier
+   * @returns GetEnvClientResponse Environment information without CMS envelope fields
+   * @throws Error if the request fails or CMS status is not success
+   */
+  @HandleCmsConfigErrors()
+  async getEnv(userId: string, hostUid: string): Promise<GetEnvClientResponse> {
+    const host = await this.hostService.findHostInternal(userId, hostUid);
+    const url = `https://${host.address}:${host.port}/cm_api`;
+    const body: BaseCmsRequest = {
+      task: 'getenv',
+      token: host.token || '',
+    };
 
-    /**
-     * Get environment information from a CMS host.
-     * Returns domain-only data (CMS envelope removed).
-     *
-     * @param userId - User ID from JWT
-     * @param hostUid - Host unique identifier
-     * @returns GetEnvClientResponse Environment information without CMS envelope fields
-     * @throws Error if the request fails or CMS status is not success
-     */
-    @HandleCmsConfigErrors()
-    async getEnv(userId: string, hostUid: string): Promise<GetEnvClientResponse> {
-        const host = await this.hostService.findHostInternal(userId, hostUid);
-        const url = `https://${host.address}:${host.port}/cm_api`;
-        const body: BaseCmsRequest = {
-            task: 'getenv',
-            token: host.token || '',
-        };
+    const response = await this.cmsClient.postAuthenticated<BaseCmsRequest, GetEnvCmsResponse>(
+      url,
+      body
+    );
 
-        const response = await this.cmsClient.postAuthenticated<BaseCmsRequest, GetEnvCmsResponse>(url, body);
+    checkCmsTokenError(response);
 
-        checkCmsTokenError(response);
-
-        if (response.status === 'success') {
-            const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
-            return dataOnly;
-        }
-
-        checkCmsStatusError(response, `Failed to get environment info: ${response.note || 'Unknown error'}`);
-        throw new Error(`Failed to get environment info: ${response.note || 'Unknown error'}`);
+    if (response.status === 'success') {
+      const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
+      return dataOnly;
     }
 
-    /**
-     * Get database parameters dump from a CMS host.
-     * Returns domain-only data (CMS envelope removed).
-     *
-     * @param userId - User ID from JWT
-     * @param hostUid - Host unique identifier
-     * @param dbname - Database name
-     * @returns ParamdumpClientResponse Database parameters without CMS envelope fields
-     * @throws Error if the request fails or CMS status is not success
-     */
-    @HandleCmsConfigErrors()
-    async getParamDump(
-        userId: string,
-        hostUid: string,
-        dbname: string,
-    ): Promise<ParamdumpClientResponse> {
-        const host = await this.hostService.findHostInternal(userId, hostUid);
-        const url = `https://${host.address}:${host.port}/cm_api`;
-        const request: BaseCmsRequest & { dbname: string; both: 'n' } = {
-            task: 'paramdump',
-            token: host.token || '',
-            both: 'n',
-            dbname: dbname,
-        };
+    checkCmsStatusError(
+      response,
+      `Failed to get environment info: ${response.note || 'Unknown error'}`
+    );
+    throw new Error(`Failed to get environment info: ${response.note || 'Unknown error'}`);
+  }
 
-        const response = await this.cmsClient.postAuthenticated<BaseCmsRequest & { dbname: string; both: 'n' }, ParamdumpCmsResponse>(url, request);
+  /**
+   * Get database parameters dump from a CMS host.
+   * Returns domain-only data (CMS envelope removed).
+   *
+   * @param userId - User ID from JWT
+   * @param hostUid - Host unique identifier
+   * @param dbname - Database name
+   * @returns ParamdumpClientResponse Database parameters without CMS envelope fields
+   * @throws Error if the request fails or CMS status is not success
+   */
+  @HandleCmsConfigErrors()
+  async getParamDump(
+    userId: string,
+    hostUid: string,
+    dbname: string
+  ): Promise<ParamdumpClientResponse> {
+    const host = await this.hostService.findHostInternal(userId, hostUid);
+    const url = `https://${host.address}:${host.port}/cm_api`;
+    const request: BaseCmsRequest & { dbname: string; both: 'n' } = {
+      task: 'paramdump',
+      token: host.token || '',
+      both: 'n',
+      dbname: dbname,
+    };
 
-        checkCmsTokenError(response);
+    const response = await this.cmsClient.postAuthenticated<
+      BaseCmsRequest & { dbname: string; both: 'n' },
+      ParamdumpCmsResponse
+    >(url, request);
 
-        if (response.status === 'success') {
-            const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
-            return dataOnly;
-        }
+    checkCmsTokenError(response);
 
-        checkCmsStatusError(response, `Failed to get paramdump: ${response.note || 'Unknown error'}`);
-        throw new Error(
-            `Failed to get paramdump: ${response.note || 'Unknown error'}`,
-        );
+    if (response.status === 'success') {
+      const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
+      return dataOnly;
     }
 
-    /**
-     * Get database statistics dump from a CMS host.
-     * Returns domain-only data (CMS envelope removed).
-     *
-     * @param userId - User ID from JWT
-     * @param hostUid - Host unique identifier
-     * @param dbname - Database name
-     * @returns StatdumpClientResponse Database statistics without CMS envelope fields
-     * @throws Error if the request fails or CMS status is not success
-     */
-    @HandleCmsConfigErrors()
-    async getStatDump(
-        userId: string,
-        hostUid: string,
-        dbname: string,
-    ): Promise<StatdumpClientResponse> {
-        const host = await this.hostService.findHostInternal(userId, hostUid);
-        const url = `https://${host.address}:${host.port}/cm_api`;
+    checkCmsStatusError(response, `Failed to get paramdump: ${response.note || 'Unknown error'}`);
+    throw new Error(`Failed to get paramdump: ${response.note || 'Unknown error'}`);
+  }
 
-        const request: BaseCmsRequest & { dbname: string } = {
-            task: 'statdump',
-            token: host.token || '',
-            dbname,
-        };
+  /**
+   * Get database statistics dump from a CMS host.
+   * Returns domain-only data (CMS envelope removed).
+   *
+   * @param userId - User ID from JWT
+   * @param hostUid - Host unique identifier
+   * @param dbname - Database name
+   * @returns StatdumpClientResponse Database statistics without CMS envelope fields
+   * @throws Error if the request fails or CMS status is not success
+   */
+  @HandleCmsConfigErrors()
+  async getStatDump(
+    userId: string,
+    hostUid: string,
+    dbname: string
+  ): Promise<StatdumpClientResponse> {
+    const host = await this.hostService.findHostInternal(userId, hostUid);
+    const url = `https://${host.address}:${host.port}/cm_api`;
 
-        const response = await this.cmsClient.postAuthenticated<BaseCmsRequest & { dbname: string }, StatdumpCmsResponse>(url, request);
+    const request: BaseCmsRequest & { dbname: string } = {
+      task: 'statdump',
+      token: host.token || '',
+      dbname,
+    };
 
-        checkCmsTokenError(response);
+    const response = await this.cmsClient.postAuthenticated<
+      BaseCmsRequest & { dbname: string },
+      StatdumpCmsResponse
+    >(url, request);
 
-        if (response.status === 'success') {
-            const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
-            return dataOnly;
-        }
+    checkCmsTokenError(response);
 
-        checkCmsStatusError(response, `Failed to get statdump: ${response.note || 'Unknown error'}`);
-        throw new Error(`Failed to get statdump: ${response.note || 'Unknown error'}`);
+    if (response.status === 'success') {
+      const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
+      return dataOnly;
     }
 
-    /**
-     * Get all system parameters from a configuration file on a CMS host.
-     * Returns domain-only data (CMS envelope removed).
-     *
-     * @param userId - User ID from JWT
-     * @param hostUid - Host unique identifier
-     * @param confname - Configuration file name (e.g., "cubridconf", "broker.conf")
-     * @returns GetAllSysParamClientResponse System parameters without CMS envelope fields
-     * @throws Error if the request fails or CMS status is not success
-     */
-    @HandleCmsConfigErrors()
-    async getAllSystemParam(
-        userId: string,
-        hostUid: string,
-        confname: string,
-    ): Promise<GetAllSysParamClientResponse> {
-        const host = await this.hostService.findHostInternal(userId, hostUid);
-        const url = `https://${host.address}:${host.port}/cm_api`;
-        const request: GetAllSysParamCmsRequest = {
-            task: 'getallsysparam',
-            token: host.token || '',
-            confname: confname,
-        };
+    checkCmsStatusError(response, `Failed to get statdump: ${response.note || 'Unknown error'}`);
+    throw new Error(`Failed to get statdump: ${response.note || 'Unknown error'}`);
+  }
 
-        const response = await this.cmsClient.postAuthenticated<GetAllSysParamCmsRequest, GetAllSysParamCmsResponse>(url, request);
+  /**
+   * Get all system parameters from a configuration file on a CMS host.
+   * Returns domain-only data (CMS envelope removed).
+   *
+   * @param userId - User ID from JWT
+   * @param hostUid - Host unique identifier
+   * @param confname - Configuration file name (e.g., "cubridconf", "broker.conf")
+   * @returns GetAllSysParamClientResponse System parameters without CMS envelope fields
+   * @throws Error if the request fails or CMS status is not success
+   */
+  @HandleCmsConfigErrors()
+  async getAllSystemParam(
+    userId: string,
+    hostUid: string,
+    confname: string
+  ): Promise<GetAllSysParamClientResponse> {
+    const host = await this.hostService.findHostInternal(userId, hostUid);
+    const url = `https://${host.address}:${host.port}/cm_api`;
+    const request: GetAllSysParamCmsRequest = {
+      task: 'getallsysparam',
+      token: host.token || '',
+      confname: confname,
+    };
 
-        checkCmsTokenError(response);
+    const response = await this.cmsClient.postAuthenticated<
+      GetAllSysParamCmsRequest,
+      GetAllSysParamCmsResponse
+    >(url, request);
 
-        if (response.status === 'success') {
-            const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
-            return dataOnly;
-        }
+    checkCmsTokenError(response);
 
-        checkCmsStatusError(response, `Failed to get all system parameters: ${response.note || 'Unknown error'}`);
-        throw ConfigError.GetAllSysParamFailed(confname, { note: response.note });
+    if (response.status === 'success') {
+      const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
+      return dataOnly;
     }
 
-    /**
-     * Set system parameters in a configuration file on a CMS host.
-     * Returns domain-only data (CMS envelope removed).
-     *
-     * @param userId - User ID from JWT
-     * @param hostUid - Host unique identifier
-     * @param confname - Configuration file name (e.g., "cubridconf", "broker.conf")
-     * @param confdata - Configuration data as array of lines
-     * @returns SetSysParamClientResponse Empty object on success (CMS envelope fields removed)
-     * @throws Error if the request fails or CMS status is not success
-     */
-    @HandleCmsConfigErrors()
-    async setSystemParam(
-        userId: string,
-        hostUid: string,
-        confname: string,
-        confdata: string[],
-    ): Promise<SetSysParamClientResponse> {
-        const host = await this.hostService.findHostInternal(userId, hostUid);
-        const url = `https://${host.address}:${host.port}/cm_api`;
-        const request: SetSysParamCmsRequest = {
-            task: 'setsysparam',
-            token: host.token || '',
-            confname: confname,
-            confdata: confdata,
-        };
+    checkCmsStatusError(
+      response,
+      `Failed to get all system parameters: ${response.note || 'Unknown error'}`
+    );
+    throw ConfigError.GetAllSysParamFailed(confname, { note: response.note });
+  }
 
-        const response = await this.cmsClient.postAuthenticated<SetSysParamCmsRequest, BaseCmsResponse>(url, request);
+  /**
+   * Set system parameters in a configuration file on a CMS host.
+   * Returns domain-only data (CMS envelope removed).
+   *
+   * @param userId - User ID from JWT
+   * @param hostUid - Host unique identifier
+   * @param confname - Configuration file name (e.g., "cubridconf", "broker.conf")
+   * @param confdata - Configuration data as array of lines
+   * @returns SetSysParamClientResponse Empty object on success (CMS envelope fields removed)
+   * @throws Error if the request fails or CMS status is not success
+   */
+  @HandleCmsConfigErrors()
+  async setSystemParam(
+    userId: string,
+    hostUid: string,
+    confname: string,
+    confdata: string[]
+  ): Promise<SetSysParamClientResponse> {
+    const host = await this.hostService.findHostInternal(userId, hostUid);
+    const url = `https://${host.address}:${host.port}/cm_api`;
+    const request: SetSysParamCmsRequest = {
+      task: 'setsysparam',
+      token: host.token || '',
+      confname: confname,
+      confdata: confdata,
+    };
 
-        checkCmsTokenError(response);
+    const response = await this.cmsClient.postAuthenticated<SetSysParamCmsRequest, BaseCmsResponse>(
+      url,
+      request
+    );
 
-        if (response.status === 'success') {
-            return {};
-        }
+    checkCmsTokenError(response);
 
-        checkCmsStatusError(response, `Failed to set system parameters: ${response.note || 'Unknown error'}`);
-        throw ConfigError.SetSysParamFailed(confname, { note: response.note });
+    if (response.status === 'success') {
+      return {};
     }
 
-    /**
-     * Add a database name to the server parameter in a configuration file.
-     * Gets current configuration, appends dbname to server parameter, and updates.
-     *
-     * @param userId - User ID from JWT
-     * @param hostUid - Host unique identifier
-     * @param request - Request containing confname and dbname
-     * @returns AddDbnameToServerClientResponse Empty object on success (CMS envelope fields removed)
-     * @throws Error if the request fails, server parameter not found, or dbname already exists
-     */
-    @HandleCmsConfigErrors()
-    async addDbnameToServerParam(
-        userId: string,
-        hostUid: string,
-        request: AddDbnameToServerClientRequest,
-    ): Promise<AddDbnameToServerClientResponse> {
-        // Get current configuration
-        const currentConfig = await this.getAllSystemParam(userId, hostUid, request.confname);
+    checkCmsStatusError(
+      response,
+      `Failed to set system parameters: ${response.note || 'Unknown error'}`
+    );
+    throw ConfigError.SetSysParamFailed(confname, { note: response.note });
+  }
 
-        if (!currentConfig.conflist || currentConfig.conflist.length === 0) {
-            throw ConfigError.NoConflistData(request.confname);
-        }
+  /**
+   * Add a database name to the server parameter in a configuration file.
+   * Gets current configuration, appends dbname to server parameter, and updates.
+   *
+   * @param userId - User ID from JWT
+   * @param hostUid - Host unique identifier
+   * @param request - Request containing confname and dbname
+   * @returns AddDbnameToServerClientResponse Empty object on success (CMS envelope fields removed)
+   * @throws Error if the request fails, server parameter not found, or dbname already exists
+   */
+  @HandleCmsConfigErrors()
+  async addDbnameToServerParam(
+    userId: string,
+    hostUid: string,
+    request: AddDbnameToServerClientRequest
+  ): Promise<AddDbnameToServerClientResponse> {
+    // Get current configuration
+    const currentConfig = await this.getAllSystemParam(userId, hostUid, request.confname);
 
-        const confdata = currentConfig.conflist[0].confdata;
-        if (!confdata || confdata.length === 0) {
-            throw ConfigError.NoConfdata(request.confname);
-        }
-
-        // Find the server parameter line
-        let serverLineIndex = -1;
-        let serverLine = '';
-        for (let i = 0; i < confdata.length; i++) {
-            const line = confdata[i].trim();
-            if (line.startsWith('server=')) {
-                serverLineIndex = i;
-                serverLine = line;
-                break;
-            }
-        }
-
-        if (serverLineIndex === -1) {
-            throw ConfigError.ServerParamNotFound(request.confname);
-        }
-
-        // Parse existing server values
-        const serverValue = serverLine.substring(7); // Remove "server=" prefix
-        const existingDbnames = serverValue
-            ? serverValue.split(',').map(db => db.trim()).filter(db => db.length > 0)
-            : [];
-
-        // Check if dbname already exists
-        if (existingDbnames.includes(request.dbname)) {
-            throw ConfigError.DbnameAlreadyExists(request.confname, request.dbname);
-        }
-
-        // Append new dbname
-        const updatedDbnames = [...existingDbnames, request.dbname];
-        const updatedServerLine = `server=${updatedDbnames.join(',')}`;
-
-        // Update confdata with new server line
-        const updatedConfdata = [...confdata];
-        updatedConfdata[serverLineIndex] = updatedServerLine;
-
-        // Set updated configuration
-        return await this.setSystemParam(userId, hostUid, request.confname, updatedConfdata);
+    if (!currentConfig.conflist || currentConfig.conflist.length === 0) {
+      throw ConfigError.NoConflistData(request.confname);
     }
 
-    /**
-     * Remove a database name from the server parameter in a configuration file.
-     * Gets current configuration, removes dbname from server parameter, and updates.
-     *
-     * @param userId - User ID from JWT
-     * @param hostUid - Host unique identifier
-     * @param request - Request containing confname and dbname
-     * @returns RemoveDbnameFromServerClientResponse Empty object on success (CMS envelope fields removed)
-     * @throws Error if the request fails, server parameter not found, or dbname does not exist
-     */
-    @HandleCmsConfigErrors()
-    async removeDbnameFromServerParam(
-        userId: string,
-        hostUid: string,
-        request: RemoveDbnameFromServerClientRequest,
-    ): Promise<RemoveDbnameFromServerClientResponse> {
-        // Get current configuration
-        const currentConfig = await this.getAllSystemParam(userId, hostUid, request.confname);
-
-        if (!currentConfig.conflist || currentConfig.conflist.length === 0) {
-            throw ConfigError.NoConflistData(request.confname);
-        }
-
-        const confdata = currentConfig.conflist[0].confdata;
-        if (!confdata || confdata.length === 0) {
-            throw ConfigError.NoConfdata(request.confname);
-        }
-
-        // Find the server parameter line
-        let serverLineIndex = -1;
-        let serverLine = '';
-        for (let i = 0; i < confdata.length; i++) {
-            const line = confdata[i].trim();
-            if (line.startsWith('server=')) {
-                serverLineIndex = i;
-                serverLine = line;
-                break;
-            }
-        }
-
-        if (serverLineIndex === -1) {
-            throw ConfigError.ServerParamNotFound(request.confname);
-        }
-
-        // Parse existing server values
-        const serverValue = serverLine.substring(7); // Remove "server=" prefix
-        const existingDbnames = serverValue
-            ? serverValue.split(',').map(db => db.trim()).filter(db => db.length > 0)
-            : [];
-
-        // Check if dbname exists
-        if (!existingDbnames.includes(request.dbname)) {
-            throw ConfigError.DbnameNotFound(request.confname, request.dbname);
-        }
-
-        // Remove dbname
-        const updatedDbnames = existingDbnames.filter(db => db !== request.dbname);
-        const updatedServerLine = updatedDbnames.length > 0
-            ? `server=${updatedDbnames.join(',')}`
-            : 'server=';
-
-        // Update confdata with new server line
-        const updatedConfdata = [...confdata];
-        updatedConfdata[serverLineIndex] = updatedServerLine;
-
-        // Set updated configuration
-        return await this.setSystemParam(userId, hostUid, request.confname, updatedConfdata);
+    const confdata = currentConfig.conflist[0].confdata;
+    if (!confdata || confdata.length === 0) {
+      throw ConfigError.NoConfdata(request.confname);
     }
+
+    // Find the server parameter line
+    let serverLineIndex = -1;
+    let serverLine = '';
+    for (let i = 0; i < confdata.length; i++) {
+      const line = confdata[i].trim();
+      if (line.startsWith('server=')) {
+        serverLineIndex = i;
+        serverLine = line;
+        break;
+      }
+    }
+
+    if (serverLineIndex === -1) {
+      throw ConfigError.ServerParamNotFound(request.confname);
+    }
+
+    // Parse existing server values
+    const serverValue = serverLine.substring(7); // Remove "server=" prefix
+    const existingDbnames = serverValue
+      ? serverValue
+          .split(',')
+          .map((db) => db.trim())
+          .filter((db) => db.length > 0)
+      : [];
+
+    // Check if dbname already exists
+    if (existingDbnames.includes(request.dbname)) {
+      throw ConfigError.DbnameAlreadyExists(request.confname, request.dbname);
+    }
+
+    // Append new dbname
+    const updatedDbnames = [...existingDbnames, request.dbname];
+    const updatedServerLine = `server=${updatedDbnames.join(',')}`;
+
+    // Update confdata with new server line
+    const updatedConfdata = [...confdata];
+    updatedConfdata[serverLineIndex] = updatedServerLine;
+
+    // Set updated configuration
+    return await this.setSystemParam(userId, hostUid, request.confname, updatedConfdata);
+  }
+
+  /**
+   * Remove a database name from the server parameter in a configuration file.
+   * Gets current configuration, removes dbname from server parameter, and updates.
+   *
+   * @param userId - User ID from JWT
+   * @param hostUid - Host unique identifier
+   * @param request - Request containing confname and dbname
+   * @returns RemoveDbnameFromServerClientResponse Empty object on success (CMS envelope fields removed)
+   * @throws Error if the request fails, server parameter not found, or dbname does not exist
+   */
+  @HandleCmsConfigErrors()
+  async removeDbnameFromServerParam(
+    userId: string,
+    hostUid: string,
+    request: RemoveDbnameFromServerClientRequest
+  ): Promise<RemoveDbnameFromServerClientResponse> {
+    // Get current configuration
+    const currentConfig = await this.getAllSystemParam(userId, hostUid, request.confname);
+
+    if (!currentConfig.conflist || currentConfig.conflist.length === 0) {
+      throw ConfigError.NoConflistData(request.confname);
+    }
+
+    const confdata = currentConfig.conflist[0].confdata;
+    if (!confdata || confdata.length === 0) {
+      throw ConfigError.NoConfdata(request.confname);
+    }
+
+    // Find the server parameter line
+    let serverLineIndex = -1;
+    let serverLine = '';
+    for (let i = 0; i < confdata.length; i++) {
+      const line = confdata[i].trim();
+      if (line.startsWith('server=')) {
+        serverLineIndex = i;
+        serverLine = line;
+        break;
+      }
+    }
+
+    if (serverLineIndex === -1) {
+      throw ConfigError.ServerParamNotFound(request.confname);
+    }
+
+    // Parse existing server values
+    const serverValue = serverLine.substring(7); // Remove "server=" prefix
+    const existingDbnames = serverValue
+      ? serverValue
+          .split(',')
+          .map((db) => db.trim())
+          .filter((db) => db.length > 0)
+      : [];
+
+    // Check if dbname exists
+    if (!existingDbnames.includes(request.dbname)) {
+      throw ConfigError.DbnameNotFound(request.confname, request.dbname);
+    }
+
+    // Remove dbname
+    const updatedDbnames = existingDbnames.filter((db) => db !== request.dbname);
+    const updatedServerLine =
+      updatedDbnames.length > 0 ? `server=${updatedDbnames.join(',')}` : 'server=';
+
+    // Update confdata with new server line
+    const updatedConfdata = [...confdata];
+    updatedConfdata[serverLineIndex] = updatedServerLine;
+
+    // Set updated configuration
+    return await this.setSystemParam(userId, hostUid, request.confname, updatedConfdata);
+  }
 }
-

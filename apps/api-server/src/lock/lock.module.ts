@@ -8,7 +8,7 @@ import { LockService } from './lock.service';
  * @since 1.0.0
  */
 @Module({
-    providers: [LockService],
-    exports: [LockService],
+  providers: [LockService],
+  exports: [LockService],
 })
 export class LockModule {}

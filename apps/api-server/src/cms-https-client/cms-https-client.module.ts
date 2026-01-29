@@ -12,9 +12,9 @@ import { SecurityModule } from '@security';
  * @since 1.0.0
  */
 @Module({
-    imports: [HttpModule, HostModule, SecurityModule],
-    exports: [CmsHttpsClientService],
-    providers: [CmsHttpsClientService],
-    controllers: [CmsHttpsClientController],
+  imports: [HttpModule, HostModule, SecurityModule],
+  exports: [CmsHttpsClientService],
+  providers: [CmsHttpsClientService],
+  controllers: [CmsHttpsClientController],
 })
 export class CmsHttpsClientModule {}
