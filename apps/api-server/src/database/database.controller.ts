@@ -1,5 +1,7 @@
 import { Body, Controller, Delete, Get, Logger, Param, Post, Put, Request } from '@nestjs/common';
 import {
+  CreateDatabaseClientRequest,
+  CreateDatabaseClientResponse,
   DatabaseVolumeInfoClientResponse,
   StartInfoClientResponse,
   AddBackupInfoClientRequest,
@@ -16,6 +18,7 @@ import {
   GetAutoExecQueryClientResponse,
   SaveDatabaseProfileRequest,
   UnloadDatabaseRequest,
+  UnloadInfoClientResponse,
 } from '@api-interfaces';
 import { validateRequiredFields } from '@util';
 import { DatabaseService } from './database.service';
@@ -167,6 +170,48 @@ export class DatabaseController {
       body.id,
       body.password
     );
+  }
+
+  /**
+   * Create a new database.
+   * Returns empty object on success.
+   *
+   * @route POST /:hostUid/database/create
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param body Request body containing database creation information
+   * @returns CreateDatabaseClientResponse Empty object on success
+   * @example
+   * // POST /host-uid/database/create
+   * // Body: { "dbname": "testdb", "numpage": "1000", "pagesize": "16384", ... }
+   */
+  @Post('create')
+  async createDatabase(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Body() body: CreateDatabaseClientRequest
+  ): Promise<CreateDatabaseClientResponse> {
+    const userId = req.user.sub;
+
+    validateRequiredFields(
+      body,
+      [
+        'dbname',
+        'numpage',
+        'pagesize',
+        'logsize',
+        'logpagesize',
+        'genvolpath',
+        'logvolpath',
+        'charset',
+        'overwrite_config_file',
+      ],
+      'database/create',
+      this.logger
+    );
+
+    Logger.log(`Creating database: ${body.dbname} on host: ${hostUid}`, 'DatabaseController');
+    return await this.databaseService.createDatabase(userId, hostUid, body);
   }
 
   /**
@@ -421,5 +466,27 @@ export class DatabaseController {
 
     Logger.log(`Unloading database: ${dbname} on host: ${hostUid}`, 'DatabaseController');
     return await this.databaseService.unloadDatabase(userId, hostUid, dbname, body);
+  }
+
+  /**
+   * Get unload information for databases on a host.
+   * Returns domain-only data (CMS envelope removed).
+   *
+   * @route GET /:hostUid/database/unload-info
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @returns UnloadInfoClientResponse Unload information without CMS envelope fields
+   * @example
+   * // GET /host-uid/database/unload-info
+   */
+  @Get('unload-info')
+  async getUnloadInfo(
+    @Request() req,
+    @Param('hostUid') hostUid: string
+  ): Promise<UnloadInfoClientResponse> {
+    const userId = req.user.sub;
+
+    Logger.log(`Getting unload info for host: ${hostUid}`, 'DatabaseController');
+    return await this.databaseService.getUnloadInfo(userId, hostUid);
   }
 }

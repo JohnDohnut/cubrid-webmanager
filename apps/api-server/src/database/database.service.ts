@@ -14,6 +14,7 @@ import {
   SetBackupInfoClientResponse,
   StartInfoClientResponse,
   UnloadDatabaseRequest,
+  UnloadInfoClientResponse,
 } from '@api-interfaces';
 import { GetCreatedbInfoClientResponse } from '@api-interfaces/response/get-createdb-info-client-response';
 import { CmsConfigService } from '@cms-config/cms-config.service';
@@ -44,6 +45,7 @@ import {
   StartDatabaseCmsRequest,
   StopDatabaseCmsRequest,
   UnloadDatabaseCmsRequest,
+  UnloadInfoCmsRequest,
 } from '@type/cms-request';
 import {
   AddBackupInfoCmsResponse,
@@ -56,6 +58,7 @@ import {
   SetBackupInfoCmsResponse,
   StartInfoCmsResponse,
   UnloadDatabaseCmsResponse,
+  UnloadInfoCmsResponse,
 } from '@type/cms-response';
 import { convertExvolArrayToCmsFormat } from '@util';
 
@@ -864,5 +867,42 @@ export class DatabaseService {
     checkCmsStatusError(response);
 
     return response.result;
+  }
+
+  /**
+   * Get unload information for databases on a host.
+   * Returns domain-only data (CMS envelope removed).
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @returns UnloadInfoClientResponse Unload information without CMS envelope fields
+   * @throws DatabaseError If request fails or CMS status is fail
+   */
+  @HandleDatabaseErrors()
+  async getUnloadInfo(
+    userId: string,
+    hostUid: string
+  ): Promise<UnloadInfoClientResponse> {
+    const host = await this.hostService.findHostInternal(userId, hostUid);
+    const url = `https://${host.address}:${host.port}/cm_api`;
+
+    const request: UnloadInfoCmsRequest = {
+      task: 'unloadinfo',
+      token: host.token || '',
+    };
+
+    const response = await this.cmsClient.postAuthenticated<
+      UnloadInfoCmsRequest,
+      UnloadInfoCmsResponse
+    >(url, request);
+
+    checkCmsTokenError(response);
+    checkCmsStatusError(response);
+
+    const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
+
+    return {
+      database: dataOnly.database || [],
+    };
   }
 }
