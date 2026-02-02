@@ -8,6 +8,14 @@ import { DatabaseUserController } from './user/database-user.controller';
 import { DatabaseUserService } from './user/database-user.service';
 import { CmsConfigModule } from '@cms-config/cms-config.module';
 import { FileModule } from '@file/file.module';
+import { DatabaseLifecycleController } from './lifecycle/database-lifecycle.controller';
+import { DatabaseLifecycleService } from './lifecycle/database-lifecycle.service';
+import { DatabaseBackupController } from './backup/database-backup.controller';
+import { DatabaseBackupService } from './backup/database-backup.service';
+import { DatabaseManagementController } from './management/database-management.controller';
+import { DatabaseManagementService } from './management/database-management.service';
+import { DatabaseConfigController } from './config/database-config.controller';
+import { DatabaseConfigService } from './config/database-config.service';
 
 /**
  * Module for managing database functionalities.
@@ -17,8 +25,22 @@ import { FileModule } from '@file/file.module';
  * @since 1.0.0
  */
 @Module({
-  controllers: [DatabaseController, DatabaseUserController],
-  providers: [DatabaseService, DatabaseUserService],
+  controllers: [
+    DatabaseController,
+    DatabaseUserController,
+    DatabaseLifecycleController,
+    DatabaseBackupController,
+    DatabaseManagementController,
+    DatabaseConfigController,
+  ],
+  providers: [
+    DatabaseService,
+    DatabaseUserService,
+    DatabaseLifecycleService,
+    DatabaseBackupService,
+    DatabaseManagementService,
+    DatabaseConfigService,
+  ],
   imports: [HostModule, CmsHttpsClientModule, UserRepositoryModule, CmsConfigModule, FileModule],
 })
 export class DatabaseModule {}
