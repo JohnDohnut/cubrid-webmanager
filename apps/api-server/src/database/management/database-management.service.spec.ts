@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { DatabaseUnloadService } from './database-unload.service';
+import { DatabaseManagementService } from './database-management.service';
 import { HostService } from '@host';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import { DatabaseError } from '@error/database/database-error';
@@ -16,8 +16,8 @@ jest.mock('@common', () => ({
   checkCmsStatusError: jest.fn(),
 }));
 
-describe('DatabaseUnloadService', () => {
-  let service: DatabaseUnloadService;
+describe('DatabaseManagementService', () => {
+  let service: DatabaseManagementService;
   let hostService: jest.Mocked<HostService>;
   let cmsClient: jest.Mocked<CmsHttpsClientService>;
 
@@ -46,7 +46,7 @@ describe('DatabaseUnloadService', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        DatabaseUnloadService,
+        DatabaseManagementService,
         {
           provide: HostService,
           useValue: mockHostService,
@@ -58,7 +58,7 @@ describe('DatabaseUnloadService', () => {
       ],
     }).compile();
 
-    service = module.get<DatabaseUnloadService>(DatabaseUnloadService);
+    service = module.get<DatabaseManagementService>(DatabaseManagementService);
     hostService = module.get(HostService);
     cmsClient = module.get(CmsHttpsClientService);
 

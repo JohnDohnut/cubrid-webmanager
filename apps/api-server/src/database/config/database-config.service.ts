@@ -6,6 +6,8 @@ import {
   SetAutoStartResponse,
   RemoveAutoStartRequest,
   RemoveAutoStartResponse,
+  SetAutoAddVolRequest,
+  SetAutoAddVolResponse,
 } from '@api-interfaces';
 import { CmsConfigService } from '@cms-config/cms-config.service';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
@@ -18,17 +20,22 @@ import { ConfigError } from '@error/config/config-error';
 import { DatabaseError } from '@error/database/database-error';
 import { HostService } from '@host';
 import { Injectable, Logger } from '@nestjs/common';
-import { GetAutoExecQueryCmsRequest, SetAutoExecQueryCmsRequest } from '@type/cms-request';
+import {
+  GetAutoExecQueryCmsRequest,
+  SetAutoExecQueryCmsRequest,
+  SetAutoAddVolCmsRequest,
+} from '@type/cms-request';
 import {
   GetAutoExecQueryCmsResponse,
   SetAutoExecQueryCmsResponse,
+  SetAutoAddVolCmsResponse,
 } from '@type/cms-response';
 import { GetAllSysParamCmsResponse } from '@type/cms-response/get-all-sys-param-cms-response';
 import { parseConfigParams } from '@util';
 
 /**
  * Service for managing database configuration operations.
- * Handles auto-execution query and auto-start configuration.
+ * Handles auto-execution query, auto-start, and auto-add volume configuration.
  *
  * @category Business Services
  * @since 1.0.0
@@ -284,5 +291,49 @@ export class DatabaseConfigService {
       request.confname,
       updatedConfdata
     );
+  }
+
+  /**
+   * Set auto-add volume configuration for a database.
+   * Returns empty object on success (CMS envelope fields removed).
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param dbname Database name
+   * @param request Auto-add volume configuration
+   * @returns SetAutoAddVolResponse Empty object on success
+   * @throws DatabaseError If request fails or CMS status is fail
+   */
+  @HandleDatabaseErrors()
+  async setAutoAddVol(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    request: SetAutoAddVolRequest
+  ): Promise<SetAutoAddVolResponse> {
+    const host = await this.hostService.findHostInternal(userId, hostUid);
+    const url = `https://${host.address}:${host.port}/cm_api`;
+    const cmsRequest: SetAutoAddVolCmsRequest = {
+      task: 'setautoaddvol',
+      token: host.token || '',
+      dbname: dbname,
+      data: request.data,
+      data_warn_outofspace: request.data_warn_outofspace,
+      data_ext_page: request.data_ext_page,
+      index: request.index,
+      index_warn_outofspace: request.index_warn_outofspace,
+      index_ext_page: request.index_ext_page,
+    };
+
+    const response = await this.cmsClient.postAuthenticated<
+      SetAutoAddVolCmsRequest,
+      SetAutoAddVolCmsResponse
+    >(url, cmsRequest);
+
+    checkCmsTokenError(response);
+
+    checkCmsStatusError(response);
+
+    return {};
   }
 }

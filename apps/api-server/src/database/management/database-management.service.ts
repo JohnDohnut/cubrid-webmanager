@@ -16,15 +16,15 @@ import {
 } from '@type/cms-response';
 
 /**
- * Service for managing database unload operations.
- * Handles database unloading and unload information retrieval.
+ * Service for managing database management operations.
+ * Handles database unloading, loading, optimization, checking, and related management tasks.
  *
  * @category Business Services
  * @since 1.0.0
  */
 @Injectable()
-export class DatabaseUnloadService {
-  private readonly logger = new Logger(DatabaseUnloadService.name);
+export class DatabaseManagementService {
+  private readonly logger = new Logger(DatabaseManagementService.name);
 
   constructor(
     private readonly hostService: HostService,

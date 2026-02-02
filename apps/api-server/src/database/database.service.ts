@@ -4,7 +4,7 @@ import { Injectable } from '@nestjs/common';
  * @deprecated This service has been split into specialized services:
  * - DatabaseLifecycleService (lifecycle operations)
  * - DatabaseBackupService (backup operations)
- * - DatabaseUnloadService (unload operations)
+ * - DatabaseManagementService (management operations: unload, load, optimize, check, etc.)
  * - DatabaseConfigService (configuration operations)
  *
  * This file is kept for backward compatibility but should not be used for new code.

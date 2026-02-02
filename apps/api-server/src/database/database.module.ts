@@ -12,8 +12,8 @@ import { DatabaseLifecycleController } from './lifecycle/database-lifecycle.cont
 import { DatabaseLifecycleService } from './lifecycle/database-lifecycle.service';
 import { DatabaseBackupController } from './backup/database-backup.controller';
 import { DatabaseBackupService } from './backup/database-backup.service';
-import { DatabaseUnloadController } from './unload/database-unload.controller';
-import { DatabaseUnloadService } from './unload/database-unload.service';
+import { DatabaseManagementController } from './management/database-management.controller';
+import { DatabaseManagementService } from './management/database-management.service';
 import { DatabaseConfigController } from './config/database-config.controller';
 import { DatabaseConfigService } from './config/database-config.service';
 
@@ -30,7 +30,7 @@ import { DatabaseConfigService } from './config/database-config.service';
     DatabaseUserController,
     DatabaseLifecycleController,
     DatabaseBackupController,
-    DatabaseUnloadController,
+    DatabaseManagementController,
     DatabaseConfigController,
   ],
   providers: [
@@ -38,7 +38,7 @@ import { DatabaseConfigService } from './config/database-config.service';
     DatabaseUserService,
     DatabaseLifecycleService,
     DatabaseBackupService,
-    DatabaseUnloadService,
+    DatabaseManagementService,
     DatabaseConfigService,
   ],
   imports: [HostModule, CmsHttpsClientModule, UserRepositoryModule, CmsConfigModule, FileModule],

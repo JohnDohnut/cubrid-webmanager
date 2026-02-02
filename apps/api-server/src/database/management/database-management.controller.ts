@@ -1,23 +1,23 @@
 import { Body, Controller, Get, Logger, Param, Post, Request } from '@nestjs/common';
 import { UnloadDatabaseRequest, UnloadInfoClientResponse } from '@api-interfaces';
 import { validateRequiredFields } from '@util';
-import { DatabaseUnloadService } from './database-unload.service';
+import { DatabaseManagementService } from './database-management.service';
 
 /**
- * Controller for handling database unload operations.
- * Handles database unloading and unload information retrieval.
+ * Controller for handling database management operations.
+ * Handles database unloading, loading, optimization, checking, and related management tasks.
  *
  * - All endpoints receive `hostUid` as a path parameter
- * - Follows RESTful pattern: /:hostUid/database/unload/:dbname
+ * - Follows RESTful pattern: /:hostUid/database/{action}/:dbname
  *
  * @category Controllers
  * @since 1.0.0
  */
 @Controller(':hostUid/database')
-export class DatabaseUnloadController {
-  private readonly logger = new Logger(DatabaseUnloadController.name);
+export class DatabaseManagementController {
+  private readonly logger = new Logger(DatabaseManagementController.name);
 
-  constructor(private readonly unloadService: DatabaseUnloadService) {}
+  constructor(private readonly managementService: DatabaseManagementService) {}
 
   /**
    * Unload a database.
@@ -49,8 +49,8 @@ export class DatabaseUnloadController {
       this.logger
     );
 
-    Logger.log(`Unloading database: ${dbname} on host: ${hostUid}`, 'DatabaseUnloadController');
-    return await this.unloadService.unloadDatabase(userId, hostUid, dbname, body);
+    Logger.log(`Unloading database: ${dbname} on host: ${hostUid}`, 'DatabaseManagementController');
+    return await this.managementService.unloadDatabase(userId, hostUid, dbname, body);
   }
 
   /**
@@ -71,7 +71,7 @@ export class DatabaseUnloadController {
   ): Promise<UnloadInfoClientResponse> {
     const userId = req.user.sub;
 
-    Logger.log(`Getting unload info for host: ${hostUid}`, 'DatabaseUnloadController');
-    return await this.unloadService.getUnloadInfo(userId, hostUid);
+    Logger.log(`Getting unload info for host: ${hostUid}`, 'DatabaseManagementController');
+    return await this.managementService.getUnloadInfo(userId, hostUid);
   }
 }

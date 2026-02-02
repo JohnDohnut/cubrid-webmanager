@@ -4,7 +4,7 @@ import { Controller } from '@nestjs/common';
  * @deprecated This controller has been split into specialized controllers:
  * - DatabaseLifecycleController (lifecycle operations)
  * - DatabaseBackupController (backup operations)
- * - DatabaseUnloadController (unload operations)
+ * - DatabaseManagementController (management operations: unload, load, optimize, check, etc.)
  * - DatabaseConfigController (configuration operations)
  *
  * This file is kept for backward compatibility but should not be used for new code.

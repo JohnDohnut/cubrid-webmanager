@@ -8,13 +8,15 @@ import {
   SetAutoStartResponse,
   RemoveAutoStartRequest,
   RemoveAutoStartResponse,
+  SetAutoAddVolRequest,
+  SetAutoAddVolResponse,
 } from '@api-interfaces';
 import { validateRequiredFields } from '@util';
 import { DatabaseConfigService } from './database-config.service';
 
 /**
  * Controller for handling database configuration operations.
- * Handles auto-execution query and auto-start configuration.
+ * Handles auto-execution query, auto-start, and auto-add volume configuration.
  *
  * - All endpoints receive `hostUid` as a path parameter
  * - Follows RESTful pattern: /:hostUid/database/{action}/{identifier}
@@ -141,5 +143,49 @@ export class DatabaseConfigController {
       'DatabaseConfigController'
     );
     return await this.configService.removeAutoStart(userId, hostUid, body);
+  }
+
+  /**
+   * Set auto-add volume configuration for a database.
+   * Returns empty object on success.
+   *
+   * @route POST /:hostUid/database/auto-add-vol/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Database name from path parameter
+   * @param body Request body containing auto-add volume configuration
+   * @returns SetAutoAddVolResponse Empty object on success
+   * @example
+   * // POST /host-uid/database/auto-add-vol/testdb
+   * // Body: { "data": "ON", "data_warn_outofspace": "0.15", "data_ext_page": "32768", "index": "ON", "index_warn_outofspace": "0.15", "index_ext_page": "32768" }
+   */
+  @Post('auto-add-vol/:dbname')
+  async setAutoAddVol(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: SetAutoAddVolRequest
+  ): Promise<SetAutoAddVolResponse> {
+    const userId = req.user.sub;
+
+    validateRequiredFields(
+      body,
+      [
+        'data',
+        'data_warn_outofspace',
+        'data_ext_page',
+        'index',
+        'index_warn_outofspace',
+        'index_ext_page',
+      ],
+      'database/auto-add-vol',
+      this.logger
+    );
+
+    Logger.log(
+      `Setting auto-add volume for database: ${dbname} on host: ${hostUid}`,
+      'DatabaseConfigController'
+    );
+    return await this.configService.setAutoAddVol(userId, hostUid, dbname, body);
   }
 }

@@ -10,7 +10,7 @@ import { FileService } from '@file/file.service';
  * @deprecated This test file has been split into specialized test files:
  * - database-lifecycle.service.spec.ts (lifecycle operations)
  * - database-backup.service.spec.ts (backup operations)
- * - database-unload.service.spec.ts (unload operations)
+ * - database-management.service.spec.ts (management operations: unload, load, optimize, check, etc.)
  * - database-config.service.spec.ts (configuration operations)
  *
  * This file is kept for backward compatibility but should not be used for new tests.
@@ -73,5 +73,5 @@ describe('DatabaseService (Deprecated)', () => {
 
   // All tests have been moved to specialized test files
   // See: database-lifecycle.service.spec.ts, database-backup.service.spec.ts,
-  //      database-unload.service.spec.ts, database-config.service.spec.ts
+  //      database-management.service.spec.ts, database-config.service.spec.ts
 });
