@@ -5,12 +5,6 @@ import {
   UnloadDatabaseRequest,
   UnloadInfoClientResponse,
 } from '@api-interfaces';
-<<<<<<< HEAD
-=======
-import { UnloadDatabaseRequest, UnloadInfoClientResponse } from '@api-interfaces';
->>>>>>> 9765502 (Backend/createdb (#13))
-=======
->>>>>>> 73bd3a1 (merge with develop branch)
 import { validateRequiredFields } from '@util';
 import { DatabaseManagementService } from './database-management.service';
 
@@ -85,7 +79,6 @@ export class DatabaseManagementController {
     Logger.log(`Getting unload info for host: ${hostUid}`, 'DatabaseManagementController');
     return await this.managementService.getUnloadInfo(userId, hostUid);
   }
-<<<<<<< HEAD
 
   /**
    * Load a database from schema and object files.
@@ -133,6 +126,4 @@ export class DatabaseManagementController {
     Logger.log(`Loading database: ${dbname} on host: ${hostUid}`, 'DatabaseManagementController');
     return await this.managementService.loadDatabase(userId, hostUid, dbname, body);
   }
-=======
->>>>>>> 9765502 (Backend/createdb (#13))
 }

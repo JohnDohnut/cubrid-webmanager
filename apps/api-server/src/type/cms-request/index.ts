@@ -30,9 +30,5 @@ export * from './set-auto-exec-query-cms-request';
 export * from './get-auto-exec-query-cms-request';
 export * from './unload-database-cms-request';
 export * from './unload-info-cms-request';
-<<<<<<< HEAD
 export * from './update-user-cms-request';
 export * from './load-database-cms-request';
-=======
-export * from './update-user-cms-request';
->>>>>>> 9765502 (Backend/createdb (#13))

@@ -26,9 +26,5 @@ export * from './create-database-cms-response';
 export * from './unload-database-cms-response';
 export * from './unload-info-cms-response';
 export * from './update-user-cms-response';
-<<<<<<< HEAD
 export * from './set-auto-add-vol-cms-response';
 export * from './load-database-cms-response';
-=======
-export * from './set-auto-add-vol-cms-response';
->>>>>>> 9765502 (Backend/createdb (#13))
