@@ -5,8 +5,11 @@ import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.servic
 import { UserRepositoryService } from '@repository';
 import { CmsConfigService } from '@cms-config/cms-config.service';
 import { FileService } from '@file/file.service';
+import { DatabaseUserService } from '../user/database-user.service';
+import { DatabaseConfigService } from '../config/database-config.service';
 import { DatabaseError } from '@error/database/database-error';
 import { HostError } from '@error/index';
+import { CreateDatabaseClientResponse } from '@api-interfaces';
 import * as common from '@common';
 
 // Mock the checkCmsTokenError and checkCmsStatusError functions
@@ -23,6 +26,8 @@ describe('DatabaseLifecycleService', () => {
   let repository: jest.Mocked<UserRepositoryService>;
   let cmsConfigService: jest.Mocked<CmsConfigService>;
   let fileService: jest.Mocked<FileService>;
+  let databaseUserService: jest.Mocked<DatabaseUserService>;
+  let databaseConfigService: jest.Mocked<DatabaseConfigService>;
 
   const mockHost = {
     uid: 'host-uid-1',
@@ -53,6 +58,15 @@ describe('DatabaseLifecycleService', () => {
 
     const mockFileService = {};
 
+    const mockDatabaseUserService = {
+      updateUser: jest.fn(),
+    };
+
+    const mockDatabaseConfigService = {
+      setAutoAddVol: jest.fn(),
+      setAutoStart: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DatabaseLifecycleService,
@@ -76,6 +90,14 @@ describe('DatabaseLifecycleService', () => {
           provide: FileService,
           useValue: mockFileService,
         },
+        {
+          provide: DatabaseUserService,
+          useValue: mockDatabaseUserService,
+        },
+        {
+          provide: DatabaseConfigService,
+          useValue: mockDatabaseConfigService,
+        },
       ],
     }).compile();
 
@@ -85,6 +107,8 @@ describe('DatabaseLifecycleService', () => {
     repository = module.get(UserRepositoryService);
     cmsConfigService = module.get(CmsConfigService);
     fileService = module.get(FileService);
+    databaseUserService = module.get(DatabaseUserService);
+    databaseConfigService = module.get(DatabaseConfigService);
 
     // Setup default mocks
     hostService.findHostInternal.mockResolvedValue(mockHost);
@@ -466,6 +490,289 @@ describe('DatabaseLifecycleService', () => {
         logpagesize: '16384',
         freespace: '1048576',
       });
+    });
+  });
+
+  describe('createDatabase', () => {
+    const mockCreateDbRequest = {
+      dbname: 'testdb',
+      numpage: '1000',
+      pagesize: '16384',
+      logsize: '100',
+      logpagesize: '16384',
+      genvolpath: '/path/to/testdb',
+      logvolpath: '/path/to/testdb',
+      charset: 'ko_KR.utf8',
+      overwrite_config_file: 'YES' as const,
+    };
+
+    const mockCreateDatabaseResponse: CreateDatabaseClientResponse = {};
+
+    beforeEach(() => {
+      jest.spyOn(service, 'createDatabaseInternal').mockResolvedValue(mockCreateDatabaseResponse);
+      databaseUserService.updateUser.mockResolvedValue({});
+      databaseConfigService.setAutoAddVol.mockResolvedValue({});
+      databaseConfigService.setAutoStart.mockResolvedValue({});
+    });
+
+    it('should successfully create database without optional configuration', async () => {
+      const request = {
+        ...mockCreateDbRequest,
+      };
+
+      const result = await service.createDatabase(mockUserId, mockHostUid, request);
+
+      expect(service.createDatabaseInternal).toHaveBeenCalledWith(
+        mockUserId,
+        mockHostUid,
+        mockCreateDbRequest
+      );
+      expect(result).toEqual({
+        createDatabase: {
+          success: true,
+          data: mockCreateDatabaseResponse,
+        },
+      });
+      expect(databaseUserService.updateUser).not.toHaveBeenCalled();
+      expect(databaseConfigService.setAutoAddVol).not.toHaveBeenCalled();
+      expect(databaseConfigService.setAutoStart).not.toHaveBeenCalled();
+    });
+
+    it('should successfully create database with all optional configurations', async () => {
+      const request = {
+        ...mockCreateDbRequest,
+        username: 'dba',
+        updateUser: {
+          userpass: 'newpassword',
+        },
+        setAutoAddVol: {
+          data: 'ON',
+          data_warn_outofspace: '0.15',
+          data_ext_page: '32768',
+          index: 'ON',
+          index_warn_outofspace: '0.15',
+          index_ext_page: '32768',
+        },
+        setAutoStart: true,
+      };
+
+      const result = await service.createDatabase(mockUserId, mockHostUid, request);
+
+      expect(service.createDatabaseInternal).toHaveBeenCalledWith(
+        mockUserId,
+        mockHostUid,
+        mockCreateDbRequest
+      );
+      expect(databaseUserService.updateUser).toHaveBeenCalledWith(
+        mockUserId,
+        mockHostUid,
+        'testdb',
+        'dba',
+        'newpassword',
+        { group: [] },
+        []
+      );
+      expect(databaseConfigService.setAutoAddVol).toHaveBeenCalledWith(
+        mockUserId,
+        mockHostUid,
+        'testdb',
+        request.setAutoAddVol
+      );
+      expect(databaseConfigService.setAutoStart).toHaveBeenCalledWith(mockUserId, mockHostUid, {
+        confname: 'cubridconf',
+        dbname: 'testdb',
+      });
+      expect(result).toEqual({
+        createDatabase: {
+          success: true,
+          data: mockCreateDatabaseResponse,
+        },
+        updateUser: {
+          success: true,
+          data: {},
+        },
+        setAutoAddVol: {
+          success: true,
+          data: {},
+        },
+        setAutoStart: {
+          success: true,
+          data: {},
+        },
+      });
+    });
+
+    it('should use default username "dba" when username is not provided', async () => {
+      const request = {
+        ...mockCreateDbRequest,
+        updateUser: {
+          userpass: 'newpassword',
+        },
+      };
+
+      await service.createDatabase(mockUserId, mockHostUid, request);
+
+      expect(databaseUserService.updateUser).toHaveBeenCalledWith(
+        mockUserId,
+        mockHostUid,
+        'testdb',
+        'dba',
+        'newpassword',
+        { group: [] },
+        []
+      );
+    });
+
+    it('should handle createDatabase failure and continue with other operations', async () => {
+      const createError = new DatabaseError('Create failed', 'CREATE_FAILED');
+      jest.spyOn(service, 'createDatabaseInternal').mockRejectedValue(createError);
+
+      const request = {
+        ...mockCreateDbRequest,
+        updateUser: {
+          userpass: 'newpassword',
+        },
+        setAutoStart: true,
+      };
+
+      const result = await service.createDatabase(mockUserId, mockHostUid, request);
+
+      expect(result.createDatabase).toEqual({
+        success: false,
+        error: {
+          message: 'Create failed',
+          code: 'CREATE_FAILED',
+          details: undefined,
+        },
+      });
+      // Other operations should still be attempted
+      expect(databaseUserService.updateUser).toHaveBeenCalled();
+      expect(databaseConfigService.setAutoStart).toHaveBeenCalled();
+    });
+
+    it('should handle updateUser failure but continue with other operations', async () => {
+      const updateError = new DatabaseError('Update user failed', 'UPDATE_USER_FAILED');
+      databaseUserService.updateUser.mockRejectedValue(updateError);
+
+      const request = {
+        ...mockCreateDbRequest,
+        username: 'dba',
+        updateUser: {
+          userpass: 'newpassword',
+        },
+        setAutoAddVol: {
+          data: 'ON',
+          data_warn_outofspace: '0.15',
+          data_ext_page: '32768',
+          index: 'ON',
+          index_warn_outofspace: '0.15',
+          index_ext_page: '32768',
+        },
+        setAutoStart: true,
+      };
+
+      const result = await service.createDatabase(mockUserId, mockHostUid, request);
+
+      expect(result.createDatabase.success).toBe(true);
+      expect(result.updateUser).toEqual({
+        success: false,
+        error: {
+          message: 'Update user failed',
+          code: 'UPDATE_USER_FAILED',
+          details: undefined,
+        },
+      });
+      // Other operations should still succeed
+      expect(result.setAutoAddVol?.success).toBe(true);
+      expect(result.setAutoStart?.success).toBe(true);
+    });
+
+    it('should handle setAutoAddVol failure but continue with other operations', async () => {
+      const autoAddVolError = new DatabaseError('Set auto-add vol failed', 'SET_AUTO_ADD_VOL_FAILED');
+      databaseConfigService.setAutoAddVol.mockRejectedValue(autoAddVolError);
+
+      const request = {
+        ...mockCreateDbRequest,
+        updateUser: {
+          userpass: 'newpassword',
+        },
+        setAutoAddVol: {
+          data: 'ON',
+          data_warn_outofspace: '0.15',
+          data_ext_page: '32768',
+          index: 'ON',
+          index_warn_outofspace: '0.15',
+          index_ext_page: '32768',
+        },
+        setAutoStart: true,
+      };
+
+      const result = await service.createDatabase(mockUserId, mockHostUid, request);
+
+      expect(result.createDatabase.success).toBe(true);
+      expect(result.updateUser?.success).toBe(true);
+      expect(result.setAutoAddVol).toEqual({
+        success: false,
+        error: {
+          message: 'Set auto-add vol failed',
+          code: 'SET_AUTO_ADD_VOL_FAILED',
+          details: undefined,
+        },
+      });
+      expect(result.setAutoStart?.success).toBe(true);
+    });
+
+    it('should handle setAutoStart failure but other operations succeed', async () => {
+      const autoStartError = new DatabaseError('Set auto-start failed', 'SET_AUTO_START_FAILED');
+      databaseConfigService.setAutoStart.mockRejectedValue(autoStartError);
+
+      const request = {
+        ...mockCreateDbRequest,
+        updateUser: {
+          userpass: 'newpassword',
+        },
+        setAutoStart: true,
+      };
+
+      const result = await service.createDatabase(mockUserId, mockHostUid, request);
+
+      expect(result.createDatabase.success).toBe(true);
+      expect(result.updateUser?.success).toBe(true);
+      expect(result.setAutoStart).toEqual({
+        success: false,
+        error: {
+          message: 'Set auto-start failed',
+          code: 'SET_AUTO_START_FAILED',
+          details: undefined,
+        },
+      });
+    });
+
+    it('should handle multiple failures and return all error statuses', async () => {
+      const createError = new DatabaseError('Create failed', 'CREATE_FAILED');
+      const updateError = new DatabaseError('Update failed', 'UPDATE_FAILED');
+      const autoStartError = new DatabaseError('Auto-start failed', 'AUTO_START_FAILED');
+
+      jest.spyOn(service, 'createDatabaseInternal').mockRejectedValue(createError);
+      databaseUserService.updateUser.mockRejectedValue(updateError);
+      databaseConfigService.setAutoStart.mockRejectedValue(autoStartError);
+
+      const request = {
+        ...mockCreateDbRequest,
+        updateUser: {
+          userpass: 'newpassword',
+        },
+        setAutoStart: true,
+      };
+
+      const result = await service.createDatabase(mockUserId, mockHostUid, request);
+
+      expect(result.createDatabase.success).toBe(false);
+      expect(result.updateUser?.success).toBe(false);
+      expect(result.setAutoStart?.success).toBe(false);
+      expect(result.createDatabase.error?.message).toBe('Create failed');
+      expect(result.updateUser?.error?.message).toBe('Update failed');
+      expect(result.setAutoStart?.error?.message).toBe('Auto-start failed');
     });
   });
 });
