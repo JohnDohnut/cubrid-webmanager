@@ -521,14 +521,17 @@ export class DatabaseLifecycleService {
     // 2. Update user if requested
     if (updateUser) {
       try {
+        // Use top-level dbname and username (default to "dba" if not provided)
+        const username = request.username || 'dba';
+        // For createDatabase, we only update password, so use empty groups and authorization
         const updateUserResult = await this.databaseUserService.updateUser(
           userId,
           hostUid,
-          updateUser.dbname,
-          updateUser.username,
+          createDbRequest.dbname,
+          username,
           updateUser.userpass,
-          updateUser.groups,
-          updateUser.authorization
+          { group: [] },
+          []
         );
         response.updateUser = {
           success: true,
@@ -576,11 +579,11 @@ export class DatabaseLifecycleService {
     // 4. Set auto-start if requested
     if (setAutoStart) {
       try {
-        const setAutoStartResult = await this.databaseConfigService.setAutoStart(
-          userId,
-          hostUid,
-          setAutoStart
-        );
+        // Use top-level dbname and automatically use "cubridconf" as confname
+        const setAutoStartResult = await this.databaseConfigService.setAutoStart(userId, hostUid, {
+          confname: 'cubridconf',
+          dbname: createDbRequest.dbname,
+        });
         response.setAutoStart = {
           success: true,
           data: setAutoStartResult,
