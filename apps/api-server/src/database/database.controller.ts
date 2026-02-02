@@ -19,6 +19,10 @@ import {
   SaveDatabaseProfileRequest,
   UnloadDatabaseRequest,
   UnloadInfoClientResponse,
+  SetAutoStartRequest,
+  SetAutoStartResponse,
+  RemoveAutoStartRequest,
+  RemoveAutoStartResponse,
 } from '@api-interfaces';
 import { validateRequiredFields } from '@util';
 import { DatabaseService } from './database.service';
@@ -488,5 +492,61 @@ export class DatabaseController {
 
     Logger.log(`Getting unload info for host: ${hostUid}`, 'DatabaseController');
     return await this.databaseService.getUnloadInfo(userId, hostUid);
+  }
+
+  /**
+   * Enable auto-start for a database.
+   * Adds database name to the server parameter in configuration file.
+   *
+   * @route POST /:hostUid/database/auto-start
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param body Request body containing confname and dbname
+   * @returns SetAutoStartResponse Empty object on success
+   * @example
+   * // POST /host-uid/database/auto-start
+   * // Body: { "confname": "cubridconf", "dbname": "testdb" }
+   */
+  @Post('auto-start')
+  async setAutoStart(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Body() body: SetAutoStartRequest
+  ): Promise<SetAutoStartResponse> {
+    const userId = req.user.sub;
+
+    Logger.log(
+      `Enabling auto-start for database: ${body.dbname} on host: ${hostUid}`,
+      'DatabaseController'
+    );
+    return await this.databaseService.setAutoStart(userId, hostUid, body);
+  }
+
+  /**
+   * Disable auto-start for a database.
+   * Removes database name from the server parameter in configuration file.
+   *
+   * @route DELETE /:hostUid/database/auto-start
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param body Request body containing confname and dbname
+   * @returns RemoveAutoStartResponse Empty object on success
+   * @example
+   * // DELETE /host-uid/database/auto-start
+   * // Body: { "confname": "cubridconf", "dbname": "testdb" }
+   */
+  @Delete('auto-start')
+  async removeAutoStart(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Body() body: RemoveAutoStartRequest
+  ): Promise<RemoveAutoStartResponse> {
+    const userId = req.user.sub;
+
+    Logger.log(
+      `Disabling auto-start for database: ${body.dbname} on host: ${hostUid}`,
+      'DatabaseController'
+    );
+    return await this.databaseService.removeAutoStart(userId, hostUid, body);
   }
 }

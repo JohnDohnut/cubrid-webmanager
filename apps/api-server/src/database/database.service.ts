@@ -15,6 +15,10 @@ import {
   StartInfoClientResponse,
   UnloadDatabaseRequest,
   UnloadInfoClientResponse,
+  SetAutoStartRequest,
+  SetAutoStartResponse,
+  RemoveAutoStartRequest,
+  RemoveAutoStartResponse,
 } from '@api-interfaces';
 import { GetCreatedbInfoClientResponse } from '@api-interfaces/response/get-createdb-info-client-response';
 import { CmsConfigService } from '@cms-config/cms-config.service';
@@ -60,7 +64,9 @@ import {
   UnloadDatabaseCmsResponse,
   UnloadInfoCmsResponse,
 } from '@type/cms-response';
-import { convertExvolArrayToCmsFormat } from '@util';
+import { convertExvolArrayToCmsFormat, parseConfigParams } from '@util';
+import { GetAllSysParamCmsResponse } from '@type/cms-response/get-all-sys-param-cms-response';
+import { ConfigError } from '@error/config/config-error';
 
 /**
  * Service for managing database operations.
@@ -904,5 +910,148 @@ export class DatabaseService {
     return {
       database: dataOnly.database || [],
     };
+  }
+
+  /**
+   * Enable auto-start for a database.
+   * Adds database name to the server parameter in configuration file.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param request Request containing confname and dbname
+   * @returns SetAutoStartResponse Empty object on success
+   * @throws DatabaseError If request fails, server parameter not found, or dbname already exists
+   */
+  @HandleDatabaseErrors()
+  async setAutoStart(
+    userId: string,
+    hostUid: string,
+    request: SetAutoStartRequest
+  ): Promise<SetAutoStartResponse> {
+    // Get current configuration
+    const currentConfig = await this.cmsConfigService.getAllSystemParam(
+      userId,
+      hostUid,
+      request.confname
+    );
+
+    if (!currentConfig.conflist || currentConfig.conflist.length === 0) {
+      throw ConfigError.NoConflistData(request.confname);
+    }
+
+    const confdata = currentConfig.conflist[0].confdata;
+    if (!confdata || confdata.length === 0) {
+      throw ConfigError.NoConfdata(request.confname);
+    }
+
+    // Find the server parameter using utility function
+    // Type assertion is safe because parseConfigParams only uses conflist property
+    const params = parseConfigParams(currentConfig as GetAllSysParamCmsResponse);
+    const serverParam = params.find((param) => param.key === 'server');
+
+    if (!serverParam) {
+      throw ConfigError.ServerParamNotFound(request.confname);
+    }
+
+    // Parse existing server values
+    const existingDbnames = serverParam.value
+      ? serverParam.value
+          .split(',')
+          .map((db) => db.trim())
+          .filter((db) => db.length > 0)
+      : [];
+
+    // Check if dbname already exists
+    if (existingDbnames.includes(request.dbname)) {
+      throw ConfigError.DbnameAlreadyExists(request.confname, request.dbname);
+    }
+
+    // Append new dbname
+    const updatedDbnames = [...existingDbnames, request.dbname];
+    const updatedServerLine = `server=${updatedDbnames.join(',')}`;
+
+    // Update confdata with new server line (lineNumber is 1-based, convert to 0-based index)
+    const updatedConfdata = [...confdata];
+    updatedConfdata[serverParam.lineNumber - 1] = updatedServerLine;
+
+    // Set updated configuration
+    return await this.cmsConfigService.setSystemParam(
+      userId,
+      hostUid,
+      request.confname,
+      updatedConfdata
+    );
+  }
+
+  /**
+   * Disable auto-start for a database.
+   * Removes database name from the server parameter in configuration file.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param request Request containing confname and dbname
+   * @returns RemoveAutoStartResponse Empty object on success
+   * @throws DatabaseError If request fails, server parameter not found, or dbname does not exist
+   */
+  @HandleDatabaseErrors()
+  async removeAutoStart(
+    userId: string,
+    hostUid: string,
+    request: RemoveAutoStartRequest
+  ): Promise<RemoveAutoStartResponse> {
+    // Get current configuration
+    const currentConfig = await this.cmsConfigService.getAllSystemParam(
+      userId,
+      hostUid,
+      request.confname
+    );
+
+    if (!currentConfig.conflist || currentConfig.conflist.length === 0) {
+      throw ConfigError.NoConflistData(request.confname);
+    }
+
+    const confdata = currentConfig.conflist[0].confdata;
+    if (!confdata || confdata.length === 0) {
+      throw ConfigError.NoConfdata(request.confname);
+    }
+
+    // Find the server parameter using utility function
+    // Type assertion is safe because parseConfigParams only uses conflist property
+    const params = parseConfigParams(currentConfig as GetAllSysParamCmsResponse);
+    const serverParam = params.find((param) => param.key === 'server');
+
+    if (!serverParam) {
+      throw ConfigError.ServerParamNotFound(request.confname);
+    }
+
+    // Parse existing server values
+    const existingDbnames = serverParam.value
+      ? serverParam.value
+          .split(',')
+          .map((db) => db.trim())
+          .filter((db) => db.length > 0)
+      : [];
+
+    // Check if dbname exists
+    if (!existingDbnames.includes(request.dbname)) {
+      throw ConfigError.DbnameNotFound(request.confname, request.dbname);
+    }
+
+    // Remove dbname
+    const updatedDbnames = existingDbnames.filter((db) => db !== request.dbname);
+    const updatedServerLine =
+      updatedDbnames.length > 0 ? `server=${updatedDbnames.join(',')}` : 'server=';
+
+    // Update confdata with updated server line (lineNumber is 1-based, convert to 0-based index)
+    const updatedConfdata = [...confdata];
+    updatedConfdata[serverParam.lineNumber - 1] = updatedServerLine;
+
+    // Set updated configuration
+    return await this.cmsConfigService.setSystemParam(
+      userId,
+      hostUid,
+      request.confname,
+      updatedConfdata
+    );
   }
 }
