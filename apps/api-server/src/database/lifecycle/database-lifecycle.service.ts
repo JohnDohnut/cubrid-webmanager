@@ -1,6 +1,8 @@
 import {
   CreateDatabaseClientRequest,
   CreateDatabaseClientResponse,
+  CreateDatabaseWithConfigRequest,
+  CreateDatabaseWithConfigResponse,
   DatabaseVolumeInfoClientResponse,
   StartInfoClientResponse,
 } from '@api-interfaces';
@@ -20,6 +22,8 @@ import { HostService } from '@host';
 import { Injectable, Logger } from '@nestjs/common';
 import { UserRepositoryService } from '@repository';
 import { BaseCmsRequest, BaseCmsResponse } from '@type';
+import { DatabaseUserService } from '../user/database-user.service';
+import { DatabaseConfigService } from '../config/database-config.service';
 import {
   CreateDatabaseCmsRequest,
   DbSpaceInfoCmsRequest,
@@ -49,7 +53,9 @@ export class DatabaseLifecycleService {
     private readonly cmsClient: CmsHttpsClientService,
     private readonly repository: UserRepositoryService,
     private readonly cmsConfigService: CmsConfigService,
-    private readonly fileService: FileService
+    private readonly fileService: FileService,
+    private readonly databaseUserService: DatabaseUserService,
+    private readonly databaseConfigService: DatabaseConfigService
   ) {}
 
   /**
@@ -390,9 +396,10 @@ export class DatabaseLifecycleService {
   }
 
   /**
-   * Create a new database.
+   * Create a new database (internal use).
    * Returns empty object on success.
    *
+   * @internal
    * @param userId User ID from JWT
    * @param hostUid Host UID
    * @param request Client request containing database creation information
@@ -400,7 +407,7 @@ export class DatabaseLifecycleService {
    * @throws DatabaseError If request fails
    */
   @HandleDatabaseErrors()
-  async createDatabase(
+  async createDatabaseInternal(
     userId: string,
     hostUid: string,
     request: CreateDatabaseClientRequest
@@ -464,5 +471,133 @@ export class DatabaseLifecycleService {
     checkCmsStatusError(response);
 
     return {};
+  }
+
+  /**
+   * Create a new database with optional configuration.
+   * Executes database creation, user update, auto-add volume, and auto-start in sequence.
+   * Returns results from all executed operations with success/error status.
+   * Operations continue even if previous ones fail, allowing partial success.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param request Client request containing database creation and configuration information
+   * @returns CreateDatabaseWithConfigResponse Results from all executed operations with success/error status
+   */
+  async createDatabase(
+    userId: string,
+    hostUid: string,
+    request: CreateDatabaseWithConfigRequest
+  ): Promise<CreateDatabaseWithConfigResponse> {
+    const { updateUser, setAutoAddVol, setAutoStart, ...createDbRequest } = request;
+
+    const response: CreateDatabaseWithConfigResponse = {
+      createDatabase: { success: false },
+    };
+
+    // 1. Create database
+    try {
+      const createDatabaseResult = await this.createDatabaseInternal(
+        userId,
+        hostUid,
+        createDbRequest
+      );
+      response.createDatabase = {
+        success: true,
+        data: createDatabaseResult,
+      };
+    } catch (error: any) {
+      this.logger.error(`Failed to create database: ${error.message}`, error.stack);
+      response.createDatabase = {
+        success: false,
+        error: {
+          message: error.message || 'Failed to create database',
+          code: error.code || error.name,
+          details: error.details,
+        },
+      };
+    }
+
+    // 2. Update user if requested
+    if (updateUser) {
+      try {
+        const updateUserResult = await this.databaseUserService.updateUser(
+          userId,
+          hostUid,
+          updateUser.dbname,
+          updateUser.username,
+          updateUser.userpass,
+          updateUser.groups,
+          updateUser.authorization
+        );
+        response.updateUser = {
+          success: true,
+          data: updateUserResult,
+        };
+      } catch (error: any) {
+        this.logger.error(`Failed to update user: ${error.message}`, error.stack);
+        response.updateUser = {
+          success: false,
+          error: {
+            message: error.message || 'Failed to update user',
+            code: error.code || error.name,
+            details: error.details,
+          },
+        };
+      }
+    }
+
+    // 3. Set auto-add volume if requested
+    if (setAutoAddVol) {
+      try {
+        const setAutoAddVolResult = await this.databaseConfigService.setAutoAddVol(
+          userId,
+          hostUid,
+          createDbRequest.dbname,
+          setAutoAddVol
+        );
+        response.setAutoAddVol = {
+          success: true,
+          data: setAutoAddVolResult,
+        };
+      } catch (error: any) {
+        this.logger.error(`Failed to set auto-add volume: ${error.message}`, error.stack);
+        response.setAutoAddVol = {
+          success: false,
+          error: {
+            message: error.message || 'Failed to set auto-add volume',
+            code: error.code || error.name,
+            details: error.details,
+          },
+        };
+      }
+    }
+
+    // 4. Set auto-start if requested
+    if (setAutoStart) {
+      try {
+        const setAutoStartResult = await this.databaseConfigService.setAutoStart(
+          userId,
+          hostUid,
+          setAutoStart
+        );
+        response.setAutoStart = {
+          success: true,
+          data: setAutoStartResult,
+        };
+      } catch (error: any) {
+        this.logger.error(`Failed to set auto-start: ${error.message}`, error.stack);
+        response.setAutoStart = {
+          success: false,
+          error: {
+            message: error.message || 'Failed to set auto-start',
+            code: error.code || error.name,
+            details: error.details,
+          },
+        };
+      }
+    }
+
+    return response;
   }
 }

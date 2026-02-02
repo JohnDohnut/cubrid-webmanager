@@ -2,6 +2,8 @@ import { Body, Controller, Get, Logger, Param, Post, Request } from '@nestjs/com
 import {
   CreateDatabaseClientRequest,
   CreateDatabaseClientResponse,
+  CreateDatabaseWithConfigRequest,
+  CreateDatabaseWithConfigResponse,
   DatabaseVolumeInfoClientResponse,
   StartInfoClientResponse,
   SaveDatabaseProfileRequest,
@@ -158,24 +160,30 @@ export class DatabaseLifecycleController {
   }
 
   /**
-   * Create a new database.
-   * Returns empty object on success.
+   * Create a new database with optional configuration.
+   * Executes database creation, user update, auto-add volume, and auto-start in sequence.
+   * Returns results from all executed operations.
    *
    * @route POST /:hostUid/database/create
    * @param req Express request (contains authenticated user)
    * @param hostUid Host unique identifier from path parameter
-   * @param body Request body containing database creation information
-   * @returns CreateDatabaseClientResponse Empty object on success
+   * @param body Request body containing database creation and configuration information
+   * @returns CreateDatabaseWithConfigResponse Results from all executed operations
    * @example
    * // POST /host-uid/database/create
-   * // Body: { "dbname": "testdb", "numpage": "1000", "pagesize": "16384", ... }
+   * // Body: {
+   * //   "dbname": "testdb", "numpage": "1000", "pagesize": "16384", ...,
+   * //   "updateUser": { "dbname": "testdb", "username": "user", ... },
+   * //   "setAutoAddVol": { "data": "ON", ... },
+   * //   "setAutoStart": { "confname": "cubridconf", "dbname": "testdb" }
+   * // }
    */
   @Post('create')
   async createDatabase(
     @Request() req,
     @Param('hostUid') hostUid: string,
-    @Body() body: CreateDatabaseClientRequest
-  ): Promise<CreateDatabaseClientResponse> {
+    @Body() body: CreateDatabaseWithConfigRequest
+  ): Promise<CreateDatabaseWithConfigResponse> {
     const userId = req.user.sub;
 
     validateRequiredFields(

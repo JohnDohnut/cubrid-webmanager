@@ -35,3 +35,4 @@ export * from './remove-auto-start-request';
 export * from './unload-db-request';
 export * from './update-db-user-request';
 export * from './set-auto-add-vol-request';
+export * from './create-database-with-config-request';
