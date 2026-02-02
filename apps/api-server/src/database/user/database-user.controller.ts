@@ -1,6 +1,10 @@
-import { Body, Controller, Get, Logger, Param, Post, Request } from '@nestjs/common';
+import { Body, Controller, Get, Logger, Param, Post, Put, Request } from '@nestjs/common';
 import { DatabaseUserService } from './database-user.service';
-import { DatabaseLoginClientRequest } from '@api-interfaces';
+import {
+  DatabaseLoginClientRequest,
+  UpdateDbUserRequest,
+  UpdateDbUserResponse,
+} from '@api-interfaces';
 import { ValidationError } from '@error/validation/validation-error';
 import { validateRequiredFields } from '@util';
 
@@ -70,5 +74,52 @@ export class DatabaseUserController {
       body.password
     );
     return result;
+  }
+
+  /**
+   * Update a database user.
+   * Returns empty object on success.
+   *
+   * @route PUT /:hostUid/database/users/:dbname/:username
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Database name from path parameter
+   * @param username Username to update from path parameter
+   * @param body Request body containing user information
+   * @returns UpdateDbUserResponse Empty object on success
+   * @example
+   * // PUT /host-uid/database/users/demodb/yifan
+   * // Body: { "userpass": "1111", "groups": { "group": ["public"] }, "authorization": [] }
+   */
+  @Put(':dbname/:username')
+  async updateUser(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Param('username') username: string,
+    @Body() body: Omit<UpdateDbUserRequest, 'dbname' | 'username'>
+  ): Promise<UpdateDbUserResponse> {
+    const userId = req.user.sub;
+
+    validateRequiredFields(
+      body,
+      ['userpass', 'groups', 'authorization'],
+      'database/users/update',
+      this.logger
+    );
+
+    Logger.log(
+      `Updating user: ${username} in database: ${dbname} on host: ${hostUid}`,
+      'DatabaseUserController'
+    );
+    return await this.databaseUserService.updateUser(
+      userId,
+      hostUid,
+      dbname,
+      username,
+      body.userpass,
+      body.groups,
+      body.authorization
+    );
   }
 }

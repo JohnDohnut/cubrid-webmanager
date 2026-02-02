@@ -11,7 +11,9 @@ import { UserRepositoryService } from '@repository';
 import { DBAuthResolver } from '@util/db-auth-resolver';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import { BaseCmsResponse } from '@type';
-import { LoginDBCmsRequest } from '@type/cms-request';
+import { LoginDBCmsRequest, UpdateUserCmsRequest } from '@type/cms-request';
+import { UpdateUserCmsResponse } from '@type/cms-response';
+import { checkCmsStatusError } from '@common';
 
 /**
  * Service for managing database users.
@@ -83,5 +85,55 @@ export class DatabaseUserService {
     }
 
     throw DatabaseError.LoginDatabaseFailed({ response, dbname });
+  }
+
+  /**
+   * Update a database user.
+   * Returns empty object on success.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param dbname Database name
+   * @param username Username to update
+   * @param userpass User password
+   * @param groups Groups object containing group array
+   * @param authorization Authorization array
+   * @returns Empty object on success
+   * @throws DatabaseError If CMS status is fail
+   */
+  @HandleHostErrors()
+  @HandleCmsHttpsClientErrors()
+  @HandleDatabaseErrors()
+  async updateUser(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    username: string,
+    userpass: string,
+    groups: { group: string[] },
+    authorization: string[]
+  ): Promise<{}> {
+    const host = await this.hostService.findHostInternal(userId, hostUid);
+    const url = `https://${host.address}:${host.port}/cm_api`;
+
+    const data: UpdateUserCmsRequest = {
+      task: 'updateuser',
+      token: host.token || '',
+      dbname,
+      username,
+      userpass,
+      groups,
+      authorization,
+    };
+
+    const response = await this.cmsClient.postAuthenticated<
+      UpdateUserCmsRequest,
+      UpdateUserCmsResponse
+    >(url, data);
+
+    checkCmsTokenError(response);
+    checkCmsStatusError(response);
+
+    return {};
   }
 }
