@@ -2,6 +2,8 @@ import { Body, Controller, Get, Logger, Param, Post, Request } from '@nestjs/com
 import {
   LoadDatabaseRequest,
   LoadDatabaseResponse,
+  OptimizeDatabaseRequest,
+  OptimizeDatabaseResponse,
   UnloadDatabaseRequest,
   UnloadInfoClientResponse,
 } from '@api-interfaces';
@@ -125,5 +127,32 @@ export class DatabaseManagementController {
 
     Logger.log(`Loading database: ${dbname} on host: ${hostUid}`, 'DatabaseManagementController');
     return await this.managementService.loadDatabase(userId, hostUid, dbname, body);
+  }
+
+  /**
+   * Optimize a database.
+   * Returns empty object on success.
+   *
+   * @route POST /:hostUid/database/optimize/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Database name from path parameter
+   * @param body Request body containing optional class information
+   * @returns OptimizeDatabaseResponse Empty object on success
+   * @example
+   * // POST /host-uid/database/optimize/empty
+   * // Body: { "class": [{ "classname": "dba.test4" }] } (optional - if not provided, optimizes entire database)
+   */
+  @Post('optimize/:dbname')
+  async optimizeDatabase(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: OptimizeDatabaseRequest
+  ): Promise<OptimizeDatabaseResponse> {
+    const userId = req.user.sub;
+
+    Logger.log(`Optimizing database: ${dbname} on host: ${hostUid}`, 'DatabaseManagementController');
+    return await this.managementService.optimizeDatabase(userId, hostUid, dbname, body);
   }
 }
