@@ -1,6 +1,8 @@
 import {
   LoadDatabaseRequest,
   LoadDatabaseResponse,
+  OptimizeDatabaseRequest,
+  OptimizeDatabaseResponse,
   UnloadDatabaseRequest,
   UnloadInfoClientResponse,
 } from '@api-interfaces';
@@ -17,11 +19,13 @@ import { HostService } from '@host';
 import { Injectable, Logger } from '@nestjs/common';
 import {
   LoadDatabaseCmsRequest,
+  OptimizeDatabaseCmsRequest,
   UnloadDatabaseCmsRequest,
   UnloadInfoCmsRequest,
 } from '@type/cms-request';
 import {
   LoadDatabaseCmsResponse,
+  OptimizeDatabaseCmsResponse,
   UnloadDatabaseCmsResponse,
   UnloadInfoCmsResponse,
 } from '@type/cms-response';
@@ -226,6 +230,48 @@ export class DatabaseManagementService {
       }
       throw error;
     }
+
+    // Success: return empty object
+    return {};
+  }
+
+  /**
+   * Optimize a database.
+   * Returns empty object on success.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param dbname Database name
+   * @param request Client request containing optional class information
+   * @returns OptimizeDatabaseResponse Empty object on success
+   * @throws DatabaseError If request fails or CMS status is fail
+   */
+  @HandleDatabaseErrors()
+  @HandleCmsStatusErrors()
+  async optimizeDatabase(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    request: OptimizeDatabaseRequest
+  ): Promise<OptimizeDatabaseResponse> {
+    const host = await this.hostService.findHostInternal(userId, hostUid);
+    const url = `https://${host.address}:${host.port}/cm_api`;
+
+    // Build CMS request from client request
+    const cmsRequest: OptimizeDatabaseCmsRequest = {
+      task: 'optimizedb',
+      token: host.token || '',
+      dbname: dbname,
+      ...(request.class && { class: request.class }),
+    };
+
+    const response = await this.cmsClient.postAuthenticated<
+      OptimizeDatabaseCmsRequest,
+      OptimizeDatabaseCmsResponse
+    >(url, cmsRequest);
+
+    checkCmsTokenError(response);
+    checkCmsStatusError(response);
 
     // Success: return empty object
     return {};
