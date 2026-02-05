@@ -28,3 +28,4 @@ export * from './unload-info-cms-response';
 export * from './update-user-cms-response';
 export * from './set-auto-add-vol-cms-response';
 export * from './load-database-cms-response';
+export * from './optimize-database-cms-response';
