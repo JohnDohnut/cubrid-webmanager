@@ -1,5 +1,10 @@
 import { Body, Controller, Get, Logger, Param, Post, Request } from '@nestjs/common';
-import { UnloadDatabaseRequest, UnloadInfoClientResponse } from '@api-interfaces';
+import {
+  LoadDatabaseRequest,
+  LoadDatabaseResponse,
+  UnloadDatabaseRequest,
+  UnloadInfoClientResponse,
+} from '@api-interfaces';
 import { validateRequiredFields } from '@util';
 import { DatabaseManagementService } from './database-management.service';
 
@@ -73,5 +78,52 @@ export class DatabaseManagementController {
 
     Logger.log(`Getting unload info for host: ${hostUid}`, 'DatabaseManagementController');
     return await this.managementService.getUnloadInfo(userId, hostUid);
+  }
+
+  /**
+   * Load a database from schema and object files.
+   * Returns domain-only data (CMS envelope removed).
+   *
+   * @route POST /:hostUid/database/load/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Database name from path parameter
+   * @param body Request body containing load configuration
+   * @returns LoadDatabaseResponse Load process log lines
+   * @example
+   * // POST /host-uid/database/load/empty
+   * // Body: { "checkoption": "both", "period": "none", "user": "dba", "estimated": "none", "oiduse": "yes", "statisticsuse": "yes", "nolog": "no", "schema": "/path/to/schema", "object": "/path/to/object", "index": "none", "errorcontrolfile": "none", "ignoreclassfile": "none" }
+   */
+  @Post('load/:dbname')
+  async loadDatabase(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: LoadDatabaseRequest
+  ): Promise<LoadDatabaseResponse> {
+    const userId = req.user.sub;
+
+    validateRequiredFields(
+      body,
+      [
+        'checkoption',
+        'period',
+        'user',
+        'estimated',
+        'oiduse',
+        'statisticsuse',
+        'nolog',
+        'schema',
+        'object',
+        'index',
+        'errorcontrolfile',
+        'ignoreclassfile',
+      ],
+      'database/load',
+      this.logger
+    );
+
+    Logger.log(`Loading database: ${dbname} on host: ${hostUid}`, 'DatabaseManagementController');
+    return await this.managementService.loadDatabase(userId, hostUid, dbname, body);
   }
 }

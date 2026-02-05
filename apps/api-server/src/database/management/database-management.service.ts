@@ -1,4 +1,9 @@
-import { UnloadDatabaseRequest, UnloadInfoClientResponse } from '@api-interfaces';
+import {
+  LoadDatabaseRequest,
+  LoadDatabaseResponse,
+  UnloadDatabaseRequest,
+  UnloadInfoClientResponse,
+} from '@api-interfaces';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import {
   checkCmsStatusError,
@@ -6,11 +11,17 @@ import {
   HandleCmsStatusErrors,
   HandleDatabaseErrors,
 } from '@common';
+import { CmsError } from '@error/cms/cms-error';
 import { DatabaseError } from '@error/database/database-error';
 import { HostService } from '@host';
 import { Injectable, Logger } from '@nestjs/common';
-import { UnloadDatabaseCmsRequest, UnloadInfoCmsRequest } from '@type/cms-request';
 import {
+  LoadDatabaseCmsRequest,
+  UnloadDatabaseCmsRequest,
+  UnloadInfoCmsRequest,
+} from '@type/cms-request';
+import {
+  LoadDatabaseCmsResponse,
   UnloadDatabaseCmsResponse,
   UnloadInfoCmsResponse,
 } from '@type/cms-response';
@@ -142,5 +153,81 @@ export class DatabaseManagementService {
     return {
       database: dataOnly.database || [],
     };
+  }
+
+  /**
+   * Load a database from schema and object files.
+   * Returns empty object on success.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param dbname Database name
+   * @param request Client request containing load configuration
+   * @returns LoadDatabaseResponse Empty object on success
+   * @throws DatabaseError If request fails or CMS status is fail
+   */
+  @HandleDatabaseErrors()
+  @HandleCmsStatusErrors()
+  async loadDatabase(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    request: LoadDatabaseRequest
+  ): Promise<LoadDatabaseResponse> {
+    const host = await this.hostService.findHostInternal(userId, hostUid);
+    const url = `https://${host.address}:${host.port}/cm_api`;
+
+    // Build CMS request from client request
+    const cmsRequest: LoadDatabaseCmsRequest = {
+      task: 'loaddb',
+      token: host.token || '',
+      dbname: dbname,
+      checkoption: request.checkoption,
+      period: request.period,
+      user: request.user,
+      estimated: request.estimated,
+      oiduse: request.oiduse,
+      statisticsuse: request.statisticsuse,
+      nolog: request.nolog,
+      schema: request.schema,
+      object: request.object,
+      index: request.index,
+      errorcontrolfile: request.errorcontrolfile,
+      ignoreclassfile: request.ignoreclassfile,
+    };
+
+    const response = await this.cmsClient.postAuthenticated<
+      LoadDatabaseCmsRequest,
+      LoadDatabaseCmsResponse
+    >(url, cmsRequest);
+
+    checkCmsTokenError(response);
+    
+    try {
+      checkCmsStatusError(response);
+    } catch (error) {
+      if (error instanceof CmsError) {
+        // Join line array with newline characters
+        const lines = response.line || [];
+        const lineMessage = lines.join('\n');
+
+        // Update error message with line information
+        const updatedMessage = error.additionalData?.message
+          ? `${error.additionalData.message}\n${lineMessage}`
+          : lineMessage || 'Error occurred during database loading';
+
+        throw CmsError.RequestFailed(
+          {
+            message: updatedMessage,
+            response: response,
+          },
+          error
+        );
+      }
+      throw error;
+    }
+
+    // Success: return empty object
+    return {};
   }
 }
