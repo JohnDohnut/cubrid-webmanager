@@ -34,3 +34,4 @@ export * from './update-user-cms-request';
 export * from './load-database-cms-request';
 export * from './optimize-database-cms-request';
 export * from './classinfo-cms-request';
+export * from './check-database-cms-request';
