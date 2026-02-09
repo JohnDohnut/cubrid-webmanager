@@ -30,3 +30,4 @@ export * from './set-auto-add-vol-cms-response';
 export * from './load-database-cms-response';
 export * from './optimize-database-cms-response';
 export * from './classinfo-cms-response';
+export * from './check-database-cms-response';
