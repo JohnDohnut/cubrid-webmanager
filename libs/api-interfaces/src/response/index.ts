@@ -41,3 +41,4 @@ export * from './set-auto-add-vol-response';
 export * from './create-database-with-config-response';
 export * from './load-database-response';
 export * from './optimize-database-response';
+export * from './classinfo-response';
