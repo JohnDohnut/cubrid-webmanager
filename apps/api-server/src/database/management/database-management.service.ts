@@ -1,8 +1,11 @@
 import {
+  AddVolDbRequest,
+  AddVolDbResponse,
   CheckDatabaseRequest,
   CheckDatabaseResponse,
   CompactDatabaseRequest,
   CompactDatabaseResponse,
+  GetAddVolStatusResponse,
   LoadDatabaseRequest,
   LoadDatabaseResponse,
   OptimizeDatabaseRequest,
@@ -24,8 +27,10 @@ import { DatabaseError } from '@error/database/database-error';
 import { HostService } from '@host';
 import { Injectable, Logger } from '@nestjs/common';
 import {
+  AddVolDbCmsRequest,
   CheckDatabaseCmsRequest,
   CompactDatabaseCmsRequest,
+  GetAddVolStatusCmsRequest,
   LoadDatabaseCmsRequest,
   OptimizeDatabaseCmsRequest,
   RenameDatabaseCmsRequest,
@@ -33,8 +38,10 @@ import {
   UnloadInfoCmsRequest,
 } from '@type/cms-request';
 import {
+  AddVolDbCmsResponse,
   CheckDatabaseCmsResponse,
   CompactDatabaseCmsResponse,
+  GetAddVolStatusCmsResponse,
   LoadDatabaseCmsResponse,
   OptimizeDatabaseCmsResponse,
   RenameDatabaseCmsResponse,
@@ -431,5 +438,90 @@ export class DatabaseManagementService {
 
     // Success: return empty object
     return {};
+  }
+
+  /**
+   * Get additional volume status for a database.
+   * Returns domain-only data (CMS envelope fields removed).
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param dbname Database name
+   * @returns GetAddVolStatusResponse Volume status information
+   * @throws DatabaseError If request fails or CMS status is fail
+   */
+  @HandleDatabaseErrors()
+  @HandleCmsStatusErrors()
+  async getAddVolStatus(
+    userId: string,
+    hostUid: string,
+    dbname: string
+  ): Promise<GetAddVolStatusResponse> {
+    const host = await this.hostService.findHostInternal(userId, hostUid);
+    const url = `https://${host.address}:${host.port}/cm_api`;
+    const request: GetAddVolStatusCmsRequest = {
+      task: 'getaddvolstatus',
+      token: host.token || '',
+      dbname: dbname,
+    };
+
+    const response = await this.cmsClient.postAuthenticated<
+      GetAddVolStatusCmsRequest,
+      GetAddVolStatusCmsResponse
+    >(url, request);
+
+    checkCmsTokenError(response);
+    checkCmsStatusError(response);
+
+    return {
+      freespace: response.freespace,
+      volpath: response.volpath,
+    };
+  }
+
+  /**
+   * Add a volume to a database.
+   * Returns domain-only data (CMS envelope fields removed).
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param dbname Database name
+   * @param request Volume information
+   * @returns AddVolDbResponse Volume addition result
+   * @throws DatabaseError If request fails or CMS status is fail
+   */
+  @HandleDatabaseErrors()
+  @HandleCmsStatusErrors()
+  async addVolDb(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    request: AddVolDbRequest
+  ): Promise<AddVolDbResponse> {
+    const host = await this.hostService.findHostInternal(userId, hostUid);
+    const url = `https://${host.address}:${host.port}/cm_api`;
+    const cmsRequest: AddVolDbCmsRequest = {
+      task: 'addvoldb',
+      token: host.token || '',
+      dbname: dbname,
+      volname: request.volname,
+      purpose: request.purpose,
+      path: request.path,
+      numberofpages: request.numberofpages,
+      size_need_mb: request.size_need_mb,
+    };
+
+    const response = await this.cmsClient.postAuthenticated<
+      AddVolDbCmsRequest,
+      AddVolDbCmsResponse
+    >(url, cmsRequest);
+
+    checkCmsTokenError(response);
+    checkCmsStatusError(response);
+
+    return {
+      dbname: response.dbname,
+      purpose: response.purpose,
+    };
   }
 }
