@@ -8,9 +8,12 @@ import {
   LoadDatabaseResponse,
   OptimizeDatabaseRequest,
   OptimizeDatabaseResponse,
+  RenameDatabaseRequest,
+  RenameDatabaseResponse,
   UnloadDatabaseRequest,
   UnloadInfoClientResponse,
 } from '@api-interfaces';
+import { ValidationError } from '@error/validation/validation-error';
 import { validateRequiredFields } from '@util';
 import { DatabaseManagementService } from './database-management.service';
 
@@ -216,5 +219,47 @@ export class DatabaseManagementController {
 
     Logger.log(`Compacting database: ${dbname} on host: ${hostUid}`, 'DatabaseManagementController');
     return await this.managementService.compactDatabase(userId, hostUid, dbname, body);
+  }
+
+  /**
+   * Rename a database.
+   * Returns empty object on success.
+   *
+   * @route POST /:hostUid/database/rename/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Current database name from path parameter
+   * @param body Request body containing rename configuration
+   * @returns RenameDatabaseResponse Empty object on success
+   * @example
+   * // POST /host-uid/database/rename/rename_test
+   * // Body: { "rename": "renamed_db", "exvolpath": "none", "advanced": "on", "volume": [{ "/old/path": "/new/path" }], "forcedel": "n" }
+   */
+  @Post('rename/:dbname')
+  async renameDatabase(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: RenameDatabaseRequest
+  ): Promise<RenameDatabaseResponse> {
+    const userId = req.user.sub;
+
+    validateRequiredFields(
+      body,
+      ['rename', 'exvolpath', 'advanced', 'forcedel'],
+      'database/rename',
+      this.logger
+    );
+
+    // Validate volume when advanced is 'on'
+    if (body.advanced === 'on' && !body.volume) {
+      throw ValidationError.MissingRequiredField(['volume'], {
+        endpoint: 'database/rename',
+        reason: 'Volume is required when advanced is "on"',
+      });
+    }
+
+    Logger.log(`Renaming database: ${dbname} to ${body.rename} on host: ${hostUid}`, 'DatabaseManagementController');
+    return await this.managementService.renameDatabase(userId, hostUid, dbname, body);
   }
 }
