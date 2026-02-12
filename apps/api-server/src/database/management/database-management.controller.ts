@@ -252,7 +252,7 @@ export class DatabaseManagementController {
     );
 
     // Validate volume when advanced is 'on'
-    if (body.advanced === 'on' && !body.volume) {
+    if (body.advanced === 'on' && (!body.volume || body.volume.length===0) ) {
       throw ValidationError.MissingRequiredField(['volume'], {
         endpoint: 'database/rename',
         reason: 'Volume is required when advanced is "on"',
