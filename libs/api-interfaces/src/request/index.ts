@@ -2,6 +2,7 @@
 export * from './add-host-request';
 export * from './add-db-request';
 export * from './change-password-request';
+export * from './delete-user-request';
 export * from './update-host-request';
 export * from './host-uid-request';
 export * from './update-db-request';
