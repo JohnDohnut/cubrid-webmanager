@@ -36,3 +36,6 @@ export * from './unload-db-request';
 export * from './update-db-user-request';
 export * from './set-auto-add-vol-request';
 export * from './create-database-with-config-request';
+export * from './load-database-request';
+export * from './optimize-database-request';
+export * from './classinfo-request';
