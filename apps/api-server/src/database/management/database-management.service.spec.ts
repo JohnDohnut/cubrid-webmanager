@@ -5,13 +5,8 @@ import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.servic
 import { DatabaseError } from '@error/database/database-error';
 import { HostError } from '@error/index';
 import { CmsError } from '@error/cms/cms-error';
-<<<<<<< HEAD
-import { UnloadDatabaseRequest } from '@api-interfaces';
-import { UnloadDatabaseCmsResponse } from '@type/cms-response';
-=======
 import { UnloadDatabaseRequest, LoadDatabaseRequest } from '@api-interfaces';
 import { UnloadDatabaseCmsResponse, LoadDatabaseCmsResponse } from '@type/cms-response';
->>>>>>> upstream
 import * as common from '@common';
 
 // Mock the checkCmsTokenError and checkCmsStatusError functions
