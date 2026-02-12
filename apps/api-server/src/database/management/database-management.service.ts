@@ -1,8 +1,14 @@
 import {
+  CheckDatabaseRequest,
+  CheckDatabaseResponse,
+  CompactDatabaseRequest,
+  CompactDatabaseResponse,
   LoadDatabaseRequest,
   LoadDatabaseResponse,
   OptimizeDatabaseRequest,
   OptimizeDatabaseResponse,
+  RenameDatabaseRequest,
+  RenameDatabaseResponse,
   UnloadDatabaseRequest,
   UnloadInfoClientResponse,
 } from '@api-interfaces';
@@ -18,14 +24,20 @@ import { DatabaseError } from '@error/database/database-error';
 import { HostService } from '@host';
 import { Injectable, Logger } from '@nestjs/common';
 import {
+  CheckDatabaseCmsRequest,
+  CompactDatabaseCmsRequest,
   LoadDatabaseCmsRequest,
   OptimizeDatabaseCmsRequest,
+  RenameDatabaseCmsRequest,
   UnloadDatabaseCmsRequest,
   UnloadInfoCmsRequest,
 } from '@type/cms-request';
 import {
+  CheckDatabaseCmsResponse,
+  CompactDatabaseCmsResponse,
   LoadDatabaseCmsResponse,
   OptimizeDatabaseCmsResponse,
+  RenameDatabaseCmsResponse,
   UnloadDatabaseCmsResponse,
   UnloadInfoCmsResponse,
 } from '@type/cms-response';
@@ -268,6 +280,150 @@ export class DatabaseManagementService {
     const response = await this.cmsClient.postAuthenticated<
       OptimizeDatabaseCmsRequest,
       OptimizeDatabaseCmsResponse
+    >(url, cmsRequest);
+
+    checkCmsTokenError(response);
+    checkCmsStatusError(response);
+
+    // Success: return empty object
+    return {};
+  }
+
+  /**
+   * Check a database.
+   * Returns empty object on success.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param dbname Database name
+   * @param request Client request containing repair option
+   * @returns CheckDatabaseResponse Empty object on success
+   * @throws DatabaseError If request fails or CMS status is fail
+   */
+  @HandleDatabaseErrors()
+  @HandleCmsStatusErrors()
+  async checkDatabase(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    request: CheckDatabaseRequest
+  ): Promise<CheckDatabaseResponse> {
+    const host = await this.hostService.findHostInternal(userId, hostUid);
+    const url = `https://${host.address}:${host.port}/cm_api`;
+
+    const cmsRequest: CheckDatabaseCmsRequest = {
+      task: 'checkdb',
+      token: host.token || '',
+      dbname: dbname,
+      repairdb: request.repairdb,
+    };
+
+    const response = await this.cmsClient.postAuthenticated<
+      CheckDatabaseCmsRequest,
+      CheckDatabaseCmsResponse
+    >(url, cmsRequest);
+
+    checkCmsTokenError(response);
+    checkCmsStatusError(response);
+
+    // Success: return empty object
+    return {};
+  }
+
+  /**
+   * Compact a database.
+   * Returns log output if verbose is 'y', otherwise returns empty object.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param dbname Database name
+   * @param request Client request containing verbose option
+   * @returns CompactDatabaseResponse Log output if verbose is 'y', otherwise empty object
+   * @throws DatabaseError If request fails or CMS status is fail
+   */
+  @HandleDatabaseErrors()
+  @HandleCmsStatusErrors()
+  async compactDatabase(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    request: CompactDatabaseRequest
+  ): Promise<CompactDatabaseResponse> {
+    const host = await this.hostService.findHostInternal(userId, hostUid);
+    const url = `https://${host.address}:${host.port}/cm_api`;
+
+    const cmsRequest: CompactDatabaseCmsRequest = {
+      task: 'compactdb',
+      token: host.token || '',
+      dbname: dbname,
+      verbose: request.verbose,
+    };
+
+    const response = await this.cmsClient.postAuthenticated<
+      CompactDatabaseCmsRequest,
+      CompactDatabaseCmsResponse
+    >(url, cmsRequest);
+
+    checkCmsTokenError(response);
+    checkCmsStatusError(response);
+
+    // Return log if present, otherwise return empty object
+    if (response.log) {
+      return {
+        log: response.log,
+      };
+    }
+
+    return {};
+  }
+
+  /**
+   * Rename a database.
+   * Returns empty object on success.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param dbname Current database name
+   * @param request Client request containing rename configuration
+   * @returns RenameDatabaseResponse Empty object on success
+   * @throws DatabaseError If request fails or CMS status is fail
+   */
+  @HandleDatabaseErrors()
+  @HandleCmsStatusErrors()
+  async renameDatabase(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    request: RenameDatabaseRequest
+  ): Promise<RenameDatabaseResponse> {
+    const host = await this.hostService.findHostInternal(userId, hostUid);
+    const url = `https://${host.address}:${host.port}/cm_api`;
+
+    // Build CMS request from client request
+    const cmsRequest: RenameDatabaseCmsRequest = {
+      task: 'renamedb',
+      token: host.token || '',
+      dbname: dbname,
+      rename: request.rename,
+      exvolpath: request.exvolpath,
+      advanced: request.advanced,
+      forcedel: request.forcedel,
+    };
+
+    // Include volume only when advanced is 'on'
+    // Parse client volume format [{oldPath, newPath}, ...] to CMS format [{oldPath: newPath, ...}]
+    if (request.advanced === 'on' && request.volume && request.volume.length > 0) {
+      // Convert array of {oldPath, newPath} to single object with {oldPath: newPath} mappings
+      const volumeMapping: { [oldPath: string]: string } = {};
+      for (const item of request.volume) {
+        volumeMapping[item.oldPath] = item.newPath;
+      }
+      cmsRequest.volume = [volumeMapping];
+    }
+
+    const response = await this.cmsClient.postAuthenticated<
+      RenameDatabaseCmsRequest,
+      RenameDatabaseCmsResponse
     >(url, cmsRequest);
 
     checkCmsTokenError(response);

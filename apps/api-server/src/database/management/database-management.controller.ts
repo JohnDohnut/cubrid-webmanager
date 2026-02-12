@@ -1,12 +1,19 @@
 import { Body, Controller, Get, Logger, Param, Post, Request } from '@nestjs/common';
 import {
+  CheckDatabaseRequest,
+  CheckDatabaseResponse,
+  CompactDatabaseRequest,
+  CompactDatabaseResponse,
   LoadDatabaseRequest,
   LoadDatabaseResponse,
   OptimizeDatabaseRequest,
   OptimizeDatabaseResponse,
+  RenameDatabaseRequest,
+  RenameDatabaseResponse,
   UnloadDatabaseRequest,
   UnloadInfoClientResponse,
 } from '@api-interfaces';
+import { ValidationError } from '@error/validation/validation-error';
 import { validateRequiredFields } from '@util';
 import { DatabaseManagementService } from './database-management.service';
 
@@ -154,5 +161,105 @@ export class DatabaseManagementController {
 
     Logger.log(`Optimizing database: ${dbname} on host: ${hostUid}`, 'DatabaseManagementController');
     return await this.managementService.optimizeDatabase(userId, hostUid, dbname, body);
+  }
+
+  /**
+   * Check a database.
+   * Returns empty object on success.
+   *
+   * @route POST /:hostUid/database/check/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Database name from path parameter
+   * @param body Request body containing repair option
+   * @returns CheckDatabaseResponse Empty object on success
+   * @example
+   * // POST /host-uid/database/check/test
+   * // Body: { "repairdb": "n" } (n = check only, y = check and repair)
+   */
+  @Post('check/:dbname')
+  async checkDatabase(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: CheckDatabaseRequest
+  ): Promise<CheckDatabaseResponse> {
+    const userId = req.user.sub;
+
+    validateRequiredFields(body, ['repairdb'], 'database/check', this.logger);
+
+    Logger.log(`Checking database: ${dbname} on host: ${hostUid}`, 'DatabaseManagementController');
+    return await this.managementService.checkDatabase(userId, hostUid, dbname, body);
+  }
+
+  /**
+   * Compact a database.
+   * Returns log output if verbose is 'y', otherwise returns empty object.
+   *
+   * @route POST /:hostUid/database/compact/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Database name from path parameter
+   * @param body Request body containing verbose option
+   * @returns CompactDatabaseResponse Log output if verbose is 'y', otherwise empty object
+   * @example
+   * // POST /host-uid/database/compact/test
+   * // Body: { "verbose": "y" } (y = include log output, n = exclude log output)
+   */
+  @Post('compact/:dbname')
+  async compactDatabase(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: CompactDatabaseRequest
+  ): Promise<CompactDatabaseResponse> {
+    const userId = req.user.sub;
+
+    validateRequiredFields(body, ['verbose'], 'database/compact', this.logger);
+
+    Logger.log(`Compacting database: ${dbname} on host: ${hostUid}`, 'DatabaseManagementController');
+    return await this.managementService.compactDatabase(userId, hostUid, dbname, body);
+  }
+
+  /**
+   * Rename a database.
+   * Returns empty object on success.
+   *
+   * @route POST /:hostUid/database/rename/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Current database name from path parameter
+   * @param body Request body containing rename configuration
+   * @returns RenameDatabaseResponse Empty object on success
+   * @example
+   * // POST /host-uid/database/rename/rename_test
+   * // Body: { "rename": "renamed_db", "exvolpath": "none", "advanced": "on", "volume": [{ "/old/path": "/new/path" }], "forcedel": "n" }
+   */
+  @Post('rename/:dbname')
+  async renameDatabase(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: RenameDatabaseRequest
+  ): Promise<RenameDatabaseResponse> {
+    const userId = req.user.sub;
+
+    validateRequiredFields(
+      body,
+      ['rename', 'exvolpath', 'advanced', 'forcedel'],
+      'database/rename',
+      this.logger
+    );
+
+    // Validate volume when advanced is 'on'
+    if (body.advanced === 'on' && (!body.volume || body.volume.length===0) ) {
+      throw ValidationError.MissingRequiredField(['volume'], {
+        endpoint: 'database/rename',
+        reason: 'Volume is required when advanced is "on"',
+      });
+    }
+
+    Logger.log(`Renaming database: ${dbname} to ${body.rename} on host: ${hostUid}`, 'DatabaseManagementController');
+    return await this.managementService.renameDatabase(userId, hostUid, dbname, body);
   }
 }
