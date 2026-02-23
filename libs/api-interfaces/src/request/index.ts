@@ -44,4 +44,8 @@ export * from './check-database-request';
 export * from './compact-database-request';
 export * from './rename-database-request';
 export * from './get-add-vol-status-request';
+<<<<<<< HEAD
 export * from './add-vol-db-request';
+=======
+export * from './add-vol-db-request';
+>>>>>>> upstream/develop

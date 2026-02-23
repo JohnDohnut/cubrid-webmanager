@@ -34,4 +34,8 @@ export * from './check-database-cms-response';
 export * from './compact-database-cms-response';
 export * from './rename-database-cms-response';
 export * from './get-add-vol-status-cms-response';
+<<<<<<< HEAD
 export * from './add-vol-db-cms-response';
+=======
+export * from './add-vol-db-cms-response';
+>>>>>>> upstream/develop

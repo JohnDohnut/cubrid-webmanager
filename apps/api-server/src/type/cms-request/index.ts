@@ -38,4 +38,8 @@ export * from './check-database-cms-request';
 export * from './compact-database-cms-request';
 export * from './rename-database-cms-request';
 export * from './get-add-vol-status-cms-request';
+<<<<<<< HEAD
 export * from './add-vol-db-cms-request';
+=======
+export * from './add-vol-db-cms-request';
+>>>>>>> upstream/develop
