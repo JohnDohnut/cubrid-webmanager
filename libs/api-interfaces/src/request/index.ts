@@ -43,3 +43,5 @@ export * from './classinfo-request';
 export * from './check-database-request';
 export * from './compact-database-request';
 export * from './rename-database-request';
+export * from './get-add-vol-status-request';
+export * from './add-vol-db-request';
