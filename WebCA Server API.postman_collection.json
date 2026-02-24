@@ -636,6 +636,40 @@
 					"response": []
 				},
 				{
+					"name": "Get Auto Backup DB Err Log",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/auto-backup-db-err-log",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"database",
+								"auto-backup-db-err-log"
+							]
+						},
+						"description": "Get auto-backup database error log. Returns domain-only data (CMS envelope removed).\n\n**URI:**\n```\nPOST /:hostUid/database/auto-backup-db-err-log\n```\n**Example:**\n```\nPOST /host-uid-1/database/auto-backup-db-err-log\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n\n**Request Body:**\n```json\n{}\n```\n\n**Note:** Request body is an empty object. No fields are required.\n\n**Success Response (200 OK) - With Errors:**\n```json\n{\n  \"error\": [\n    {\n      \"backupid\": \"test_backup\",\n      \"dbname\": \"demodb\",\n      \"error_desc\": \"backupdb(demodb): auto job start\",\n      \"error_time\": \"2026/01/24 15:18:00\"\n    },\n    {\n      \"backupid\": \"test_backup\",\n      \"dbname\": \"demodb\",\n      \"error_desc\": \"backupdb(demodb): success\",\n      \"error_time\": \"2026/01/24 15:18:00\"\n    }\n  ]\n}\n```\n\n**Success Response (200 OK) - No Errors:**\n```json\n{\n  \"error\": null\n}\n```\n\n**Response Field Descriptions:**\n- `error` - Array of error log entries (null if no errors)\n  - `backupid` - Backup ID\n  - `dbname` - Database name\n  - `error_desc` - Error description\n  - `error_time` - Error time\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Host not found\",\n  \"error\": \"Not Found\"\n}\n```\n\n**Error Response (500 Internal Server Error):**\n```json\n{\n  \"statusCode\": 500,\n  \"message\": \"Failed to get error log\",\n  \"error\": \"Internal Server Error\"\n}\n```"
+					},
+					"response": []
+				},
+				{
 					"name": "Set Auto Exec Query",
 					"request": {
 						"method": "POST",
@@ -683,6 +717,40 @@
 							]
 						},
 						"description": "Get auto-execution query for a database. Returns domain-only data (CMS envelope removed).\n\n**URI:**\n```\nGET /:hostUid/database/auto-exec-query/:dbname\n```\n**Example:**\n```\nGET /host-uid-1/database/auto-exec-query/demodb\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `dbname` - Database name\n\n**Success Response (200 OK):**\n```json\n{\n  \"planlist\": [\n    {\n      \"queryplan\": []\n    }\n  ]\n}\n```\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Database not found\",\n  \"error\": \"Not Found\"\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Auto Exec Query Err Log",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/auto-exec-query-err-log",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"database",
+								"auto-exec-query-err-log"
+							]
+						},
+						"description": "Get auto-execution query error log. Returns domain-only data (CMS envelope removed).\n\n**URI:**\n```\nPOST /:hostUid/database/auto-exec-query-err-log\n```\n**Example:**\n```\nPOST /host-uid-1/database/auto-exec-query-err-log\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n\n**Request Body:**\n```json\n{}\n```\n\n**Note:** Request body is an empty object. No fields are required.\n\n**Success Response (200 OK) - With Errors:**\n```json\n{\n  \"error\": [\n    {\n      \"@username\": \"admin\",\n      \"dbname\": \"demodb\",\n      \"error_code\": \"0\",\n      \"error_desc\": \"start\",\n      \"error_time\": \"2026/01/24 15:10:00\",\n      \"query_id\": \"test_query\"\n    },\n    {\n      \"@username\": \"admin\",\n      \"dbname\": \"demodb\",\n      \"error_code\": \"0\",\n      \"error_desc\": \"success\",\n      \"error_time\": \"2026/01/24 15:10:00\",\n      \"query_id\": \"test_query\"\n    }\n  ]\n}\n```\n\n**Success Response (200 OK) - No Errors:**\n```json\n{\n  \"error\": null\n}\n```\n\n**Response Field Descriptions:**\n- `error` - Array of error log entries (null if no errors)\n  - `@username` - Username\n  - `dbname` - Database name\n  - `error_code` - Error code\n  - `error_desc` - Error description\n  - `error_time` - Error time\n  - `query_id` - Query ID\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Host not found\",\n  \"error\": \"Not Found\"\n}\n```\n\n**Error Response (500 Internal Server Error):**\n```json\n{\n  \"statusCode\": 500,\n  \"message\": \"Failed to get error log\",\n  \"error\": \"Internal Server Error\"\n}\n```"
 					},
 					"response": []
 				},
