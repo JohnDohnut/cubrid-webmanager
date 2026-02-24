@@ -5,6 +5,8 @@ import {
   CheckDatabaseResponse,
   CompactDatabaseRequest,
   CompactDatabaseResponse,
+  DeleteDatabaseRequest,
+  DeleteDatabaseResponse,
   GetAddVolStatusResponse,
   LoadDatabaseRequest,
   LoadDatabaseResponse,
@@ -34,6 +36,7 @@ import {
   AddVolDbCmsRequest,
   CheckDatabaseCmsRequest,
   CompactDatabaseCmsRequest,
+  DeleteDatabaseCmsRequest,
   GetAddVolStatusCmsRequest,
   LoadDatabaseCmsRequest,
   LockDatabaseCmsRequest,
@@ -47,6 +50,7 @@ import {
   AddVolDbCmsResponse,
   CheckDatabaseCmsResponse,
   CompactDatabaseCmsResponse,
+  DeleteDatabaseCmsResponse,
   GetAddVolStatusCmsResponse,
   LoadDatabaseCmsResponse,
   LockDatabaseCmsResponse,
@@ -616,5 +620,46 @@ export class DatabaseManagementService {
     const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
 
     return dataOnly;
+  }
+
+  /**
+   * Delete a database.
+   * Returns empty object on success.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param dbname Database name
+   * @param request Client request containing delbackup option
+   * @returns DeleteDatabaseResponse Empty object on success
+   * @throws DatabaseError If request fails or CMS status is fail
+   */
+  @HandleDatabaseErrors()
+  @HandleCmsStatusErrors()
+  async deleteDatabase(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    request: DeleteDatabaseRequest
+  ): Promise<DeleteDatabaseResponse> {
+    const host = await this.hostService.findHostInternal(userId, hostUid);
+    const url = `https://${host.address}:${host.port}/cm_api`;
+
+    const cmsRequest: DeleteDatabaseCmsRequest = {
+      task: 'deletedb',
+      token: host.token || '',
+      dbname: dbname,
+      delbackup: request.delbackup,
+    };
+
+    const response = await this.cmsClient.postAuthenticated<
+      DeleteDatabaseCmsRequest,
+      DeleteDatabaseCmsResponse
+    >(url, cmsRequest);
+
+    checkCmsTokenError(response);
+    checkCmsStatusError(response);
+
+    // Success: return empty object
+    return {};
   }
 }
