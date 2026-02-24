@@ -14,6 +14,7 @@ import {
   setRenameDB,
   setBackupDB, setCopyDB, setRestoreDB, setUnloadDB
 } from '@/features/sidenav/sideNavSlice.js';
+import { setLockInformation } from '../../sideNavSlice';
 import { setLoadDB } from '../../sideNavSlice';
 
 const DatabaseMenu = ({ node, clientX, clientY, open, onClose }) => {
@@ -135,7 +136,9 @@ const DatabaseMenu = ({ node, clientX, clientY, open, onClose }) => {
         {
           label: 'Lock Information',
           key: nanoid(4),
-          disabled: true,
+          onClick: ()=>{
+            dispatch(setLockInformation({ open: true, node }));
+          }
         },
         {
           label: 'Transaction Info',
