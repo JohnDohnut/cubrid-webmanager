@@ -1,11 +1,18 @@
 import { Body, Controller, Get, Logger, Param, Post, Request } from '@nestjs/common';
 import {
+  AddVolDbRequest,
+  AddVolDbResponse,
   CheckDatabaseRequest,
   CheckDatabaseResponse,
   CompactDatabaseRequest,
   CompactDatabaseResponse,
+  GetAddVolStatusResponse,
   LoadDatabaseRequest,
   LoadDatabaseResponse,
+  LockDatabaseRequest,
+  LockDatabaseResponse,
+  GetTransactionInfoRequest,
+  GetTransactionInfoResponse,
   OptimizeDatabaseRequest,
   OptimizeDatabaseResponse,
   RenameDatabaseRequest,
@@ -261,5 +268,131 @@ export class DatabaseManagementController {
 
     Logger.log(`Renaming database: ${dbname} to ${body.rename} on host: ${hostUid}`, 'DatabaseManagementController');
     return await this.managementService.renameDatabase(userId, hostUid, dbname, body);
+  }
+
+  /**
+   * Get additional volume status for a database.
+   * Returns domain-only data (CMS envelope removed).
+   *
+   * @route GET /:hostUid/database/add-vol-status/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Database name from path parameter
+   * @returns GetAddVolStatusResponse Volume status information
+   * @example
+   * // GET /host-uid/database/add-vol-status/test
+   */
+  @Get('add-vol-status/:dbname')
+  async getAddVolStatus(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string
+  ): Promise<GetAddVolStatusResponse> {
+    const userId = req.user.sub;
+
+    Logger.log(
+      `Getting add vol status for database: ${dbname} on host: ${hostUid}`,
+      'DatabaseManagementController'
+    );
+    return await this.managementService.getAddVolStatus(userId, hostUid, dbname);
+  }
+
+  /**
+   * Add a volume to a database.
+   * Returns domain-only data (CMS envelope removed).
+   *
+   * @route POST /:hostUid/database/add-vol/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Database name from path parameter
+   * @param body Request body containing volume information
+   * @returns AddVolDbResponse Volume addition result
+   * @example
+   * // POST /host-uid/database/add-vol/test
+   * // Body: { "volname": "", "purpose": "generic", "path": "/path/to/vol", "numberofpages": "32768", "size_need_mb": "512.000(MB)" }
+   */
+  @Post('add-vol/:dbname')
+  async addVolDb(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: AddVolDbRequest
+  ): Promise<AddVolDbResponse> {
+    const userId = req.user.sub;
+
+    validateRequiredFields(
+      body,
+      ['volname', 'purpose', 'path', 'numberofpages', 'size_need_mb'],
+      'database/add-vol',
+      this.logger
+    );
+
+    Logger.log(
+      `Adding volume to database: ${dbname} on host: ${hostUid}`,
+      'DatabaseManagementController'
+    );
+    return await this.managementService.addVolDb(userId, hostUid, dbname, body);
+  }
+
+  /**
+   * Get lock information for a database.
+   * Returns lock information including lock entries, transactions, and lock statistics.
+   *
+   * @route POST /:hostUid/database/lock/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Database name from path parameter
+   * @param body Request body (empty object, no fields required)
+   * @returns LockDatabaseResponse Lock information
+   * @example
+   * // POST /host-uid/database/lock/demodb
+   * // Body: {}
+   */
+  @Post('lock/:dbname')
+  async lockDatabase(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: LockDatabaseRequest
+  ): Promise<LockDatabaseResponse> {
+    const userId = req.user.sub;
+
+    Logger.log(
+      `Getting lock information for database: ${dbname} on host: ${hostUid}`,
+      'DatabaseManagementController'
+    );
+    return await this.managementService.lockDatabase(userId, hostUid, dbname, body);
+  }
+
+  /**
+   * Get transaction information for a database.
+   * Returns domain-only data (CMS envelope removed).
+   *
+   * @route POST /:hostUid/database/transaction-info/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Database name from path parameter
+   * @param body Request body containing dbuser and dbpasswd
+   * @returns GetTransactionInfoResponse Transaction information
+   * @example
+   * // POST /host-uid/database/transaction-info/demodb
+   * // Body: { "dbuser": "dba", "dbpasswd": "" }
+   */
+  @Post('transaction-info/:dbname')
+  async getTransactionInfo(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: GetTransactionInfoRequest
+  ): Promise<GetTransactionInfoResponse> {
+    const userId = req.user.sub;
+
+    validateRequiredFields(body, ['dbuser', 'dbpasswd'], 'database/transaction-info', this.logger);
+
+    Logger.log(
+      `Getting transaction information for database: ${dbname} on host: ${hostUid}`,
+      'DatabaseManagementController'
+    );
+    return await this.managementService.getTransactionInfo(userId, hostUid, dbname, body);
   }
 }
