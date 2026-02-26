@@ -12,6 +12,8 @@ import {
   LockDatabaseResponse,
   GetTransactionInfoRequest,
   GetTransactionInfoResponse,
+  KillTransactionRequest,
+  KillTransactionResponse,
   OptimizeDatabaseRequest,
   OptimizeDatabaseResponse,
   RenameDatabaseRequest,
@@ -38,6 +40,7 @@ import {
   LoadDatabaseCmsRequest,
   LockDatabaseCmsRequest,
   GetTransactionInfoCmsRequest,
+  KillTransactionCmsRequest,
   OptimizeDatabaseCmsRequest,
   RenameDatabaseCmsRequest,
   UnloadDatabaseCmsRequest,
@@ -51,6 +54,7 @@ import {
   LoadDatabaseCmsResponse,
   LockDatabaseCmsResponse,
   GetTransactionInfoCmsResponse,
+  KillTransactionCmsResponse,
   OptimizeDatabaseCmsResponse,
   RenameDatabaseCmsResponse,
   UnloadDatabaseCmsResponse,
@@ -608,6 +612,62 @@ export class DatabaseManagementService {
     const response = await this.cmsClient.postAuthenticated<
       GetTransactionInfoCmsRequest,
       GetTransactionInfoCmsResponse
+    >(url, cmsRequest);
+
+    checkCmsTokenError(response);
+    checkCmsStatusError(response);
+
+    const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
+
+    return dataOnly;
+  }
+
+  /**
+   * Kill a transaction in a database or display active transactions.
+   * Returns domain-only data (CMS envelope removed).
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param dbname Database name
+   * @param request Client request containing type and optional parameter:
+   *   - type 'd': Display active transaction (parameter not required)
+   *   - type 'i': Kill transaction by transaction index (parameter: transaction index)
+   *   - type 'p': Kill all transactions with the specified process name (parameter: process name)
+   *   - type 'h': Kill all transactions from the specified host (parameter: host name)
+   * @returns KillTransactionResponse Transaction information
+   * @throws DatabaseError If request fails or CMS status is fail
+   */
+  @HandleDatabaseErrors()
+  @HandleCmsStatusErrors()
+  async killTransaction(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    request: KillTransactionRequest
+  ): Promise<KillTransactionResponse> {
+    const host = await this.hostService.findHostInternal(userId, hostUid);
+    const url = `https://${host.address}:${host.port}/cm_api`;
+
+    // Validate parameter requirement based on type
+    if (request.type !== 'd' && !request.parameter) {
+      throw DatabaseError.InvalidParameter(
+        `Parameter is required for type '${request.type}'`,
+        { type: request.type, parameter: request.parameter }
+      );
+    }
+
+    // Build CMS request from client request
+    const cmsRequest: KillTransactionCmsRequest = {
+      task: 'killtransaction',
+      token: host.token || '',
+      dbname: dbname,
+      type: request.type,
+      ...(request.type !== 'd' && request.parameter && { parameter: request.parameter }),
+    };
+
+    const response = await this.cmsClient.postAuthenticated<
+      KillTransactionCmsRequest,
+      KillTransactionCmsResponse
     >(url, cmsRequest);
 
     checkCmsTokenError(response);
