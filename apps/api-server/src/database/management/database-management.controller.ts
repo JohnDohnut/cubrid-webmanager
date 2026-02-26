@@ -397,9 +397,9 @@ export class DatabaseManagementController {
     );
     return await this.managementService.getTransactionInfo(userId, hostUid, dbname, body);
   }
-
   /**
    * Delete a database.
+   * Also removes the database name from the server parameter in cubridconf if it exists.
    * Returns empty object on success.
    *
    * @route DELETE /:hostUid/database/:dbname
