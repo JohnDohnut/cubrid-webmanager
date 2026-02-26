@@ -161,13 +161,14 @@ export class DatabaseConfigService {
 
   /**
    * Enable auto-start for a database.
-   * Adds database name to the server parameter in configuration file.
+   * Adds database name to the server parameter in cubridconf configuration file.
+   * If server parameter does not exist, it will be added.
    *
    * @param userId User ID from JWT
    * @param hostUid Host UID
-   * @param request Request containing confname and dbname
+   * @param request Request containing dbname (confname is ignored, always uses 'cubridconf')
    * @returns SetAutoStartResponse Empty object on success
-   * @throws DatabaseError If request fails, server parameter not found, or dbname already exists
+   * @throws DatabaseError If request fails or dbname already exists
    */
   @HandleCmsConfigErrors()
   async setAutoStart(
@@ -175,61 +176,98 @@ export class DatabaseConfigService {
     hostUid: string,
     request: SetAutoStartRequest
   ): Promise<SetAutoStartResponse> {
-    // Get current configuration
+    const confname = 'cubridconf';
+
+    // Get current configuration from cubridconf
     const currentConfig = await this.cmsConfigService.getAllSystemParam(
       userId,
       hostUid,
-      request.confname
+      confname
     );
 
     if (!currentConfig.conflist || currentConfig.conflist.length === 0) {
-      throw ConfigError.NoConflistData(request.confname);
+      throw ConfigError.NoConflistData(confname);
     }
 
     const confdata = currentConfig.conflist[0].confdata;
     if (!confdata || confdata.length === 0) {
-      throw ConfigError.NoConfdata(request.confname);
+      throw ConfigError.NoConfdata(confname);
     }
-    this.logger.debug(JSON.stringify((currentConfig)));
+    this.logger.debug(JSON.stringify(currentConfig));
 
     // Find the server parameter using utility function
     // Type assertion is safe because parseConfigParams only uses conflist property
     const params = parseConfigParams(currentConfig as GetAllSysParamCmsResponse);
-    const serverParam = params.find((param) => param.key === 'server');
+    const serverParam = params.find((param) => param.key === 'server' && param.section === 'service');
+
+    let updatedConfdata: string[];
 
     if (!serverParam) {
-      throw ConfigError.ServerParamNotFound(request.confname);
+      // Server parameter does not exist in [service] section
+      // Find [service] section in confdata (case-sensitive, lowercase)
+      let serviceSectionStartIndex = -1;
+
+      for (let i = 0; i < confdata.length; i++) {
+        const line = confdata[i].trim();
+        
+        // Check for [service] section (case-sensitive, lowercase)
+        if (line === '[service]') {
+          serviceSectionStartIndex = i;
+          break;
+        }
+      }
+
+      if (serviceSectionStartIndex === -1) {
+        // [service] section does not exist, throw error
+        throw ConfigError.ServerParamNotFound(confname, {
+          message: '[service] section not found in configuration file',
+        });
+      }
+
+      // [service] section exists, add server parameter after the section header
+      const insertIndex = serviceSectionStartIndex + 1;
+      updatedConfdata = [
+        ...confdata.slice(0, insertIndex),
+        `server=${request.dbname}`,
+        ...confdata.slice(insertIndex),
+      ];
+      this.logger.debug(`Server parameter not found in [service] section, adding server=${request.dbname} at line ${insertIndex + 1}`);
+    } else {
+      // Parse existing server values
+      const existingDbnames = serverParam.value
+        ? serverParam.value
+            .split(',')
+            .map((db) => db.trim())
+            .filter((db) => db.length > 0)
+        : [];
+
+      // Check if dbname already exists - if it does, return success without modification
+      if (existingDbnames.includes(request.dbname)) {
+        this.logger.debug(`Database name ${request.dbname} already exists in server parameter, returning success`);
+        const rv = currentConfig as unknown as SetAutoStartResponse;
+        // Set updated configuration
+        this.logger.debug(JSON.stringify(rv));
+        return rv;
+      }
+
+      // Append new dbname
+      const updatedDbnames = [...existingDbnames, request.dbname];
+      const updatedServerLine = `server=${updatedDbnames.join(',')}`;
+
+      // Update confdata with new server line (lineNumber is 1-based, convert to 0-based index)
+      updatedConfdata = [...confdata];
+      updatedConfdata[serverParam.lineNumber - 1] = updatedServerLine;
     }
 
-    // Parse existing server values
-    const existingDbnames = serverParam.value
-      ? serverParam.value
-          .split(',')
-          .map((db) => db.trim())
-          .filter((db) => db.length > 0)
-      : [];
-
-    // Check if dbname already exists
-    if (existingDbnames.includes(request.dbname)) {
-      throw ConfigError.DbnameAlreadyExists(request.confname, request.dbname);
-    }
-
-    // Append new dbname
-    const updatedDbnames = [...existingDbnames, request.dbname];
-    const updatedServerLine = `server=${updatedDbnames.join(',')}`;
-
-    // Update confdata with new server line (lineNumber is 1-based, convert to 0-based index)
-    const updatedConfdata = [...confdata];
-    updatedConfdata[serverParam.lineNumber - 1] = updatedServerLine;
     const rv = await this.cmsConfigService.setSystemParam(
       userId,
       hostUid,
-      request.confname,
+      confname,
       updatedConfdata
     );
     // Set updated configuration
     this.logger.debug(JSON.stringify(rv));
-    return rv
+    return rv;
   }
 
   /**
