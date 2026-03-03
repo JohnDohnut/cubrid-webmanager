@@ -15,6 +15,8 @@ import {
   LockDatabaseResponse,
   GetTransactionInfoRequest,
   GetTransactionInfoResponse,
+  KillTransactionRequest,
+  KillTransactionResponse,
   OptimizeDatabaseRequest,
   OptimizeDatabaseResponse,
   RenameDatabaseRequest,
@@ -397,6 +399,53 @@ export class DatabaseManagementController {
     );
     return await this.managementService.getTransactionInfo(userId, hostUid, dbname, body);
   }
+
+  /**
+   * Kill a transaction in a database or display active transactions.
+   * Returns domain-only data (CMS envelope removed).
+   *
+   * @route POST /:hostUid/database/kill-transaction/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Database name from path parameter
+   * @param body Request body containing type and optional parameter:
+   *   - type 'd': Display active transaction (parameter not required)
+   *   - type 'i': Kill transaction by transaction index (parameter: transaction index)
+   *   - type 'p': Kill all transactions with the specified process name (parameter: process name)
+   *   - type 'h': Kill all transactions from the specified host (parameter: host name)
+   * @returns KillTransactionResponse Transaction information
+   * @example
+   * // POST /host-uid/database/kill-transaction/demodb
+   * // Body: { "type": "d" } or { "type": "i", "parameter": "1" }
+   */
+  @Post('kill-transaction/:dbname')
+  async killTransaction(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: KillTransactionRequest
+  ): Promise<KillTransactionResponse> {
+    const userId = req.user.sub;
+
+    validateRequiredFields(body, ['type'], 'database/kill-transaction', this.logger);
+
+    // Validate parameter requirement based on type
+    if (body.type !== 'd' && !body.parameter) {
+      validateRequiredFields(
+        body,
+        ['parameter'],
+        'database/kill-transaction',
+        this.logger
+      );
+    }
+
+    Logger.log(
+      `Killing transaction for database: ${dbname} on host: ${hostUid}`,
+      'DatabaseManagementController'
+    );
+    return await this.managementService.killTransaction(userId, hostUid, dbname, body);
+  }
+
   /**
    * Delete a database.
    * Also removes the database name from the server parameter in cubridconf if it exists.
