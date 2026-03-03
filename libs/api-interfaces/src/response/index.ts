@@ -52,3 +52,4 @@ export * from './get-auto-exec-query-err-log-response';
 export * from './get-auto-backup-db-err-log-response';
 export * from './get-transaction-info-response';
 export * from './kill-transaction-response';
+export * from './delete-database-response';

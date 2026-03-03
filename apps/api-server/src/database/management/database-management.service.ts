@@ -5,6 +5,8 @@ import {
   CheckDatabaseResponse,
   CompactDatabaseRequest,
   CompactDatabaseResponse,
+  DeleteDatabaseRequest,
+  DeleteDatabaseResponse,
   GetAddVolStatusResponse,
   LoadDatabaseRequest,
   LoadDatabaseResponse,
@@ -21,13 +23,17 @@ import {
   UnloadDatabaseRequest,
   UnloadInfoClientResponse,
 } from '@api-interfaces';
+import { CmsConfigService } from '@cms-config/cms-config.service';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
+import { DatabaseConfigService } from '@database/config/database-config.service';
 import {
   checkCmsStatusError,
   checkCmsTokenError,
   HandleCmsStatusErrors,
   HandleDatabaseErrors,
 } from '@common';
+import { ConfigError } from '@error/config/config-error';
+import { ConfigErrorCode } from '@error/config/config-error-code';
 import { CmsError } from '@error/cms/cms-error';
 import { DatabaseError } from '@error/database/database-error';
 import { HostService } from '@host';
@@ -36,6 +42,7 @@ import {
   AddVolDbCmsRequest,
   CheckDatabaseCmsRequest,
   CompactDatabaseCmsRequest,
+  DeleteDatabaseCmsRequest,
   GetAddVolStatusCmsRequest,
   LoadDatabaseCmsRequest,
   LockDatabaseCmsRequest,
@@ -50,6 +57,7 @@ import {
   AddVolDbCmsResponse,
   CheckDatabaseCmsResponse,
   CompactDatabaseCmsResponse,
+  DeleteDatabaseCmsResponse,
   GetAddVolStatusCmsResponse,
   LoadDatabaseCmsResponse,
   LockDatabaseCmsResponse,
@@ -74,7 +82,8 @@ export class DatabaseManagementService {
 
   constructor(
     private readonly hostService: HostService,
-    private readonly cmsClient: CmsHttpsClientService
+    private readonly cmsClient: CmsHttpsClientService,
+    private readonly databaseConfigService: DatabaseConfigService
   ) {}
 
   /**
@@ -676,5 +685,71 @@ export class DatabaseManagementService {
     const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
 
     return dataOnly;
+  }
+
+  /**
+   * Delete a database.
+   * Also removes the database name from the server parameter in cubridconf if it exists.
+   * Returns empty object on success.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param dbname Database name
+   * @param request Client request containing delbackup option
+   * @returns DeleteDatabaseResponse Empty object on success
+   * @throws DatabaseError If request fails or CMS status is fail
+   */
+  @HandleDatabaseErrors()
+  @HandleCmsStatusErrors()
+  async deleteDatabase(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    request: DeleteDatabaseRequest
+  ): Promise<DeleteDatabaseResponse> {
+    const host = await this.hostService.findHostInternal(userId, hostUid);
+    const url = `https://${host.address}:${host.port}/cm_api`;
+
+    const cmsRequest: DeleteDatabaseCmsRequest = {
+      task: 'deletedb',
+      token: host.token || '',
+      dbname: dbname,
+      delbackup: request.delbackup,
+    };
+
+    const response = await this.cmsClient.postAuthenticated<
+      DeleteDatabaseCmsRequest,
+      DeleteDatabaseCmsResponse
+    >(url, cmsRequest);
+
+    checkCmsTokenError(response);
+    checkCmsStatusError(response);
+
+    // Remove dbname from server parameter in cubridconf if it exists
+    try {
+      await this.databaseConfigService.removeAutoStart(userId, hostUid, {
+        confname: 'cubridconf',
+        dbname: dbname,
+      });
+      this.logger.debug(
+        `Removed database name ${dbname} from server parameter in cubridconf`
+      );
+    } catch (error: any) {
+      // Ignore DbnameNotFound error (dbname may not exist in server parameter)
+      // Log other errors but don't fail the delete operation
+      if (error instanceof ConfigError && error.code === ConfigErrorCode.DBNAME_NOT_FOUND) {
+        this.logger.debug(
+          `Database name ${dbname} not found in server parameter, skipping removal`
+        );
+      } else {
+        this.logger.warn(
+          `Failed to remove dbname from server parameter: ${error.message}`,
+          error.stack
+        );
+      }
+    }
+
+    // Success: return empty object
+    return {};
   }
 }

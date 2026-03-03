@@ -40,3 +40,4 @@ export * from './get-auto-exec-query-err-log-cms-response';
 export * from './get-auto-backup-db-err-log-cms-response';
 export * from './get-transaction-info-cms-response';
 export * from './kill-transaction-cms-response';
+export * from './delete-database-cms-response';
