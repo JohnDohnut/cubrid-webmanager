@@ -47,16 +47,22 @@ export class ConfigError extends AppError {
 
   /**
    * Creates an error indicating that server parameter was not found in configuration file.
+   * If additionalData.message is provided, it will be used as the error message.
    */
   static ServerParamNotFound(
     confname: string,
     additionalData?: Record<string, any>,
     originalError?: Error
   ) {
+    const defaultMessage = `server parameter not found in configuration file: ${confname}`;
     return new ConfigError(
       'CONFIG',
       ConfigErrorCode.SERVER_PARAM_NOT_FOUND,
-      { confname, ...additionalData },
+      {
+        confname,
+        message: additionalData?.message || defaultMessage,
+        ...additionalData,
+      },
       originalError
     );
   }
