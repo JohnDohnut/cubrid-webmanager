@@ -10,8 +10,7 @@ import { GetCreatedbInfoClientResponse } from '@api-interfaces/response/get-crea
 import { CmsConfigService } from '@cms-config/cms-config.service';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import {
-  checkCmsStatusError,
-  checkCmsTokenError,
+  BaseService,
   HandleDatabaseErrors,
 } from '@common';
 import { DatabaseError } from '@error/database/database-error';
@@ -19,11 +18,12 @@ import { HostError } from '@error/index';
 import { ValidationError } from '@error/validation/validation-error';
 import { FileService } from '@file/file.service';
 import { HostService } from '@host';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { UserRepositoryService } from '@repository';
 import { BaseCmsRequest, BaseCmsResponse } from '@type';
 import { DatabaseUserService } from '../user/database-user.service';
 import { DatabaseConfigService } from '../config/database-config.service';
+import { DATABASE_CONSTANTS } from '../database.constants';
 import {
   CreateDatabaseCmsRequest,
   DbSpaceInfoCmsRequest,
@@ -45,18 +45,18 @@ import { convertExvolArrayToCmsFormat } from '@util';
  * @since 1.0.0
  */
 @Injectable()
-export class DatabaseLifecycleService {
-  private readonly logger = new Logger(DatabaseLifecycleService.name);
-
+export class DatabaseLifecycleService extends BaseService {
   constructor(
-    private readonly hostService: HostService,
-    private readonly cmsClient: CmsHttpsClientService,
+    protected readonly hostService: HostService,
+    protected readonly cmsClient: CmsHttpsClientService,
     private readonly repository: UserRepositoryService,
     private readonly cmsConfigService: CmsConfigService,
     private readonly fileService: FileService,
     private readonly databaseUserService: DatabaseUserService,
     private readonly databaseConfigService: DatabaseConfigService
-  ) {}
+  ) {
+    super(hostService, cmsClient);
+  }
 
   /**
    * Get start information for databases on a host (internal use).
@@ -70,19 +70,13 @@ export class DatabaseLifecycleService {
    */
   @HandleDatabaseErrors()
   async startInfoInternal(userId: string, hostUid: string): Promise<StartInfoCmsResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const data: BaseCmsRequest = {
+    const cmsRequest: BaseCmsRequest = {
       task: 'startinfo',
-      token: host.token || '',
     };
-    const response = await this.cmsClient.postAuthenticated<
+    const response = await this.executeCmsRequest<
       BaseCmsRequest,
       StartInfoCmsResponse | BaseCmsResponse
-    >(url, data);
-
-    checkCmsTokenError(response);
+    >(userId, hostUid, cmsRequest);
 
     if (response.status === 'success') {
       return response as StartInfoCmsResponse;
@@ -104,7 +98,7 @@ export class DatabaseLifecycleService {
   async startInfo(userId: string, hostUid: string): Promise<StartInfoClientResponse> {
     const host = await this.hostService.findHostInternal(userId, hostUid);
     const response = await this.startInfoInternal(userId, hostUid);
-    const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
+    const dataOnly = this.extractDomainData(response);
     const dbProfiles = host.dbProfiles || {};
     const dbs = dataOnly.dblist?.[0]?.dbs || [];
     const activeList = dataOnly.activelist?.[0]?.active || [];
@@ -137,20 +131,16 @@ export class DatabaseLifecycleService {
     hostUid: string,
     dbname: string
   ): Promise<StartInfoClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const data: StartDatabaseCmsRequest = {
+    const cmsRequest: StartDatabaseCmsRequest = {
       task: 'startdb',
-      token: host.token || '',
       dbname: dbname,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
-      StartDatabaseCmsRequest,
-      BaseCmsResponse
-    >(url, data);
-
-    checkCmsTokenError(response);
+    const response = await this.executeCmsRequest<StartDatabaseCmsRequest, BaseCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
 
     if (response.status === 'success') {
       return await this.startInfo(userId, hostUid);
@@ -174,20 +164,16 @@ export class DatabaseLifecycleService {
     hostUid: string,
     dbname: string
   ): Promise<StartInfoClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const data: StopDatabaseCmsRequest = {
+    const cmsRequest: StopDatabaseCmsRequest = {
       task: 'stopdb',
-      token: host.token || '',
       dbname: dbname,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
-      StopDatabaseCmsRequest,
-      BaseCmsResponse
-    >(url, data);
-
-    checkCmsTokenError(response);
+    const response = await this.executeCmsRequest<StopDatabaseCmsRequest, BaseCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
 
     if (response.status === 'success') {
       return await this.startInfo(userId, hostUid);
@@ -211,35 +197,27 @@ export class DatabaseLifecycleService {
     hostUid: string,
     dbname: string
   ): Promise<StartInfoClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
     const stopRequest: StopDatabaseCmsRequest = {
       task: 'stopdb',
-      token: host.token || '',
       dbname: dbname,
     };
 
-    const stopResponse = await this.cmsClient.postAuthenticated<
-      StopDatabaseCmsRequest,
-      BaseCmsResponse
-    >(url, stopRequest);
-
-    checkCmsTokenError(stopResponse);
+    const stopResponse = await this.executeCmsRequest<StopDatabaseCmsRequest, BaseCmsResponse>(
+      userId,
+      hostUid,
+      stopRequest
+    );
 
     if (stopResponse.status === 'success') {
       const startRequest: StartDatabaseCmsRequest = {
         task: 'startdb',
-        token: host.token || '',
         dbname: dbname,
       };
 
-      const startResponse = await this.cmsClient.postAuthenticated<
+      const startResponse = await this.executeCmsRequest<
         StartDatabaseCmsRequest,
         BaseCmsResponse
-      >(url, startRequest);
-
-      checkCmsTokenError(startResponse);
+      >(userId, hostUid, startRequest);
 
       if (startResponse.status === 'success') {
         return await this.startInfo(userId, hostUid);
@@ -331,18 +309,14 @@ export class DatabaseLifecycleService {
     hostUid: string,
     dbname: string
   ): Promise<DatabaseVolumeInfoClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
     const startInfoRequest: BaseCmsRequest = {
       task: 'startinfo',
-      token: host.token || '',
     };
 
-    const startInfo = await this.cmsClient.postAuthenticated<
+    const startInfo = await this.executeCmsRequest<
       BaseCmsRequest,
       StartInfoCmsResponse | BaseCmsResponse
-    >(url, startInfoRequest);
+    >(userId, hostUid, startInfoRequest);
 
     if ('dblist' in startInfo && 'activelist' in startInfo) {
       const dbExists = startInfo.dblist.some((el) => el.dbs.some((db) => db.dbname === dbname));
@@ -351,25 +325,20 @@ export class DatabaseLifecycleService {
         throw DatabaseError.NoSuchDatabase({ dbname, hostUid });
       }
     } else {
-      checkCmsTokenError(startInfo);
       throw DatabaseError.InternalError();
     }
 
     const spaceInfoRequest: DbSpaceInfoCmsRequest = {
       task: 'dbspaceinfo',
-      token: host.token || '',
       dbname: dbname,
     };
-    const response = await this.cmsClient.postAuthenticated<
+    const response = await this.executeCmsRequest<
       DbSpaceInfoCmsRequest,
       DbSpaceInfoCmsResponse | BaseCmsResponse
-    >(url, spaceInfoRequest);
-
-    checkCmsTokenError(response);
+    >(userId, hostUid, spaceInfoRequest);
 
     if (response.status === 'success') {
-      const { __EXEC_TIME, note, status, task, ...dataOnly } = response as DbSpaceInfoCmsResponse;
-      return dataOnly;
+      return this.extractDomainData(response as DbSpaceInfoCmsResponse);
     } else {
       throw DatabaseError.GetDBSpaceInfoFailed({ response, dbname });
     }
@@ -413,7 +382,6 @@ export class DatabaseLifecycleService {
     request: CreateDatabaseClientRequest
   ): Promise<CreateDatabaseClientResponse> {
     const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
 
     // Collect files to check before parsing exvol
     const filesToCheck: string[] = [];
@@ -450,7 +418,6 @@ export class DatabaseLifecycleService {
     // Convert numeric values to strings as CMS expects string format
     const cmsRequest: CreateDatabaseCmsRequest = {
       task: 'createdb',
-      token: host.token || '',
       dbname: request.dbname,
       numpage: String(request.numpage),
       pagesize: String(request.pagesize),
@@ -463,13 +430,11 @@ export class DatabaseLifecycleService {
       overwrite_config_file: request.overwrite_config_file,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
-      CreateDatabaseCmsRequest,
-      CreateDatabaseCmsResponse
-    >(url, cmsRequest);
-
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
+    await this.executeCmsRequest<CreateDatabaseCmsRequest, CreateDatabaseCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
 
     return {};
   }
@@ -515,25 +480,33 @@ export class DatabaseLifecycleService {
           success: true,
           data: startInfo,
         };
-      } catch (error: any) {
-        this.logger.error(`Failed to start database: ${error.message}`, error.stack);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        const errorCode = (error as any)?.code || (error instanceof Error ? error.name : 'UNKNOWN');
+        const errorDetails = (error as any)?.details;
+        this.logger.error(`Failed to start database: ${errorMessage}`, errorStack);
         response.startDatabase = {
           success: false,
           error: {
-            message: error.message || 'Failed to start database',
-            code: error.code || error.name,
-            details: error.details,
+            message: errorMessage || 'Failed to start database',
+            code: errorCode,
+            details: errorDetails,
           },
         };
       }
-    } catch (error: any) {
-      this.logger.error(`Failed to create database: ${error.message}`, error.stack);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      const errorCode = (error as any)?.code || (error instanceof Error ? error.name : 'UNKNOWN');
+      const errorDetails = (error as any)?.details;
+      this.logger.error(`Failed to create database: ${errorMessage}`, errorStack);
       response.createDatabase = {
         success: false,
         error: {
-          message: error.message || 'Failed to create database',
-          code: error.code || error.name,
-          details: error.details,
+          message: errorMessage || 'Failed to create database',
+          code: errorCode,
+          details: errorDetails,
         },
       };
     }
@@ -557,14 +530,18 @@ export class DatabaseLifecycleService {
           success: true,
           data: updateUserResult,
         };
-      } catch (error: any) {
-        this.logger.error(`Failed to update user: ${error.message}`, error.stack);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        const errorCode = (error as any)?.code || (error instanceof Error ? error.name : 'UNKNOWN');
+        const errorDetails = (error as any)?.details;
+        this.logger.error(`Failed to update user: ${errorMessage}`, errorStack);
         response.updateUser = {
           success: false,
           error: {
-            message: error.message || 'Failed to update user',
-            code: error.code || error.name,
-            details: error.details,
+            message: errorMessage || 'Failed to update user',
+            code: errorCode,
+            details: errorDetails,
           },
         };
       }
@@ -583,14 +560,18 @@ export class DatabaseLifecycleService {
           success: true,
           data: setAutoAddVolResult,
         };
-      } catch (error: any) {
-        this.logger.error(`Failed to set auto-add volume: ${error.message}`, error.stack);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        const errorCode = (error as any)?.code || (error instanceof Error ? error.name : 'UNKNOWN');
+        const errorDetails = (error as any)?.details;
+        this.logger.error(`Failed to set auto-add volume: ${errorMessage}`, errorStack);
         response.setAutoAddVol = {
           success: false,
           error: {
-            message: error.message || 'Failed to set auto-add volume',
-            code: error.code || error.name,
-            details: error.details,
+            message: errorMessage || 'Failed to set auto-add volume',
+            code: errorCode,
+            details: errorDetails,
           },
         };
       }
@@ -601,21 +582,25 @@ export class DatabaseLifecycleService {
       try {
         // Use top-level dbname and automatically use "cubridconf" as confname
         const setAutoStartResult = await this.databaseConfigService.setAutoStart(userId, hostUid, {
-          confname: 'cubridconf',
+          confname: DATABASE_CONSTANTS.CUBRID_CONF_NAME,
           dbname: createDbRequest.dbname,
         });
         response.setAutoStart = {
           success: true,
           data: setAutoStartResult,
         };
-      } catch (error: any) {
-        this.logger.error(`Failed to set auto-start: ${error.message}`, error.stack);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        const errorCode = (error as any)?.code || (error instanceof Error ? error.name : 'UNKNOWN');
+        const errorDetails = (error as any)?.details;
+        this.logger.error(`Failed to set auto-start: ${errorMessage}`, errorStack);
         response.setAutoStart = {
           success: false,
           error: {
-            message: error.message || 'Failed to set auto-start',
-            code: error.code || error.name,
-            details: error.details,
+            message: errorMessage || 'Failed to set auto-start',
+            code: errorCode,
+            details: errorDetails,
           },
         };
       }

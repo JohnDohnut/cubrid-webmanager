@@ -37,7 +37,9 @@ import { ConfigErrorCode } from '@error/config/config-error-code';
 import { CmsError } from '@error/cms/cms-error';
 import { DatabaseError } from '@error/database/database-error';
 import { HostService } from '@host';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { BaseService } from '@common';
+import { DATABASE_CONSTANTS } from '../database.constants';
 import {
   AddVolDbCmsRequest,
   CheckDatabaseCmsRequest,
@@ -77,14 +79,14 @@ import {
  * @since 1.0.0
  */
 @Injectable()
-export class DatabaseManagementService {
-  private readonly logger = new Logger(DatabaseManagementService.name);
-
+export class DatabaseManagementService extends BaseService {
   constructor(
-    private readonly hostService: HostService,
-    private readonly cmsClient: CmsHttpsClientService,
+    hostService: HostService,
+    cmsClient: CmsHttpsClientService,
     private readonly databaseConfigService: DatabaseConfigService
-  ) {}
+  ) {
+    super(hostService, cmsClient);
+  }
 
   /**
    * Unload a database.
@@ -105,9 +107,6 @@ export class DatabaseManagementService {
     dbname: string,
     request: UnloadDatabaseRequest
   ): Promise<{}> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
     // Determine target based on isSchemaIncluded and isDataIncluded
     let target: 'schema' | 'object' | 'both';
 
@@ -130,7 +129,6 @@ export class DatabaseManagementService {
     // Build CMS request from client request
     const cmsRequest: UnloadDatabaseCmsRequest = {
       task: 'unloaddb',
-      token: host.token || '',
       dbname: dbname,
       targetdir: request.targetdir,
       target: target,
@@ -151,13 +149,10 @@ export class DatabaseManagementService {
       lofile: request.lofile,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    const response = await this.executeCmsRequest<
       UnloadDatabaseCmsRequest,
       UnloadDatabaseCmsResponse
-    >(url, cmsRequest);
-
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
+    >(userId, hostUid, cmsRequest);
 
     return response.result;
   }
@@ -176,23 +171,16 @@ export class DatabaseManagementService {
     userId: string,
     hostUid: string
   ): Promise<UnloadInfoClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
     const request: UnloadInfoCmsRequest = {
       task: 'unloadinfo',
-      token: host.token || '',
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    const response = await this.executeCmsRequest<
       UnloadInfoCmsRequest,
       UnloadInfoCmsResponse
-    >(url, request);
+    >(userId, hostUid, request);
 
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
-
-    const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
+    const dataOnly = this.extractDomainData(response);
 
     return {
       database: dataOnly.database || [],
@@ -218,13 +206,9 @@ export class DatabaseManagementService {
     dbname: string,
     request: LoadDatabaseRequest
   ): Promise<LoadDatabaseResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
     // Build CMS request from client request
     const cmsRequest: LoadDatabaseCmsRequest = {
       task: 'loaddb',
-      token: host.token || '',
       dbname: dbname,
       checkoption: request.checkoption,
       period: request.period,
@@ -240,10 +224,14 @@ export class DatabaseManagementService {
       ignoreclassfile: request.ignoreclassfile,
     };
 
+    const host = await this.hostService.findHostInternal(userId, hostUid);
+    const url = `https://${host.address}:${host.port}/cm_api`;
+    const requestWithToken = { ...cmsRequest, token: host.token || '' };
+
     const response = await this.cmsClient.postAuthenticated<
       LoadDatabaseCmsRequest,
       LoadDatabaseCmsResponse
-    >(url, cmsRequest);
+    >(url, requestWithToken);
 
     checkCmsTokenError(response);
     
@@ -294,24 +282,17 @@ export class DatabaseManagementService {
     dbname: string,
     request: OptimizeDatabaseRequest
   ): Promise<OptimizeDatabaseResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
     // Build CMS request from client request
     const cmsRequest: OptimizeDatabaseCmsRequest = {
       task: 'optimizedb',
-      token: host.token || '',
       dbname: dbname,
       ...(request.class && { class: request.class }),
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    const response = await this.executeCmsRequest<
       OptimizeDatabaseCmsRequest,
       OptimizeDatabaseCmsResponse
-    >(url, cmsRequest);
-
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
+    >(userId, hostUid, cmsRequest);
 
     // Success: return empty object
     return {};
@@ -336,23 +317,16 @@ export class DatabaseManagementService {
     dbname: string,
     request: CheckDatabaseRequest
   ): Promise<CheckDatabaseResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
     const cmsRequest: CheckDatabaseCmsRequest = {
       task: 'checkdb',
-      token: host.token || '',
       dbname: dbname,
       repairdb: request.repairdb,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    const response = await this.executeCmsRequest<
       CheckDatabaseCmsRequest,
       CheckDatabaseCmsResponse
-    >(url, cmsRequest);
-
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
+    >(userId, hostUid, cmsRequest);
 
     // Success: return empty object
     return {};
@@ -377,23 +351,16 @@ export class DatabaseManagementService {
     dbname: string,
     request: CompactDatabaseRequest
   ): Promise<CompactDatabaseResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
     const cmsRequest: CompactDatabaseCmsRequest = {
       task: 'compactdb',
-      token: host.token || '',
       dbname: dbname,
       verbose: request.verbose,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    const response = await this.executeCmsRequest<
       CompactDatabaseCmsRequest,
       CompactDatabaseCmsResponse
-    >(url, cmsRequest);
-
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
+    >(userId, hostUid, cmsRequest);
 
     // Return log if present, otherwise return empty object
     if (response.log) {
@@ -424,13 +391,9 @@ export class DatabaseManagementService {
     dbname: string,
     request: RenameDatabaseRequest
   ): Promise<RenameDatabaseResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
     // Build CMS request from client request
     const cmsRequest: RenameDatabaseCmsRequest = {
       task: 'renamedb',
-      token: host.token || '',
       dbname: dbname,
       rename: request.rename,
       exvolpath: request.exvolpath,
@@ -449,13 +412,10 @@ export class DatabaseManagementService {
       cmsRequest.volume = [volumeMapping];
     }
 
-    const response = await this.cmsClient.postAuthenticated<
+    const response = await this.executeCmsRequest<
       RenameDatabaseCmsRequest,
       RenameDatabaseCmsResponse
-    >(url, cmsRequest);
-
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
+    >(userId, hostUid, cmsRequest);
 
     // Success: return empty object
     return {};
@@ -478,21 +438,15 @@ export class DatabaseManagementService {
     hostUid: string,
     dbname: string
   ): Promise<GetAddVolStatusResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const request: GetAddVolStatusCmsRequest = {
+    const cmsRequest: GetAddVolStatusCmsRequest = {
       task: 'getaddvolstatus',
-      token: host.token || '',
       dbname: dbname,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    const response = await this.executeCmsRequest<
       GetAddVolStatusCmsRequest,
       GetAddVolStatusCmsResponse
-    >(url, request);
-
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
+    >(userId, hostUid, cmsRequest);
 
     return {
       freespace: response.freespace,
@@ -519,11 +473,8 @@ export class DatabaseManagementService {
     dbname: string,
     request: AddVolDbRequest
   ): Promise<AddVolDbResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
     const cmsRequest: AddVolDbCmsRequest = {
       task: 'addvoldb',
-      token: host.token || '',
       dbname: dbname,
       volname: request.volname,
       purpose: request.purpose,
@@ -532,13 +483,10 @@ export class DatabaseManagementService {
       size_need_mb: request.size_need_mb,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    const response = await this.executeCmsRequest<
       AddVolDbCmsRequest,
       AddVolDbCmsResponse
-    >(url, cmsRequest);
-
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
+    >(userId, hostUid, cmsRequest);
 
     return {
       dbname: response.dbname,
@@ -565,22 +513,17 @@ export class DatabaseManagementService {
     dbname: string,
     request: LockDatabaseRequest
   ): Promise<LockDatabaseResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
     const cmsRequest: LockDatabaseCmsRequest = {
       task: 'lockdb',
-      token: host.token || '',
       dbname: dbname,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    this.logger.debug(`Getting lock information for database: ${dbname}`);
+
+    const response = await this.executeCmsRequest<
       LockDatabaseCmsRequest,
       LockDatabaseCmsResponse
-    >(url, cmsRequest);
-
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
+    >(userId, hostUid, cmsRequest);
 
     // Return lockinfo only (CMS envelope removed)
     return {
@@ -607,28 +550,23 @@ export class DatabaseManagementService {
     dbname: string,
     request: GetTransactionInfoRequest
   ): Promise<GetTransactionInfoResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
     const cmsRequest: GetTransactionInfoCmsRequest = {
       task: 'gettransactioninfo',
-      token: host.token || '',
       dbname: dbname,
       dbuser: request.dbuser,
       dbpasswd: request.dbpasswd,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    this.logger.debug(
+      `Getting transaction information for database: ${dbname}, user: ${request.dbuser}`
+    );
+
+    const response = await this.executeCmsRequest<
       GetTransactionInfoCmsRequest,
       GetTransactionInfoCmsResponse
-    >(url, cmsRequest);
+    >(userId, hostUid, cmsRequest);
 
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
-
-    const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
-
-    return dataOnly;
+    return this.extractDomainData(response);
   }
 
   /**
@@ -654,37 +592,42 @@ export class DatabaseManagementService {
     dbname: string,
     request: KillTransactionRequest
   ): Promise<KillTransactionResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
     // Validate parameter requirement based on type
     if (request.type !== 'd' && !request.parameter) {
+      const typeDescriptions: Record<string, string> = {
+        i: 'transaction index',
+        p: 'process name',
+        h: 'host name',
+      };
       throw DatabaseError.InvalidParameter(
-        `Parameter is required for type '${request.type}'`,
-        { type: request.type, parameter: request.parameter }
+        `Parameter is required for type '${request.type}' (${typeDescriptions[request.type] || 'unknown type'})`,
+        {
+          type: request.type,
+          parameter: request.parameter,
+          dbname: dbname,
+          message: `Missing required parameter for kill transaction type '${request.type}'. Expected: ${typeDescriptions[request.type] || 'parameter'}`,
+        }
       );
     }
 
     // Build CMS request from client request
     const cmsRequest: KillTransactionCmsRequest = {
       task: 'killtransaction',
-      token: host.token || '',
       dbname: dbname,
       type: request.type,
       ...(request.type !== 'd' && request.parameter && { parameter: request.parameter }),
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    this.logger.debug(
+      `Killing transaction for database: ${dbname} on host: ${hostUid} with type: ${request.type} and parameter: ${request.parameter}`
+    );
+
+    const response = await this.executeCmsRequest<
       KillTransactionCmsRequest,
       KillTransactionCmsResponse
-    >(url, cmsRequest);
+    >(userId, hostUid, cmsRequest);
 
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
-
-    const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
-
-    return dataOnly;
+    return this.extractDomainData(response);
   }
 
   /**
@@ -707,44 +650,48 @@ export class DatabaseManagementService {
     dbname: string,
     request: DeleteDatabaseRequest
   ): Promise<DeleteDatabaseResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
     const cmsRequest: DeleteDatabaseCmsRequest = {
       task: 'deletedb',
-      token: host.token || '',
       dbname: dbname,
       delbackup: request.delbackup,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
-      DeleteDatabaseCmsRequest,
-      DeleteDatabaseCmsResponse
-    >(url, cmsRequest);
+    this.logger.debug(`Deleting database: ${dbname} on host: ${hostUid}`);
 
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
+    await this.executeCmsRequest<DeleteDatabaseCmsRequest, DeleteDatabaseCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
 
     // Remove dbname from server parameter in cubridconf if it exists
     try {
       await this.databaseConfigService.removeAutoStart(userId, hostUid, {
-        confname: 'cubridconf',
+        confname: DATABASE_CONSTANTS.CUBRID_CONF_NAME,
         dbname: dbname,
       });
       this.logger.debug(
-        `Removed database name ${dbname} from server parameter in cubridconf`
+        `Successfully removed database name ${dbname} from server parameter in cubridconf`
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Ignore DbnameNotFound error (dbname may not exist in server parameter)
       // Log other errors but don't fail the delete operation
       if (error instanceof ConfigError && error.code === ConfigErrorCode.DBNAME_NOT_FOUND) {
         this.logger.debug(
-          `Database name ${dbname} not found in server parameter, skipping removal`
+          `Database name ${dbname} not found in server parameter, skipping removal (this is expected if auto-start was not configured)`
         );
       } else {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        const errorCode = error instanceof ConfigError ? error.code : 'UNKNOWN';
         this.logger.warn(
-          `Failed to remove dbname from server parameter: ${error.message}`,
-          error.stack
+          `Failed to remove dbname from server parameter during database deletion: ${errorMessage}`,
+          {
+            dbname,
+            hostUid,
+            errorCode,
+            stack: errorStack,
+          }
         );
       }
     }

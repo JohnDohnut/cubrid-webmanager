@@ -59,9 +59,8 @@ export class DatabaseConfigController {
 
     validateRequiredFields(body, ['planlist'], 'database/auto-exec-query', this.logger);
 
-    Logger.log(
-      `Setting auto-exec query for database: ${dbname} on host: ${hostUid}`,
-      'DatabaseConfigController'
+    this.logger.log(
+      `Setting auto-exec query for database: ${dbname} on host: ${hostUid}`
     );
     return await this.configService.setAutoExecQuery(userId, hostUid, dbname, body);
   }
@@ -86,9 +85,8 @@ export class DatabaseConfigController {
   ): Promise<GetAutoExecQueryClientResponse> {
     const userId = req.user.sub;
 
-    Logger.log(
-      `Getting auto-exec query for database: ${dbname} on host: ${hostUid}`,
-      'DatabaseConfigController'
+    this.logger.log(
+      `Getting auto-exec query for database: ${dbname} on host: ${hostUid}`
     );
     return await this.configService.getAutoExecQuery(userId, hostUid, dbname);
   }
@@ -114,9 +112,8 @@ export class DatabaseConfigController {
   ): Promise<SetAutoStartResponse> {
     const userId = req.user.sub;
 
-    Logger.log(
-      `Enabling auto-start for database: ${body.dbname} on host: ${hostUid}`,
-      'DatabaseConfigController'
+    this.logger.log(
+      `Enabling auto-start for database: ${body.dbname} on host: ${hostUid}`
     );
     return await this.configService.setAutoStart(userId, hostUid, body);
   }
@@ -142,9 +139,8 @@ export class DatabaseConfigController {
   ): Promise<RemoveAutoStartResponse> {
     const userId = req.user.sub;
 
-    Logger.log(
-      `Disabling auto-start for database: ${body.dbname} on host: ${hostUid}`,
-      'DatabaseConfigController'
+    this.logger.log(
+      `Disabling auto-start for database: ${body.dbname} on host: ${hostUid}`
     );
     return await this.configService.removeAutoStart(userId, hostUid, body);
   }
@@ -186,9 +182,8 @@ export class DatabaseConfigController {
       this.logger
     );
 
-    Logger.log(
-      `Setting auto-add volume for database: ${dbname} on host: ${hostUid}`,
-      'DatabaseConfigController'
+    this.logger.log(
+      `Setting auto-add volume for database: ${dbname} on host: ${hostUid}`
     );
     return await this.configService.setAutoAddVol(userId, hostUid, dbname, body);
   }
@@ -218,9 +213,8 @@ export class DatabaseConfigController {
 
     validateRequiredFields(body, ['dbstatus'], 'database/class-info', this.logger);
 
-    Logger.log(
-      `Getting class info for database: ${dbname} on host: ${hostUid}`,
-      'DatabaseConfigController'
+    this.logger.log(
+      `Getting class info for database: ${dbname} on host: ${hostUid}`
     );
     return await this.configService.getClassInfo(userId, hostUid, dbname, body);
   }
@@ -246,9 +240,8 @@ export class DatabaseConfigController {
   ): Promise<GetAutoExecQueryErrLogResponse> {
     const userId = req.user.sub;
 
-    Logger.log(
-      `Getting auto-exec query error log on host: ${hostUid}`,
-      'DatabaseConfigController'
+    this.logger.log(
+      `Getting auto-exec query error log on host: ${hostUid}`
     );
     return await this.configService.getAutoExecQueryErrLog(userId, hostUid, body);
   }

@@ -128,6 +128,11 @@
     "@user": "apps/api-server/src/user/index",
     "@util": "apps/api-server/src/util/index"
   },
+  "scripts": {
+    "serve:web-manager": "node serve-web-manager.js",
+    "serve:web-manager:4200": "node serve-web-manager.js 4200",
+    "serve:web-manager:8080": "node serve-web-manager.js 8080"
+  },
   "pkg": {
     "scripts": [
       "main.js"

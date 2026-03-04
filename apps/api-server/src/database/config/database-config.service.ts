@@ -16,6 +16,7 @@ import {
 import { CmsConfigService } from '@cms-config/cms-config.service';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import {
+  BaseService,
   checkCmsStatusError,
   checkCmsTokenError,
   HandleCmsConfigErrors,
@@ -24,7 +25,7 @@ import {
 import { ConfigError } from '@error/config/config-error';
 import { DatabaseError } from '@error/database/database-error';
 import { HostService } from '@host';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import {
   GetAutoExecQueryCmsRequest,
   SetAutoExecQueryCmsRequest,
@@ -41,6 +42,7 @@ import {
 } from '@type/cms-response';
 import { GetAllSysParamCmsResponse } from '@type/cms-response/get-all-sys-param-cms-response';
 import { parseConfigParams } from '@util';
+import { DATABASE_CONSTANTS } from '../database.constants';
 
 /**
  * Service for managing database configuration operations.
@@ -50,14 +52,14 @@ import { parseConfigParams } from '@util';
  * @since 1.0.0
  */
 @Injectable()
-export class DatabaseConfigService {
-  private readonly logger = new Logger(DatabaseConfigService.name);
-
+export class DatabaseConfigService extends BaseService {
   constructor(
-    private readonly hostService: HostService,
-    private readonly cmsClient: CmsHttpsClientService,
+    protected readonly hostService: HostService,
+    protected readonly cmsClient: CmsHttpsClientService,
     private readonly cmsConfigService: CmsConfigService
-  ) {}
+  ) {
+    super(hostService, cmsClient);
+  }
 
   /**
    * Set auto-execution query for a database.
@@ -77,23 +79,17 @@ export class DatabaseConfigService {
     dbname: string,
     autoExecQuery: SetAutoExecQueryClientRequest
   ): Promise<SetAutoExecQueryClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const request: SetAutoExecQueryCmsRequest = {
+    const cmsRequest: SetAutoExecQueryCmsRequest = {
       task: 'setautoexecquery',
-      token: host.token || '',
       dbname: dbname,
       planlist: autoExecQuery.planlist,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
-      SetAutoExecQueryCmsRequest,
-      SetAutoExecQueryCmsResponse
-    >(url, request);
-
-    checkCmsTokenError(response);
-
-    checkCmsStatusError(response);
+    await this.executeCmsRequest<SetAutoExecQueryCmsRequest, SetAutoExecQueryCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
 
     return {};
   }
@@ -114,38 +110,35 @@ export class DatabaseConfigService {
     hostUid: string,
     dbname: string
   ): Promise<GetAutoExecQueryClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const request: GetAutoExecQueryCmsRequest = {
+    const cmsRequest: GetAutoExecQueryCmsRequest = {
       task: 'getautoexecquery',
-      token: host.token || '',
       dbname: dbname,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    const response = await this.executeCmsRequest<
       GetAutoExecQueryCmsRequest,
       GetAutoExecQueryCmsResponse
-    >(url, request);
+    >(userId, hostUid, cmsRequest);
 
-    checkCmsTokenError(response);
-
-    checkCmsStatusError(response);
-
-    const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
+    const dataOnly = this.extractDomainData(response);
 
     const planlist = dataOnly.planlist.map((plan) => {
       const queryplan = plan.queryplan.map((query) => {
-        const queryAny = query as any;
-
-        if (queryAny['@username'] !== undefined) {
-          const { '@username': atUsername, ...rest } = queryAny;
+        // Handle @username field (from XML) and convert to username
+        // Client response requires username to be non-optional
+        if ('@username' in query && query['@username'] !== undefined) {
+          const { '@username': atUsername, ...rest } = query;
           return {
             ...rest,
             username: atUsername || '',
           };
         }
 
-        return queryAny;
+        // Ensure username exists (required in client response)
+        return {
+          ...query,
+          username: query.username || '',
+        };
       });
 
       return {
@@ -161,13 +154,15 @@ export class DatabaseConfigService {
 
   /**
    * Enable auto-start for a database.
-   * Adds database name to the server parameter in configuration file.
+   * Adds database name to the server parameter in cubridconf configuration file.
+   * If server parameter does not exist, it will be added to the [service] section.
+   * The confname field in the request is ignored - the system always uses 'cubridconf'.
    *
    * @param userId User ID from JWT
    * @param hostUid Host UID
-   * @param request Request containing confname and dbname
-   * @returns SetAutoStartResponse Empty object on success
-   * @throws DatabaseError If request fails, server parameter not found, or dbname already exists
+   * @param request Request containing dbname (confname is ignored, always uses 'cubridconf')
+   * @returns SetAutoStartResponse Configuration response on success
+   * @throws ConfigError If request fails, [service] section not found, or server parameter cannot be added
    */
   @HandleCmsConfigErrors()
   async setAutoStart(
@@ -175,72 +170,114 @@ export class DatabaseConfigService {
     hostUid: string,
     request: SetAutoStartRequest
   ): Promise<SetAutoStartResponse> {
-    // Get current configuration
+    const confname = DATABASE_CONSTANTS.CUBRID_CONF_NAME;
+
+    // Get current configuration from cubridconf
     const currentConfig = await this.cmsConfigService.getAllSystemParam(
       userId,
       hostUid,
-      request.confname
+      confname
     );
 
     if (!currentConfig.conflist || currentConfig.conflist.length === 0) {
-      throw ConfigError.NoConflistData(request.confname);
+      throw ConfigError.NoConflistData(confname);
     }
 
     const confdata = currentConfig.conflist[0].confdata;
     if (!confdata || confdata.length === 0) {
-      throw ConfigError.NoConfdata(request.confname);
+      throw ConfigError.NoConfdata(confname);
     }
-    this.logger.debug(JSON.stringify((currentConfig)));
+    this.logger.debug(JSON.stringify(currentConfig));
 
-    // Find the server parameter using utility function
-    // Type assertion is safe because parseConfigParams only uses conflist property
+    // Find the server parameter in the [service] section
     const params = parseConfigParams(currentConfig as GetAllSysParamCmsResponse);
-    const serverParam = params.find((param) => param.key === 'server');
+    const serverParam = params.find(
+      (param) => param.key === 'server' && param.section === 'service'
+    );
+
+    let updatedConfdata: string[];
 
     if (!serverParam) {
-      throw ConfigError.ServerParamNotFound(request.confname);
+      // Server parameter does not exist in [service] section
+      // Find [service] section in confdata (case-sensitive, lowercase)
+      let serviceSectionStartIndex = -1;
+
+      for (let i = 0; i < confdata.length; i++) {
+        const line = confdata[i].trim();
+
+        // Check for [service] section (case-sensitive, lowercase)
+        if (line === '[service]') {
+          serviceSectionStartIndex = i;
+          break;
+        }
+      }
+
+      if (serviceSectionStartIndex === -1) {
+        // [service] section does not exist, throw error
+        throw ConfigError.ServerParamNotFound(confname, {
+          message: '[service] section not found in configuration file',
+        });
+      }
+
+      // [service] section exists, add server parameter after the section header
+      const insertIndex = serviceSectionStartIndex + 1;
+      updatedConfdata = [
+        ...confdata.slice(0, insertIndex),
+        `server=${request.dbname}`,
+        ...confdata.slice(insertIndex),
+      ];
+      this.logger.debug(
+        `Server parameter not found in [service] section, adding server=${request.dbname} at line ${insertIndex + 1}`
+      );
+    } else {
+      // Parse existing server values
+      const existingDbnames = serverParam.value
+        ? serverParam.value
+            .split(',')
+            .map((db) => db.trim())
+            .filter((db) => db.length > 0)
+        : [];
+
+      // Check if dbname already exists - if it does, return success without modification
+      if (existingDbnames.includes(request.dbname)) {
+        this.logger.debug(
+          `Database name ${request.dbname} already exists in server parameter, returning current configuration`
+        );
+        const rv: SetAutoStartResponse = currentConfig as unknown as SetAutoStartResponse;
+        this.logger.debug(JSON.stringify(rv));
+        return rv;
+      }
+
+      // Append new dbname
+      const updatedDbnames = [...existingDbnames, request.dbname];
+      const updatedServerLine = `server=${updatedDbnames.join(',')}`;
+
+      // Update confdata with new server line (lineNumber is 1-based, convert to 0-based index)
+      updatedConfdata = [...confdata];
+      updatedConfdata[serverParam.lineNumber - 1] = updatedServerLine;
     }
 
-    // Parse existing server values
-    const existingDbnames = serverParam.value
-      ? serverParam.value
-          .split(',')
-          .map((db) => db.trim())
-          .filter((db) => db.length > 0)
-      : [];
-
-    // Check if dbname already exists
-    if (existingDbnames.includes(request.dbname)) {
-      throw ConfigError.DbnameAlreadyExists(request.confname, request.dbname);
-    }
-
-    // Append new dbname
-    const updatedDbnames = [...existingDbnames, request.dbname];
-    const updatedServerLine = `server=${updatedDbnames.join(',')}`;
-
-    // Update confdata with new server line (lineNumber is 1-based, convert to 0-based index)
-    const updatedConfdata = [...confdata];
-    updatedConfdata[serverParam.lineNumber - 1] = updatedServerLine;
     const rv = await this.cmsConfigService.setSystemParam(
       userId,
       hostUid,
-      request.confname,
+      confname,
       updatedConfdata
     );
     // Set updated configuration
     this.logger.debug(JSON.stringify(rv));
-    return rv
+    return rv;
   }
 
   /**
    * Disable auto-start for a database.
-   * Removes database name from the server parameter in configuration file.
+   * Removes database name from the server parameter in cubridconf configuration file.
+   * The confname field in the request is ignored - the system always uses 'cubridconf'.
    *
    * @param userId User ID from JWT
    * @param hostUid Host UID
-   * @param request Request containing confname and dbname
+   * @param request Request containing dbname (confname is ignored, always uses 'cubridconf')
    * @returns RemoveAutoStartResponse Empty object on success
-   * @throws DatabaseError If request fails, server parameter not found, or dbname does not exist
+   * @throws ConfigError If request fails, server parameter not found in [service] section, or dbname does not exist
    */
   @HandleCmsConfigErrors()
   async removeAutoStart(
@@ -248,29 +285,34 @@ export class DatabaseConfigService {
     hostUid: string,
     request: RemoveAutoStartRequest
   ): Promise<RemoveAutoStartResponse> {
-    // Get current configuration
+    const confname = DATABASE_CONSTANTS.CUBRID_CONF_NAME;
+
+    // Get current configuration from cubridconf
     const currentConfig = await this.cmsConfigService.getAllSystemParam(
       userId,
       hostUid,
-      request.confname
+      confname
     );
 
     if (!currentConfig.conflist || currentConfig.conflist.length === 0) {
-      throw ConfigError.NoConflistData(request.confname);
+      throw ConfigError.NoConflistData(confname);
     }
 
     const confdata = currentConfig.conflist[0].confdata;
     if (!confdata || confdata.length === 0) {
-      throw ConfigError.NoConfdata(request.confname);
+      throw ConfigError.NoConfdata(confname);
     }
 
-    // Find the server parameter using utility function
-    // Type assertion is safe because parseConfigParams only uses conflist property
+    // Find the server parameter in the [service] section
     const params = parseConfigParams(currentConfig as GetAllSysParamCmsResponse);
-    const serverParam = params.find((param) => param.key === 'server');
+    const serverParam = params.find(
+      (param) => param.key === 'server' && param.section === 'service'
+    );
 
     if (!serverParam) {
-      throw ConfigError.ServerParamNotFound(request.confname);
+      throw ConfigError.ServerParamNotFound(confname, {
+        message: 'server parameter not found in [service] section',
+      });
     }
 
     // Parse existing server values
@@ -283,7 +325,7 @@ export class DatabaseConfigService {
 
     // Check if dbname exists
     if (!existingDbnames.includes(request.dbname)) {
-      throw ConfigError.DbnameNotFound(request.confname, request.dbname);
+      throw ConfigError.DbnameNotFound(confname, request.dbname);
     }
 
     // Remove dbname
@@ -299,7 +341,7 @@ export class DatabaseConfigService {
     return await this.cmsConfigService.setSystemParam(
       userId,
       hostUid,
-      request.confname,
+      confname,
       updatedConfdata
     );
   }
@@ -322,11 +364,8 @@ export class DatabaseConfigService {
     dbname: string,
     request: SetAutoAddVolRequest
   ): Promise<SetAutoAddVolResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
     const cmsRequest: SetAutoAddVolCmsRequest = {
       task: 'setautoaddvol',
-      token: host.token || '',
       dbname: dbname,
       data: request.data,
       data_warn_outofspace: request.data_warn_outofspace,
@@ -336,14 +375,11 @@ export class DatabaseConfigService {
       index_ext_page: request.index_ext_page,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
-      SetAutoAddVolCmsRequest,
-      SetAutoAddVolCmsResponse
-    >(url, cmsRequest);
-
-    checkCmsTokenError(response);
-
-    checkCmsStatusError(response);
+    await this.executeCmsRequest<SetAutoAddVolCmsRequest, SetAutoAddVolCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
 
     return {};
   }
@@ -366,27 +402,19 @@ export class DatabaseConfigService {
     dbname: string,
     request: ClassInfoRequest
   ): Promise<ClassInfoResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
     const cmsRequest: ClassInfoCmsRequest = {
       task: 'classinfo',
-      token: host.token || '',
       dbname: dbname,
       dbstatus: request.dbstatus,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
-      ClassInfoCmsRequest,
-      ClassInfoCmsResponse
-    >(url, cmsRequest);
+    const response = await this.executeCmsRequest<ClassInfoCmsRequest, ClassInfoCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
 
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
-
-    const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
-
-    return dataOnly;
+    return this.extractDomainData(response);
   }
 
   /**
@@ -405,24 +433,17 @@ export class DatabaseConfigService {
     hostUid: string,
     request: GetAutoExecQueryErrLogRequest
   ): Promise<GetAutoExecQueryErrLogResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
     const cmsRequest: GetAutoExecQueryErrLogCmsRequest = {
       task: 'getautoexecqueryerrlog',
-      token: host.token || '',
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    this.logger.debug('Getting auto-execution query error log');
+
+    const response = await this.executeCmsRequest<
       GetAutoExecQueryErrLogCmsRequest,
       GetAutoExecQueryErrLogCmsResponse
-    >(url, cmsRequest);
+    >(userId, hostUid, cmsRequest);
 
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
-
-    const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
-
-    return dataOnly;
+    return this.extractDomainData(response);
   }
 }

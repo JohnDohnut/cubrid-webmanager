@@ -36,7 +36,6 @@ export class DatabaseUserController {
   @Get()
   async getDatabaseUsers(@Request() req, @Param('hostUid') hostUid: string) {
     const userId = req.user.sub;
-    // TODO: Implement
     return await this.databaseUserService.getDatabaseUsers(userId);
   }
 
@@ -65,7 +64,7 @@ export class DatabaseUserController {
   ): Promise<boolean> {
     const userId = req.user.sub;
 
-    Logger.log(`Logging in to database: ${dbname} on host: ${hostUid}`, 'DatabaseUserController');
+    this.logger.log(`Logging in to database: ${dbname} on host: ${hostUid}`);
     const result = await this.databaseUserService.loginDatabase(
       userId,
       hostUid,
@@ -108,9 +107,8 @@ export class DatabaseUserController {
       this.logger
     );
 
-    Logger.log(
-      `Updating user: ${username} in database: ${dbname} on host: ${hostUid}`,
-      'DatabaseUserController'
+    this.logger.log(
+      `Updating user: ${username} in database: ${dbname} on host: ${hostUid}`
     );
     return await this.databaseUserService.updateUser(
       userId,
