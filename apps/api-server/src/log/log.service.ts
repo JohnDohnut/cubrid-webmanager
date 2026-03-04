@@ -1,6 +1,6 @@
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import { HostService } from '@host';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import {
   GetBrokerLogListClientResponse,
   ViewLogClientResponse,
@@ -16,33 +16,29 @@ import {
   GetAdminLogInfoCmsResponse,
   BaseCmsRequest,
 } from '@type';
-import { checkCmsTokenError, checkCmsStatusError } from '@common';
+import { BaseService } from '@common';
 
 @Injectable()
-export class LogService {
+export class LogService extends BaseService {
   constructor(
-    private readonly client: CmsHttpsClientService,
-    private readonly hostService: HostService
-  ) {}
+    protected readonly client: CmsHttpsClientService,
+    protected readonly hostService: HostService
+  ) {
+    super(hostService, client);
+  }
 
   async getBrokerLogList(userId: string, hostUid: string, bname: string) {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const body: BaseCmsRequest & { broker: string } = {
+    const cmsRequest: BaseCmsRequest & { broker: string } = {
       task: 'getlogfileinfo',
-      token: host.token || '',
       broker: bname,
     };
 
-    const cmsResponse = await this.client.postAuthenticated<
+    const cmsResponse = await this.executeCmsRequest<
       BaseCmsRequest & { broker: string },
       LogFileInfoCmsResponse
-    >(url, body);
+    >(userId, hostUid, cmsRequest);
 
-    checkCmsTokenError(cmsResponse);
-    checkCmsStatusError(cmsResponse);
-
-    Logger.debug(cmsResponse);
+    this.logger.debug(JSON.stringify(cmsResponse));
     const response: GetBrokerLogListClientResponse = {
       broker: cmsResponse.broker,
       logfileinfo: cmsResponse.logfileinfo,
@@ -51,21 +47,15 @@ export class LogService {
   }
 
   async getDatabaseLogList(userId: string, hostUid: string, dbname: string) {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const body: BaseCmsRequest & { dbname: string } = {
+    const cmsRequest: BaseCmsRequest & { dbname: string } = {
       task: 'getloginfo',
-      token: host.token || '',
       dbname: dbname,
     };
 
-    const cmsResponse = await this.client.postAuthenticated<
+    const cmsResponse = await this.executeCmsRequest<
       BaseCmsRequest & { dbname: string },
       LogInfoCmsResponse
-    >(url, body);
-
-    checkCmsTokenError(cmsResponse);
-    checkCmsStatusError(cmsResponse);
+    >(userId, hostUid, cmsRequest);
 
     const response: GetDatabaseLogListClientResponse = {
       dbname: cmsResponse.dbname,
@@ -75,20 +65,15 @@ export class LogService {
   }
 
   async getCMSLogList(userId: string, hostUid: string): Promise<LoadAccessLogClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const body: BaseCmsRequest = {
+    const cmsRequest: BaseCmsRequest = {
       task: 'loadaccesslog',
-      token: host.token || '',
     };
 
-    const cmsResponse = await this.client.postAuthenticated<
-      BaseCmsRequest,
-      LoadAccessLogCmsResponse
-    >(url, body);
-
-    checkCmsTokenError(cmsResponse);
-    checkCmsStatusError(cmsResponse);
+    const cmsResponse = await this.executeCmsRequest<BaseCmsRequest, LoadAccessLogCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
 
     const response: LoadAccessLogClientResponse = {
       accesslog: cmsResponse.accesslog,
@@ -116,26 +101,19 @@ export class LogService {
     start: string,
     end: string
   ): Promise<ViewLogClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const body: BaseCmsRequest & { path: string; start: string; end: string } = {
+    const cmsRequest: BaseCmsRequest & { path: string; start: string; end: string } = {
       task: 'viewlog',
-      token: host.token || '',
       path: path,
       start: start,
       end: end,
     };
 
-    const cmsResponse = await this.client.postAuthenticated<
+    const cmsResponse = await this.executeCmsRequest<
       BaseCmsRequest & { path: string; start: string; end: string },
       ViewLogCmsResponse
-    >(url, body);
+    >(userId, hostUid, cmsRequest);
 
-    checkCmsTokenError(cmsResponse);
-    checkCmsStatusError(cmsResponse);
-
-    const { __EXEC_TIME, note, status, task, ...dataOnly } = cmsResponse;
-    return dataOnly;
+    return this.extractDomainData(cmsResponse);
   }
 
   /**
@@ -148,22 +126,16 @@ export class LogService {
    * @returns GetAdminLogInfoClientResponse Admin log information without CMS envelope fields
    */
   async getAdminLogInfo(userId: string, hostUid: string): Promise<GetAdminLogInfoClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const body: BaseCmsRequest = {
+    const cmsRequest: BaseCmsRequest = {
       task: 'getadminloginfo',
-      token: host.token || '',
     };
 
-    const cmsResponse = await this.client.postAuthenticated<
-      BaseCmsRequest,
-      GetAdminLogInfoCmsResponse
-    >(url, body);
+    const cmsResponse = await this.executeCmsRequest<BaseCmsRequest, GetAdminLogInfoCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
 
-    checkCmsTokenError(cmsResponse);
-    checkCmsStatusError(cmsResponse);
-
-    const { __EXEC_TIME, note, status, task, ...dataOnly } = cmsResponse;
-    return dataOnly;
+    return this.extractDomainData(cmsResponse);
   }
 }

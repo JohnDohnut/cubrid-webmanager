@@ -46,7 +46,7 @@ export class DatabaseLifecycleController {
   ): Promise<StartInfoClientResponse> {
     const userId = req.user.sub;
 
-    Logger.log(`Getting start info for host: ${hostUid}`, 'DatabaseLifecycleController');
+    this.logger.log(`Getting start info for host: ${hostUid}`);
     const response = await this.lifecycleService.startInfo(userId, hostUid);
     return response;
   }
@@ -69,7 +69,7 @@ export class DatabaseLifecycleController {
   ): Promise<GetCreatedbInfoClientResponse> {
     const userId = req.user.sub;
 
-    Logger.log(`Getting create info for host: ${hostUid}`, 'DatabaseLifecycleController');
+    this.logger.log(`Getting create info for host: ${hostUid}`);
     return await this.lifecycleService.getCreatedbInfo(userId, hostUid);
   }
 
@@ -93,7 +93,7 @@ export class DatabaseLifecycleController {
   ): Promise<StartInfoClientResponse> {
     const userId = req.user.sub;
 
-    Logger.log(`Starting database: ${dbname} on host: ${hostUid}`, 'DatabaseLifecycleController');
+    this.logger.log(`Starting database: ${dbname} on host: ${hostUid}`);
     const result = await this.lifecycleService.startDatabase(userId, hostUid, dbname);
     return result;
   }
@@ -118,7 +118,7 @@ export class DatabaseLifecycleController {
   ): Promise<StartInfoClientResponse> {
     const userId = req.user.sub;
 
-    Logger.log(`Stopping database: ${dbname} on host: ${hostUid}`, 'DatabaseLifecycleController');
+    this.logger.log(`Stopping database: ${dbname} on host: ${hostUid}`);
     const result = await this.lifecycleService.stopDatabase(userId, hostUid, dbname);
     return result;
   }
@@ -143,7 +143,7 @@ export class DatabaseLifecycleController {
   ): Promise<StartInfoClientResponse> {
     const userId = req.user.sub;
 
-    Logger.log(`Restarting database: ${dbname} on host: ${hostUid}`, 'DatabaseLifecycleController');
+    this.logger.log(`Restarting database: ${dbname} on host: ${hostUid}`);
     const result = await this.lifecycleService.restartDatabase(userId, hostUid, dbname);
     return result;
   }
@@ -226,7 +226,7 @@ export class DatabaseLifecycleController {
       this.logger
     );
 
-    Logger.log(`Creating database: ${body.dbname} on host: ${hostUid}`, 'DatabaseLifecycleController');
+    this.logger.log(`Creating database: ${body.dbname} on host: ${hostUid}`);
     return await this.lifecycleService.createDatabase(userId, hostUid, body);
   }
 
@@ -250,9 +250,8 @@ export class DatabaseLifecycleController {
   ): Promise<DatabaseVolumeInfoClientResponse> {
     const userId = req.user.sub;
 
-    Logger.log(
-      `Getting volume info for database: ${dbname} on host: ${hostUid}`,
-      'DatabaseLifecycleController'
+    this.logger.log(
+      `Getting volume info for database: ${dbname} on host: ${hostUid}`
     );
     const response = await this.lifecycleService.getDBSpaceInfo(userId, hostUid, dbname);
     return response;

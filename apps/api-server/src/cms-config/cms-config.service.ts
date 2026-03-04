@@ -21,7 +21,7 @@ import { GetAllSysParamCmsResponse } from '@type/cms-response/get-all-sys-param-
 import { ParamdumpCmsResponse } from '@type/cms-response/paramdump-cms-response';
 import { StatdumpCmsResponse } from '@type/cms-response/statdump-cms-response';
 import { BaseCmsResponse } from '@type/cms-response/base-cms-response';
-import { HandleCmsConfigErrors, checkCmsTokenError, checkCmsStatusError } from '@common';
+import { BaseService, HandleCmsConfigErrors } from '@common';
 import { ConfigError } from '@error/config/config-error';
 
 /**
@@ -34,11 +34,13 @@ import { ConfigError } from '@error/config/config-error';
  * @since 1.0.0
  */
 @Injectable()
-export class CmsConfigService {
+export class CmsConfigService extends BaseService {
   constructor(
-    private readonly hostService: HostService,
-    private readonly cmsClient: CmsHttpsClientService
-  ) {}
+    protected readonly hostService: HostService,
+    protected readonly cmsClient: CmsHttpsClientService
+  ) {
+    super(hostService, cmsClient);
+  }
 
   /**
    * Get environment information from a CMS host.
@@ -51,30 +53,23 @@ export class CmsConfigService {
    */
   @HandleCmsConfigErrors()
   async getEnv(userId: string, hostUid: string): Promise<GetEnvClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const body: BaseCmsRequest = {
+    const cmsRequest: BaseCmsRequest = {
       task: 'getenv',
-      token: host.token || '',
     };
 
-    const response = await this.cmsClient.postAuthenticated<BaseCmsRequest, GetEnvCmsResponse>(
-      url,
-      body
+    const response = await this.executeCmsRequest<BaseCmsRequest, GetEnvCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
     );
-
-    checkCmsTokenError(response);
 
     if (response.status === 'success') {
-      const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
-      return dataOnly;
+      return this.extractDomainData(response);
     }
 
-    checkCmsStatusError(
-      response,
-      `Failed to get environment info: ${response.note || 'Unknown error'}`
-    );
-    throw new Error(`Failed to get environment info: ${response.note || 'Unknown error'}`);
+    throw ConfigError.GetAllSysParamFailed('getenv', {
+      note: response.note || 'Unknown error',
+    });
   }
 
   /**
@@ -93,29 +88,24 @@ export class CmsConfigService {
     hostUid: string,
     dbname: string
   ): Promise<ParamdumpClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const request: BaseCmsRequest & { dbname: string; both: 'n' } = {
+    const cmsRequest: BaseCmsRequest & { dbname: string; both: 'n' } = {
       task: 'paramdump',
-      token: host.token || '',
       both: 'n',
       dbname: dbname,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    const response = await this.executeCmsRequest<
       BaseCmsRequest & { dbname: string; both: 'n' },
       ParamdumpCmsResponse
-    >(url, request);
-
-    checkCmsTokenError(response);
+    >(userId, hostUid, cmsRequest);
 
     if (response.status === 'success') {
-      const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
-      return dataOnly;
+      return this.extractDomainData(response);
     }
 
-    checkCmsStatusError(response, `Failed to get paramdump: ${response.note || 'Unknown error'}`);
-    throw new Error(`Failed to get paramdump: ${response.note || 'Unknown error'}`);
+    throw ConfigError.GetAllSysParamFailed('paramdump', {
+      note: response.note || 'Unknown error',
+    });
   }
 
   /**
@@ -134,29 +124,23 @@ export class CmsConfigService {
     hostUid: string,
     dbname: string
   ): Promise<StatdumpClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
-    const request: BaseCmsRequest & { dbname: string } = {
+    const cmsRequest: BaseCmsRequest & { dbname: string } = {
       task: 'statdump',
-      token: host.token || '',
       dbname,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    const response = await this.executeCmsRequest<
       BaseCmsRequest & { dbname: string },
       StatdumpCmsResponse
-    >(url, request);
-
-    checkCmsTokenError(response);
+    >(userId, hostUid, cmsRequest);
 
     if (response.status === 'success') {
-      const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
-      return dataOnly;
+      return this.extractDomainData(response);
     }
 
-    checkCmsStatusError(response, `Failed to get statdump: ${response.note || 'Unknown error'}`);
-    throw new Error(`Failed to get statdump: ${response.note || 'Unknown error'}`);
+    throw ConfigError.GetAllSysParamFailed('statdump', {
+      note: response.note || 'Unknown error',
+    });
   }
 
   /**
@@ -175,30 +159,20 @@ export class CmsConfigService {
     hostUid: string,
     confname: string
   ): Promise<GetAllSysParamClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const request: GetAllSysParamCmsRequest = {
+    const cmsRequest: GetAllSysParamCmsRequest = {
       task: 'getallsysparam',
-      token: host.token || '',
       confname: confname,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    const response = await this.executeCmsRequest<
       GetAllSysParamCmsRequest,
       GetAllSysParamCmsResponse
-    >(url, request);
-
-    checkCmsTokenError(response);
+    >(userId, hostUid, cmsRequest);
 
     if (response.status === 'success') {
-      const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
-      return dataOnly;
+      return this.extractDomainData(response);
     }
 
-    checkCmsStatusError(
-      response,
-      `Failed to get all system parameters: ${response.note || 'Unknown error'}`
-    );
     throw ConfigError.GetAllSysParamFailed(confname, { note: response.note });
   }
 
@@ -220,31 +194,19 @@ export class CmsConfigService {
     confname: string,
     confdata: string[]
   ): Promise<SetSysParamClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const request: SetSysParamCmsRequest = {
+    const cmsRequest: SetSysParamCmsRequest = {
       task: 'setsysparam',
-      token: host.token || '',
       confname: confname,
       confdata: confdata,
     };
 
-    const response = await this.cmsClient.postAuthenticated<SetSysParamCmsRequest, BaseCmsResponse>(
-      url,
-      request
+    await this.executeCmsRequest<SetSysParamCmsRequest, BaseCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
     );
 
-    checkCmsTokenError(response);
-
-    if (response.status === 'success') {
-      return {};
-    }
-
-    checkCmsStatusError(
-      response,
-      `Failed to set system parameters: ${response.note || 'Unknown error'}`
-    );
-    throw ConfigError.SetSysParamFailed(confname, { note: response.note });
+    return {};
   }
 
 }

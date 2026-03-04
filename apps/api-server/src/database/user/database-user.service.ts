@@ -1,5 +1,5 @@
 import {
-  checkCmsTokenError,
+  BaseService,
   HandleCmsHttpsClientErrors,
   HandleDatabaseErrors,
   HandleHostErrors,
@@ -13,7 +13,6 @@ import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.servic
 import { BaseCmsResponse } from '@type';
 import { LoginDBCmsRequest, UpdateUserCmsRequest } from '@type/cms-request';
 import { UpdateUserCmsResponse } from '@type/cms-response';
-import { checkCmsStatusError } from '@common';
 
 /**
  * Service for managing database users.
@@ -22,12 +21,14 @@ import { checkCmsStatusError } from '@common';
  * @since 1.0.0
  */
 @Injectable()
-export class DatabaseUserService {
+export class DatabaseUserService extends BaseService {
   constructor(
     private readonly repository: UserRepositoryService,
-    private readonly cmsClient: CmsHttpsClientService,
-    private readonly hostService: HostService
-  ) {}
+    protected readonly cmsClient: CmsHttpsClientService,
+    protected readonly hostService: HostService
+  ) {
+    super(hostService, cmsClient);
+  }
 
   /**
    * Get list of database users for a specific host.
@@ -63,22 +64,19 @@ export class DatabaseUserService {
     const host = await this.hostService.findHostInternal(userId, hostUid);
     const dbAuth = DBAuthResolver.resolve(host, dbname, clientId, clientPassword);
 
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const data: LoginDBCmsRequest = {
+    const cmsRequest: LoginDBCmsRequest = {
       task: 'dbmtuserlogin',
-      token: host.token || '',
       targetid: host.id,
       dbname: dbAuth.dbname,
       dbuser: dbAuth.id,
       dbpasswd: dbAuth.password,
     };
 
-    const response = await this.cmsClient.postAuthenticated<LoginDBCmsRequest, BaseCmsResponse>(
-      url,
-      data
+    const response = await this.executeCmsRequest<LoginDBCmsRequest, BaseCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
     );
-
-    checkCmsTokenError(response);
 
     if (response.status === 'success') {
       return true;
@@ -113,12 +111,8 @@ export class DatabaseUserService {
     groups: { group: string[] },
     authorization: string[]
   ): Promise<{}> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
-    const data: UpdateUserCmsRequest = {
+    const cmsRequest: UpdateUserCmsRequest = {
       task: 'updateuser',
-      token: host.token || '',
       dbname,
       username,
       userpass,
@@ -126,13 +120,11 @@ export class DatabaseUserService {
       authorization,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
-      UpdateUserCmsRequest,
-      UpdateUserCmsResponse
-    >(url, data);
-
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
+    await this.executeCmsRequest<UpdateUserCmsRequest, UpdateUserCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
 
     return {};
   }
