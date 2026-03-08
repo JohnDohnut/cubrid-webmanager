@@ -36,7 +36,6 @@ export class DatabaseUserController {
   @Get()
   async getDatabaseUsers(@Request() req, @Param('hostUid') hostUid: string) {
     const userId = req.user.sub;
-    // TODO: Implement
     return await this.databaseUserService.getDatabaseUsers(userId);
   }
 
@@ -65,15 +64,29 @@ export class DatabaseUserController {
   ): Promise<boolean> {
     const userId = req.user.sub;
 
-    Logger.log(`Logging in to database: ${dbname} on host: ${hostUid}`, 'DatabaseUserController');
-    const result = await this.databaseUserService.loginDatabase(
-      userId,
-      hostUid,
-      dbname,
-      body.id,
-      body.password
-    );
-    return result;
+    // Try to validate id/password - if missing, will use profile instead
+    try {
+      validateRequiredFields(body, ['id', 'password'], `database/users/login/${dbname}`, this.logger);
+      // If validation passes, use provided credentials
+      this.logger.log(`Logging in to database: ${dbname} on host: ${hostUid}`);
+      return await this.databaseUserService.loginDatabase(
+        userId,
+        hostUid,
+        dbname,
+        body.id,
+        body.password
+      );
+    } catch (error) {
+      // If ValidationError (id/password are missing), don't pass parameters to use profile
+      // DBAuthResolver.resolve uses == null check, so undefined is handled correctly
+      if (error instanceof ValidationError) {
+        this.logger.log(`Logging in to database: ${dbname} on host: ${hostUid} (using profile)`);
+        return await this.databaseUserService.loginDatabase(userId, hostUid, dbname);
+      } else {
+        // Re-throw non-validation errors
+        throw error;
+      }
+    }
   }
 
   /**
@@ -108,9 +121,8 @@ export class DatabaseUserController {
       this.logger
     );
 
-    Logger.log(
-      `Updating user: ${username} in database: ${dbname} on host: ${hostUid}`,
-      'DatabaseUserController'
+    this.logger.log(
+      `Updating user: ${username} in database: ${dbname} on host: ${hostUid}`
     );
     return await this.databaseUserService.updateUser(
       userId,

@@ -1,9 +1,13 @@
 /**
- * Error codes for validation errors.
+ * Enumeration of validation-related error codes.
+ *
+ * @category Errors
+ * @since 1.0.0
  */
 export enum ValidationErrorCode {
   INVALID_REQUEST_BODY = 'INVALID_REQUEST_BODY',
   MISSING_REQUIRED_FIELD = 'MISSING_REQUIRED_FIELD',
   MISSING_DB_CREDENTIALS = 'MISSING_DB_CREDENTIALS',
   INVALID_FIELD_FORMAT = 'INVALID_FIELD_FORMAT',
+  UNKNOWN = 'UNKNOWN',
 }

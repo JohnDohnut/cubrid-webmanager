@@ -1,5 +1,5 @@
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
-import { HandleResourceMonitoringErrors } from '@common';
+import { BaseService, HandleResourceMonitoringErrors } from '@common';
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import { BaseCmsRequest, BaseCmsResponse, CmsGetHostStatResponse } from '@root/src/type';
@@ -12,29 +12,28 @@ import { BaseCmsRequest, BaseCmsResponse, CmsGetHostStatResponse } from '@root/s
  * @since 1.0.0
  */
 @Injectable()
-export class ResourceMonitoringService {
+export class ResourceMonitoringService extends BaseService {
   constructor(
-    private readonly client: CmsHttpsClientService,
-    private readonly hostService: HostService
-  ) {}
+    protected readonly client: CmsHttpsClientService,
+    protected readonly hostService: HostService
+  ) {
+    super(hostService, client);
+  }
+
   @HandleResourceMonitoringErrors()
   async getHostStat(
     userId: string,
     hostUid: string
   ): Promise<Omit<CmsGetHostStatResponse, keyof BaseCmsResponse>> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const body = {
-      token: host.token || '',
+    const cmsRequest: BaseCmsRequest = {
       task: 'gethoststat',
     };
 
-    const response = await this.client.postAuthenticated<BaseCmsRequest, CmsGetHostStatResponse>(
-      url,
-      body
+    const response = await this.executeCmsRequest<BaseCmsRequest, CmsGetHostStatResponse>(
+      userId,
+      hostUid,
+      cmsRequest
     );
-    const { __EXEC_TIME, task, status, note, ...dataOnly } = response;
-    return dataOnly;
+    return this.extractDomainData(response);
   }
 }

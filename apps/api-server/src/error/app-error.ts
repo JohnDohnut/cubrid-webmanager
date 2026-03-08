@@ -4,6 +4,9 @@ import { LockErrorCode } from '@error/lock/lock-error-code';
 import { HostErrorCode } from '@error/host/host-error-code';
 import { UserErrorCode } from '@error/user/user-error-code';
 import { DatabaseErrorCode } from '@error/database/database-error-code';
+import { ConfigErrorCode } from '@error/config/config-error-code';
+import { BrokerErrorCode } from '@error/broker/broker-error-code';
+import { CmsErrorCode } from '@error/cms/cms-error-code';
 
 export type ErrorKind =
   | 'AUTH'
@@ -15,7 +18,8 @@ export type ErrorKind =
   | 'CMS'
   | 'DATABASE'
   | 'VALIDATION'
-  | 'CONFIG';
+  | 'CONFIG'
+  | 'BROKER';
 
 /**
  * Base error class for all application errors.
@@ -70,7 +74,15 @@ export class AppError extends Error {
   private getSafeFieldsForClient(additionalData: Record<string, any>): Record<string, any> {
     const safeFields: Record<string, any> = {};
 
-    const allowedFields = ['missingFields', 'dbname', 'bname', 'message'];
+    const allowedFields = [
+      'missingFields',
+      'dbname',
+      'bname',
+      'message',
+      'confname',
+      'type',
+      'parameter',
+    ];
 
     const sensitiveFields = [
       'response',
@@ -146,6 +158,7 @@ export class AppError extends Error {
           case HostErrorCode.DUPLICATED_HOST:
             return 409; // Conflict - resource collision
           case HostErrorCode.INTERNAL_ERROR:
+          case HostErrorCode.UNKNOWN:
             return 500; // Internal Server Error
           default:
             return 400;
@@ -210,6 +223,8 @@ export class AppError extends Error {
             return 404;
           case DatabaseErrorCode.DUPLICATED_DATABASE_PROFILE:
             return 409;
+          case DatabaseErrorCode.INVALID_PARAMETER:
+            return 400;
           case DatabaseErrorCode.INTERNAL_ERROR:
           case DatabaseErrorCode.GET_START_INFO_FAILED:
           case DatabaseErrorCode.START_DATABASE_FAILED:
@@ -221,10 +236,47 @@ export class AppError extends Error {
           default:
             return 500;
         }
+      case 'CONFIG':
+        switch (this.code) {
+          case ConfigErrorCode.SERVER_PARAM_NOT_FOUND:
+          case ConfigErrorCode.NO_CONFLIST_DATA:
+          case ConfigErrorCode.NO_CONFDATA:
+            return 404;
+          case ConfigErrorCode.DBNAME_ALREADY_EXISTS:
+            return 409;
+          case ConfigErrorCode.DBNAME_NOT_FOUND:
+            return 404;
+          case ConfigErrorCode.GET_ALL_SYS_PARAM_FAILED:
+          case ConfigErrorCode.SET_SYS_PARAM_FAILED:
+          case ConfigErrorCode.UNKNOWN:
+            return 500;
+          default:
+            return 500;
+        }
       case 'CMS':
-        return 500;
+        switch (this.code) {
+          case CmsErrorCode.INVALID_TOKEN:
+            return 401; // Unauthorized
+          case CmsErrorCode.REQUEST_FAILED:
+          case CmsErrorCode.NO_RESPONSE:
+          case CmsErrorCode.UNKNOWN:
+            return 500; // Internal Server Error
+          default:
+            return 500;
+        }
       case 'VALIDATION':
-        return 400;
+        return 400; // All validation errors are bad requests
+      case 'BROKER':
+        switch (this.code) {
+          case BrokerErrorCode.GET_BROKER_FAILED:
+          case BrokerErrorCode.BROKER_STOP_FAILED:
+          case BrokerErrorCode.BROKER_START_FAILED:
+          case BrokerErrorCode.INTERNAL_ERROR:
+          case BrokerErrorCode.UNKNOWN:
+            return 500; // Internal Server Error
+          default:
+            return 500;
+        }
       default:
         return 500;
     }

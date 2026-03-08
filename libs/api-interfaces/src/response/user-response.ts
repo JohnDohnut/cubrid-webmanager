@@ -9,4 +9,4 @@ import { User } from '@type/user';
  * @category Responses
  * @since 1.0.0
  */
-export type UserResponse = Omit<User, 'password' | 'uuid'>;
+export type UserResponse = Omit<User, 'password' | 'uuid' | 'token'>;
