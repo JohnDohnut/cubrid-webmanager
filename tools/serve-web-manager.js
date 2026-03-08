@@ -14,7 +14,7 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = process.argv[2] ? parseInt(process.argv[2], 10) : 4200;
-const BUILD_DIR = path.join(__dirname, 'dist', 'apps', 'web-manager');
+const BUILD_DIR = path.join(__dirname, '..', 'dist', 'apps', 'web-manager');
 
 // MIME 타입 매핑
 const mimeTypes = {
