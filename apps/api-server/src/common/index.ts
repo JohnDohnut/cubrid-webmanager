@@ -23,3 +23,6 @@ export { HandleCmsConfigErrors } from './decorators/handle-cms-config-errors.dec
 // Export interceptors
 export { SuccessResponseInterceptor } from './interceptors/success-response.interceptor';
 export { LoggingInterceptor } from './interceptors/logging.interceptor';
+
+// Export base service
+export { BaseService } from './base.service';

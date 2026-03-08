@@ -60,9 +60,8 @@ export class DatabaseBackupController {
       this.logger
     );
 
-    Logger.log(
-      `Adding backup schedule for database: ${dbname} on host: ${hostUid}`,
-      'DatabaseBackupController'
+    this.logger.log(
+      `Adding backup schedule for database: ${dbname} on host: ${hostUid}`
     );
     return await this.backupService.addBackupSchedule(userId, hostUid, dbname, body);
   }
@@ -97,9 +96,8 @@ export class DatabaseBackupController {
       this.logger
     );
 
-    Logger.log(
-      `Setting backup schedule for database: ${dbname} on host: ${hostUid}`,
-      'DatabaseBackupController'
+    this.logger.log(
+      `Setting backup schedule for database: ${dbname} on host: ${hostUid}`
     );
     return await this.backupService.setBackupSchedule(userId, hostUid, dbname, body);
   }
@@ -129,9 +127,8 @@ export class DatabaseBackupController {
 
     validateRequiredFields(body, ['backupid'], 'database/backup-schedule', this.logger);
 
-    Logger.log(
-      `Deleting backup schedule for database: ${dbname} on host: ${hostUid}`,
-      'DatabaseBackupController'
+    this.logger.log(
+      `Deleting backup schedule for database: ${dbname} on host: ${hostUid}`
     );
     return await this.backupService.deleteBackupSchedule(userId, hostUid, dbname, body);
   }
@@ -156,9 +153,8 @@ export class DatabaseBackupController {
   ): Promise<GetBackupInfoClientResponse> {
     const userId = req.user.sub;
 
-    Logger.log(
-      `Getting backup schedule for database: ${dbname} on host: ${hostUid}`,
-      'DatabaseBackupController'
+    this.logger.log(
+      `Getting backup schedule for database: ${dbname} on host: ${hostUid}`
     );
     return await this.backupService.getBackupSchedule(userId, hostUid, dbname);
   }
@@ -184,9 +180,8 @@ export class DatabaseBackupController {
   ): Promise<GetAutoBackupDbErrLogResponse> {
     const userId = req.user.sub;
 
-    Logger.log(
-      `Getting auto-backup database error log on host: ${hostUid}`,
-      'DatabaseBackupController'
+    this.logger.log(
+      `Getting auto-backup database error log on host: ${hostUid}`
     );
     return await this.backupService.getAutoBackupDbErrLog(userId, hostUid, body);
   }

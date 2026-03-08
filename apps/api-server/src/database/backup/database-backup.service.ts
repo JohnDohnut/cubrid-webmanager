@@ -11,13 +11,12 @@ import {
 } from '@api-interfaces';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import {
-  checkCmsStatusError,
-  checkCmsTokenError,
+  BaseService,
   HandleDatabaseErrors,
 } from '@common';
 import { DatabaseError } from '@error/database/database-error';
 import { HostService } from '@host';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import {
   AddBackupInfoCmsRequest,
   DeleteBackupInfoCmsRequest,
@@ -31,6 +30,7 @@ import {
   GetBackupInfoCmsResponse,
   SetBackupInfoCmsResponse,
   GetAutoBackupDbErrLogCmsResponse,
+  BackupInfo,
 } from '@type/cms-response';
 
 /**
@@ -41,13 +41,13 @@ import {
  * @since 1.0.0
  */
 @Injectable()
-export class DatabaseBackupService {
-  private readonly logger = new Logger(DatabaseBackupService.name);
-
+export class DatabaseBackupService extends BaseService {
   constructor(
-    private readonly hostService: HostService,
-    private readonly cmsClient: CmsHttpsClientService
-  ) {}
+    protected readonly hostService: HostService,
+    protected readonly cmsClient: CmsHttpsClientService
+  ) {
+    super(hostService, cmsClient);
+  }
 
   /**
    * Add automated backup schedule information for a database.
@@ -67,11 +67,8 @@ export class DatabaseBackupService {
     dbname: string,
     backupInfo: AddBackupInfoClientRequest
   ): Promise<AddBackupInfoClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const request: AddBackupInfoCmsRequest = {
+    const cmsRequest: AddBackupInfoCmsRequest = {
       task: 'addbackupinfo',
-      token: host.token || '',
       dbname: dbname,
       backupid: backupInfo.backupid,
       path: backupInfo.path,
@@ -89,14 +86,11 @@ export class DatabaseBackupService {
       bknum: backupInfo.bknum,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
-      AddBackupInfoCmsRequest,
-      AddBackupInfoCmsResponse
-    >(url, request);
-
-    checkCmsTokenError(response);
-
-    checkCmsStatusError(response);
+    await this.executeCmsRequest<AddBackupInfoCmsRequest, AddBackupInfoCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
 
     return {};
   }
@@ -119,11 +113,8 @@ export class DatabaseBackupService {
     dbname: string,
     backupInfo: SetBackupInfoClientRequest
   ): Promise<SetBackupInfoClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const request: SetBackupInfoCmsRequest = {
+    const cmsRequest: SetBackupInfoCmsRequest = {
       task: 'setbackupinfo',
-      token: host.token || '',
       dbname: dbname,
       backupid: backupInfo.backupid,
       path: backupInfo.path,
@@ -141,14 +132,10 @@ export class DatabaseBackupService {
       bknum: backupInfo.bknum,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    const response = await this.executeCmsRequest<
       SetBackupInfoCmsRequest,
       SetBackupInfoCmsResponse
-    >(url, request);
-
-    checkCmsTokenError(response);
-
-    checkCmsStatusError(response);
+    >(userId, hostUid, cmsRequest);
 
     return {
       __EXEC_TIME: response.__EXEC_TIME,
@@ -176,23 +163,16 @@ export class DatabaseBackupService {
     dbname: string,
     backupInfo: DeleteBackupInfoClientRequest
   ): Promise<DeleteBackupInfoClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const request: DeleteBackupInfoCmsRequest = {
+    const cmsRequest: DeleteBackupInfoCmsRequest = {
       task: 'deletebackupinfo',
-      token: host.token || '',
       dbname: dbname,
       backupid: backupInfo.backupid,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    const response = await this.executeCmsRequest<
       DeleteBackupInfoCmsRequest,
       DeleteBackupInfoCmsResponse
-    >(url, request);
-
-    checkCmsTokenError(response);
-
-    checkCmsStatusError(response);
+    >(userId, hostUid, cmsRequest);
 
     return {
       __EXEC_TIME: response.__EXEC_TIME,
@@ -218,25 +198,23 @@ export class DatabaseBackupService {
     hostUid: string,
     dbname: string
   ): Promise<GetBackupInfoClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const request: GetBackupInfoCmsRequest = {
+    const cmsRequest: GetBackupInfoCmsRequest = {
       task: 'getbackupinfo',
-      token: host.token || '',
       dbname: dbname,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    this.logger.debug(`Getting backup schedule information for database: ${dbname}`);
+
+    const response = await this.executeCmsRequest<
       GetBackupInfoCmsRequest,
       GetBackupInfoCmsResponse
-    >(url, request);
+    >(userId, hostUid, cmsRequest);
 
-    checkCmsTokenError(response);
-
-    checkCmsStatusError(response);
-
-    const { __EXEC_TIME, note, status, task, dbname: responseDbname, ...rest } = response;
-    const backupArray = rest[dbname] as any[];
+    // Extract dbname before extractDomainData to preserve string type
+    const responseDbname = response.dbname as string;
+    const { dbname: _, ...rest } = this.extractDomainData(response);
+    // CMS API returns backup info with database name as a dynamic key
+    const backupArray = (rest[dbname] as BackupInfo[] | undefined) || [];
 
     return {
       dbname: responseDbname,
@@ -260,24 +238,17 @@ export class DatabaseBackupService {
     hostUid: string,
     request: GetAutoBackupDbErrLogRequest
   ): Promise<GetAutoBackupDbErrLogResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
     const cmsRequest: GetAutoBackupDbErrLogCmsRequest = {
       task: 'getautobackupdberrlog',
-      token: host.token || '',
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    this.logger.debug('Getting auto-backup database error log');
+
+    const response = await this.executeCmsRequest<
       GetAutoBackupDbErrLogCmsRequest,
       GetAutoBackupDbErrLogCmsResponse
-    >(url, cmsRequest);
+    >(userId, hostUid, cmsRequest);
 
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
-
-    const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
-
-    return dataOnly;
+    return this.extractDomainData(response);
   }
 }
