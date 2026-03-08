@@ -129,9 +129,9 @@
     "@util": "apps/api-server/src/util/index"
   },
   "scripts": {
-    "serve:web-manager": "node tools/serve-web-manager.js",
-    "serve:web-manager:4200": "node tools/serve-web-manager.js 4200",
-    "serve:web-manager:8080": "node tools/serve-web-manager.js 8080"
+    "dev": "node tools/serve-web-manager.js",
+    "dev:4200": "node tools/serve-web-manager.js 4200",
+    "dev:8080": "node tools/serve-web-manager.js 8080"
   },
   "pkg": {
     "scripts": [
