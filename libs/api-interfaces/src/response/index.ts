@@ -10,6 +10,8 @@ export * from './standard-response';
 export * from './host-client-response';
 export * from './broker-client-response';
 export * from './broker-status-client-response';
+export * from './start-all-brokers-response';
+export * from './stop-all-brokers-response';
 export * from './cms-file-client-response';
 export * from './database-client-response';
 export * from './database-volume-info-client-response';

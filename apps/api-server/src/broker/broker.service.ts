@@ -3,7 +3,11 @@ import { BaseService, HandleBrokerErrors } from '@common';
 import { BrokerError } from '@error/broker/broker-error';
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
-import { GetBrokerStatusClientResponse } from '@api-interfaces';
+import {
+  GetBrokerStatusClientResponse,
+  StartAllBrokersClientResponse,
+  StopAllBrokersClientResponse,
+} from '@api-interfaces';
 import {
   BaseCmsRequest,
   BaseCmsResponse,
@@ -11,7 +15,13 @@ import {
   GetBrokerStatusCmsResponse,
   GetBrokersInfoCmsResponse,
   HandleBrokerCmsRequest,
+  StartBrokerCmsRequest,
+  StopBrokerCmsRequest,
 } from '@type';
+import {
+  StartBrokerCmsResponse,
+  StopBrokerCmsResponse,
+} from '@type/cms-response';
 
 /**
  * Service for managing broker operations.
@@ -151,36 +161,40 @@ export class BrokerService extends BaseService {
   }
 
   @HandleBrokerErrors()
-  async stopAllBrokers(userId: string, hostUid: string): Promise<boolean> {
-    const cmsRequest: BaseCmsRequest = {
+  async stopAllBrokers(
+    userId: string,
+    hostUid: string
+  ): Promise<StopAllBrokersClientResponse> {
+    const cmsRequest: StopBrokerCmsRequest = {
       task: 'stopbroker',
     };
-    const response = await this.executeCmsRequest<BaseCmsRequest, BaseCmsResponse>(
-      userId,
-      hostUid,
-      cmsRequest
-    );
+    const response = await this.executeCmsRequest<
+      StopBrokerCmsRequest,
+      StopBrokerCmsResponse
+    >(userId, hostUid, cmsRequest);
 
     if (response.status === 'success') {
-      return true;
+      return { success: true };
     }
 
     throw BrokerError.BrokerStopFailed();
   }
 
   @HandleBrokerErrors()
-  async startAllBrokers(userId: string, hostUid: string): Promise<boolean> {
-    const cmsRequest: BaseCmsRequest = {
+  async startAllBrokers(
+    userId: string,
+    hostUid: string
+  ): Promise<StartAllBrokersClientResponse> {
+    const cmsRequest: StartBrokerCmsRequest = {
       task: 'startbroker',
     };
-    const response = await this.executeCmsRequest<BaseCmsRequest, BaseCmsResponse>(
-      userId,
-      hostUid,
-      cmsRequest
-    );
+    const response = await this.executeCmsRequest<
+      StartBrokerCmsRequest,
+      StartBrokerCmsResponse
+    >(userId, hostUid, cmsRequest);
 
     if (response.status === 'success') {
-      return true;
+      return { success: true };
     }
 
     throw BrokerError.BrokerStartFailed();

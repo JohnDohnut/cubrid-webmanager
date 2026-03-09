@@ -4,6 +4,8 @@ export * from './check-file-cms-response';
 export * from './base-cms-response';
 export * from './get-brokers-info-cms-response';
 export * from './get-broker-status-cms-response';
+export * from './start-broker-cms-response';
+export * from './stop-broker-cms-response';
 export * from './get-env-cms-response';
 export * from './start-info-cms-response';
 export * from './paramdump-cms-response';
