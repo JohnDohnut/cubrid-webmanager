@@ -18,7 +18,7 @@ import {
   OptimizeDatabaseRequest,
   OptimizeDatabaseResponse,
   RenameDatabaseRequest,
-  RenameDatabaseResponse,
+  StartInfoClientResponse,
   UnloadDatabaseRequest,
   UnloadInfoClientResponse,
 } from '@api-interfaces';
@@ -239,7 +239,7 @@ export class DatabaseManagementController {
    * @param hostUid Host unique identifier from path parameter
    * @param dbname Current database name from path parameter
    * @param body Request body containing rename configuration
-   * @returns RenameDatabaseResponse Empty object on success
+   * @returns StartInfoClientResponse Latest database list (start-info) on success
    * @example
    * // POST /host-uid/database/rename/rename_test
    * // Body: { "rename": "renamed_db", "exvolpath": "none", "advanced": "on", "volume": [{ "/old/path": "/new/path" }], "forcedel": "n" }
@@ -250,7 +250,7 @@ export class DatabaseManagementController {
     @Param('hostUid') hostUid: string,
     @Param('dbname') dbname: string,
     @Body() body: RenameDatabaseRequest
-  ): Promise<RenameDatabaseResponse> {
+  ): Promise<StartInfoClientResponse> {
     const userId = req.user.sub;
 
     validateRequiredFields(

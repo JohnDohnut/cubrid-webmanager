@@ -5,6 +5,7 @@ import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.servic
 import { UserRepositoryService } from '@repository';
 import { CmsConfigService } from '@cms-config/cms-config.service';
 import { FileService } from '@file/file.service';
+import { DatabaseInfoService } from '../info/database-info.service';
 import { DatabaseUserService } from '../user/database-user.service';
 import { DatabaseConfigService } from '../config/database-config.service';
 import { DatabaseError } from '@error/database/database-error';
@@ -30,6 +31,7 @@ describe('DatabaseLifecycleService', () => {
   let fileService: jest.Mocked<FileService>;
   let databaseUserService: jest.Mocked<DatabaseUserService>;
   let databaseConfigService: jest.Mocked<DatabaseConfigService>;
+  let databaseInfoService: DatabaseInfoService;
 
   const mockHost = {
     uid: 'host-uid-1',
@@ -73,6 +75,7 @@ describe('DatabaseLifecycleService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DatabaseLifecycleService,
+        DatabaseInfoService,
         {
           provide: HostService,
           useValue: mockHostService,
@@ -112,6 +115,7 @@ describe('DatabaseLifecycleService', () => {
     fileService = module.get(FileService);
     databaseUserService = module.get(DatabaseUserService);
     databaseConfigService = module.get(DatabaseConfigService);
+    databaseInfoService = module.get(DatabaseInfoService);
 
     // Setup default mocks
     hostService.findHostInternal.mockResolvedValue(mockHost);
@@ -223,7 +227,7 @@ describe('DatabaseLifecycleService', () => {
     };
 
     beforeEach(() => {
-      jest.spyOn(service, 'startInfo').mockResolvedValue(mockStartInfoResponse);
+      jest.spyOn(databaseInfoService, 'startInfo').mockResolvedValue(mockStartInfoResponse as any);
     });
 
     it('should successfully start database', async () => {
@@ -271,7 +275,7 @@ describe('DatabaseLifecycleService', () => {
     };
 
     beforeEach(() => {
-      jest.spyOn(service, 'startInfo').mockResolvedValue(mockStartInfoResponse);
+      jest.spyOn(databaseInfoService, 'startInfo').mockResolvedValue(mockStartInfoResponse as any);
     });
 
     it('should successfully stop database', async () => {
@@ -325,7 +329,7 @@ describe('DatabaseLifecycleService', () => {
     };
 
     beforeEach(() => {
-      jest.spyOn(service, 'startInfo').mockResolvedValue(mockStartInfoResponse);
+      jest.spyOn(databaseInfoService, 'startInfo').mockResolvedValue(mockStartInfoResponse as any);
     });
 
     it('should successfully restart database', async () => {
@@ -375,7 +379,7 @@ describe('DatabaseLifecycleService', () => {
     };
 
     beforeEach(() => {
-      jest.spyOn(service, 'startInfo').mockResolvedValue(mockStartInfoResponse);
+      jest.spyOn(databaseInfoService, 'startInfo').mockResolvedValue(mockStartInfoResponse as any);
     });
 
     it('should successfully save database profile', async () => {
@@ -511,8 +515,17 @@ describe('DatabaseLifecycleService', () => {
 
     const mockCreateDatabaseResponse: CreateDatabaseClientResponse = {};
 
+    const mockStartInfoForCreate = { activelist: { active: [] }, dblist: { dbs: [] } };
+
     beforeEach(() => {
       jest.spyOn(service, 'createDatabaseInternal').mockResolvedValue(mockCreateDatabaseResponse);
+      jest.spyOn(databaseInfoService, 'startInfo').mockResolvedValue(mockStartInfoForCreate as any);
+      cmsClient.postAuthenticated.mockResolvedValue({
+        __EXEC_TIME: '0 ms',
+        note: 'none',
+        status: 'success',
+        task: 'startdb',
+      });
       databaseUserService.updateUser.mockResolvedValue({});
       databaseConfigService.setAutoAddVol.mockResolvedValue({});
       databaseConfigService.setAutoStart.mockResolvedValue({});
@@ -787,8 +800,14 @@ describe('DatabaseLifecycleService', () => {
       task: 'deletedb',
     };
 
-    it('should successfully delete database with delbackup "y"', async () => {
+    const mockStartInfoAfterDelete = {
+      activelist: { active: [] },
+      dblist: { dbs: [] },
+    };
+
+    it('should successfully delete database with delbackup "y" and return start-info', async () => {
       cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
+      jest.spyOn(databaseInfoService, 'startInfo').mockResolvedValue(mockStartInfoAfterDelete as any);
       const request: DeleteDatabaseRequest = {
         delbackup: 'y',
       };
@@ -810,11 +829,12 @@ describe('DatabaseLifecycleService', () => {
           delbackup: 'y',
         }
       );
-      expect(result).toEqual({});
+      expect(result).toEqual(mockStartInfoAfterDelete);
     });
 
-    it('should successfully delete database with delbackup "n"', async () => {
+    it('should successfully delete database with delbackup "n" and return start-info', async () => {
       cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
+      jest.spyOn(databaseInfoService, 'startInfo').mockResolvedValue(mockStartInfoAfterDelete as any);
       const request: DeleteDatabaseRequest = {
         delbackup: 'n',
       };
@@ -833,7 +853,7 @@ describe('DatabaseLifecycleService', () => {
           delbackup: 'n',
         })
       );
-      expect(result).toEqual({});
+      expect(result).toEqual(mockStartInfoAfterDelete);
     });
 
     it('should throw HostError if host is not found', async () => {

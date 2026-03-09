@@ -17,13 +17,13 @@ import {
   OptimizeDatabaseRequest,
   OptimizeDatabaseResponse,
   RenameDatabaseRequest,
-  RenameDatabaseResponse,
+  StartInfoClientResponse,
   UnloadDatabaseRequest,
   UnloadInfoClientResponse,
 } from '@api-interfaces';
 import { CmsConfigService } from '@cms-config/cms-config.service';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
-import { DatabaseConfigService } from '@database/config/database-config.service';
+import { DatabaseInfoService } from '@database/info/database-info.service';
 import {
   checkCmsStatusError,
   checkCmsTokenError,
@@ -77,7 +77,7 @@ export class DatabaseManagementService extends BaseService {
   constructor(
     hostService: HostService,
     cmsClient: CmsHttpsClientService,
-    private readonly databaseConfigService: DatabaseConfigService
+    private readonly databaseInfoService: DatabaseInfoService
   ) {
     super(hostService, cmsClient);
   }
@@ -368,13 +368,13 @@ export class DatabaseManagementService extends BaseService {
 
   /**
    * Rename a database.
-   * Returns empty object on success.
+   * Returns start-info (db list) on success.
    *
    * @param userId User ID from JWT
    * @param hostUid Host UID
    * @param dbname Current database name
    * @param request Client request containing rename configuration
-   * @returns RenameDatabaseResponse Empty object on success
+   * @returns StartInfoClientResponse Latest database list (start-info) on success
    * @throws DatabaseError If request fails or CMS status is fail
    */
   @HandleDatabaseErrors()
@@ -384,7 +384,7 @@ export class DatabaseManagementService extends BaseService {
     hostUid: string,
     dbname: string,
     request: RenameDatabaseRequest
-  ): Promise<RenameDatabaseResponse> {
+  ): Promise<StartInfoClientResponse> {
     // Build CMS request from client request
     const cmsRequest: RenameDatabaseCmsRequest = {
       task: 'renamedb',
@@ -406,13 +406,13 @@ export class DatabaseManagementService extends BaseService {
       cmsRequest.volume = [volumeMapping];
     }
 
-    const response = await this.executeCmsRequest<
+    await this.executeCmsRequest<
       RenameDatabaseCmsRequest,
       RenameDatabaseCmsResponse
     >(userId, hostUid, cmsRequest);
 
-    // Success: return empty object
-    return {};
+    // Return latest db list (start-info)
+    return await this.databaseInfoService.startInfo(userId, hostUid);
   }
 
   /**

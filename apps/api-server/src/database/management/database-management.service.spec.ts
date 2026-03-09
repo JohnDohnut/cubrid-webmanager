@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { DatabaseManagementService } from './database-management.service';
 import { HostService } from '@host';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
+import { DatabaseInfoService } from '@database/info/database-info.service';
 import { DatabaseError } from '@error/database/database-error';
 import { HostError } from '@error/index';
 import { CmsError } from '@error/cms/cms-error';
@@ -62,6 +63,11 @@ describe('DatabaseManagementService', () => {
       postAuthenticated: jest.fn(),
     };
 
+    const mockStartInfoResponse = { activelist: { active: [] }, dblist: { dbs: [] } };
+    const mockDatabaseInfoService = {
+      startInfo: jest.fn().mockResolvedValue(mockStartInfoResponse),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DatabaseManagementService,
@@ -72,6 +78,10 @@ describe('DatabaseManagementService', () => {
         {
           provide: CmsHttpsClientService,
           useValue: mockCmsClient,
+        },
+        {
+          provide: DatabaseInfoService,
+          useValue: mockDatabaseInfoService,
         },
       ],
     }).compile();
@@ -937,7 +947,7 @@ describe('DatabaseManagementService', () => {
       );
       expect(common.checkCmsTokenError).toHaveBeenCalledWith(mockSuccessResponse);
       expect(common.checkCmsStatusError).toHaveBeenCalledWith(mockSuccessResponse);
-      expect(result).toEqual({});
+      expect(result).toEqual(mockStartInfoResponse);
     });
 
     it('should successfully rename database with advanced "off" without volume', async () => {
@@ -969,7 +979,7 @@ describe('DatabaseManagementService', () => {
           volume: expect.anything(),
         })
       );
-      expect(result).toEqual({});
+      expect(result).toEqual(mockStartInfoResponse);
     });
 
     it('should not include volume in CMS request when advanced is "off" even if volume is provided', async () => {
@@ -992,7 +1002,7 @@ describe('DatabaseManagementService', () => {
       // Volume should not be included when advanced is 'off'
       const callArgs = cmsClient.postAuthenticated.mock.calls[0][1] as any;
       expect(callArgs.volume).toBeUndefined();
-      expect(result).toEqual({});
+      expect(result).toEqual(mockStartInfoResponse);
     });
 
     it('should throw HostError if host is not found', async () => {

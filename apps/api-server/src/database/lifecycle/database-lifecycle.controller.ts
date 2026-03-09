@@ -6,7 +6,6 @@ import {
   CreateDatabaseWithConfigResponse,
   DatabaseVolumeInfoClientResponse,
   DeleteDatabaseRequest,
-  DeleteDatabaseResponse,
   GetCreatedbInfoClientResponse,
   StartInfoClientResponse,
   SaveDatabaseProfileRequest,
@@ -262,13 +261,14 @@ export class DatabaseLifecycleController {
   /**
    * Delete a database on a host.
    * Also removes the database name from the server parameter in cubridconf if it exists.
+   * Returns start-info (db list) on success.
    *
    * @route DELETE /:hostUid/database/:dbname
    * @param req Express request (contains authenticated user)
    * @param hostUid Host unique identifier from path parameter
    * @param dbname Database name from path parameter
    * @param body Request body containing delbackup option
-   * @returns DeleteDatabaseResponse Empty object on success
+   * @returns StartInfoClientResponse Latest database list (start-info) on success
    * @example
    * // DELETE /host-uid/database/testdb
    * // Body: { "delbackup": "y" }
@@ -279,7 +279,7 @@ export class DatabaseLifecycleController {
     @Param('hostUid') hostUid: string,
     @Param('dbname') dbname: string,
     @Body() body: DeleteDatabaseRequest
-  ): Promise<DeleteDatabaseResponse> {
+  ): Promise<StartInfoClientResponse> {
     const userId = req.user.sub;
 
     validateRequiredFields(body, ['delbackup'], 'database/delete', this.logger);
