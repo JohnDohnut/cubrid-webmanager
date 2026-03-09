@@ -1,3 +1,9 @@
 import { BaseCmsRequest } from './base-cms-request';
 
-export type HandleBrokerCmsRequest = BaseCmsRequest & { bname: string };
+/**
+ * CMS request for stopping all brokers on a host.
+ * Task: stopbroker (no additional parameters).
+ */
+export type StopBrokerCmsRequest = BaseCmsRequest & {
+  task: 'stopbroker';
+};
