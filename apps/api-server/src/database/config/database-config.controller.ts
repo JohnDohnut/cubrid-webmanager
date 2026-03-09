@@ -104,7 +104,7 @@ export class DatabaseConfigController {
    * // POST /host-uid/database/auto-start
    * // Body: { "confname": "cubridconf", "dbname": "testdb" }
    */
-  @Post('auto-start')
+  @Post('auto-start/set')
   async setAutoStart(
     @Request() req,
     @Param('hostUid') hostUid: string,
@@ -131,7 +131,7 @@ export class DatabaseConfigController {
    * // DELETE /host-uid/database/auto-start
    * // Body: { "confname": "cubridconf", "dbname": "testdb" }
    */
-  @Delete('auto-start')
+  @Delete('auto-start/remove')
   async removeAutoStart(
     @Request() req,
     @Param('hostUid') hostUid: string,
