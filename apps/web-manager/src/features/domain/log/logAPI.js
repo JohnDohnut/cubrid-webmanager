@@ -20,7 +20,6 @@ export const getAdminLogFilesAPI = async (host) => {
   const url = `${host.uid}/log/cms`;
 
   const { data } = axios.get(url);
-  console.log(data);
   const response = await getResponse(host, payload);
   return { result: response.adminloginfo, success: true };
 };
@@ -50,6 +49,13 @@ export const getLoadAccessLogAPI = async (host) => {
   const response = await getResponse(host, payload);
   return { result: response, success: true };
 };
+
+
+export const getAutoExecQueryErrLog = async (host) => {
+  const url = `${host.uid}/database/auto-exec-query-err-log`;
+  const { data } = await axios.post(url);
+  return { result: data, success: true };
+}
 
 export const getAutoBackupDBErrLogAPI = async (host) => {
   const url = `${host.uid}/database/auto-backup-db-err-log`;

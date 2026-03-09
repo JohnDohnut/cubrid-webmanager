@@ -35,7 +35,6 @@ import { DatabaseError } from '@error/database/database-error';
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import { BaseService } from '@common';
-import { DATABASE_CONSTANTS } from '../database.constants';
 import {
   AddVolDbCmsRequest,
   CheckDatabaseCmsRequest,
