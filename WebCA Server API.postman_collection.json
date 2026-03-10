@@ -1134,10 +1134,18 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/{{hostUid}}/database/users/info/{{dbname}}",
-							"host": ["{{base_url}}"],
-							"path": ["{{hostUid}}", "database", "users", "info", "{{dbname}}"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"database",
+								"users",
+								"info",
+								"{{dbname}}"
+							]
 						},
-						"description": "Get user info (list of users) for a database. CMS task: userinfo. GET /:hostUid/database/users/info/:dbname. Auth: Bearer JWT."
+						"description": "Get user info (list of users) for a database. CMS task: userinfo.\n\n**URI:**\nGET /:hostUid/database/users/info/:dbname\n\n**Path Parameters:** hostUid, dbname\n**Success Response:** dbname, user array (with @id, @name, authorization, groups)\n**Authentication:** Bearer JWT (collection default)"
 					},
 					"response": []
 				},
@@ -1145,17 +1153,34 @@
 					"name": "User Verify (userverify)",
 					"request": {
 						"method": "POST",
-						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"dbname\": \"demodb\",\n  \"dbuser\": \"dba\",\n  \"dbpasswd\": \"\"\n}"
+							"raw": "{\n  \"dbname\": \"demodb\",\n  \"dbuser\": \"dba\",\n  \"dbpasswd\": \"\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/{{hostUid}}/database/users/verify",
-							"host": ["{{base_url}}"],
-							"path": ["{{hostUid}}", "database", "users", "verify"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"database",
+								"users",
+								"verify"
+							]
 						},
-						"description": "Verify database user credentials. CMS task: userverify. POST /:hostUid/database/users/verify. Body: dbname, dbuser, dbpasswd. Auth: Bearer JWT."
+						"description": "Verify database user credentials. CMS task: userverify.\n\n**URI:**\nPOST /:hostUid/database/users/verify\n\n**Request Body:** dbname, dbuser, dbpasswd\n**Success Response:** { \"verified\": true }\n**Authentication:** Bearer JWT (collection default)"
 					},
 					"response": []
 				},
@@ -1163,17 +1188,33 @@
 					"name": "Create Database User (createuser)",
 					"request": {
 						"method": "POST",
-						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"dbname\": \"demodb\",\n  \"username\": \"yifan\",\n  \"userpass\": \"1111\",\n  \"groups\": { \"group\": [\"public\"] },\n  \"authorization\": []\n}"
+							"raw": "{\n  \"dbname\": \"demodb\",\n  \"username\": \"yifan\",\n  \"userpass\": \"1111\",\n  \"groups\": { \"group\": [\"public\"] },\n  \"authorization\": []\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/{{hostUid}}/database/users",
-							"host": ["{{base_url}}"],
-							"path": ["{{hostUid}}", "database", "users"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"database",
+								"users"
+							]
 						},
-						"description": "Create a database user. CMS task: createuser. POST /:hostUid/database/users. Body: dbname, username, userpass, groups, authorization. Auth: Bearer JWT."
+						"description": "Create a database user. CMS task: createuser.\n\n**URI:**\nPOST /:hostUid/database/users\n\n**Request Body:** dbname, username, userpass, groups (e.g. { \"group\": [\"public\"] }), authorization (array)\n**Success Response:** {}\n**Authentication:** Bearer JWT (collection default)"
 					},
 					"response": []
 				},
@@ -1276,10 +1317,18 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/{{hostUid}}/database/users/{{dbname}}/{{username}}",
-							"host": ["{{base_url}}"],
-							"path": ["{{hostUid}}", "database", "users", "{{dbname}}", "{{username}}"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"database",
+								"users",
+								"{{dbname}}",
+								"{{username}}"
+							]
 						},
-						"description": "Delete a database user. CMS task: deleteuser. DELETE /:hostUid/database/users/:dbname/:username. Auth: Bearer JWT."
+						"description": "Delete a database user. CMS task: deleteuser.\n\n**URI:**\nDELETE /:hostUid/database/users/:dbname/:username\n\n**Path Parameters:** hostUid, dbname, username (collection variables)\n**Success Response:** {}\n**Authentication:** Bearer JWT (collection default)"
 					},
 					"response": []
 				}
@@ -1395,6 +1444,78 @@
 				}
 			],
 			"description": "Broker management endpoints. All endpoints require JWT authentication."
+		},
+		{
+			"name": "CMS User",
+			"item": [
+				{
+					"name": "Get DBMT User Info (getdbmtuserinfo)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/cms-user",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "cms-user"]
+						},
+						"description": "Get DBMT user info (dblist, userlist). CMS task: getdbmtuserinfo.\n\n**URI:** GET /:hostUid/cms-user\n**Success Response:** { dblist, userlist }\n**Authentication:** Bearer JWT (collection default)"
+					},
+					"response": []
+				},
+				{
+					"name": "Update DBMT User (updatedbmtuser)",
+					"request": {
+						"method": "PATCH",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"targetid\": \"test_target\",\n  \"dbauth\": [],\n  \"casauth\": \"none\",\n  \"dbcreate\": \"none\",\n  \"statusmonitorauth\": \"none\"\n}",
+							"options": {"raw": {"language": "json"}}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/cms-user",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "cms-user"]
+						},
+						"description": "Update DBMT user. CMS task: updatedbmtuser.\n\n**URI:** PATCH /:hostUid/cms-user\n**Body:** targetid, dbauth (optional), casauth, dbcreate, statusmonitorauth\n**Success Response:** { dblist, userlist }\n**Authentication:** Bearer JWT (collection default)"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete DBMT User (deletedbmtuser)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/cms-user/{{targetid}}",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "cms-user", "{{targetid}}"]
+						},
+						"description": "Delete DBMT user. CMS task: deletedbmtuser.\n\n**URI:** DELETE /:hostUid/cms-user/:targetid\n**Success Response:** { dblist, userlist }\n**Authentication:** Bearer JWT (collection default)"
+					},
+					"response": []
+				},
+				{
+					"name": "Set DBMT Password (setdbmtpasswd)",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"targetid\": \"yifan\",\n  \"newpassword\": \"1111\"\n}",
+							"options": {"raw": {"language": "json"}}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/cms-user/set-password",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "cms-user", "set-password"]
+						},
+						"description": "Set DBMT user password. CMS task: setdbmtpasswd.\n\n**URI:** POST /:hostUid/cms-user/set-password\n**Body:** targetid, newpassword\n**Success Response:** {}\n**Authentication:** Bearer JWT (collection default)"
+					},
+					"response": []
+				}
+			],
+			"description": "CMS (DBMT) user management: get list, update, delete, set password. All endpoints require JWT authentication."
 		},
 		{
 			"name": "File",
@@ -1785,6 +1906,16 @@
 		{
 			"key": "bname",
 			"value": "query_editor",
+			"type": "string"
+		},
+		{
+			"key": "username",
+			"value": "yifan",
+			"type": "string"
+		},
+		{
+			"key": "targetid",
+			"value": "test_user_2",
 			"type": "string"
 		}
 	]

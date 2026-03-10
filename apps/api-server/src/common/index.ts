@@ -18,6 +18,7 @@ export {
 export { HandleDatabaseErrors } from './decorators/handle-database-errors.decorator';
 export { HandleResourceMonitoringErrors } from './decorators/handle-resource-monitoring-errors.decorator';
 export { HandleBrokerErrors } from './decorators/handle-broker-errors.decorator';
+export { HandleCmsUserErrors } from './decorators/handle-cms-user-errors.decorator';
 export { HandleCmsConfigErrors } from './decorators/handle-cms-config-errors.decorator';
 
 // Export interceptors
