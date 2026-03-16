@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Logger, Param, Patch, Post, Request } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Logger, Param, Post, Put, Request } from '@nestjs/common';
 import {
   DeleteDbmtUserClientResponse,
   GetDbmtUserInfoClientResponse,
@@ -39,9 +39,9 @@ export class CmsUserController {
 
   /**
    * Update DBMT user. CMS task: updatedbmtuser.
-   * @route PATCH /:hostUid/cms-user
+   * @route PUT /:hostUid/cms-user
    */
-  @Patch()
+  @Put()
   async updateDbmtUser(
     @Request() req,
     @Param('hostUid') hostUid: string,
