@@ -327,6 +327,89 @@ describe('DatabaseBackupService', () => {
     });
   });
 
+  describe('backupDb', () => {
+    const mockRequest = {
+      level: '0' as const,
+      volname: 'demodb_backup_lv0',
+      backupdir: '/home/cubrid/databases/demodb/backup',
+      removelog: 'y' as const,
+      check: 'y' as const,
+      mt: '2',
+      zip: 'y' as const,
+      safereplication: 'n' as const,
+    };
+
+    it('should successfully execute backup', async () => {
+      const mockResponse = {
+        __EXEC_TIME: '1412 ms',
+        note: 'none',
+        status: 'success',
+        task: 'backupdb',
+      };
+
+      cmsClient.postAuthenticated.mockResolvedValue(mockResponse);
+
+      const result = await service.backupDb(
+        mockUserId,
+        mockHostUid,
+        mockDbname,
+        mockRequest
+      );
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'backupdb',
+          dbname: mockDbname,
+          level: '0',
+          volname: mockRequest.volname,
+          backupdir: mockRequest.backupdir,
+          removelog: 'y',
+          check: 'y',
+          mt: '2',
+          zip: 'y',
+          safereplication: 'n',
+        })
+      );
+      expect(result).toEqual({
+        __EXEC_TIME: '1412 ms',
+        note: 'none',
+        status: 'success',
+        task: 'backupdb',
+      });
+    });
+
+    it('should use default options when optional fields omitted', async () => {
+      const minimalRequest = {
+        level: '1' as const,
+        volname: 'test_backup_lv1',
+        backupdir: '/path/to/backup',
+      };
+      const mockResponse = {
+        __EXEC_TIME: '500 ms',
+        note: 'none',
+        status: 'success',
+        task: 'backupdb',
+      };
+
+      cmsClient.postAuthenticated.mockResolvedValue(mockResponse);
+
+      await service.backupDb(mockUserId, mockHostUid, mockDbname, minimalRequest);
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'backupdb',
+          removelog: 'y',
+          check: 'n',
+          mt: '0',
+          zip: 'n',
+          safereplication: 'n',
+        })
+      );
+    });
+  });
+
   describe('getAutoBackupDbErrLog', () => {
     const mockRequest = {};
 

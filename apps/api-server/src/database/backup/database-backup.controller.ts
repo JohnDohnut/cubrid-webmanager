@@ -11,6 +11,8 @@ import {
   GetAutoBackupDbErrLogRequest,
   GetAutoBackupDbErrLogResponse,
   BackupDbInfoClientResponse,
+  BackupDbClientRequest,
+  BackupDbClientResponse,
 } from '@api-interfaces';
 import { validateRequiredFields } from '@util';
 import { DatabaseBackupService } from './database-backup.service';
@@ -180,6 +182,37 @@ export class DatabaseBackupController {
     const userId = req.user.sub;
     this.logger.log(`Getting backup db info for database: ${dbname} on host: ${hostUid}`);
     return await this.backupService.getBackupDbInfo(userId, hostUid, { dbname });
+  }
+
+  /**
+   * Execute database backup (level 0, 1, or 2). CMS task: backupdb.
+   *
+   * @route POST /:hostUid/database/backup-db/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Database name from path parameter
+   * @param body Request body: level, volname, backupdir, removelog?, check?, mt?, zip?, safereplication?
+   * @returns BackupDbClientResponse __EXEC_TIME, note, status, task
+   * @example
+   * // POST /host-uid/database/backup-db/demodb
+   * // Body: { "level": "0", "volname": "demodb_backup_lv0", "backupdir": "/path/to/backup", "removelog": "y", "check": "y", "mt": "2", "zip": "y", "safereplication": "n" }
+   */
+  @Post('backup-db/:dbname')
+  async backupDb(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: BackupDbClientRequest
+  ): Promise<BackupDbClientResponse> {
+    const userId = req.user.sub;
+    validateRequiredFields(
+      body,
+      ['level', 'volname', 'backupdir'],
+      'database/backup-db',
+      this.logger
+    );
+    this.logger.log(`Executing backup for database: ${dbname} level: ${body.level} on host: ${hostUid}`);
+    return await this.backupService.backupDb(userId, hostUid, dbname, body);
   }
 
   /**

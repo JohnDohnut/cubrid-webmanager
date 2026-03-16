@@ -10,6 +10,8 @@ import {
   GetAutoBackupDbErrLogResponse,
   BackupDbInfoClientRequest,
   BackupDbInfoClientResponse,
+  BackupDbClientRequest,
+  BackupDbClientResponse,
 } from '@api-interfaces';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import {
@@ -26,6 +28,7 @@ import {
   SetBackupInfoCmsRequest,
   GetAutoBackupDbErrLogCmsRequest,
   BackupDbInfoCmsRequest,
+  BackupDbCmsRequest,
 } from '@type/cms-request';
 import {
   AddBackupInfoCmsResponse,
@@ -34,6 +37,7 @@ import {
   SetBackupInfoCmsResponse,
   GetAutoBackupDbErrLogCmsResponse,
   BackupDbInfoCmsResponse,
+  BackupDbCmsResponse,
   BackupInfo,
 } from '@type/cms-response';
 
@@ -264,6 +268,51 @@ export class DatabaseBackupService extends BaseService {
       status: response.status ?? 'success',
       task: response.task ?? 'backupdbinfo',
       __EXEC_TIME: response.__EXEC_TIME,
+    };
+  }
+
+  /**
+   * Execute database backup (level 0, 1, or 2). CMS task: backupdb.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param dbname Database name
+   * @param request Client request (level, volname, backupdir, removelog?, check?, mt?, zip?, safereplication?)
+   * @returns BackupDbClientResponse __EXEC_TIME, note, status, task
+   * @throws DatabaseError If request fails or CMS status is fail
+   */
+  @HandleDatabaseErrors()
+  async backupDb(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    request: BackupDbClientRequest
+  ): Promise<BackupDbClientResponse> {
+    const cmsRequest: BackupDbCmsRequest = {
+      task: 'backupdb',
+      dbname,
+      level: request.level,
+      volname: request.volname,
+      backupdir: request.backupdir,
+      removelog: request.removelog ?? 'y',
+      check: request.check ?? 'n',
+      mt: request.mt ?? '0',
+      zip: request.zip ?? 'n',
+      safereplication: request.safereplication ?? 'n',
+    };
+
+    this.logger.debug(`Executing backup for database: ${dbname} level: ${request.level}`);
+
+    const response = await this.executeCmsRequest<
+      BackupDbCmsRequest,
+      BackupDbCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    return {
+      __EXEC_TIME: response.__EXEC_TIME,
+      note: response.note,
+      status: response.status as 'success' | 'error',
+      task: 'backupdb',
     };
   }
 
