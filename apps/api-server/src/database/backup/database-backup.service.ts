@@ -8,6 +8,8 @@ import {
   SetBackupInfoClientResponse,
   GetAutoBackupDbErrLogRequest,
   GetAutoBackupDbErrLogResponse,
+  BackupDbInfoClientRequest,
+  BackupDbInfoClientResponse,
 } from '@api-interfaces';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import {
@@ -23,6 +25,7 @@ import {
   GetBackupInfoCmsRequest,
   SetBackupInfoCmsRequest,
   GetAutoBackupDbErrLogCmsRequest,
+  BackupDbInfoCmsRequest,
 } from '@type/cms-request';
 import {
   AddBackupInfoCmsResponse,
@@ -30,6 +33,7 @@ import {
   GetBackupInfoCmsResponse,
   SetBackupInfoCmsResponse,
   GetAutoBackupDbErrLogCmsResponse,
+  BackupDbInfoCmsResponse,
   BackupInfo,
 } from '@type/cms-response';
 
@@ -219,6 +223,47 @@ export class DatabaseBackupService extends BaseService {
     return {
       dbname: responseDbname,
       backups: backupArray || [],
+    };
+  }
+
+  /**
+   * Get backup DB physical info (dbdir, freespace, level0/1/2 backup list).
+   * CMS task: backupdbinfo. level0, level1, level2 may be empty arrays.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param request Client request with dbname
+   * @returns BackupDbInfoClientResponse dbdir, freespace, level0, level1, level2
+   * @throws DatabaseError If request fails or CMS status is fail
+   */
+  @HandleDatabaseErrors()
+  async getBackupDbInfo(
+    userId: string,
+    hostUid: string,
+    request: BackupDbInfoClientRequest
+  ): Promise<BackupDbInfoClientResponse> {
+    const cmsRequest: BackupDbInfoCmsRequest = {
+      task: 'backupdbinfo',
+      dbname: request.dbname,
+    };
+
+    this.logger.debug(`Getting backup db info for database: ${request.dbname}`);
+
+    const response = await this.executeCmsRequest<
+      BackupDbInfoCmsRequest,
+      BackupDbInfoCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    return {
+      dbdir: response.dbdir ?? '',
+      freespace: response.freespace ?? '',
+      level0: Array.isArray(response.level0) ? response.level0 : [],
+      level1: Array.isArray(response.level1) ? response.level1 : [],
+      level2: Array.isArray(response.level2) ? response.level2 : [],
+      note: response.note ?? 'none',
+      status: response.status ?? 'success',
+      task: response.task ?? 'backupdbinfo',
+      __EXEC_TIME: response.__EXEC_TIME,
     };
   }
 

@@ -10,6 +10,7 @@ import {
   SetBackupInfoClientResponse,
   GetAutoBackupDbErrLogRequest,
   GetAutoBackupDbErrLogResponse,
+  BackupDbInfoClientResponse,
 } from '@api-interfaces';
 import { validateRequiredFields } from '@util';
 import { DatabaseBackupService } from './database-backup.service';
@@ -157,6 +158,28 @@ export class DatabaseBackupController {
       `Getting backup schedule for database: ${dbname} on host: ${hostUid}`
     );
     return await this.backupService.getBackupSchedule(userId, hostUid, dbname);
+  }
+
+  /**
+   * Get backup DB physical info (dbdir, freespace, level0/1/2). CMS task: backupdbinfo.
+   *
+   * @route POST /:hostUid/database/backup-db-info/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Database name from path parameter
+   * @returns BackupDbInfoClientResponse dbdir, freespace, level0, level1, level2
+   * @example
+   * // POST /host-uid/database/backup-db-info/test
+   */
+  @Post('backup-db-info/:dbname')
+  async getBackupDbInfo(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string
+  ): Promise<BackupDbInfoClientResponse> {
+    const userId = req.user.sub;
+    this.logger.log(`Getting backup db info for database: ${dbname} on host: ${hostUid}`);
+    return await this.backupService.getBackupDbInfo(userId, hostUid, { dbname });
   }
 
   /**

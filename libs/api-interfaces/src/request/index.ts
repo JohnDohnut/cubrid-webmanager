@@ -25,6 +25,7 @@ export * from './add-backup-info-client-request';
 export * from './set-backup-info-client-request';
 export * from './delete-backup-info-client-request';
 export * from './get-backup-info-client-request';
+export * from './backup-db-info-client-request';
 export * from './set-auto-exec-query-client-request';
 export * from './get-auto-exec-query-client-request';
 export * from './create-database-client-request';
