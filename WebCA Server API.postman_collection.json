@@ -1498,7 +1498,7 @@
 				{
 					"name": "Set DBMT Password (setdbmtpasswd)",
 					"request": {
-						"method": "POST",
+						"method": "PUT",
 						"header": [{"key": "Content-Type", "value": "application/json"}],
 						"body": {
 							"mode": "raw",
@@ -1510,7 +1510,7 @@
 							"host": ["{{base_url}}"],
 							"path": ["{{hostUid}}", "cms-user", "set-password"]
 						},
-						"description": "Set DBMT user password. CMS task: setdbmtpasswd.\n\n**URI:** POST /:hostUid/cms-user/set-password\n**Body:** targetid, newpassword\n**Success Response:** {}\n**Authentication:** Bearer JWT (collection default)"
+						"description": "Set DBMT user password. CMS task: setdbmtpasswd.\n\n**URI:** PUT /:hostUid/cms-user/set-password\n**Body:** targetid, newpassword\n**Success Response:** {}\n**Authentication:** Bearer JWT (collection default)"
 					},
 					"response": []
 				}

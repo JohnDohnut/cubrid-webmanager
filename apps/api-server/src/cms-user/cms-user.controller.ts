@@ -75,9 +75,9 @@ export class CmsUserController {
 
   /**
    * Set DBMT user password. CMS task: setdbmtpasswd.
-   * @route POST /:hostUid/cms-user/set-password
+   * @route PUT /:hostUid/cms-user/set-password
    */
-  @Post('set-password')
+  @Put('set-password')
   async setDbmtPasswd(
     @Request() req,
     @Param('hostUid') hostUid: string,
