@@ -165,15 +165,15 @@ export class DatabaseBackupController {
   /**
    * Get backup DB physical info (dbdir, freespace, level0/1/2). CMS task: backupdbinfo.
    *
-   * @route POST /:hostUid/database/backup-db-info/:dbname
+   * @route GET /:hostUid/database/backup-db-info/:dbname
    * @param req Express request (contains authenticated user)
    * @param hostUid Host unique identifier from path parameter
    * @param dbname Database name from path parameter
    * @returns BackupDbInfoClientResponse dbdir, freespace, level0, level1, level2
    * @example
-   * // POST /host-uid/database/backup-db-info/test
+   * // GET /host-uid/database/backup-db-info/test
    */
-  @Post('backup-db-info/:dbname')
+  @Get('backup-db-info/:dbname')
   async getBackupDbInfo(
     @Request() req,
     @Param('hostUid') hostUid: string,

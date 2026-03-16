@@ -638,22 +638,8 @@
 				{
 					"name": "Get Backup DB Info",
 					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
+						"method": "GET",
+						"header": [],
 						"url": {
 							"raw": "{{base_url}}/{{hostUid}}/database/backup-db-info/{{dbname}}",
 							"host": [
@@ -666,7 +652,7 @@
 								"{{dbname}}"
 							]
 						},
-						"description": "Get backup DB physical info (dbdir, freespace, level0/1/2 backup list). CMS task: backupdbinfo. level0, level1, level2 may be empty arrays when no backups exist.\n\n**URI:**\n```\nPOST /:hostUid/database/backup-db-info/:dbname\n```\n**Example:**\n```\nPOST /host-uid-1/database/backup-db-info/test\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `dbname` - Database name\n\n**Request Body:** Empty object `{}` (dbname is in path).\n\n**Success Response (200 OK):**\n```json\n{\n  \"__EXEC_TIME\": \"19 ms\",\n  \"dbdir\": \"/home/cubrid/databases/test/backup\",\n  \"freespace\": \"2068768\",\n  \"level0\": [\n    { \"data\": \"2026.03.12.09.50\", \"path\": \"/path/to/test_bk0v000\", \"size\": \"11547648\" }\n  ],\n  \"level1\": [\n    { \"data\": \"2026.03.12.09.54\", \"path\": \"/path/to/test_bk1v000\", \"size\": \"5256192\" }\n  ],\n  \"level2\": [\n    { \"data\": \"2026.03.12.10.45\", \"path\": \"/path/to/test_bk2v000\", \"size\": \"5256192\" }\n  ],\n  \"note\": \"none\",\n  \"status\": \"success\",\n  \"task\": \"backupdbinfo\"\n}\n```\n\n**Error Response (404/500):** Standard error payload."
+						"description": "Get backup DB physical info (dbdir, freespace, level0/1/2 backup list). CMS task: backupdbinfo. level0, level1, level2 may be empty arrays when no backups exist.\n\n**URI:**\n```\nGET /:hostUid/database/backup-db-info/:dbname\n```\n**Example:**\n```\nGET /host-uid-1/database/backup-db-info/test\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `dbname` - Database name\n\n**Success Response (200 OK):**\n```json\n{\n  \"__EXEC_TIME\": \"19 ms\",\n  \"dbdir\": \"/home/cubrid/databases/test/backup\",\n  \"freespace\": \"2068768\",\n  \"level0\": [\n    { \"data\": \"2026.03.12.09.50\", \"path\": \"/path/to/test_bk0v000\", \"size\": \"11547648\" }\n  ],\n  \"level1\": [\n    { \"data\": \"2026.03.12.09.54\", \"path\": \"/path/to/test_bk1v000\", \"size\": \"5256192\" }\n  ],\n  \"level2\": [\n    { \"data\": \"2026.03.12.10.45\", \"path\": \"/path/to/test_bk2v000\", \"size\": \"5256192\" }\n  ],\n  \"note\": \"none\",\n  \"status\": \"success\",\n  \"task\": \"backupdbinfo\"\n}\n```\n\n**Error Response (404/500):** Standard error payload."
 					},
 					"response": []
 				},
