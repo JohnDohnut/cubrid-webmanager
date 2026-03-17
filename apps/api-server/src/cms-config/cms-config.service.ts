@@ -2,7 +2,7 @@ import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import {
-  CmsForwardClientRequest,
+  GetAddBrokerInfoClientResponse,
   GetEnvClientResponse,
   GetAllSysParamClientResponse,
   ParamdumpClientResponse,
@@ -14,7 +14,10 @@ import {
   SetSysParamCmsRequest,
   StatdumpCmsRequest,
   BaseCmsRequest,
+  GetAddBrokerInfoCmsRequest,
+  BrokerSetParamCmsRequest,
 } from '@type';
+import { GetAddBrokerInfoCmsResponse } from '@type/cms-response/get-add-broker-info-cms-response';
 import { GetEnvCmsResponse } from '@type/cms-response/get-env-cms-response';
 import { GetAllSysParamCmsRequest } from '@type/cms-request/get-all-sys-param-cms-request';
 import { GetAllSysParamCmsResponse } from '@type/cms-response/get-all-sys-param-cms-response';
@@ -209,4 +212,76 @@ export class CmsConfigService extends BaseService {
     return {};
   }
 
+  /**
+   * Get broker config file content from a CMS host (CMS task: getaddbrokerinfo).
+   * Returns conflist (config lines), confname, note, execTime.
+   *
+   * @param userId - User ID from JWT
+   * @param hostUid - Host unique identifier
+   * @param confname - Config name (e.g. "brokerconf")
+   * @returns GetAddBrokerInfoClientResponse conflist, confname, note, execTime
+   */
+  @HandleCmsConfigErrors()
+  async getAddBrokerInfo(
+    userId: string,
+    hostUid: string,
+    confname: string
+  ): Promise<GetAddBrokerInfoClientResponse> {
+    const cmsRequest: GetAddBrokerInfoCmsRequest = {
+      task: 'getaddbrokerinfo',
+      confname,
+    };
+
+    const response = await this.executeCmsRequest<
+      GetAddBrokerInfoCmsRequest,
+      GetAddBrokerInfoCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    if (response.status === 'success') {
+      const cms = response as GetAddBrokerInfoCmsResponse;
+      return {
+        conflist: cms.conflist,
+        confname: cms.confname,
+        note: cms.note,
+        execTime: cms.__EXEC_TIME,
+      };
+    }
+
+    throw ConfigError.GetAllSysParamFailed('getaddbrokerinfo', {
+      note: response.note || 'Unknown error',
+    });
+  }
+
+  /**
+   * Set broker configuration file content on a CMS host (CMS task: broker_setparam).
+   *
+   * @param userId - User ID from JWT
+   * @param hostUid - Host unique identifier
+   * @param confdata - Configuration data as array of lines (broker config content)
+   * @returns SetSysParamClientResponse Empty object on success
+   */
+  @HandleCmsConfigErrors()
+  async setBrokerParam(
+    userId: string,
+    hostUid: string,
+    confdata: string[]
+  ): Promise<SetSysParamClientResponse> {
+    const cmsRequest: BrokerSetParamCmsRequest = {
+      task: 'broker_setparam',
+      confdata,
+    };
+
+    const response = await this.executeCmsRequest<
+      BrokerSetParamCmsRequest,
+      BaseCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    if (response.status !== 'success') {
+      throw ConfigError.SetSysParamFailed('broker', {
+        note: response.note || 'Unknown error',
+      });
+    }
+
+    return {};
+  }
 }

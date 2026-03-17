@@ -1382,6 +1382,27 @@
 					"response": []
 				},
 				{
+					"name": "Get Broker Config",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/cms-config/broker-config/{{confname}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"cms-config",
+								"broker-config",
+								"{{confname}}"
+							]
+						},
+						"description": "Get broker config file content from a CMS host (CMS task: getaddbrokerinfo). Returns conflist (config lines), confname, note, execTime.\n\n**URI:**\n```\nGET /:hostUid/cms-config/broker-config/:confname\n```\n**Example:**\n```\nGET /host-uid-1/cms-config/broker-config/brokerconf\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `confname` - Config name (e.g. brokerconf)\n\n**Success Response (200 OK):**\n```json\n{\n  \"conflist\": [{ \"confdata\": [\"[broker]\", \"SERVICE = ON\", \"...\"] }],\n  \"confname\": \"broker\",\n  \"note\": \"none\",\n  \"execTime\": \"0 ms\"\n}\n```"
+					},
+					"response": []
+				},
+				{
 					"name": "Get Param Dump",
 					"request": {
 						"method": "GET",
@@ -1476,6 +1497,35 @@
 							]
 						},
 						"description": "Set system parameters in a configuration file on a CMS host. Updates configuration file with provided data.\n\n**URI:**\n```\nPOST /:hostUid/cms-config/set-sys-param\n```\n**Example:**\n```\nPOST /host-uid-1/cms-config/set-sys-param\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n\n**Request Body:**\n```json\n{\n  \"confname\": \"cubridconf\",\n  \"confdata\": [\n    \"#\",\n    \"# Copyright ...\",\n    \"[service]\",\n    \"service=server,broker,manager\",\n    \"server=demodb\",\n    \"\",\n    \"[common]\",\n    \"data_buffer_size=512M\",\n    \"log_buffer_size=4M\",\n    \"sort_buffer_size=2M\",\n    \"max_clients=100\",\n    \"cubrid_port_id=1523\"\n  ]\n}\n```\n\n**Success Response (200 OK):**\n```json\n{}\n```\n\n**Error Response (400 Bad Request):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Failed to set system parameters: Invalid configuration\",\n  \"error\": \"Bad Request\"\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Set Broker Param",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"confdata\": [\n    \"#\",\n    \"#  Copyright 2008 Search Solution Corporation\",\n    \"[broker]\",\n    \"MASTER_SHM_ID=30001\",\n    \"ADMIN_LOG_FILE=log/broker/cubrid_broker.log\",\n    \"\",\n    \"[%query_editor]\",\n    \"SERVICE=ON\",\n    \"SSL=OFF\",\n    \"BROKER_PORT=30000\",\n    \"MIN_NUM_APPL_SERVER=5\",\n    \"MAX_NUM_APPL_SERVER=30\"\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/cms-config/broker-set-param",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"cms-config",
+								"broker-set-param"
+							]
+						},
+						"description": "Set broker configuration file content on a CMS host (CMS task: broker_setparam). POST /:hostUid/cms-config/broker-set-param. Body: confdata (array of config lines). Success: {}."
 					},
 					"response": []
 				}

@@ -7,6 +7,8 @@ export * from './base-cms-forward-request';
 export * from './cms-forward-request-without-token';
 export * from './stop-broker-cms-request';
 export * from './get-broker-status-cms-request';
+export * from './get-add-broker-info-cms-request';
+export * from './broker-set-param-cms-request';
 export * from './get-env-cms-request';
 export * from './start-database-cms-request';
 export * from './stop-database-cms-request';
