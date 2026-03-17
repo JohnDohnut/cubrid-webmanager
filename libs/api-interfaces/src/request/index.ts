@@ -53,3 +53,5 @@ export * from './get-auto-backup-db-err-log-request';
 export * from './get-transaction-info-request';
 export * from './kill-transaction-request';
 export * from './delete-database-request';
+export * from './add-dbmt-user-request';
+export * from './update-dbmt-user-request';

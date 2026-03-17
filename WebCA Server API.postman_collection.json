@@ -790,6 +790,20 @@
 					"response": []
 				},
 				{
+					"name": "Get Auto Add Volume",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/auto-add-vol/{{dbname}}",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "database", "auto-add-vol", "{{dbname}}"]
+						},
+						"description": "Get auto-add volume configuration for a database (CMS task: getautoaddvol). GET /:hostUid/database/auto-add-vol/:dbname. Success: data, data_ext_page, data_warn_outofspace, index, index_ext_page, index_warn_outofspace, note, execTime."
+					},
+					"response": []
+				},
+				{
 					"name": "Set Auto Start",
 					"request": {
 						"method": "POST",
@@ -1289,6 +1303,70 @@
 		{
 			"name": "Broker",
 			"item": [
+				{
+					"name": "Start All Brokers",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/broker/start-all",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "broker", "start-all"]
+						},
+						"description": "Start all brokers on the host (CMS task: startbroker). POST /:hostUid/broker/start-all. Auth: Bearer JWT."
+					},
+					"response": []
+				},
+				{
+					"name": "Stop All Brokers",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/broker/stop-all",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "broker", "stop-all"]
+						},
+						"description": "Stop all brokers on the host (CMS task: stopbroker). POST /:hostUid/broker/stop-all. Auth: Bearer JWT."
+					},
+					"response": []
+				},
+				{
+					"name": "Add DBMT User",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"targetid\": \"test_user_2\",\n  \"password\": \"1234\",\n  \"casauth\": \"none\",\n  \"dbcreate\": \"none\",\n  \"statusmonitorauth\": \"none\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/broker/dbmt-user",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "broker", "dbmt-user"]
+						},
+						"description": "Add a DBMT (CMS) user (CMS task: adddbmtuser). POST /:hostUid/broker/dbmt-user. Body: targetid, password, casauth, dbcreate, statusmonitorauth. Auth: Bearer JWT."
+					},
+					"response": []
+				},
+				{
+					"name": "Update DBMT User",
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"targetid\": \"test_user_2\",\n  \"dbauth\": [],\n  \"casauth\": \"none\",\n  \"dbcreate\": \"none\",\n  \"statusmonitorauth\": \"none\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/broker/dbmt-user",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "broker", "dbmt-user"]
+						},
+						"description": "Update a DBMT (CMS) user (CMS task: updatedbmtuser). PUT /:hostUid/broker/dbmt-user. Body: targetid, casauth, dbcreate, statusmonitorauth (dbauth optional). Auth: Bearer JWT."
+					},
+					"response": []
+				},
 				{
 					"name": "Get Broker List",
 					"request": {
