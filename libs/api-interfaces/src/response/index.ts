@@ -62,3 +62,7 @@ export * from './kill-transaction-response';
 export * from './delete-database-response';
 export * from './add-dbmt-user-response';
 export * from './update-dbmt-user-response';
+export * from './get-dbmt-user-info-client-response';
+export * from './update-dbmt-user-client-response';
+export * from './delete-dbmt-user-client-response';
+export * from './set-dbmt-passwd-client-response';

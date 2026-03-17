@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Logger, Post, Request, Patch, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Logger, Post, Put, Request } from '@nestjs/common';
 import { validateRequiredFields } from '@util';
 import { UserService } from './user.service';
 import {
