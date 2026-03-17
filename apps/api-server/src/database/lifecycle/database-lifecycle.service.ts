@@ -4,6 +4,7 @@ import {
   CreateDatabaseWithConfigRequest,
   CreateDatabaseWithConfigResponse,
   DatabaseVolumeInfoClientResponse,
+  DeleteDatabaseRequest,
   StartInfoClientResponse,
 } from '@api-interfaces';
 import { GetCreatedbInfoClientResponse } from '@api-interfaces/response/get-createdb-info-client-response';
@@ -11,8 +12,11 @@ import { CmsConfigService } from '@cms-config/cms-config.service';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import {
   BaseService,
+  HandleCmsStatusErrors,
   HandleDatabaseErrors,
 } from '@common';
+import { ConfigError } from '@error/config/config-error';
+import { ConfigErrorCode } from '@error/config/config-error-code';
 import { DatabaseError } from '@error/database/database-error';
 import { HostError } from '@error/index';
 import { ValidationError } from '@error/validation/validation-error';
@@ -20,20 +24,22 @@ import { FileService } from '@file/file.service';
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import { UserRepositoryService } from '@repository';
-import { BaseCmsRequest, BaseCmsResponse } from '@type';
+import { BaseCmsResponse } from '@type';
+import { DatabaseInfoService } from '../info/database-info.service';
 import { DatabaseUserService } from '../user/database-user.service';
 import { DatabaseConfigService } from '../config/database-config.service';
 import { DATABASE_CONSTANTS } from '../database.constants';
 import {
   CreateDatabaseCmsRequest,
+  DeleteDatabaseCmsRequest,
   DbSpaceInfoCmsRequest,
   StartDatabaseCmsRequest,
   StopDatabaseCmsRequest,
 } from '@type/cms-request';
 import {
   CreateDatabaseCmsResponse,
+  DeleteDatabaseCmsResponse,
   DbSpaceInfoCmsResponse,
-  StartInfoCmsResponse,
 } from '@type/cms-response';
 import { convertExvolArrayToCmsFormat } from '@util';
 
@@ -53,67 +59,20 @@ export class DatabaseLifecycleService extends BaseService {
     private readonly cmsConfigService: CmsConfigService,
     private readonly fileService: FileService,
     private readonly databaseUserService: DatabaseUserService,
-    private readonly databaseConfigService: DatabaseConfigService
+    private readonly databaseConfigService: DatabaseConfigService,
+    private readonly databaseInfoService: DatabaseInfoService
   ) {
     super(hostService, cmsClient);
   }
 
-  /**
-   * Get start information for databases on a host (internal use).
-   * Returns raw CMS response without transformation.
-   *
-   * @internal
-   * @param userId User ID from JWT
-   * @param hostUid Host UID
-   * @returns StartInfoCmsResponse
-   * @throws DatabaseError If request fails or CMS status is fail
-   */
-  @HandleDatabaseErrors()
-  async startInfoInternal(userId: string, hostUid: string): Promise<StartInfoCmsResponse> {
-    const cmsRequest: BaseCmsRequest = {
-      task: 'startinfo',
-    };
-    const response = await this.executeCmsRequest<
-      BaseCmsRequest,
-      StartInfoCmsResponse | BaseCmsResponse
-    >(userId, hostUid, cmsRequest);
-
-    if (response.status === 'success') {
-      return response as StartInfoCmsResponse;
-    } else {
-      throw DatabaseError.GetStartInfoFailed({ response });
-    }
+  /** Delegates to DatabaseInfoService. */
+  async startInfo(userId: string, hostUid: string): Promise<StartInfoClientResponse> {
+    return this.databaseInfoService.startInfo(userId, hostUid);
   }
 
-  /**
-   * Get start information for databases on a host.
-   * Returns domain-only data (CMS envelope removed).
-   *
-   * @param userId User ID from JWT
-   * @param hostUid Host UID
-   * @returns StartInfoClientResponse
-   * @throws DatabaseError If request fails or CMS status is fail
-   */
-  @HandleDatabaseErrors()
-  async startInfo(userId: string, hostUid: string): Promise<StartInfoClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const response = await this.startInfoInternal(userId, hostUid);
-    const dataOnly = this.extractDomainData(response);
-    const dbProfiles = host.dbProfiles || {};
-    const dbs = dataOnly.dblist?.[0]?.dbs || [];
-    const activeList = dataOnly.activelist?.[0]?.active || [];
-
-    const clientResponse: StartInfoClientResponse = {
-      activelist: { active: activeList },
-      dblist: {
-        dbs: dbs.map((db) => ({
-          ...db,
-          isProfileExists: !!dbProfiles[db.dbname],
-        })),
-      },
-    };
-
-    return clientResponse;
+  /** Delegates to DatabaseInfoService. */
+  async getCreatedbInfo(userId: string, hostUid: string): Promise<GetCreatedbInfoClientResponse> {
+    return this.databaseInfoService.getCreatedbInfo(userId, hostUid);
   }
 
   /**
@@ -143,7 +102,7 @@ export class DatabaseLifecycleService extends BaseService {
     );
 
     if (response.status === 'success') {
-      return await this.startInfo(userId, hostUid);
+      return await this.databaseInfoService.startInfo(userId, hostUid);
     }
 
     throw DatabaseError.StartDatabaseFailed({ response, dbname });
@@ -176,7 +135,7 @@ export class DatabaseLifecycleService extends BaseService {
     );
 
     if (response.status === 'success') {
-      return await this.startInfo(userId, hostUid);
+      return await this.databaseInfoService.startInfo(userId, hostUid);
     }
 
     throw DatabaseError.StopDatabaseFailed({ response, dbname });
@@ -220,7 +179,7 @@ export class DatabaseLifecycleService extends BaseService {
       >(userId, hostUid, startRequest);
 
       if (startResponse.status === 'success') {
-        return await this.startInfo(userId, hostUid);
+        return await this.databaseInfoService.startInfo(userId, hostUid);
       } else {
         throw DatabaseError.StartDatabaseFailed({
           response: startResponse,
@@ -290,7 +249,7 @@ export class DatabaseLifecycleService extends BaseService {
       return user;
     });
 
-    return await this.startInfo(userId, hostUid);
+    return await this.databaseInfoService.startInfo(userId, hostUid);
   }
 
   /**
@@ -309,14 +268,7 @@ export class DatabaseLifecycleService extends BaseService {
     hostUid: string,
     dbname: string
   ): Promise<DatabaseVolumeInfoClientResponse> {
-    const startInfoRequest: BaseCmsRequest = {
-      task: 'startinfo',
-    };
-
-    const startInfo = await this.executeCmsRequest<
-      BaseCmsRequest,
-      StartInfoCmsResponse | BaseCmsResponse
-    >(userId, hostUid, startInfoRequest);
+    const startInfo = await this.databaseInfoService.startInfoInternal(userId, hostUid);
 
     if ('dblist' in startInfo && 'activelist' in startInfo) {
       const dbExists = startInfo.dblist.some((el) => el.dbs.some((db) => db.dbname === dbname));
@@ -342,26 +294,6 @@ export class DatabaseLifecycleService extends BaseService {
     } else {
       throw DatabaseError.GetDBSpaceInfoFailed({ response, dbname });
     }
-  }
-
-  /**
-   * Get default information for creating a database.
-   * Returns default database directory path and related information.
-   *
-   * @param userId User ID from JWT
-   * @param hostUid Host UID
-   * @returns GetCreatedbInfoClientResponse Default database creation information
-   * @throws DatabaseError If request fails
-   */
-  @HandleDatabaseErrors()
-  async getCreatedbInfo(userId: string, hostUid: string): Promise<GetCreatedbInfoClientResponse> {
-    const envInfo = await this.cmsConfigService.getEnv(userId, hostUid);
-
-    return {
-      defaultDbDirectory: envInfo.CUBRID_DATABASES || '',
-      cubridVersion: envInfo.CUBRIDVER,
-      cubridPath: envInfo.CUBRID,
-    };
   }
 
   /**
@@ -607,5 +539,75 @@ export class DatabaseLifecycleService extends BaseService {
     }
 
     return response;
+  }
+
+  /**
+   * Delete a database.
+   * Also removes the database name from the server parameter in cubridconf if it exists.
+   * Returns start-info (db list) on success.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param dbname Database name
+   * @param request Client request containing delbackup option
+   * @returns StartInfoClientResponse Latest database list (start-info) on success
+   * @throws DatabaseError If request fails or CMS status is fail
+   */
+  @HandleDatabaseErrors()
+  @HandleCmsStatusErrors()
+  async deleteDatabase(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    request: DeleteDatabaseRequest
+  ): Promise<StartInfoClientResponse> {
+    const cmsRequest: DeleteDatabaseCmsRequest = {
+      task: 'deletedb',
+      dbname: dbname,
+      delbackup: request.delbackup,
+    };
+
+    this.logger.debug(`Deleting database: ${dbname} on host: ${hostUid}`);
+
+    await this.executeCmsRequest<DeleteDatabaseCmsRequest, DeleteDatabaseCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
+
+    // Remove dbname from server parameter in cubridconf if it exists
+    try {
+      await this.databaseConfigService.removeAutoStart(userId, hostUid, {
+        confname: DATABASE_CONSTANTS.CUBRID_CONF_NAME,
+        dbname: dbname,
+      });
+      this.logger.debug(
+        `Successfully removed database name ${dbname} from server parameter in cubridconf`
+      );
+    } catch (error: unknown) {
+      // Ignore DbnameNotFound error (dbname may not exist in server parameter)
+      // Log other errors but don't fail the delete operation
+      if (error instanceof ConfigError && error.code === ConfigErrorCode.DBNAME_NOT_FOUND) {
+        this.logger.debug(
+          `Database name ${dbname} not found in server parameter, skipping removal (this is expected if auto-start was not configured)`
+        );
+      } else {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        const errorCode = error instanceof ConfigError ? error.code : 'UNKNOWN';
+        this.logger.warn(
+          `Failed to remove dbname from server parameter during database deletion: ${errorMessage}`,
+          {
+            dbname,
+            hostUid,
+            errorCode,
+            stack: errorStack,
+          }
+        );
+      }
+    }
+
+    // Return latest db list (start-info)
+    return await this.databaseInfoService.startInfo(userId, hostUid);
   }
 }

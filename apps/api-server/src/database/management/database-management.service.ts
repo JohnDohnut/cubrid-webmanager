@@ -5,8 +5,6 @@ import {
   CheckDatabaseResponse,
   CompactDatabaseRequest,
   CompactDatabaseResponse,
-  DeleteDatabaseRequest,
-  DeleteDatabaseResponse,
   GetAddVolStatusResponse,
   LoadDatabaseRequest,
   LoadDatabaseResponse,
@@ -19,32 +17,28 @@ import {
   OptimizeDatabaseRequest,
   OptimizeDatabaseResponse,
   RenameDatabaseRequest,
-  RenameDatabaseResponse,
+  StartInfoClientResponse,
   UnloadDatabaseRequest,
   UnloadInfoClientResponse,
 } from '@api-interfaces';
 import { CmsConfigService } from '@cms-config/cms-config.service';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
-import { DatabaseConfigService } from '@database/config/database-config.service';
+import { DatabaseInfoService } from '@database/info/database-info.service';
 import {
   checkCmsStatusError,
   checkCmsTokenError,
   HandleCmsStatusErrors,
   HandleDatabaseErrors,
 } from '@common';
-import { ConfigError } from '@error/config/config-error';
-import { ConfigErrorCode } from '@error/config/config-error-code';
 import { CmsError } from '@error/cms/cms-error';
 import { DatabaseError } from '@error/database/database-error';
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import { BaseService } from '@common';
-import { DATABASE_CONSTANTS } from '../database.constants';
 import {
   AddVolDbCmsRequest,
   CheckDatabaseCmsRequest,
   CompactDatabaseCmsRequest,
-  DeleteDatabaseCmsRequest,
   GetAddVolStatusCmsRequest,
   LoadDatabaseCmsRequest,
   LockDatabaseCmsRequest,
@@ -59,7 +53,6 @@ import {
   AddVolDbCmsResponse,
   CheckDatabaseCmsResponse,
   CompactDatabaseCmsResponse,
-  DeleteDatabaseCmsResponse,
   GetAddVolStatusCmsResponse,
   LoadDatabaseCmsResponse,
   LockDatabaseCmsResponse,
@@ -83,7 +76,7 @@ export class DatabaseManagementService extends BaseService {
   constructor(
     hostService: HostService,
     cmsClient: CmsHttpsClientService,
-    private readonly databaseConfigService: DatabaseConfigService
+    private readonly databaseInfoService: DatabaseInfoService
   ) {
     super(hostService, cmsClient);
   }
@@ -374,13 +367,13 @@ export class DatabaseManagementService extends BaseService {
 
   /**
    * Rename a database.
-   * Returns empty object on success.
+   * Returns start-info (db list) on success.
    *
    * @param userId User ID from JWT
    * @param hostUid Host UID
    * @param dbname Current database name
    * @param request Client request containing rename configuration
-   * @returns RenameDatabaseResponse Empty object on success
+   * @returns StartInfoClientResponse Latest database list (start-info) on success
    * @throws DatabaseError If request fails or CMS status is fail
    */
   @HandleDatabaseErrors()
@@ -390,7 +383,7 @@ export class DatabaseManagementService extends BaseService {
     hostUid: string,
     dbname: string,
     request: RenameDatabaseRequest
-  ): Promise<RenameDatabaseResponse> {
+  ): Promise<StartInfoClientResponse> {
     // Build CMS request from client request
     const cmsRequest: RenameDatabaseCmsRequest = {
       task: 'renamedb',
@@ -412,13 +405,13 @@ export class DatabaseManagementService extends BaseService {
       cmsRequest.volume = [volumeMapping];
     }
 
-    const response = await this.executeCmsRequest<
+    await this.executeCmsRequest<
       RenameDatabaseCmsRequest,
       RenameDatabaseCmsResponse
     >(userId, hostUid, cmsRequest);
 
-    // Success: return empty object
-    return {};
+    // Return latest db list (start-info)
+    return await this.databaseInfoService.startInfo(userId, hostUid);
   }
 
   /**
@@ -628,75 +621,5 @@ export class DatabaseManagementService extends BaseService {
     >(userId, hostUid, cmsRequest);
 
     return this.extractDomainData(response);
-  }
-
-  /**
-   * Delete a database.
-   * Also removes the database name from the server parameter in cubridconf if it exists.
-   * Returns empty object on success.
-   *
-   * @param userId User ID from JWT
-   * @param hostUid Host UID
-   * @param dbname Database name
-   * @param request Client request containing delbackup option
-   * @returns DeleteDatabaseResponse Empty object on success
-   * @throws DatabaseError If request fails or CMS status is fail
-   */
-  @HandleDatabaseErrors()
-  @HandleCmsStatusErrors()
-  async deleteDatabase(
-    userId: string,
-    hostUid: string,
-    dbname: string,
-    request: DeleteDatabaseRequest
-  ): Promise<DeleteDatabaseResponse> {
-    const cmsRequest: DeleteDatabaseCmsRequest = {
-      task: 'deletedb',
-      dbname: dbname,
-      delbackup: request.delbackup,
-    };
-
-    this.logger.debug(`Deleting database: ${dbname} on host: ${hostUid}`);
-
-    await this.executeCmsRequest<DeleteDatabaseCmsRequest, DeleteDatabaseCmsResponse>(
-      userId,
-      hostUid,
-      cmsRequest
-    );
-
-    // Remove dbname from server parameter in cubridconf if it exists
-    try {
-      await this.databaseConfigService.removeAutoStart(userId, hostUid, {
-        confname: DATABASE_CONSTANTS.CUBRID_CONF_NAME,
-        dbname: dbname,
-      });
-      this.logger.debug(
-        `Successfully removed database name ${dbname} from server parameter in cubridconf`
-      );
-    } catch (error: unknown) {
-      // Ignore DbnameNotFound error (dbname may not exist in server parameter)
-      // Log other errors but don't fail the delete operation
-      if (error instanceof ConfigError && error.code === ConfigErrorCode.DBNAME_NOT_FOUND) {
-        this.logger.debug(
-          `Database name ${dbname} not found in server parameter, skipping removal (this is expected if auto-start was not configured)`
-        );
-      } else {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        const errorStack = error instanceof Error ? error.stack : undefined;
-        const errorCode = error instanceof ConfigError ? error.code : 'UNKNOWN';
-        this.logger.warn(
-          `Failed to remove dbname from server parameter during database deletion: ${errorMessage}`,
-          {
-            dbname,
-            hostUid,
-            errorCode,
-            stack: errorStack,
-          }
-        );
-      }
-    }
-
-    // Success: return empty object
-    return {};
   }
 }
