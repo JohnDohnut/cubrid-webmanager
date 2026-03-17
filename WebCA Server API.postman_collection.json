@@ -636,6 +636,62 @@
 					"response": []
 				},
 				{
+					"name": "Get Backup DB Info",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/backup-db-info/{{dbname}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"database",
+								"backup-db-info",
+								"{{dbname}}"
+							]
+						},
+						"description": "Get backup DB physical info (dbdir, freespace, level0/1/2 backup list). CMS task: backupdbinfo. level0, level1, level2 may be empty arrays when no backups exist.\n\n**URI:**\n```\nGET /:hostUid/database/backup-db-info/:dbname\n```\n**Example:**\n```\nGET /host-uid-1/database/backup-db-info/test\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `dbname` - Database name\n\n**Success Response (200 OK):**\n```json\n{\n  \"__EXEC_TIME\": \"19 ms\",\n  \"dbdir\": \"/home/cubrid/databases/test/backup\",\n  \"freespace\": \"2068768\",\n  \"level0\": [\n    { \"data\": \"2026.03.12.09.50\", \"path\": \"/path/to/test_bk0v000\", \"size\": \"11547648\" }\n  ],\n  \"level1\": [\n    { \"data\": \"2026.03.12.09.54\", \"path\": \"/path/to/test_bk1v000\", \"size\": \"5256192\" }\n  ],\n  \"level2\": [\n    { \"data\": \"2026.03.12.10.45\", \"path\": \"/path/to/test_bk2v000\", \"size\": \"5256192\" }\n  ],\n  \"note\": \"none\",\n  \"status\": \"success\",\n  \"task\": \"backupdbinfo\"\n}\n```\n\n**Error Response (404/500):** Standard error payload."
+					},
+					"response": []
+				},
+				{
+					"name": "Execute Backup DB",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"level\": \"0\",\n  \"volname\": \"demodb_backup_lv0\",\n  \"backupdir\": \"/home/cubrid/CUBRID-11.5.0.2103-a598990-Linux.x86_64/databases/demodb/backup\",\n  \"removelog\": \"y\",\n  \"check\": \"y\",\n  \"mt\": \"2\",\n  \"zip\": \"y\",\n  \"safereplication\": \"n\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/backup-db/{{dbname}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"database",
+								"backup-db",
+								"{{dbname}}"
+							]
+						},
+						"description": "Execute database backup (level 0, 1, or 2). CMS task: backupdb.\n\n**URI:**\n```\nPOST /:hostUid/database/backup-db/:dbname\n```\n**Example:**\n```\nPOST /host-uid-1/database/backup-db/demodb\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `dbname` - Database name\n\n**Request Body (required: level, volname, backupdir):**\n```json\n{\n  \"level\": \"0\",\n  \"volname\": \"demodb_backup_lv0\",\n  \"backupdir\": \"/home/cubrid/databases/demodb/backup\",\n  \"removelog\": \"y\",\n  \"check\": \"y\",\n  \"mt\": \"2\",\n  \"zip\": \"y\",\n  \"safereplication\": \"n\"\n}\n```\n- `level`: \"0\" | \"1\" | \"2\"\n- `volname`: Volume name for backup\n- `backupdir`: Full path to backup directory\n- `removelog` (optional, default \"y\"): \"y\" | \"n\"\n- `check` (optional, default \"n\"): \"y\" | \"n\"\n- `mt` (optional, default \"0\"): Multi-thread count\n- `zip` (optional, default \"n\"): \"y\" | \"n\"\n- `safereplication` (optional, default \"n\"): \"y\" | \"n\"\n\n**Success Response (200 OK):**\n```json\n{\n  \"__EXEC_TIME\": \"1412 ms\",\n  \"note\": \"none\",\n  \"status\": \"success\",\n  \"task\": \"backupdb\"\n}\n```"
+					},
+					"response": []
+				},
+				{
 					"name": "Get Auto Backup DB Err Log",
 					"request": {
 						"method": "POST",
@@ -786,6 +842,20 @@
 							]
 						},
 						"description": "Set auto-add volume configuration for a database. Returns empty object on success.\n\n**URI:**\n```\nPOST /:hostUid/database/auto-add-vol/:dbname\n```\n**Example:**\n```\nPOST /host-uid-1/database/auto-add-vol/testdb\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `dbname` - Database name\n\n**Request Body:**\n```json\n{\n  \"data\": \"ON\",\n  \"data_warn_outofspace\": \"0.15\",\n  \"data_ext_page\": \"32768\",\n  \"index\": \"ON\",\n  \"index_warn_outofspace\": \"0.15\",\n  \"index_ext_page\": \"32768\"\n}\n```\n\n**Success Response (200 OK):**\n```json\n{}\n```\n\n**Error Response (400 Bad Request):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Missing required fields: data, data_warn_outofspace, data_ext_page, index, index_warn_outofspace, index_ext_page\",\n  \"error\": \"Bad Request\"\n}\n```\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Database not found\",\n  \"error\": \"Not Found\"\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Auto Add Volume",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/auto-add-vol/{{dbname}}",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "database", "auto-add-vol", "{{dbname}}"]
+						},
+						"description": "Get auto-add volume configuration for a database (CMS task: getautoaddvol). GET /:hostUid/database/auto-add-vol/:dbname. Success: data, data_ext_page, data_warn_outofspace, index, index_ext_page, index_warn_outofspace, note, execTime."
 					},
 					"response": []
 				},
@@ -1128,6 +1198,56 @@
 			"name": "Database Users",
 			"item": [
 				{
+					"name": "Get User Info (userinfo)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/users/info/{{dbname}}",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "database", "users", "info", "{{dbname}}"]
+						},
+						"description": "Get user info (list of users) for a database. CMS task: userinfo. GET /:hostUid/database/users/info/:dbname. Auth: Bearer JWT."
+					},
+					"response": []
+				},
+				{
+					"name": "User Verify (userverify)",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"dbname\": \"demodb\",\n  \"dbuser\": \"dba\",\n  \"dbpasswd\": \"\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/users/verify",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "database", "users", "verify"]
+						},
+						"description": "Verify database user credentials. CMS task: userverify. POST /:hostUid/database/users/verify. Body: dbname, dbuser, dbpasswd. Auth: Bearer JWT."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Database User (createuser)",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"dbname\": \"demodb\",\n  \"username\": \"yifan\",\n  \"userpass\": \"1111\",\n  \"groups\": { \"group\": [\"public\"] },\n  \"authorization\": []\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/users",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "database", "users"]
+						},
+						"description": "Create a database user. CMS task: createuser. POST /:hostUid/database/users. Body: dbname, username, userpass, groups, authorization. Auth: Bearer JWT."
+					},
+					"response": []
+				},
+				{
 					"name": "Get Database Users",
 					"request": {
 						"method": "GET",
@@ -1218,6 +1338,20 @@
 						"description": "Update a database user. Returns empty object on success.\n\n**URI:**\n```\nPUT /:hostUid/database/users/:dbname/:username\n```\n**Example:**\n```\nPUT /host-uid-1/database/users/demodb/yifan\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `dbname` - Database name\n- `username` - Username to update\n\n**Request Body:**\n```json\n{\n  \"userpass\": \"1111\",\n  \"groups\": {\n    \"group\": [\"public\"]\n  },\n  \"authorization\": []\n}\n```\n\n**Success Response (200 OK):**\n```json\n{}\n```\n\n**Error Response (400 Bad Request):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Missing required fields: userpass, groups, authorization\",\n  \"error\": \"Bad Request\"\n}\n```\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Database or user not found\",\n  \"error\": \"Not Found\"\n}\n```"
 					},
 					"response": []
+				},
+				{
+					"name": "Delete Database User (deleteuser)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/users/{{dbname}}/{{username}}",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "database", "users", "{{dbname}}", "{{username}}"]
+						},
+						"description": "Delete a database user. CMS task: deleteuser. DELETE /:hostUid/database/users/:dbname/:username. Auth: Bearer JWT."
+					},
+					"response": []
 				}
 			],
 			"description": "Database user management endpoints. All endpoints require JWT authentication."
@@ -1225,6 +1359,70 @@
 		{
 			"name": "Broker",
 			"item": [
+				{
+					"name": "Start All Brokers",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/broker/start-all",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "broker", "start-all"]
+						},
+						"description": "Start all brokers on the host (CMS task: startbroker). POST /:hostUid/broker/start-all. Auth: Bearer JWT."
+					},
+					"response": []
+				},
+				{
+					"name": "Stop All Brokers",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/broker/stop-all",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "broker", "stop-all"]
+						},
+						"description": "Stop all brokers on the host (CMS task: stopbroker). POST /:hostUid/broker/stop-all. Auth: Bearer JWT."
+					},
+					"response": []
+				},
+				{
+					"name": "Add DBMT User",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"targetid\": \"test_user_2\",\n  \"password\": \"1234\",\n  \"casauth\": \"none\",\n  \"dbcreate\": \"none\",\n  \"statusmonitorauth\": \"none\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/broker/dbmt-user",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "broker", "dbmt-user"]
+						},
+						"description": "Add a DBMT (CMS) user (CMS task: adddbmtuser). POST /:hostUid/broker/dbmt-user. Body: targetid, password, casauth, dbcreate, statusmonitorauth. Auth: Bearer JWT."
+					},
+					"response": []
+				},
+				{
+					"name": "Update DBMT User",
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"targetid\": \"test_user_2\",\n  \"dbauth\": [],\n  \"casauth\": \"none\",\n  \"dbcreate\": \"none\",\n  \"statusmonitorauth\": \"none\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/broker/dbmt-user",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "broker", "dbmt-user"]
+						},
+						"description": "Update a DBMT (CMS) user (CMS task: updatedbmtuser). PUT /:hostUid/broker/dbmt-user. Body: targetid, casauth, dbcreate, statusmonitorauth (dbauth optional). Auth: Bearer JWT."
+					},
+					"response": []
+				},
 				{
 					"name": "Get Broker List",
 					"request": {
@@ -1331,6 +1529,78 @@
 				}
 			],
 			"description": "Broker management endpoints. All endpoints require JWT authentication."
+		},
+		{
+			"name": "CMS User",
+			"item": [
+				{
+					"name": "Get DBMT User Info (getdbmtuserinfo)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/cms-user",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "cms-user"]
+						},
+						"description": "Get DBMT user info (dblist, userlist). CMS task: getdbmtuserinfo.\n\n**URI:** GET /:hostUid/cms-user\n**Success Response:** { dblist, userlist }\n**Authentication:** Bearer JWT (collection default)"
+					},
+					"response": []
+				},
+				{
+					"name": "Update DBMT User (updatedbmtuser)",
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"targetid\": \"test_target\",\n  \"dbauth\": [],\n  \"casauth\": \"none\",\n  \"dbcreate\": \"none\",\n  \"statusmonitorauth\": \"none\"\n}",
+							"options": {"raw": {"language": "json"}}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/cms-user",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "cms-user"]
+						},
+						"description": "Update DBMT user. CMS task: updatedbmtuser.\n\n**URI:** PUT /:hostUid/cms-user\n**Body:** targetid, dbauth (optional), casauth, dbcreate, statusmonitorauth\n**Success Response:** { dblist, userlist }\n**Authentication:** Bearer JWT (collection default)"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete DBMT User (deletedbmtuser)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/cms-user/{{targetid}}",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "cms-user", "{{targetid}}"]
+						},
+						"description": "Delete DBMT user. CMS task: deletedbmtuser.\n\n**URI:** DELETE /:hostUid/cms-user/:targetid\n**Success Response:** { dblist, userlist }\n**Authentication:** Bearer JWT (collection default)"
+					},
+					"response": []
+				},
+				{
+					"name": "Set DBMT Password (setdbmtpasswd)",
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"targetid\": \"yifan\",\n  \"newpassword\": \"1111\"\n}",
+							"options": {"raw": {"language": "json"}}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/cms-user/set-password",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "cms-user", "set-password"]
+						},
+						"description": "Set DBMT user password. CMS task: setdbmtpasswd.\n\n**URI:** PUT /:hostUid/cms-user/set-password\n**Body:** targetid, newpassword\n**Success Response:** {}\n**Authentication:** Bearer JWT (collection default)"
+					},
+					"response": []
+				}
+			],
+			"description": "CMS (DBMT) user management: get list, update, delete, set password. All endpoints require JWT authentication."
 		},
 		{
 			"name": "File",
@@ -1771,6 +2041,16 @@
 		{
 			"key": "bname",
 			"value": "query_editor",
+			"type": "string"
+		},
+		{
+			"key": "username",
+			"value": "yifan",
+			"type": "string"
+		},
+		{
+			"key": "targetid",
+			"value": "test_user_2",
 			"type": "string"
 		}
 	]

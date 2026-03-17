@@ -1,5 +1,15 @@
-import { Controller, Get, Logger, Param, Post, Request } from '@nestjs/common';
-import { BrokerListClientResponse, GetBrokerStatusClientResponse } from '@api-interfaces';
+import { Body, Controller, Get, Logger, Param, Post, Put, Request } from '@nestjs/common';
+import {
+  AddDbmtUserClientResponse,
+  AddDbmtUserRequest,
+  BrokerListClientResponse,
+  GetBrokerStatusClientResponse,
+  StartAllBrokersClientResponse,
+  StopAllBrokersClientResponse,
+  UpdateDbmtUserClientResponse,
+  UpdateDbmtUserRequest,
+} from '@api-interfaces';
+import { validateRequiredFields } from '@util';
 import { BaseCmsResponse } from '@type';
 import { BrokerService } from './broker.service';
 
@@ -24,14 +34,53 @@ export class BrokerController {
   constructor(private readonly brokerService: BrokerService) {}
 
   /**
-   * Get list of brokers for a specific host.
+   * Start all brokers on a host (CMS task: startbroker).
+   *
+   * @route POST /:hostUid/broker/start-all
+   * @param req - Request object containing user information
+   * @param hostUid - Host unique identifier from path parameter
+   * @returns StartAllBrokersClientResponse { success: true } on success
+   * @example
+   * // POST /host-uid/broker/start-all
+   */
+  @Post('start-all')
+  async startAllBrokers(
+    @Request() req,
+    @Param('hostUid') hostUid: string
+  ): Promise<StartAllBrokersClientResponse> {
+    const userId = req.user.sub;
+    this.logger.log(`Starting all brokers on host: ${hostUid}`);
+    return await this.brokerService.startAllBrokers(userId, hostUid);
+  }
+
+  /**
+   * Stop all brokers on a host (CMS task: stopbroker).
+   *
+   * @route POST /:hostUid/broker/stop-all
+   * @param req - Request object containing user information
+   * @param hostUid - Host unique identifier from path parameter
+   * @returns StopAllBrokersClientResponse { success: true } on success
+   * @example
+   * // POST /host-uid/broker/stop-all
+   */
+  @Post('stop-all')
+  async stopAllBrokers(
+    @Request() req,
+    @Param('hostUid') hostUid: string
+  ): Promise<StopAllBrokersClientResponse> {
+    const userId = req.user.sub;
+    this.logger.log(`Stopping all brokers on host: ${hostUid}`);
+    return await this.brokerService.stopAllBrokers(userId, hostUid);
+  }
+
+  /**\n   * Get list of brokers for a specific host.
    *
    * @route GET /:hostUid/broker/list
    * @param req - Request object containing user information
    * @param hostUid - Host unique identifier from path parameter
    * @returns List of brokers
    * @example
-   * // POST /host-uid/broker/list
+   * // GET /host-uid/broker/list
    */
   @Get('list')
   async getBrokers(
@@ -63,7 +112,7 @@ export class BrokerController {
   ): Promise<BaseCmsResponse> {
     const userId = req.user.sub;
 
-    Logger.log(`Stopping broker: ${bname} on host: ${hostUid}`, 'BrokerController');
+    this.logger.log(`Stopping broker: ${bname} on host: ${hostUid}`);
     const response = await this.brokerService.stopBroker(userId, hostUid, bname);
     return response;
   }
@@ -87,7 +136,7 @@ export class BrokerController {
   ): Promise<BaseCmsResponse> {
     const userId = req.user.sub;
 
-    Logger.log(`Starting broker: ${bname} on host: ${hostUid}`, 'BrokerController');
+    this.logger.log(`Starting broker: ${bname} on host: ${hostUid}`);
     const response = await this.brokerService.startBroker(userId, hostUid, bname);
     return response;
   }
@@ -111,7 +160,7 @@ export class BrokerController {
   ): Promise<boolean> {
     const userId = req.user.sub;
 
-    Logger.log(`Restarting broker: ${bname} on host: ${hostUid}`, 'BrokerController');
+    this.logger.log(`Restarting broker: ${bname} on host: ${hostUid}`);
     const response: boolean = await this.brokerService.restartBroker(userId, hostUid, bname);
     return response;
   }
@@ -135,7 +184,7 @@ export class BrokerController {
   ): Promise<GetBrokerStatusClientResponse> {
     const userId = req.user.sub;
 
-    Logger.log(`Getting broker status: ${bname} on host: ${hostUid}`, 'BrokerController');
+    this.logger.log(`Getting broker status: ${bname} on host: ${hostUid}`);
     const response = await this.brokerService.getBrokerStatus(userId, hostUid, bname);
     return response;
   }

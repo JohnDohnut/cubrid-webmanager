@@ -1,9 +1,25 @@
-import { Body, Controller, Get, Logger, Param, Post, Put, Request } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Logger,
+  Param,
+  Post,
+  Put,
+  Request,
+} from '@nestjs/common';
 import { DatabaseUserService } from './database-user.service';
 import {
+  CreateDbUserRequest,
   DatabaseLoginClientRequest,
   UpdateDbUserRequest,
   UpdateDbUserResponse,
+  UserInfoClientResponse,
+  CreateDbUserResponse,
+  DeleteDbUserResponse,
+  UserVerifyRequest,
+  UserVerifyResponse,
 } from '@api-interfaces';
 import { ValidationError } from '@error/validation/validation-error';
 import { validateRequiredFields } from '@util';
@@ -22,6 +38,92 @@ export class DatabaseUserController {
   private readonly logger = new Logger(DatabaseUserController.name);
 
   constructor(private readonly databaseUserService: DatabaseUserService) {}
+
+  /**
+   * Get user info (list of users) for a database. CMS task: userinfo.
+   *
+   * @route GET /:hostUid/database/users/info/:dbname
+   */
+  @Get('info/:dbname')
+  async getUserInfo(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string
+  ): Promise<UserInfoClientResponse> {
+    const userId = req.user.sub;
+    this.logger.log(`Getting user info for database: ${dbname} on host: ${hostUid}`);
+    return await this.databaseUserService.getUserInfo(userId, hostUid, dbname);
+  }
+
+  /**
+   * Verify database user credentials. CMS task: userverify.
+   *
+   * @route POST /:hostUid/database/users/verify
+   */
+  @Post('verify')
+  async userVerify(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Body() body: UserVerifyRequest
+  ): Promise<UserVerifyResponse> {
+    const userId = req.user.sub;
+    validateRequiredFields(body, ['dbname', 'dbuser', 'dbpasswd'], 'database/users/verify', this.logger);
+    this.logger.log(`Verifying user ${body.dbuser} for database: ${body.dbname} on host: ${hostUid}`);
+    return await this.databaseUserService.userVerify(
+      userId,
+      hostUid,
+      body.dbname,
+      body.dbuser,
+      body.dbpasswd
+    );
+  }
+
+  /**
+   * Create a database user. CMS task: createuser.
+   *
+   * @route POST /:hostUid/database/users
+   */
+  @Post()
+  async createUser(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Body() body: CreateDbUserRequest
+  ): Promise<CreateDbUserResponse> {
+    const userId = req.user.sub;
+    validateRequiredFields(
+      body,
+      ['dbname', 'username', 'userpass', 'groups', 'authorization'],
+      'database/users/create',
+      this.logger
+    );
+    this.logger.log(`Creating user: ${body.username} in database: ${body.dbname} on host: ${hostUid}`);
+    return await this.databaseUserService.createUser(
+      userId,
+      hostUid,
+      body.dbname,
+      body.username,
+      body.userpass,
+      body.groups,
+      body.authorization
+    );
+  }
+
+  /**
+   * Delete a database user. CMS task: deleteuser.
+   *
+   * @route DELETE /:hostUid/database/users/:dbname/:username
+   */
+  @Delete(':dbname/:username')
+  async deleteUser(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Param('username') username: string
+  ): Promise<DeleteDbUserResponse> {
+    const userId = req.user.sub;
+    this.logger.log(`Deleting user: ${username} from database: ${dbname} on host: ${hostUid}`);
+    return await this.databaseUserService.deleteUser(userId, hostUid, dbname, username);
+  }
 
   /**
    * Get list of database users for a specific host.

@@ -7,6 +7,7 @@ import { DatabaseErrorCode } from '@error/database/database-error-code';
 import { ConfigErrorCode } from '@error/config/config-error-code';
 import { BrokerErrorCode } from '@error/broker/broker-error-code';
 import { CmsErrorCode } from '@error/cms/cms-error-code';
+import { CmsUserErrorCode } from '@error/cms-user/cms-user-error-code';
 
 export type ErrorKind =
   | 'AUTH'
@@ -16,6 +17,7 @@ export type ErrorKind =
   | 'USER'
   | 'INTERNAL'
   | 'CMS'
+  | 'CMS_USER'
   | 'DATABASE'
   | 'VALIDATION'
   | 'CONFIG'
@@ -260,6 +262,17 @@ export class AppError extends Error {
           case CmsErrorCode.REQUEST_FAILED:
           case CmsErrorCode.NO_RESPONSE:
           case CmsErrorCode.UNKNOWN:
+            return 500; // Internal Server Error
+          default:
+            return 500;
+        }
+      case 'CMS_USER':
+        switch (this.code) {
+          case CmsUserErrorCode.GET_DBMT_USER_INFO_FAILED:
+          case CmsUserErrorCode.UPDATE_DBMT_USER_FAILED:
+          case CmsUserErrorCode.DELETE_DBMT_USER_FAILED:
+          case CmsUserErrorCode.SET_DBMT_PASSWD_FAILED:
+          case CmsUserErrorCode.UNKNOWN:
             return 500; // Internal Server Error
           default:
             return 500;
