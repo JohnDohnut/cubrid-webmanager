@@ -11,8 +11,21 @@ import { UserRepositoryService } from '@repository';
 import { DBAuthResolver } from '@util/db-auth-resolver';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import { BaseCmsResponse } from '@type';
-import { LoginDBCmsRequest, UpdateUserCmsRequest } from '@type/cms-request';
-import { UpdateUserCmsResponse } from '@type/cms-response';
+import {
+  LoginDBCmsRequest,
+  UpdateUserCmsRequest,
+  UserInfoCmsRequest,
+  CreateUserCmsRequest,
+  DeleteUserCmsRequest,
+  UserVerifyCmsRequest,
+} from '@type/cms-request';
+import {
+  UpdateUserCmsResponse,
+  UserInfoCmsResponse,
+  CreateUserCmsResponse,
+  DeleteUserCmsResponse,
+  UserVerifyCmsResponse,
+} from '@type/cms-response';
 
 /**
  * Service for managing database users.
@@ -120,12 +133,141 @@ export class DatabaseUserService extends BaseService {
       authorization,
     };
 
-    await this.executeCmsRequest<UpdateUserCmsRequest, UpdateUserCmsResponse>(
-      userId,
-      hostUid,
-      cmsRequest
-    );
+    const response = await this.executeCmsRequest<
+      UpdateUserCmsRequest,
+      UpdateUserCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    if (response.status !== 'success') {
+      throw DatabaseError.InternalError({ response, dbname, username });
+    }
 
     return {};
+  }
+
+  /**
+   * Get user info (list of users) for a database. CMS task: userinfo.
+   */
+  @HandleHostErrors()
+  @HandleCmsHttpsClientErrors()
+  @HandleDatabaseErrors()
+  async getUserInfo(
+    userId: string,
+    hostUid: string,
+    dbname: string
+  ): Promise<{ dbname: string; user: Array<Record<string, unknown>> }> {
+    const cmsRequest: UserInfoCmsRequest = { task: 'userinfo', dbname };
+
+    const response = await this.executeCmsRequest<
+      UserInfoCmsRequest,
+      UserInfoCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    if (response.status !== 'success') {
+      throw DatabaseError.GetUserInfoFailed({ response, dbname });
+    }
+
+    return {
+      dbname: response.dbname ?? dbname,
+      user: response.user ?? [],
+    };
+  }
+
+  /**
+   * Create a database user. CMS task: createuser.
+   */
+  @HandleHostErrors()
+  @HandleCmsHttpsClientErrors()
+  @HandleDatabaseErrors()
+  async createUser(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    username: string,
+    userpass: string,
+    groups: { group: string[] },
+    authorization: unknown[]
+  ): Promise<Record<string, never>> {
+    const cmsRequest: CreateUserCmsRequest = {
+      task: 'createuser',
+      dbname,
+      username,
+      userpass,
+      groups,
+      authorization,
+    };
+
+    const response = await this.executeCmsRequest<
+      CreateUserCmsRequest,
+      CreateUserCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    if (response.status !== 'success') {
+      throw DatabaseError.CreateUserFailed({ response, dbname, username });
+    }
+
+    return {};
+  }
+
+  /**
+   * Delete a database user. CMS task: deleteuser.
+   */
+  @HandleHostErrors()
+  @HandleCmsHttpsClientErrors()
+  @HandleDatabaseErrors()
+  async deleteUser(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    username: string
+  ): Promise<Record<string, never>> {
+    const cmsRequest: DeleteUserCmsRequest = {
+      task: 'deleteuser',
+      dbname,
+      username,
+    };
+
+    const response = await this.executeCmsRequest<
+      DeleteUserCmsRequest,
+      DeleteUserCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    if (response.status !== 'success') {
+      throw DatabaseError.DeleteUserFailed({ response, dbname, username });
+    }
+
+    return {};
+  }
+
+  /**
+   * Verify database user credentials. CMS task: userverify.
+   */
+  @HandleHostErrors()
+  @HandleCmsHttpsClientErrors()
+  @HandleDatabaseErrors()
+  async userVerify(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    dbuser: string,
+    dbpasswd: string
+  ): Promise<{ verified: boolean }> {
+    const cmsRequest: UserVerifyCmsRequest = {
+      task: 'userverify',
+      dbname,
+      dbuser,
+      dbpasswd,
+    };
+
+    const response = await this.executeCmsRequest<
+      UserVerifyCmsRequest,
+      UserVerifyCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    if (response.status !== 'success') {
+      throw DatabaseError.UserVerifyFailed({ response, dbname, dbuser });
+    }
+
+    return { verified: true };
   }
 }

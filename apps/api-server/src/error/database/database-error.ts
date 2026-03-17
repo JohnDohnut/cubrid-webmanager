@@ -90,6 +90,54 @@ export class DatabaseError extends AppError {
   }
 
   /**
+   * Creates an error indicating that getting user info failed.
+   */
+  static GetUserInfoFailed(additionalData?: Record<string, any>, originalError?: Error) {
+    return new DatabaseError(
+      'DATABASE',
+      DatabaseErrorCode.GET_USER_INFO_FAILED,
+      additionalData,
+      originalError
+    );
+  }
+
+  /**
+   * Creates an error indicating that creating database user failed.
+   */
+  static CreateUserFailed(additionalData?: Record<string, any>, originalError?: Error) {
+    return new DatabaseError(
+      'DATABASE',
+      DatabaseErrorCode.CREATE_USER_FAILED,
+      additionalData,
+      originalError
+    );
+  }
+
+  /**
+   * Creates an error indicating that deleting database user failed.
+   */
+  static DeleteUserFailed(additionalData?: Record<string, any>, originalError?: Error) {
+    return new DatabaseError(
+      'DATABASE',
+      DatabaseErrorCode.DELETE_USER_FAILED,
+      additionalData,
+      originalError
+    );
+  }
+
+  /**
+   * Creates an error indicating that user verify failed.
+   */
+  static UserVerifyFailed(additionalData?: Record<string, any>, originalError?: Error) {
+    return new DatabaseError(
+      'DATABASE',
+      DatabaseErrorCode.USER_VERIFY_FAILED,
+      additionalData,
+      originalError
+    );
+  }
+
+  /**
    * Creates an error indicating that getting database space info failed.
    */
   static GetDBSpaceInfoFailed(additionalData?: Record<string, any>, originalError?: Error) {
