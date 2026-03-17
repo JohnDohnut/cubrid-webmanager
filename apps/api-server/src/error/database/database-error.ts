@@ -287,6 +287,30 @@ export class DatabaseError extends AppError {
   }
 
   /**
+   * Creates an error indicating that getdbsize failed.
+   */
+  static GetDbSizeFailed(additionalData?: Record<string, any>, originalError?: Error) {
+    return new DatabaseError(
+      'DATABASE',
+      DatabaseErrorCode.GET_DBSIZE_FAILED,
+      additionalData,
+      originalError
+    );
+  }
+
+  /**
+   * Creates an error indicating that copydb failed.
+   */
+  static CopyDbFailed(additionalData?: Record<string, any>, originalError?: Error) {
+    return new DatabaseError(
+      'DATABASE',
+      DatabaseErrorCode.COPY_DB_FAILED,
+      additionalData,
+      originalError
+    );
+  }
+
+  /**
    * Creates an error for an unknown database-related issue.
    */
   static Unknown(additionalData?: Record<string, any>, originalError?: Error) {

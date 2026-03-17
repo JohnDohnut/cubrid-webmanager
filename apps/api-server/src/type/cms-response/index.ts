@@ -40,6 +40,8 @@ export * from './delete-user-cms-response';
 export * from './user-verify-cms-response';
 export * from './set-auto-add-vol-cms-response';
 export * from './get-auto-add-vol-cms-response';
+export * from './get-db-size-cms-response';
+export * from './copy-db-cms-response';
 export * from './load-database-cms-response';
 export * from './optimize-database-cms-response';
 export * from './classinfo-cms-response';

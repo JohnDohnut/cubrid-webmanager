@@ -1,5 +1,6 @@
 import {
   GetAutoAddVolClientResponse,
+  GetDbSizeClientResponse,
   GetAutoExecQueryClientResponse,
   SetAutoExecQueryClientRequest,
   SetAutoExecQueryClientResponse,
@@ -32,6 +33,7 @@ import {
   SetAutoExecQueryCmsRequest,
   SetAutoAddVolCmsRequest,
   GetAutoAddVolCmsRequest,
+  GetDbSizeCmsRequest,
   ClassInfoCmsRequest,
   GetAutoExecQueryErrLogCmsRequest,
 } from '@type/cms-request';
@@ -40,6 +42,7 @@ import {
   SetAutoExecQueryCmsResponse,
   SetAutoAddVolCmsResponse,
   GetAutoAddVolCmsResponse,
+  GetDbSizeCmsResponse,
   ClassInfoCmsResponse,
   GetAutoExecQueryErrLogCmsResponse,
 } from '@type/cms-response';
@@ -385,6 +388,40 @@ export class DatabaseConfigService extends BaseService {
     );
 
     return {};
+  }
+
+  /**
+   * Get database size (CMS task: getdbsize).
+   * Request: task, token, dbname. Response: __EXEC_TIME, dbsize, note, status, task.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param dbname Database name
+   * @returns GetDbSizeClientResponse dbsize (bytes as string)
+   */
+  @HandleDatabaseErrors()
+  async getDbSize(
+    userId: string,
+    hostUid: string,
+    dbname: string
+  ): Promise<GetDbSizeClientResponse> {
+    const cmsRequest: GetDbSizeCmsRequest = {
+      task: 'getdbsize',
+      dbname,
+    };
+
+    const response = await this.executeCmsRequest<
+      GetDbSizeCmsRequest,
+      GetDbSizeCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    if (response.status !== 'success') {
+      throw DatabaseError.GetDbSizeFailed({ response, dbname });
+    }
+
+    return {
+      dbsize: response.dbsize ?? '0',
+    };
   }
 
   /**

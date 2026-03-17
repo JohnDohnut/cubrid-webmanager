@@ -5,6 +5,7 @@ import {
   CheckDatabaseResponse,
   CompactDatabaseRequest,
   CompactDatabaseResponse,
+  CopyDbRequest,
   GetAddVolStatusResponse,
   LoadDatabaseRequest,
   LoadDatabaseResponse,
@@ -39,6 +40,7 @@ import {
   AddVolDbCmsRequest,
   CheckDatabaseCmsRequest,
   CompactDatabaseCmsRequest,
+  CopyDbCmsRequest,
   GetAddVolStatusCmsRequest,
   LoadDatabaseCmsRequest,
   LockDatabaseCmsRequest,
@@ -53,6 +55,7 @@ import {
   AddVolDbCmsResponse,
   CheckDatabaseCmsResponse,
   CompactDatabaseCmsResponse,
+  CopyDbCmsResponse,
   GetAddVolStatusCmsResponse,
   LoadDatabaseCmsResponse,
   LockDatabaseCmsResponse,
@@ -79,6 +82,54 @@ export class DatabaseManagementService extends BaseService {
     private readonly databaseInfoService: DatabaseInfoService
   ) {
     super(hostService, cmsClient);
+  }
+
+  /**
+   * Copy a database (CMS task: copydb).
+   * volume is only included when advanced is "on" (or "y").
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param request Client request (srcdbname, destdbname, destdbpath, exvolpath, logpath, overwrite, move, advanced, volume?)
+   * @returns Empty object on success
+   */
+  @HandleDatabaseErrors()
+  async copyDb(
+    userId: string,
+    hostUid: string,
+    request: CopyDbRequest
+  ): Promise<{}> {
+    const cmsRequest: CopyDbCmsRequest = {
+      task: 'copydb',
+      srcdbname: request.srcdbname,
+      destdbname: request.destdbname,
+      destdbpath: request.destdbpath,
+      exvolpath: request.exvolpath,
+      logpath: request.logpath,
+      overwrite: request.overwrite,
+      move: request.move,
+      advanced: request.advanced,
+    };
+    if (request.advanced === 'on' || request.advanced === 'y') {
+      if (request.volume && request.volume.length > 0) {
+        cmsRequest.volume = request.volume;
+      }
+    }
+
+    const response = await this.executeCmsRequest<
+      CopyDbCmsRequest,
+      CopyDbCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    if (response.status !== 'success') {
+      throw DatabaseError.CopyDbFailed({
+        response,
+        srcdbname: request.srcdbname,
+        destdbname: request.destdbname,
+      });
+    }
+
+    return {};
   }
 
   /**
