@@ -1,0 +1,13 @@
+/**
+ * Enumeration of CMS user (DBMT user) related error codes.
+ *
+ * @category Errors
+ * @since 1.0.0
+ */
+export enum CmsUserErrorCode {
+  GET_DBMT_USER_INFO_FAILED = 'GET_DBMT_USER_INFO_FAILED',
+  UPDATE_DBMT_USER_FAILED = 'UPDATE_DBMT_USER_FAILED',
+  DELETE_DBMT_USER_FAILED = 'DELETE_DBMT_USER_FAILED',
+  SET_DBMT_PASSWD_FAILED = 'SET_DBMT_PASSWD_FAILED',
+  UNKNOWN = 'UNKNOWN',
+}

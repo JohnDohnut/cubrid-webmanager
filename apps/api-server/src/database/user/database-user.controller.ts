@@ -93,7 +93,7 @@ export class DatabaseUserController {
     validateRequiredFields(
       body,
       ['dbname', 'username', 'userpass', 'groups', 'authorization'],
-      'database/users',
+      'database/users/create',
       this.logger
     );
     this.logger.log(`Creating user: ${body.username} in database: ${body.dbname} on host: ${hostUid}`);

@@ -73,67 +73,7 @@ export class BrokerController {
     return await this.brokerService.stopAllBrokers(userId, hostUid);
   }
 
-  /**
-   * Add a DBMT (CMS) user on the host (CMS task: adddbmtuser).
-   *
-   * @route POST /:hostUid/broker/dbmt-user
-   * @param req - Request object containing user information
-   * @param hostUid - Host unique identifier from path parameter
-   * @param body - targetid, password, casauth, dbcreate, statusmonitorauth
-   * @returns AddDbmtUserClientResponse dblist and userlist
-   * @example
-   * // POST /host-uid/broker/dbmt-user
-   * // Body: { "targetid": "test_user_2", "password": "1234", "casauth": "none", "dbcreate": "none", "statusmonitorauth": "none" }
-   */
-  @Post('dbmt-user')
-  async addDbmtUser(
-    @Request() req,
-    @Param('hostUid') hostUid: string,
-    @Body() body: AddDbmtUserRequest
-  ): Promise<AddDbmtUserClientResponse> {
-    const userId = req.user.sub;
-    validateRequiredFields(
-      body,
-      ['targetid', 'password', 'casauth', 'dbcreate', 'statusmonitorauth'],
-      'broker/dbmt-user',
-      this.logger
-    );
-    this.logger.log(`Adding DBMT user: ${body.targetid} on host: ${hostUid}`);
-    return await this.brokerService.addDbmtUser(userId, hostUid, body);
-  }
-
-  /**
-   * Update a DBMT (CMS) user on the host (CMS task: updatedbmtuser).
-   *
-   * @route PUT /:hostUid/broker/dbmt-user
-   * @param req - Request object containing user information
-   * @param hostUid - Host unique identifier from path parameter
-   * @param body - targetid, casauth, dbcreate, statusmonitorauth (dbauth optional)
-   * @returns UpdateDbmtUserClientResponse dblist and userlist
-   * @example
-   * // PUT /host-uid/broker/dbmt-user
-   * // Body: { "targetid": "test_user_2", "casauth": "none", "dbcreate": "none", "statusmonitorauth": "none" }
-   * // or with dbauth: { "targetid": "test_user_2", "dbauth": [], "casauth": "none", "dbcreate": "none", "statusmonitorauth": "none" }
-   */
-  @Put('dbmt-user')
-  async updateDbmtUser(
-    @Request() req,
-    @Param('hostUid') hostUid: string,
-    @Body() body: UpdateDbmtUserRequest
-  ): Promise<UpdateDbmtUserClientResponse> {
-    const userId = req.user.sub;
-    validateRequiredFields(
-      body,
-      ['targetid', 'casauth', 'dbcreate', 'statusmonitorauth'],
-      'broker/dbmt-user',
-      this.logger
-    );
-    this.logger.log(`Updating DBMT user: ${body.targetid} on host: ${hostUid}`);
-    return await this.brokerService.updateDbmtUser(userId, hostUid, body);
-  }
-
-  /**
-   * Get list of brokers for a specific host.
+  /**\n   * Get list of brokers for a specific host.
    *
    * @route GET /:hostUid/broker/list
    * @param req - Request object containing user information

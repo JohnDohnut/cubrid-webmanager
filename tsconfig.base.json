@@ -30,6 +30,8 @@
       "@cms-auth/*": ["apps/api-server/src/cms-auth/*"],
       "@cms-config": ["apps/api-server/src/cms-config"],
       "@cms-config/*": ["apps/api-server/src/cms-config/*"],
+      "@cms-user": ["apps/api-server/src/cms-user/index"],
+      "@cms-user/*": ["apps/api-server/src/cms-user/*"],
       "@cms-https-client": ["apps/api-server/src/cms-https-client"],
       "@cms-https-client/*": ["apps/api-server/src/cms-https-client/*"],
       "@database": ["apps/api-server/src/database"],

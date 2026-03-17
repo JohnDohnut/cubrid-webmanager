@@ -1475,6 +1475,78 @@
 			"description": "Broker management endpoints. All endpoints require JWT authentication."
 		},
 		{
+			"name": "CMS User",
+			"item": [
+				{
+					"name": "Get DBMT User Info (getdbmtuserinfo)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/cms-user",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "cms-user"]
+						},
+						"description": "Get DBMT user info (dblist, userlist). CMS task: getdbmtuserinfo.\n\n**URI:** GET /:hostUid/cms-user\n**Success Response:** { dblist, userlist }\n**Authentication:** Bearer JWT (collection default)"
+					},
+					"response": []
+				},
+				{
+					"name": "Update DBMT User (updatedbmtuser)",
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"targetid\": \"test_target\",\n  \"dbauth\": [],\n  \"casauth\": \"none\",\n  \"dbcreate\": \"none\",\n  \"statusmonitorauth\": \"none\"\n}",
+							"options": {"raw": {"language": "json"}}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/cms-user",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "cms-user"]
+						},
+						"description": "Update DBMT user. CMS task: updatedbmtuser.\n\n**URI:** PUT /:hostUid/cms-user\n**Body:** targetid, dbauth (optional), casauth, dbcreate, statusmonitorauth\n**Success Response:** { dblist, userlist }\n**Authentication:** Bearer JWT (collection default)"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete DBMT User (deletedbmtuser)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/cms-user/{{targetid}}",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "cms-user", "{{targetid}}"]
+						},
+						"description": "Delete DBMT user. CMS task: deletedbmtuser.\n\n**URI:** DELETE /:hostUid/cms-user/:targetid\n**Success Response:** { dblist, userlist }\n**Authentication:** Bearer JWT (collection default)"
+					},
+					"response": []
+				},
+				{
+					"name": "Set DBMT Password (setdbmtpasswd)",
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"targetid\": \"yifan\",\n  \"newpassword\": \"1111\"\n}",
+							"options": {"raw": {"language": "json"}}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/cms-user/set-password",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "cms-user", "set-password"]
+						},
+						"description": "Set DBMT user password. CMS task: setdbmtpasswd.\n\n**URI:** PUT /:hostUid/cms-user/set-password\n**Body:** targetid, newpassword\n**Success Response:** {}\n**Authentication:** Bearer JWT (collection default)"
+					},
+					"response": []
+				}
+			],
+			"description": "CMS (DBMT) user management: get list, update, delete, set password. All endpoints require JWT authentication."
+		},
+		{
 			"name": "File",
 			"item": [
 				{
@@ -1863,6 +1935,16 @@
 		{
 			"key": "bname",
 			"value": "query_editor",
+			"type": "string"
+		},
+		{
+			"key": "username",
+			"value": "yifan",
+			"type": "string"
+		},
+		{
+			"key": "targetid",
+			"value": "test_user_2",
 			"type": "string"
 		}
 	]

@@ -133,7 +133,6 @@ describe('BrokerService', () => {
       ).rejects.toThrow(BrokerError);
     });
   });
-
   describe('addDbmtUser', () => {
     const mockRequest = {
       targetid: 'test_user_2',
