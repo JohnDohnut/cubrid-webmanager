@@ -1142,6 +1142,56 @@
 			"name": "Database Users",
 			"item": [
 				{
+					"name": "Get User Info (userinfo)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/users/info/{{dbname}}",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "database", "users", "info", "{{dbname}}"]
+						},
+						"description": "Get user info (list of users) for a database. CMS task: userinfo. GET /:hostUid/database/users/info/:dbname. Auth: Bearer JWT."
+					},
+					"response": []
+				},
+				{
+					"name": "User Verify (userverify)",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"dbname\": \"demodb\",\n  \"dbuser\": \"dba\",\n  \"dbpasswd\": \"\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/users/verify",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "database", "users", "verify"]
+						},
+						"description": "Verify database user credentials. CMS task: userverify. POST /:hostUid/database/users/verify. Body: dbname, dbuser, dbpasswd. Auth: Bearer JWT."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Database User (createuser)",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"dbname\": \"demodb\",\n  \"username\": \"yifan\",\n  \"userpass\": \"1111\",\n  \"groups\": { \"group\": [\"public\"] },\n  \"authorization\": []\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/users",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "database", "users"]
+						},
+						"description": "Create a database user. CMS task: createuser. POST /:hostUid/database/users. Body: dbname, username, userpass, groups, authorization. Auth: Bearer JWT."
+					},
+					"response": []
+				},
+				{
 					"name": "Get Database Users",
 					"request": {
 						"method": "GET",
@@ -1230,6 +1280,20 @@
 							]
 						},
 						"description": "Update a database user. Returns empty object on success.\n\n**URI:**\n```\nPUT /:hostUid/database/users/:dbname/:username\n```\n**Example:**\n```\nPUT /host-uid-1/database/users/demodb/yifan\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `dbname` - Database name\n- `username` - Username to update\n\n**Request Body:**\n```json\n{\n  \"userpass\": \"1111\",\n  \"groups\": {\n    \"group\": [\"public\"]\n  },\n  \"authorization\": []\n}\n```\n\n**Success Response (200 OK):**\n```json\n{}\n```\n\n**Error Response (400 Bad Request):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Missing required fields: userpass, groups, authorization\",\n  \"error\": \"Bad Request\"\n}\n```\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Database or user not found\",\n  \"error\": \"Not Found\"\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Database User (deleteuser)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/users/{{dbname}}/{{username}}",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "database", "users", "{{dbname}}", "{{username}}"]
+						},
+						"description": "Delete a database user. CMS task: deleteuser. DELETE /:hostUid/database/users/:dbname/:username. Auth: Bearer JWT."
 					},
 					"response": []
 				}
