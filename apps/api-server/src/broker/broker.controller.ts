@@ -1,10 +1,15 @@
-import { Controller, Get, Logger, Param, Post, Request } from '@nestjs/common';
+import { Body, Controller, Get, Logger, Param, Post, Put, Request } from '@nestjs/common';
 import {
+  AddDbmtUserClientResponse,
+  AddDbmtUserRequest,
   BrokerListClientResponse,
   GetBrokerStatusClientResponse,
   StartAllBrokersClientResponse,
   StopAllBrokersClientResponse,
+  UpdateDbmtUserClientResponse,
+  UpdateDbmtUserRequest,
 } from '@api-interfaces';
+import { validateRequiredFields } from '@util';
 import { BaseCmsResponse } from '@type';
 import { BrokerService } from './broker.service';
 
@@ -68,8 +73,7 @@ export class BrokerController {
     return await this.brokerService.stopAllBrokers(userId, hostUid);
   }
 
-  /**
-   * Get list of brokers for a specific host.
+  /**\n   * Get list of brokers for a specific host.
    *
    * @route GET /:hostUid/broker/list
    * @param req - Request object containing user information

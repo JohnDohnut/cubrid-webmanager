@@ -8,6 +8,7 @@ import {
   SetAutoStartResponse,
   RemoveAutoStartRequest,
   RemoveAutoStartResponse,
+  GetAutoAddVolClientResponse,
   SetAutoAddVolRequest,
   SetAutoAddVolResponse,
   ClassInfoRequest,
@@ -143,6 +144,26 @@ export class DatabaseConfigController {
       `Disabling auto-start for database: ${body.dbname} on host: ${hostUid}`
     );
     return await this.configService.removeAutoStart(userId, hostUid, body);
+  }
+
+  /**
+   * Get auto-add volume configuration for a database (CMS task: getautoaddvol).
+   *
+   * @route GET /:hostUid/database/auto-add-vol/:dbname
+   * @example
+   * // GET /host-uid/database/auto-add-vol/test
+   */
+  @Get('auto-add-vol/:dbname')
+  async getAutoAddVol(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string
+  ): Promise<GetAutoAddVolClientResponse> {
+    const userId = req.user.sub;
+    this.logger.log(
+      `Getting auto-add volume for database: ${dbname} on host: ${hostUid}`
+    );
+    return await this.configService.getAutoAddVol(userId, hostUid, dbname);
   }
 
   /**

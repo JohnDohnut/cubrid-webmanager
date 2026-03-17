@@ -1,12 +1,11 @@
 /**
- * Client request for updating a DBMT (CMS) user.
- * No password; updates auth settings only.
+ * Client request for adding a DBMT (CMS) user.
  */
-export type UpdateDbmtUserRequest = {
+export type AddDbmtUserRequest = {
   /** Target user id (login name) */
   targetid: string;
-  /** DB auth array (e.g. [] for none). Optional; omitted is treated as []. */
-  dbauth?: unknown[];
+  /** Password */
+  password: string;
   /** CAS auth: 'none' | 'admin' | 'monitor' */
   casauth: string;
   /** DB create auth: 'none' | 'admin' */

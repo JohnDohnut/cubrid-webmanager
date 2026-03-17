@@ -4,11 +4,16 @@ import { BrokerError } from '@error/broker/broker-error';
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import {
+  AddDbmtUserClientResponse,
+  AddDbmtUserRequest,
   GetBrokerStatusClientResponse,
   StartAllBrokersClientResponse,
   StopAllBrokersClientResponse,
+  UpdateDbmtUserClientResponse,
+  UpdateDbmtUserRequest,
 } from '@api-interfaces';
 import {
+  AddDbmtUserCmsRequest,
   BaseCmsRequest,
   BaseCmsResponse,
   GetBrokerStatusCmsRequest,
@@ -16,11 +21,14 @@ import {
   GetBrokersInfoCmsResponse,
   HandleBrokerCmsRequest,
   StartBrokerCmsRequest,
-  StopBrokerCmsRequest,
+  StopAllBrokersCmsRequest,
+  UpdateDbmtUserCmsRequest,
 } from '@type';
 import {
+  AddDbmtUserCmsResponse,
   StartBrokerCmsResponse,
-  StopBrokerCmsResponse,
+  StopAllBrokersCmsResponse,
+  UpdateDbmtUserCmsResponse,
 } from '@type/cms-response';
 
 /**
@@ -39,6 +47,84 @@ export class BrokerService extends BaseService {
     protected readonly cmsClient: CmsHttpsClientService
   ) {
     super(hostService, cmsClient);
+  }
+
+  /**
+   * Add a DBMT (CMS) user on the host.
+   * CMS task: adddbmtuser.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param request targetid, password, casauth, dbcreate, statusmonitorauth
+   * @returns AddDbmtUserClientResponse dblist and userlist (domain data only)
+   */
+  @HandleBrokerErrors()
+  async addDbmtUser(
+    userId: string,
+    hostUid: string,
+    request: AddDbmtUserRequest
+  ): Promise<AddDbmtUserClientResponse> {
+    const cmsRequest: AddDbmtUserCmsRequest = {
+      task: 'adddbmtuser',
+      targetid: request.targetid,
+      password: request.password,
+      casauth: request.casauth,
+      dbcreate: request.dbcreate,
+      statusmonitorauth: request.statusmonitorauth,
+    };
+
+    const response = await this.executeCmsRequest<
+      AddDbmtUserCmsRequest,
+      AddDbmtUserCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    if (response.status !== 'success') {
+      throw BrokerError.AddDbmtUserFailed({ response });
+    }
+
+    return {
+      dblist: response.dblist ?? [],
+      userlist: response.userlist ?? [],
+    };
+  }
+
+  /**
+   * Update a DBMT (CMS) user on the host.
+   * CMS task: updatedbmtuser.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param request targetid, dbauth, casauth, dbcreate, statusmonitorauth (no password)
+   * @returns UpdateDbmtUserClientResponse dblist and userlist (domain data only)
+   */
+  @HandleBrokerErrors()
+  async updateDbmtUser(
+    userId: string,
+    hostUid: string,
+    request: UpdateDbmtUserRequest
+  ): Promise<UpdateDbmtUserClientResponse> {
+    const cmsRequest: UpdateDbmtUserCmsRequest = {
+      task: 'updatedbmtuser',
+      targetid: request.targetid,
+      dbauth: request.dbauth ?? [],
+      casauth: request.casauth,
+      dbcreate: request.dbcreate,
+      statusmonitorauth: request.statusmonitorauth,
+    };
+
+    const response = await this.executeCmsRequest<
+      UpdateDbmtUserCmsRequest,
+      UpdateDbmtUserCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    if (response.status !== 'success') {
+      throw BrokerError.UpdateDbmtUserFailed({ response });
+    }
+
+    return {
+      dblist: response.dblist ?? [],
+      userlist: response.userlist ?? [],
+    };
   }
 
   @HandleBrokerErrors()
@@ -165,12 +251,12 @@ export class BrokerService extends BaseService {
     userId: string,
     hostUid: string
   ): Promise<StopAllBrokersClientResponse> {
-    const cmsRequest: StopBrokerCmsRequest = {
+    const cmsRequest: StopAllBrokersCmsRequest = {
       task: 'stopbroker',
     };
     const response = await this.executeCmsRequest<
-      StopBrokerCmsRequest,
-      StopBrokerCmsResponse
+      StopAllBrokersCmsRequest,
+      StopAllBrokersCmsResponse
     >(userId, hostUid, cmsRequest);
 
     if (response.status === 'success') {

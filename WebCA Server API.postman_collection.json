@@ -790,6 +790,20 @@
 					"response": []
 				},
 				{
+					"name": "Get Auto Add Volume",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/auto-add-vol/{{dbname}}",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "database", "auto-add-vol", "{{dbname}}"]
+						},
+						"description": "Get auto-add volume configuration for a database (CMS task: getautoaddvol). GET /:hostUid/database/auto-add-vol/:dbname. Success: data, data_ext_page, data_warn_outofspace, index, index_ext_page, index_warn_outofspace, note, execTime."
+					},
+					"response": []
+				},
+				{
 					"name": "Set Auto Start",
 					"request": {
 						"method": "POST",
@@ -1134,18 +1148,10 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/{{hostUid}}/database/users/info/{{dbname}}",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"{{hostUid}}",
-								"database",
-								"users",
-								"info",
-								"{{dbname}}"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "database", "users", "info", "{{dbname}}"]
 						},
-						"description": "Get user info (list of users) for a database. CMS task: userinfo.\n\n**URI:**\nGET /:hostUid/database/users/info/:dbname\n\n**Path Parameters:** hostUid, dbname\n**Success Response:** dbname, user array (with @id, @name, authorization, groups)\n**Authentication:** Bearer JWT (collection default)"
+						"description": "Get user info (list of users) for a database. CMS task: userinfo. GET /:hostUid/database/users/info/:dbname. Auth: Bearer JWT."
 					},
 					"response": []
 				},
@@ -1153,34 +1159,17 @@
 					"name": "User Verify (userverify)",
 					"request": {
 						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
+						"header": [{"key": "Content-Type", "value": "application/json"}],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"dbname\": \"demodb\",\n  \"dbuser\": \"dba\",\n  \"dbpasswd\": \"\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
+							"raw": "{\n  \"dbname\": \"demodb\",\n  \"dbuser\": \"dba\",\n  \"dbpasswd\": \"\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/{{hostUid}}/database/users/verify",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"{{hostUid}}",
-								"database",
-								"users",
-								"verify"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "database", "users", "verify"]
 						},
-						"description": "Verify database user credentials. CMS task: userverify.\n\n**URI:**\nPOST /:hostUid/database/users/verify\n\n**Request Body:** dbname, dbuser, dbpasswd\n**Success Response:** { \"verified\": true }\n**Authentication:** Bearer JWT (collection default)"
+						"description": "Verify database user credentials. CMS task: userverify. POST /:hostUid/database/users/verify. Body: dbname, dbuser, dbpasswd. Auth: Bearer JWT."
 					},
 					"response": []
 				},
@@ -1188,33 +1177,17 @@
 					"name": "Create Database User (createuser)",
 					"request": {
 						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
+						"header": [{"key": "Content-Type", "value": "application/json"}],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"dbname\": \"demodb\",\n  \"username\": \"yifan\",\n  \"userpass\": \"1111\",\n  \"groups\": { \"group\": [\"public\"] },\n  \"authorization\": []\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
+							"raw": "{\n  \"dbname\": \"demodb\",\n  \"username\": \"yifan\",\n  \"userpass\": \"1111\",\n  \"groups\": { \"group\": [\"public\"] },\n  \"authorization\": []\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/{{hostUid}}/database/users",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"{{hostUid}}",
-								"database",
-								"users"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "database", "users"]
 						},
-						"description": "Create a database user. CMS task: createuser.\n\n**URI:**\nPOST /:hostUid/database/users\n\n**Request Body:** dbname, username, userpass, groups (e.g. { \"group\": [\"public\"] }), authorization (array)\n**Success Response:** {}\n**Authentication:** Bearer JWT (collection default)"
+						"description": "Create a database user. CMS task: createuser. POST /:hostUid/database/users. Body: dbname, username, userpass, groups, authorization. Auth: Bearer JWT."
 					},
 					"response": []
 				},
@@ -1317,18 +1290,10 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/{{hostUid}}/database/users/{{dbname}}/{{username}}",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"{{hostUid}}",
-								"database",
-								"users",
-								"{{dbname}}",
-								"{{username}}"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "database", "users", "{{dbname}}", "{{username}}"]
 						},
-						"description": "Delete a database user. CMS task: deleteuser.\n\n**URI:**\nDELETE /:hostUid/database/users/:dbname/:username\n\n**Path Parameters:** hostUid, dbname, username (collection variables)\n**Success Response:** {}\n**Authentication:** Bearer JWT (collection default)"
+						"description": "Delete a database user. CMS task: deleteuser. DELETE /:hostUid/database/users/:dbname/:username. Auth: Bearer JWT."
 					},
 					"response": []
 				}
@@ -1338,6 +1303,70 @@
 		{
 			"name": "Broker",
 			"item": [
+				{
+					"name": "Start All Brokers",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/broker/start-all",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "broker", "start-all"]
+						},
+						"description": "Start all brokers on the host (CMS task: startbroker). POST /:hostUid/broker/start-all. Auth: Bearer JWT."
+					},
+					"response": []
+				},
+				{
+					"name": "Stop All Brokers",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/broker/stop-all",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "broker", "stop-all"]
+						},
+						"description": "Stop all brokers on the host (CMS task: stopbroker). POST /:hostUid/broker/stop-all. Auth: Bearer JWT."
+					},
+					"response": []
+				},
+				{
+					"name": "Add DBMT User",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"targetid\": \"test_user_2\",\n  \"password\": \"1234\",\n  \"casauth\": \"none\",\n  \"dbcreate\": \"none\",\n  \"statusmonitorauth\": \"none\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/broker/dbmt-user",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "broker", "dbmt-user"]
+						},
+						"description": "Add a DBMT (CMS) user (CMS task: adddbmtuser). POST /:hostUid/broker/dbmt-user. Body: targetid, password, casauth, dbcreate, statusmonitorauth. Auth: Bearer JWT."
+					},
+					"response": []
+				},
+				{
+					"name": "Update DBMT User",
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"targetid\": \"test_user_2\",\n  \"dbauth\": [],\n  \"casauth\": \"none\",\n  \"dbcreate\": \"none\",\n  \"statusmonitorauth\": \"none\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/broker/dbmt-user",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "broker", "dbmt-user"]
+						},
+						"description": "Update a DBMT (CMS) user (CMS task: updatedbmtuser). PUT /:hostUid/broker/dbmt-user. Body: targetid, casauth, dbcreate, statusmonitorauth (dbauth optional). Auth: Bearer JWT."
+					},
+					"response": []
+				},
 				{
 					"name": "Get Broker List",
 					"request": {

@@ -133,4 +133,109 @@ describe('BrokerService', () => {
       ).rejects.toThrow(BrokerError);
     });
   });
+  describe('addDbmtUser', () => {
+    const mockRequest = {
+      targetid: 'test_user_2',
+      password: '1234',
+      casauth: 'none',
+      dbcreate: 'none',
+      statusmonitorauth: 'none',
+    };
+
+    it('should send adddbmtuser task and return dblist and userlist', async () => {
+      const mockResponse = {
+        __EXEC_TIME: '1 ms',
+        note: 'none',
+        status: 'success',
+        task: 'adddbmtuser',
+        dblist: [{ dbs: [{ dbname: 'test' }] }],
+        userlist: [{ user: [{ '@id': 'test_user_2' }] }],
+      };
+      cmsClient.postAuthenticated.mockResolvedValue(mockResponse);
+
+      const result = await service.addDbmtUser(mockUserId, mockHostUid, mockRequest);
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'adddbmtuser',
+          targetid: mockRequest.targetid,
+          password: mockRequest.password,
+          casauth: mockRequest.casauth,
+          dbcreate: mockRequest.dbcreate,
+          statusmonitorauth: mockRequest.statusmonitorauth,
+        })
+      );
+      expect(result).toEqual({
+        dblist: mockResponse.dblist,
+        userlist: mockResponse.userlist,
+      });
+    });
+
+    it('should throw BrokerError when CMS status is not success', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({
+        __EXEC_TIME: '0 ms',
+        note: 'failed',
+        status: 'fail',
+        task: 'adddbmtuser',
+      });
+
+      await expect(
+        service.addDbmtUser(mockUserId, mockHostUid, mockRequest)
+      ).rejects.toThrow(BrokerError);
+    });
+  });
+
+  describe('updateDbmtUser', () => {
+    const mockRequest = {
+      targetid: 'test_user_2',
+      dbauth: [] as unknown[],
+      casauth: 'none',
+      dbcreate: 'none',
+      statusmonitorauth: 'none',
+    };
+
+    it('should send updatedbmtuser task and return dblist and userlist', async () => {
+      const mockResponse = {
+        __EXEC_TIME: '0 ms',
+        note: 'none',
+        status: 'success',
+        task: 'updatedbmtuser',
+        dblist: [{ dbs: [{ dbname: 'test' }] }],
+        userlist: [{ user: [{ '@id': 'test_user_2' }] }],
+      };
+      cmsClient.postAuthenticated.mockResolvedValue(mockResponse);
+
+      const result = await service.updateDbmtUser(mockUserId, mockHostUid, mockRequest);
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'updatedbmtuser',
+          targetid: mockRequest.targetid,
+          dbauth: mockRequest.dbauth,
+          casauth: mockRequest.casauth,
+          dbcreate: mockRequest.dbcreate,
+          statusmonitorauth: mockRequest.statusmonitorauth,
+        })
+      );
+      expect(result).toEqual({
+        dblist: mockResponse.dblist,
+        userlist: mockResponse.userlist,
+      });
+    });
+
+    it('should throw BrokerError when CMS status is not success', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({
+        __EXEC_TIME: '0 ms',
+        note: 'failed',
+        status: 'fail',
+        task: 'updatedbmtuser',
+      });
+
+      await expect(
+        service.updateDbmtUser(mockUserId, mockHostUid, mockRequest)
+      ).rejects.toThrow(BrokerError);
+    });
+  });
 });

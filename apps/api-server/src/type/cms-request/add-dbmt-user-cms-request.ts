@@ -1,16 +1,15 @@
 import { BaseCmsRequest } from './base-cms-request';
 
 /**
- * CMS request for updating a DBMT (CMS) user.
- * Task: updatedbmtuser.
- * No password in request; updates auth settings only.
+ * CMS request for adding a DBMT (CMS) user.
+ * Task: adddbmtuser.
  */
-export type UpdateDbmtUserCmsRequest = BaseCmsRequest & {
-  task: 'updatedbmtuser';
+export type AddDbmtUserCmsRequest = BaseCmsRequest & {
+  task: 'adddbmtuser';
   /** Target user id (login name) */
   targetid: string;
-  /** DB auth array (e.g. [] for none). Optional; omitted or undefined is treated as []. */
-  dbauth?: unknown[];
+  /** Password */
+  password: string;
   /** CAS auth: 'none' | 'admin' | 'monitor' */
   casauth: string;
   /** DB create auth: 'none' | 'admin' */

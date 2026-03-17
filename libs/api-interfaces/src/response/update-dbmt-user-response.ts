@@ -1,5 +1,3 @@
-import { BaseCmsResponse } from './base-cms-response';
-
 /** DB list item in updatedbmtuser response */
 export type UpdateDbmtUserDblistItem = {
   dbs: Array<{ dbname: string }>;
@@ -11,10 +9,9 @@ export type UpdateDbmtUserUserlistItem = {
 };
 
 /**
- * CMS response for updatedbmtuser task.
+ * Client response for updatedbmtuser (domain data only).
  */
-export type UpdateDbmtUserCmsResponse = BaseCmsResponse & {
-  task: 'updatedbmtuser';
-  dblist?: UpdateDbmtUserDblistItem[];
-  userlist?: UpdateDbmtUserUserlistItem[];
+export type UpdateDbmtUserClientResponse = {
+  dblist: UpdateDbmtUserDblistItem[];
+  userlist: UpdateDbmtUserUserlistItem[];
 };
