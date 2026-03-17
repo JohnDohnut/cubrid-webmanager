@@ -40,6 +40,7 @@ export * from './remove-auto-start-response';
 export * from './unload-info-client-response';
 export * from './update-db-user-response';
 export * from './set-auto-add-vol-response';
+export * from './get-auto-add-vol-client-response';
 export * from './create-database-with-config-response';
 export * from './load-database-response';
 export * from './optimize-database-response';

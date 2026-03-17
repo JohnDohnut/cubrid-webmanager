@@ -21,6 +21,7 @@ export * from './load-access-log-cms-request';
 export * from './view-log-cms-request';
 export * from './create-database-cms-request';
 export * from './set-auto-add-vol-cms-request';
+export * from './get-auto-add-vol-cms-request';
 export * from './get-all-sys-param-cms-request';
 export * from './set-sys-param-cms-request';
 export * from './get-admin-log-info-cms-request';

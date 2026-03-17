@@ -790,6 +790,20 @@
 					"response": []
 				},
 				{
+					"name": "Get Auto Add Volume",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/auto-add-vol/{{dbname}}",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "database", "auto-add-vol", "{{dbname}}"]
+						},
+						"description": "Get auto-add volume configuration for a database (CMS task: getautoaddvol). GET /:hostUid/database/auto-add-vol/:dbname. Success: data, data_ext_page, data_warn_outofspace, index, index_ext_page, index_warn_outofspace, note, execTime."
+					},
+					"response": []
+				},
+				{
 					"name": "Set Auto Start",
 					"request": {
 						"method": "POST",
