@@ -315,6 +315,59 @@ describe('DatabaseConfigService', () => {
     });
   });
 
+  describe('getAutoAddVol', () => {
+    const mockGetAutoAddVolResponse = {
+      __EXEC_TIME: '0 ms',
+      data: 'ON',
+      data_ext_page: '32768',
+      data_warn_outofspace: '0.15',
+      index: 'ON',
+      index_ext_page: '32768',
+      index_warn_outofspace: '0.15',
+      note: 'none',
+      status: 'success',
+      task: 'getautoaddvol',
+    };
+
+    it('should return auto-add vol config on success', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue(mockGetAutoAddVolResponse);
+
+      const result = await service.getAutoAddVol(mockUserId, mockHostUid, mockDbname);
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'getautoaddvol',
+          dbname: mockDbname,
+          token: mockHost.token,
+        })
+      );
+      expect(result).toEqual({
+        data: 'ON',
+        data_ext_page: '32768',
+        data_warn_outofspace: '0.15',
+        index: 'ON',
+        index_ext_page: '32768',
+        index_warn_outofspace: '0.15',
+        note: 'none',
+        execTime: '0 ms',
+      });
+    });
+
+    it('should throw DatabaseError when CMS returns non-success', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({
+        __EXEC_TIME: '0 ms',
+        note: 'failed',
+        status: 'fail',
+        task: 'getautoaddvol',
+      });
+
+      await expect(
+        service.getAutoAddVol(mockUserId, mockHostUid, mockDbname)
+      ).rejects.toThrow(DatabaseError);
+    });
+  });
+
   describe('getAutoExecQueryErrLog', () => {
     const mockRequest = {};
 
