@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Logger, Param, Patch, Post, Request } from '@nestjs/common';
+import { Body, Controller, Get, Logger, Param, Post, Put, Request } from '@nestjs/common';
 import {
   AddDbmtUserClientResponse,
   AddDbmtUserRequest,
@@ -105,17 +105,17 @@ export class BrokerController {
   /**
    * Update a DBMT (CMS) user on the host (CMS task: updatedbmtuser).
    *
-   * @route PATCH /:hostUid/broker/dbmt-user
+   * @route PUT /:hostUid/broker/dbmt-user
    * @param req - Request object containing user information
    * @param hostUid - Host unique identifier from path parameter
    * @param body - targetid, casauth, dbcreate, statusmonitorauth (dbauth optional)
    * @returns UpdateDbmtUserClientResponse dblist and userlist
    * @example
-   * // PATCH /host-uid/broker/dbmt-user
+   * // PUT /host-uid/broker/dbmt-user
    * // Body: { "targetid": "test_user_2", "casauth": "none", "dbcreate": "none", "statusmonitorauth": "none" }
    * // or with dbauth: { "targetid": "test_user_2", "dbauth": [], "casauth": "none", "dbcreate": "none", "statusmonitorauth": "none" }
    */
-  @Patch('dbmt-user')
+  @Put('dbmt-user')
   async updateDbmtUser(
     @Request() req,
     @Param('hostUid') hostUid: string,

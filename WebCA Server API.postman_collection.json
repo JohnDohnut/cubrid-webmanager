@@ -1274,7 +1274,7 @@
 				{
 					"name": "Update DBMT User",
 					"request": {
-						"method": "PATCH",
+						"method": "PUT",
 						"header": [{"key": "Content-Type", "value": "application/json"}],
 						"body": {
 							"mode": "raw",
@@ -1285,7 +1285,7 @@
 							"host": ["{{base_url}}"],
 							"path": ["{{hostUid}}", "broker", "dbmt-user"]
 						},
-						"description": "Update a DBMT (CMS) user (CMS task: updatedbmtuser). PATCH /:hostUid/broker/dbmt-user. Body: targetid, casauth, dbcreate, statusmonitorauth (dbauth optional). Auth: Bearer JWT."
+						"description": "Update a DBMT (CMS) user (CMS task: updatedbmtuser). PUT /:hostUid/broker/dbmt-user. Body: targetid, casauth, dbcreate, statusmonitorauth (dbauth optional). Auth: Bearer JWT."
 					},
 					"response": []
 				},
