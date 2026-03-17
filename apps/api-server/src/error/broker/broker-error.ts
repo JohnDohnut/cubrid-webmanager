@@ -49,6 +49,30 @@ export class BrokerError extends AppError {
   }
 
   /**
+   * Creates an error indicating that adding DBMT user failed.
+   */
+  static AddDbmtUserFailed(additionalData?: Record<string, any>, originalError?: Error) {
+    return new BrokerError(
+      'BROKER',
+      BrokerErrorCode.ADD_DBMT_USER_FAILED,
+      additionalData,
+      originalError
+    );
+  }
+
+  /**
+   * Creates an error indicating that updating DBMT user failed.
+   */
+  static UpdateDbmtUserFailed(additionalData?: Record<string, any>, originalError?: Error) {
+    return new BrokerError(
+      'BROKER',
+      BrokerErrorCode.UPDATE_DBMT_USER_FAILED,
+      additionalData,
+      originalError
+    );
+  }
+
+  /**
    * Creates an error for an unknown broker-related issue.
    */
   static Unknown(additionalData?: Record<string, any>, originalError?: Error) {

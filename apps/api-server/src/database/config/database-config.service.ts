@@ -1,4 +1,5 @@
 import {
+  GetAutoAddVolClientResponse,
   GetAutoExecQueryClientResponse,
   SetAutoExecQueryClientRequest,
   SetAutoExecQueryClientResponse,
@@ -30,6 +31,7 @@ import {
   GetAutoExecQueryCmsRequest,
   SetAutoExecQueryCmsRequest,
   SetAutoAddVolCmsRequest,
+  GetAutoAddVolCmsRequest,
   ClassInfoCmsRequest,
   GetAutoExecQueryErrLogCmsRequest,
 } from '@type/cms-request';
@@ -37,6 +39,7 @@ import {
   GetAutoExecQueryCmsResponse,
   SetAutoExecQueryCmsResponse,
   SetAutoAddVolCmsResponse,
+  GetAutoAddVolCmsResponse,
   ClassInfoCmsResponse,
   GetAutoExecQueryErrLogCmsResponse,
 } from '@type/cms-response';
@@ -382,6 +385,47 @@ export class DatabaseConfigService extends BaseService {
     );
 
     return {};
+  }
+
+  /**
+   * Get auto-add volume configuration for a database (CMS task: getautoaddvol).
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param dbname Database name
+   * @returns GetAutoAddVolClientResponse data, data_ext_page, data_warn_outofspace, index, index_ext_page, index_warn_outofspace, note, execTime
+   */
+  @HandleDatabaseErrors()
+  async getAutoAddVol(
+    userId: string,
+    hostUid: string,
+    dbname: string
+  ): Promise<GetAutoAddVolClientResponse> {
+    const cmsRequest: GetAutoAddVolCmsRequest = {
+      task: 'getautoaddvol',
+      dbname,
+    };
+
+    const response = await this.executeCmsRequest<
+      GetAutoAddVolCmsRequest,
+      GetAutoAddVolCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    if (response.status === 'success') {
+      const cms = response as GetAutoAddVolCmsResponse;
+      return {
+        data: cms.data,
+        data_ext_page: cms.data_ext_page,
+        data_warn_outofspace: cms.data_warn_outofspace,
+        index: cms.index,
+        index_ext_page: cms.index_ext_page,
+        index_warn_outofspace: cms.index_warn_outofspace,
+        note: cms.note,
+        execTime: cms.__EXEC_TIME,
+      };
+    }
+
+    throw DatabaseError.InternalError({ response, dbname });
   }
 
   /**
