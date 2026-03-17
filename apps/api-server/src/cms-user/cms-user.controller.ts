@@ -1,5 +1,7 @@
 import { Body, Controller, Delete, Get, Logger, Param, Post, Put, Request } from '@nestjs/common';
 import {
+  AddDbmtUserClientResponse,
+  AddDbmtUserRequest,
   DeleteDbmtUserClientResponse,
   GetDbmtUserInfoClientResponse,
   SetDbmtPasswdClientResponse,
@@ -22,6 +24,29 @@ export class CmsUserController {
   private readonly logger = new Logger(CmsUserController.name);
 
   constructor(private readonly cmsUserService: CmsUserService) {}
+
+  /**
+   * Add a DBMT (CMS) user. CMS task: adddbmtuser.
+   * Request body: targetid, password, casauth, dbcreate, statusmonitorauth.
+   * Response: dblist, userlist (same shape as CMS response).
+   * @route POST /:hostUid/cms-user
+   */
+  @Post()
+  async addDbmtUser(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Body() body: AddDbmtUserRequest
+  ): Promise<AddDbmtUserClientResponse> {
+    const userId = req.user.sub;
+    validateRequiredFields(
+      body,
+      ['targetid', 'password', 'casauth', 'dbcreate', 'statusmonitorauth'],
+      'cms-user',
+      this.logger
+    );
+    this.logger.log(`Adding DBMT user: ${body.targetid} on host: ${hostUid}`);
+    return await this.cmsUserService.addDbmtUser(userId, hostUid, body);
+  }
 
   /**
    * Get DBMT user info (dblist, userlist). CMS task: getdbmtuserinfo.

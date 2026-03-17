@@ -58,6 +58,62 @@ describe('CmsUserService', () => {
     expect(service).toBeDefined();
   });
 
+  describe('addDbmtUser', () => {
+    const mockRequest = {
+      targetid: 'create_test',
+      password: '1234',
+      casauth: 'none',
+      dbcreate: 'none',
+      statusmonitorauth: 'none',
+    };
+
+    it('should send adddbmtuser and return dblist and userlist', async () => {
+      const mockResponse = {
+        __EXEC_TIME: '2 ms',
+        note: 'none',
+        status: 'success',
+        task: 'adddbmtuser',
+        dblist: [
+          { dbs: [{ dbname: 'test2' }, { dbname: 'test' }, { dbname: 'demodb' }] },
+          { dbs: [{ dbname: 'test2' }, { dbname: 'test' }, { dbname: 'demodb' }] },
+        ],
+        userlist: [
+          { user: [{ '@id': 'create_test', casauth: 'none', dbauth: null, dbcreate: 'none', statusmonitorauth: 'none' }] },
+          { user: [{ '@id': 'create_test', casauth: 'none', dbauth: null, dbcreate: 'none', statusmonitorauth: 'none' }] },
+        ],
+      };
+      cmsClient.postAuthenticated.mockResolvedValue(mockResponse);
+
+      const result = await service.addDbmtUser(mockUserId, mockHostUid, mockRequest);
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'adddbmtuser',
+          targetid: mockRequest.targetid,
+          password: mockRequest.password,
+          casauth: mockRequest.casauth,
+          dbcreate: mockRequest.dbcreate,
+          statusmonitorauth: mockRequest.statusmonitorauth,
+        })
+      );
+      expect(result).toEqual({ dblist: mockResponse.dblist, userlist: mockResponse.userlist });
+    });
+
+    it('should throw CmsUserError when status is not success', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({
+        __EXEC_TIME: '0 ms',
+        note: 'fail',
+        status: 'fail',
+        task: 'adddbmtuser',
+      });
+
+      await expect(
+        service.addDbmtUser(mockUserId, mockHostUid, mockRequest)
+      ).rejects.toThrow(CmsUserError);
+    });
+  });
+
   describe('getDbmtUserInfo', () => {
     it('should send getdbmtuserinfo and return dblist and userlist', async () => {
       const mockResponse = {

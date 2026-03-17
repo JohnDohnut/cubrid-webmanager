@@ -17,6 +17,18 @@ export class CmsUserError extends AppError {
     super(kind, code, additionalData, originalError);
   }
 
+  static AddDbmtUserFailed(
+    additionalData?: Record<string, any>,
+    originalError?: Error
+  ) {
+    return new CmsUserError(
+      'CMS_USER',
+      CmsUserErrorCode.ADD_DBMT_USER_FAILED,
+      additionalData,
+      originalError
+    );
+  }
+
   static GetDbmtUserInfoFailed(
     additionalData?: Record<string, any>,
     originalError?: Error
