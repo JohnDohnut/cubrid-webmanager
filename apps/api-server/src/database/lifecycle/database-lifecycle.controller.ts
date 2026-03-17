@@ -1,10 +1,11 @@
-import { Body, Controller, Get, Logger, Param, Post, Request } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Logger, Param, Post, Request } from '@nestjs/common';
 import {
   CreateDatabaseClientRequest,
   CreateDatabaseClientResponse,
   CreateDatabaseWithConfigRequest,
   CreateDatabaseWithConfigResponse,
   DatabaseVolumeInfoClientResponse,
+  DeleteDatabaseRequest,
   GetCreatedbInfoClientResponse,
   StartInfoClientResponse,
   SaveDatabaseProfileRequest,
@@ -255,5 +256,35 @@ export class DatabaseLifecycleController {
     );
     const response = await this.lifecycleService.getDBSpaceInfo(userId, hostUid, dbname);
     return response;
+  }
+
+  /**
+   * Delete a database on a host.
+   * Also removes the database name from the server parameter in cubridconf if it exists.
+   * Returns start-info (db list) on success.
+   *
+   * @route DELETE /:hostUid/database/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Database name from path parameter
+   * @param body Request body containing delbackup option
+   * @returns StartInfoClientResponse Latest database list (start-info) on success
+   * @example
+   * // DELETE /host-uid/database/testdb
+   * // Body: { "delbackup": "y" }
+   */
+  @Delete(':dbname')
+  async deleteDatabase(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: DeleteDatabaseRequest
+  ): Promise<StartInfoClientResponse> {
+    const userId = req.user.sub;
+
+    validateRequiredFields(body, ['delbackup'], 'database/delete', this.logger);
+
+    this.logger.log(`Deleting database: ${dbname} on host: ${hostUid}`);
+    return await this.lifecycleService.deleteDatabase(userId, hostUid, dbname, body);
   }
 }

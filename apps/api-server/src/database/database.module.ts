@@ -8,6 +8,7 @@ import { DatabaseUserController } from './user/database-user.controller';
 import { DatabaseUserService } from './user/database-user.service';
 import { CmsConfigModule } from '@cms-config/cms-config.module';
 import { FileModule } from '@file/file.module';
+import { DatabaseInfoModule } from './info/database-info.module';
 import { DatabaseLifecycleController } from './lifecycle/database-lifecycle.controller';
 import { DatabaseLifecycleService } from './lifecycle/database-lifecycle.service';
 import { DatabaseBackupController } from './backup/database-backup.controller';
@@ -41,6 +42,13 @@ import { DatabaseConfigService } from './config/database-config.service';
     DatabaseManagementService,
     DatabaseConfigService,
   ],
-  imports: [HostModule, CmsHttpsClientModule, UserRepositoryModule, CmsConfigModule, FileModule],
+  imports: [
+    HostModule,
+    CmsHttpsClientModule,
+    UserRepositoryModule,
+    CmsConfigModule,
+    FileModule,
+    DatabaseInfoModule,
+  ],
 })
 export class DatabaseModule {}

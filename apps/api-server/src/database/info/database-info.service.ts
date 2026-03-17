@@ -1,0 +1,103 @@
+import { StartInfoClientResponse } from '@api-interfaces';
+import { GetCreatedbInfoClientResponse } from '@api-interfaces/response/get-createdb-info-client-response';
+import { CmsConfigService } from '@cms-config/cms-config.service';
+import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
+import { BaseService, HandleDatabaseErrors } from '@common';
+import { DatabaseError } from '@error/database/database-error';
+import { HostService } from '@host';
+import { Injectable } from '@nestjs/common';
+import { BaseCmsRequest, BaseCmsResponse } from '@type';
+import { StartInfoCmsResponse } from '@type/cms-response';
+
+/**
+ * Service for database information (read-only) used across database modules.
+ * Provides start-info, create-info and raw CMS startinfo to avoid circular dependencies.
+ *
+ * @category Business Services
+ * @since 1.0.0
+ */
+@Injectable()
+export class DatabaseInfoService extends BaseService {
+  constructor(
+    protected readonly hostService: HostService,
+    protected readonly cmsClient: CmsHttpsClientService,
+    private readonly cmsConfigService: CmsConfigService
+  ) {
+    super(hostService, cmsClient);
+  }
+
+  /**
+   * Get start information for databases on a host (internal/raw CMS).
+   * Returns raw CMS response without transformation.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @returns StartInfoCmsResponse
+   * @throws DatabaseError If request fails or CMS status is fail
+   */
+  @HandleDatabaseErrors()
+  async startInfoInternal(userId: string, hostUid: string): Promise<StartInfoCmsResponse> {
+    const cmsRequest: BaseCmsRequest = {
+      task: 'startinfo',
+    };
+    const response = await this.executeCmsRequest<
+      BaseCmsRequest,
+      StartInfoCmsResponse | BaseCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    if (response.status === 'success') {
+      return response as StartInfoCmsResponse;
+    } else {
+      throw DatabaseError.GetStartInfoFailed({ response });
+    }
+  }
+
+  /**
+   * Get start information for databases on a host (client shape with isProfileExists).
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @returns StartInfoClientResponse
+   * @throws DatabaseError If request fails or CMS status is fail
+   */
+  @HandleDatabaseErrors()
+  async startInfo(userId: string, hostUid: string): Promise<StartInfoClientResponse> {
+    const host = await this.hostService.findHostInternal(userId, hostUid);
+    const response = await this.startInfoInternal(userId, hostUid);
+    const dataOnly = this.extractDomainData(response);
+    const dbProfiles = host.dbProfiles || {};
+    const dbs = dataOnly.dblist?.[0]?.dbs || [];
+    const activeList = dataOnly.activelist?.[0]?.active || [];
+
+    const clientResponse: StartInfoClientResponse = {
+      activelist: { active: activeList },
+      dblist: {
+        dbs: dbs.map((db) => ({
+          ...db,
+          isProfileExists: !!dbProfiles[db.dbname],
+        })),
+      },
+    };
+
+    return clientResponse;
+  }
+
+  /**
+   * Get default information for creating a database.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @returns GetCreatedbInfoClientResponse
+   * @throws DatabaseError If request fails
+   */
+  @HandleDatabaseErrors()
+  async getCreatedbInfo(userId: string, hostUid: string): Promise<GetCreatedbInfoClientResponse> {
+    const envInfo = await this.cmsConfigService.getEnv(userId, hostUid);
+
+    return {
+      defaultDbDirectory: envInfo.CUBRID_DATABASES || '',
+      cubridVersion: envInfo.CUBRIDVER,
+      cubridPath: envInfo.CUBRID,
+    };
+  }
+}
