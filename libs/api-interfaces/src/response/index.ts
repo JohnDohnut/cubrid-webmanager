@@ -29,6 +29,8 @@ export * from './add-backup-info-client-response';
 export * from './set-backup-info-client-response';
 export * from './delete-backup-info-client-response';
 export * from './get-backup-info-client-response';
+export * from './backup-db-info-client-response';
+export * from './backup-db-client-response';
 export * from './set-auto-exec-query-client-response';
 export * from './get-auto-exec-query-client-response';
 export * from './create-database-client-response';
