@@ -10,6 +10,7 @@ describe('CmsUserController', () => {
 
   beforeEach(async () => {
     const mockCmsUserService = {
+      addDbmtUser: jest.fn(),
       getDbmtUserInfo: jest.fn(),
       updateDbmtUser: jest.fn(),
       deleteDbmtUser: jest.fn(),
@@ -27,6 +28,25 @@ describe('CmsUserController', () => {
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+  });
+
+  describe('addDbmtUser', () => {
+    it('should call service.addDbmtUser and return dblist and userlist', async () => {
+      const body = {
+        targetid: 'create_test',
+        password: '1234',
+        casauth: 'none',
+        dbcreate: 'none',
+        statusmonitorauth: 'none',
+      };
+      const mockResponse = { dblist: [], userlist: [] };
+      service.addDbmtUser.mockResolvedValue(mockResponse);
+
+      const result = await controller.addDbmtUser(mockReq, 'host-uid-1', body);
+
+      expect(service.addDbmtUser).toHaveBeenCalledWith('user-123', 'host-uid-1', body);
+      expect(result).toEqual(mockResponse);
+    });
   });
 
   describe('getDbmtUserInfo', () => {
