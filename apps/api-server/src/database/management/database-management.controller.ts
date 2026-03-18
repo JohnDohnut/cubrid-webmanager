@@ -6,6 +6,7 @@ import {
   CheckDatabaseResponse,
   CompactDatabaseRequest,
   CompactDatabaseResponse,
+  CopyDbRequest,
   GetAddVolStatusResponse,
   LoadDatabaseRequest,
   LoadDatabaseResponse,
@@ -41,6 +42,40 @@ export class DatabaseManagementController {
   private readonly logger = new Logger(DatabaseManagementController.name);
 
   constructor(private readonly managementService: DatabaseManagementService) {}
+
+  /**
+   * Copy a database. CMS task: copydb.
+   * volume is only sent when advanced is "on".
+   *
+   * @route POST /:hostUid/database/copy
+   */
+  @Post('copy')
+  async copyDb(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Body() body: CopyDbRequest
+  ): Promise<{}> {
+    const userId = req.user.sub;
+    validateRequiredFields(
+      body,
+      [
+        'srcdbname',
+        'destdbname',
+        'destdbpath',
+        'exvolpath',
+        'logpath',
+        'overwrite',
+        'move',
+        'advanced',
+      ],
+      'database/copy',
+      this.logger
+    );
+    this.logger.log(
+      `Copying database: ${body.srcdbname} -> ${body.destdbname} on host: ${hostUid}`
+    );
+    return await this.managementService.copyDb(userId, hostUid, body);
+  }
 
   /**
    * Unload a database.

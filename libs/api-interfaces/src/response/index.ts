@@ -63,6 +63,7 @@ export * from './get-auto-backup-db-err-log-response';
 export * from './get-transaction-info-response';
 export * from './kill-transaction-response';
 export * from './delete-database-response';
+export * from './get-db-size-client-response';
 export * from './add-dbmt-user-response';
 export * from './update-dbmt-user-response';
 export * from './get-dbmt-user-info-client-response';
