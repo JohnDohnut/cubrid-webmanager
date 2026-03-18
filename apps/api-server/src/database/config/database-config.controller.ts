@@ -9,6 +9,7 @@ import {
   RemoveAutoStartRequest,
   RemoveAutoStartResponse,
   GetAutoAddVolClientResponse,
+  GetDbSizeClientResponse,
   SetAutoAddVolRequest,
   SetAutoAddVolResponse,
   ClassInfoRequest,
@@ -144,6 +145,21 @@ export class DatabaseConfigController {
       `Disabling auto-start for database: ${body.dbname} on host: ${hostUid}`
     );
     return await this.configService.removeAutoStart(userId, hostUid, body);
+  }
+
+  /**
+   * Get database size. CMS task: getdbsize.
+   * @route GET /:hostUid/database/db-size/:dbname
+   */
+  @Get('db-size/:dbname')
+  async getDbSize(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string
+  ): Promise<GetDbSizeClientResponse> {
+    const userId = req.user.sub;
+    this.logger.log(`Getting db size for database: ${dbname} on host: ${hostUid}`);
+    return await this.configService.getDbSize(userId, hostUid, dbname);
   }
 
   /**
