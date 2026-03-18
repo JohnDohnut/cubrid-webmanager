@@ -13,6 +13,8 @@ export * from './handle-broker-cms-request';
 export * from './start-broker-cms-request';
 export * from './stop-all-brokers-cms-request';
 export * from './get-broker-status-cms-request';
+export * from './get-add-broker-info-cms-request';
+export * from './broker-set-param-cms-request';
 export * from './get-env-cms-request';
 export * from './start-database-cms-request';
 export * from './stop-database-cms-request';

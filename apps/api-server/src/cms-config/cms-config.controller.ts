@@ -1,6 +1,9 @@
 import { Body, Controller, Get, Logger, Param, Post, Request } from '@nestjs/common';
+import { validateRequiredFields } from '@util';
 import { CmsConfigService } from './cms-config.service';
 import {
+  BrokerSetParamClientRequest,
+  GetAddBrokerInfoClientResponse,
   GetEnvClientResponse,
   GetAllSysParamClientResponse,
   ParamdumpClientResponse,
@@ -36,6 +39,28 @@ export class CmsConfigController {
    * @example
    * // POST /host-uid/cms-config/env
    */
+  /**
+   * Get broker config file content from a CMS host (CMS task: getaddbrokerinfo).
+   * Returns conflist (config lines), confname, note, execTime.
+   *
+   * @route GET /:hostUid/cms-config/broker-config/:confname
+   * @example
+   * // GET /host-uid/cms-config/broker-config/brokerconf
+   */
+  @Get('broker-config/:confname')
+  async getAddBrokerInfo(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('confname') confname: string
+  ): Promise<GetAddBrokerInfoClientResponse> {
+    const userId = req.user.sub;
+    this.logger.log(
+      `Getting broker config for confname: ${confname} on host: ${hostUid}`,
+      'CmsConfigController'
+    );
+    return await this.cmsConfigService.getAddBrokerInfo(userId, hostUid, confname);
+  }
+
   @Get('env')
   async getEnv(@Request() req, @Param('hostUid') hostUid: string): Promise<GetEnvClientResponse> {
     const userId = req.user.sub;
@@ -163,4 +188,27 @@ export class CmsConfigController {
     return response;
   }
 
+  /**
+   * Set broker configuration file content on a CMS host (CMS task: broker_setparam).
+   *
+   * @route POST /:hostUid/cms-config/broker-set-param
+   * @example
+   * // POST /host-uid/cms-config/broker-set-param
+   * // Body: { "confdata": ["[broker]", "SERVICE=ON", ...] }
+   */
+  @Post('broker-set-param')
+  async setBrokerParam(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Body() body: BrokerSetParamClientRequest
+  ): Promise<SetSysParamClientResponse> {
+    const userId = req.user.sub;
+    validateRequiredFields(body, ['confdata'], 'cms-config/broker-set-param', this.logger);
+
+    this.logger.log(
+      `Setting broker param for host: ${hostUid}`,
+      'CmsConfigController'
+    );
+    return await this.cmsConfigService.setBrokerParam(userId, hostUid, body.confdata);
+  }
 }

@@ -29,6 +29,15 @@ describe('BrokerService', () => {
   const mockUserId = 'user-123';
   const mockHostUid = 'host-uid-1';
 
+  const mockHost = {
+    uid: 'host-uid-1',
+    id: 'host-1',
+    address: 'localhost',
+    port: 8001,
+    password: 'host-password',
+    token: 'test-token',
+  };
+
   beforeEach(async () => {
     const mockHostService = { findHostInternal: jest.fn() };
     const mockCmsClient = { postAuthenticated: jest.fn() };
