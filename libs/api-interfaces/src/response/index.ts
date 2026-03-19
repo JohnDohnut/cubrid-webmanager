@@ -67,6 +67,7 @@ export * from './delete-database-response';
 export * from './get-db-size-client-response';
 export * from './add-dbmt-user-response';
 export * from './restore-db-client-response';
+export * from './heartbeat-list-client-response';
 export * from './update-dbmt-user-response';
 export * from './get-dbmt-user-info-client-response';
 export * from './delete-dbmt-user-client-response';
