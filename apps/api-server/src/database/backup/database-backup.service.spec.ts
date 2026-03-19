@@ -2,7 +2,12 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { DatabaseBackupService } from './database-backup.service';
 import { HostService } from '@host';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
-import { AddBackupInfoClientRequest, SetBackupInfoClientRequest } from '@api-interfaces';
+import {
+  AddBackupInfoClientRequest,
+  SetBackupInfoClientRequest,
+  BackupDbListClientRequest,
+  RestoreDbClientRequest,
+} from '@api-interfaces';
 import { DatabaseError } from '@error/database/database-error';
 import { HostError } from '@error/index';
 import * as common from '@common';
@@ -327,6 +332,44 @@ describe('DatabaseBackupService', () => {
     });
   });
 
+  describe('getBackupList', () => {
+    const mockRequest: BackupDbListClientRequest = { dbname: mockDbname };
+
+    it('should return backup list with level0/level1/level2 (none when empty)', async () => {
+      const mockResponse = {
+        __EXEC_TIME: '0 ms',
+        level0: 'none',
+        level1: 'none',
+        level2: 'none',
+        note: 'none',
+        status: 'success',
+        task: 'getbackuplist',
+      };
+
+      cmsClient.postAuthenticated.mockResolvedValue(mockResponse);
+
+      const result = await service.getBackupList(mockUserId, mockHostUid, mockRequest);
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'getbackuplist',
+          dbname: mockDbname,
+        })
+      );
+
+      expect(result).toEqual({
+        __EXEC_TIME: '0 ms',
+        level0: 'none',
+        level1: 'none',
+        level2: 'none',
+        note: 'none',
+        status: 'success',
+        task: 'getbackuplist',
+      });
+    });
+  });
+
   describe('backupDb', () => {
     const mockRequest = {
       level: '0' as const,
@@ -407,6 +450,56 @@ describe('DatabaseBackupService', () => {
           safereplication: 'n',
         })
       );
+    });
+  });
+
+  describe('restoreDb', () => {
+    const mockRequest: RestoreDbClientRequest = {
+      date: '19-03-2026:09:17:46',
+      level: '0',
+      partial: 'y',
+      pathname:
+        '/home/cubrid/CUBRID-11.5.0.2103-a598990-Linux.x86_64/databases/test/backup/test_backup_lv0_2/test_bk0v000',
+      recoverypath:
+        '/home/cubrid/CUBRID-11.5.0.2103-a598990-Linux.x86_64/databases/test',
+    };
+
+    it('should successfully restore database', async () => {
+      const mockResponse = {
+        __EXEC_TIME: '6661 ms',
+        note: 'none',
+        status: 'success',
+        task: 'restoredb',
+      };
+
+      cmsClient.postAuthenticated.mockResolvedValue(mockResponse);
+
+      const result = await service.restoreDb(
+        mockUserId,
+        mockHostUid,
+        mockDbname,
+        mockRequest
+      );
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'restoredb',
+          dbname: mockDbname,
+          date: mockRequest.date,
+          level: mockRequest.level,
+          partial: mockRequest.partial,
+          pathname: mockRequest.pathname,
+          recoverypath: mockRequest.recoverypath,
+        })
+      );
+
+      expect(result).toEqual({
+        __EXEC_TIME: '6661 ms',
+        note: 'none',
+        status: 'success',
+        task: 'restoredb',
+      });
     });
   });
 
