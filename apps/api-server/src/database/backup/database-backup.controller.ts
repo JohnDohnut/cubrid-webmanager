@@ -11,8 +11,12 @@ import {
   GetAutoBackupDbErrLogRequest,
   GetAutoBackupDbErrLogResponse,
   BackupDbInfoClientResponse,
+  BackupDbListClientRequest,
+  BackupDbListClientResponse,
   BackupDbClientRequest,
   BackupDbClientResponse,
+  RestoreDbClientRequest,
+  RestoreDbClientResponse,
 } from '@api-interfaces';
 import { validateRequiredFields } from '@util';
 import { DatabaseBackupService } from './database-backup.service';
@@ -185,6 +189,24 @@ export class DatabaseBackupController {
   }
 
   /**
+   * Get backup DB list (level0/1/2 entries only).
+   * CMS task: getbackuplist.
+   *
+   * @route GET /:hostUid/database/backup-db-list/:dbname
+   */
+  @Get('backup-db-list/:dbname')
+  async getBackupList(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string
+  ): Promise<BackupDbListClientResponse> {
+    const userId = req.user.sub;
+    this.logger.log(`Getting backup db list for database: ${dbname} on host: ${hostUid}`);
+    const request: BackupDbListClientRequest = { dbname };
+    return await this.backupService.getBackupList(userId, hostUid, request);
+  }
+
+  /**
    * Execute database backup (level 0, 1, or 2). CMS task: backupdb.
    *
    * @route POST /:hostUid/database/backup-db/:dbname
@@ -213,6 +235,32 @@ export class DatabaseBackupController {
     );
     this.logger.log(`Executing backup for database: ${dbname} level: ${body.level} on host: ${hostUid}`);
     return await this.backupService.backupDb(userId, hostUid, dbname, body);
+  }
+
+  /**
+   * Restore database from backup.
+   * CMS task: restoredb.
+   *
+   * @route POST /:hostUid/database/restore-db/:dbname
+   */
+  @Post('restore-db/:dbname')
+  async restoreDb(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: RestoreDbClientRequest
+  ): Promise<RestoreDbClientResponse> {
+    const userId = req.user.sub;
+
+    validateRequiredFields(
+      body,
+      ['date', 'level', 'partial', 'pathname', 'recoverypath'],
+      'database/restore-db',
+      this.logger
+    );
+
+    this.logger.log(`Restoring database: ${dbname} on host: ${hostUid}`);
+    return await this.backupService.restoreDb(userId, hostUid, dbname, body);
   }
 
   /**

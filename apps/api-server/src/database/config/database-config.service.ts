@@ -21,11 +21,11 @@ import {
   BaseService,
   checkCmsStatusError,
   checkCmsTokenError,
-  HandleCmsConfigErrors,
+  HandleCmsErrors,
   HandleDatabaseErrors,
 } from '@common';
 import { ConfigError } from '@error/config/config-error';
-import { DatabaseError } from '@error/database/database-error';
+import { CmsError } from '@error/cms/cms-error';
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import {
@@ -170,7 +170,7 @@ export class DatabaseConfigService extends BaseService {
    * @returns SetAutoStartResponse Configuration response on success
    * @throws ConfigError If request fails, [service] section not found, or server parameter cannot be added
    */
-  @HandleCmsConfigErrors()
+  @HandleCmsErrors({ appErrorFallback: 'config' })
   async setAutoStart(
     userId: string,
     hostUid: string,
@@ -285,7 +285,7 @@ export class DatabaseConfigService extends BaseService {
    * @returns RemoveAutoStartResponse Empty object on success
    * @throws ConfigError If request fails, server parameter not found in [service] section, or dbname does not exist
    */
-  @HandleCmsConfigErrors()
+  @HandleCmsErrors({ appErrorFallback: 'config' })
   async removeAutoStart(
     userId: string,
     hostUid: string,
@@ -416,7 +416,7 @@ export class DatabaseConfigService extends BaseService {
     >(userId, hostUid, cmsRequest);
 
     if (response.status !== 'success') {
-      throw DatabaseError.GetDbSizeFailed({ response, dbname });
+      throw CmsError.RequestFailed({ response, dbname });
     }
 
     return {
@@ -462,7 +462,7 @@ export class DatabaseConfigService extends BaseService {
       };
     }
 
-    throw DatabaseError.InternalError({ response, dbname });
+    throw CmsError.RequestFailed({ response, dbname });
   }
 
   /**

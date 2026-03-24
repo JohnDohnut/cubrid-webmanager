@@ -7,21 +7,10 @@ import { DatabaseErrorCode } from '@error/database/database-error-code';
 import { ConfigErrorCode } from '@error/config/config-error-code';
 import { BrokerErrorCode } from '@error/broker/broker-error-code';
 import { CmsErrorCode } from '@error/cms/cms-error-code';
-import { CmsUserErrorCode } from '@error/cms-user/cms-user-error-code';
+import type { ErrorKind } from '@error/error-kind';
+import { getPublicClientErrorMessage } from '@error/client-error-messages';
 
-export type ErrorKind =
-  | 'AUTH'
-  | 'STORAGE'
-  | 'LOCK'
-  | 'RESOURCE'
-  | 'USER'
-  | 'INTERNAL'
-  | 'CMS'
-  | 'CMS_USER'
-  | 'DATABASE'
-  | 'VALIDATION'
-  | 'CONFIG'
-  | 'BROKER';
+export type { ErrorKind };
 
 /**
  * Base error class for all application errors.
@@ -41,8 +30,7 @@ export class AppError extends Error {
   }
 
   toProblemDetails(requestUrl?: string) {
-    // Use additionalData.message if available (e.g., CMS error messages), otherwise use this.message (code)
-    const detailMessage = this.additionalData?.message || this.message;
+    const detailMessage = this.getClientFacingDetailMessage();
 
     const baseResponse = {
       type: `/errors/${this.kind.toLowerCase()}/${this.code.toLowerCase()}`,
@@ -68,6 +56,19 @@ export class AppError extends Error {
   }
 
   /**
+   * Message shown to API clients (StandardResponse.note / Problem Details detail).
+   * CMS: CMS `note` when meaningful; otherwise safe CMS copy.
+   * Other kinds: fixed copy per domain/code (internal exception text is not exposed).
+   */
+  private getClientFacingDetailMessage(): string {
+    return getPublicClientErrorMessage({
+      kind: this.kind,
+      code: this.code,
+      additionalData: this.additionalData,
+    });
+  }
+
+  /**
    * Filters only fields that can be safely exposed to the client.
    * Excludes sensitive information for security purposes.
    *
@@ -80,7 +81,6 @@ export class AppError extends Error {
       'missingFields',
       'dbname',
       'bname',
-      'message',
       'confname',
       'type',
       'parameter',
@@ -262,17 +262,6 @@ export class AppError extends Error {
           case CmsErrorCode.REQUEST_FAILED:
           case CmsErrorCode.NO_RESPONSE:
           case CmsErrorCode.UNKNOWN:
-            return 500; // Internal Server Error
-          default:
-            return 500;
-        }
-      case 'CMS_USER':
-        switch (this.code) {
-          case CmsUserErrorCode.GET_DBMT_USER_INFO_FAILED:
-          case CmsUserErrorCode.UPDATE_DBMT_USER_FAILED:
-          case CmsUserErrorCode.DELETE_DBMT_USER_FAILED:
-          case CmsUserErrorCode.SET_DBMT_PASSWD_FAILED:
-          case CmsUserErrorCode.UNKNOWN:
             return 500; // Internal Server Error
           default:
             return 500;

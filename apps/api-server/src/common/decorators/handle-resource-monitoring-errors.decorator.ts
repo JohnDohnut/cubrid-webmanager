@@ -22,16 +22,9 @@ export function HandleResourceMonitoringErrors() {
           throw err;
         }
 
-        // Handle CmsError
+        // CMS errors: pass through (client uses CMS response note)
         if (err instanceof CmsError) {
-          throw ResourceMonitoringError.CmsApiFailure(
-            {
-              originalCode: err.code,
-              originalMessage: err.message,
-              ...err.additionalData,
-            },
-            err
-          );
+          throw err;
         }
 
         // Handle HostError (e.g., if findHostInternal fails)

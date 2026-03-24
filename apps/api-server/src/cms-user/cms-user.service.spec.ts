@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CmsUserService } from './cms-user.service';
 import { HostService } from '@host';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
-import { CmsUserError } from '@error/cms-user/cms-user-error';
+import { CmsError } from '@error/cms/cms-error';
 import * as common from '@common';
 
 jest.mock('@common', () => ({
@@ -100,7 +100,7 @@ describe('CmsUserService', () => {
       expect(result).toEqual({ dblist: mockResponse.dblist, userlist: mockResponse.userlist });
     });
 
-    it('should throw CmsUserError when status is not success', async () => {
+    it('should throw CmsError when status is not success', async () => {
       cmsClient.postAuthenticated.mockResolvedValue({
         __EXEC_TIME: '0 ms',
         note: 'fail',
@@ -110,7 +110,7 @@ describe('CmsUserService', () => {
 
       await expect(
         service.addDbmtUser(mockUserId, mockHostUid, mockRequest)
-      ).rejects.toThrow(CmsUserError);
+      ).rejects.toThrow(CmsError);
     });
   });
 
@@ -135,7 +135,7 @@ describe('CmsUserService', () => {
       expect(result).toEqual({ dblist: mockResponse.dblist, userlist: mockResponse.userlist });
     });
 
-    it('should throw CmsUserError when status is not success', async () => {
+    it('should throw CmsError when status is not success', async () => {
       cmsClient.postAuthenticated.mockResolvedValue({
         __EXEC_TIME: '0 ms',
         note: 'fail',
@@ -144,7 +144,7 @@ describe('CmsUserService', () => {
       });
 
       await expect(service.getDbmtUserInfo(mockUserId, mockHostUid)).rejects.toThrow(
-        CmsUserError
+        CmsError
       );
     });
   });
@@ -185,7 +185,7 @@ describe('CmsUserService', () => {
       expect(result).toEqual({ dblist: mockResponse.dblist, userlist: mockResponse.userlist });
     });
 
-    it('should throw CmsUserError when status is not success', async () => {
+    it('should throw CmsError when status is not success', async () => {
       cmsClient.postAuthenticated.mockResolvedValue({
         __EXEC_TIME: '0 ms',
         note: 'fail',
@@ -195,7 +195,7 @@ describe('CmsUserService', () => {
 
       await expect(
         service.updateDbmtUser(mockUserId, mockHostUid, request)
-      ).rejects.toThrow(CmsUserError);
+      ).rejects.toThrow(CmsError);
     });
   });
 
@@ -220,7 +220,7 @@ describe('CmsUserService', () => {
       expect(result).toEqual({ dblist: mockResponse.dblist, userlist: mockResponse.userlist });
     });
 
-    it('should throw CmsUserError when status is not success', async () => {
+    it('should throw CmsError when status is not success', async () => {
       cmsClient.postAuthenticated.mockResolvedValue({
         __EXEC_TIME: '0 ms',
         note: 'fail',
@@ -230,7 +230,7 @@ describe('CmsUserService', () => {
 
       await expect(
         service.deleteDbmtUser(mockUserId, mockHostUid, 'test_user_2')
-      ).rejects.toThrow(CmsUserError);
+      ).rejects.toThrow(CmsError);
     });
   });
 
@@ -261,7 +261,7 @@ describe('CmsUserService', () => {
       expect(result).toEqual({});
     });
 
-    it('should throw CmsUserError when status is not success', async () => {
+    it('should throw CmsError when status is not success', async () => {
       cmsClient.postAuthenticated.mockResolvedValue({
         __EXEC_TIME: '0 ms',
         note: 'fail',
@@ -271,7 +271,7 @@ describe('CmsUserService', () => {
 
       await expect(
         service.setDbmtPasswd(mockUserId, mockHostUid, 'yifan', '1111')
-      ).rejects.toThrow(CmsUserError);
+      ).rejects.toThrow(CmsError);
     });
   });
 });

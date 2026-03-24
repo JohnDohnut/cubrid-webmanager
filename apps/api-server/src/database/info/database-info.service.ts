@@ -3,7 +3,7 @@ import { GetCreatedbInfoClientResponse } from '@api-interfaces/response/get-crea
 import { CmsConfigService } from '@cms-config/cms-config.service';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import { BaseService, HandleDatabaseErrors } from '@common';
-import { DatabaseError } from '@error/database/database-error';
+import { CmsError } from '@error/cms/cms-error';
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import { BaseCmsRequest, BaseCmsResponse } from '@type';
@@ -33,7 +33,7 @@ export class DatabaseInfoService extends BaseService {
    * @param userId User ID from JWT
    * @param hostUid Host UID
    * @returns StartInfoCmsResponse
-   * @throws DatabaseError If request fails or CMS status is fail
+   * @throws CmsError If request fails or CMS status is fail
    */
   @HandleDatabaseErrors()
   async startInfoInternal(userId: string, hostUid: string): Promise<StartInfoCmsResponse> {
@@ -48,7 +48,7 @@ export class DatabaseInfoService extends BaseService {
     if (response.status === 'success') {
       return response as StartInfoCmsResponse;
     } else {
-      throw DatabaseError.GetStartInfoFailed({ response });
+      throw CmsError.RequestFailed({ response });
     }
   }
 
@@ -58,7 +58,7 @@ export class DatabaseInfoService extends BaseService {
    * @param userId User ID from JWT
    * @param hostUid Host UID
    * @returns StartInfoClientResponse
-   * @throws DatabaseError If request fails or CMS status is fail
+   * @throws CmsError If request fails or CMS status is fail
    */
   @HandleDatabaseErrors()
   async startInfo(userId: string, hostUid: string): Promise<StartInfoClientResponse> {
@@ -88,7 +88,7 @@ export class DatabaseInfoService extends BaseService {
    * @param userId User ID from JWT
    * @param hostUid Host UID
    * @returns GetCreatedbInfoClientResponse
-   * @throws DatabaseError If request fails
+   * @throws CmsError If request fails
    */
   @HandleDatabaseErrors()
   async getCreatedbInfo(userId: string, hostUid: string): Promise<GetCreatedbInfoClientResponse> {
