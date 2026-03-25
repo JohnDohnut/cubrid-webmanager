@@ -1,5 +1,6 @@
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
-import { BaseService, HandleCmsHttpsClientErrors, HandleHostErrors } from '@common';
+import { BaseService, HandleHostErrors } from '@common';
+import { HandleCmsHttpsClientErrors } from '@decorators/handle-cms-https-client-errors.decorator';
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import { HeartbeatListCmsRequest } from '@type/cms-request';
@@ -36,19 +37,15 @@ export class HaService extends BaseService {
       HeartbeatListCmsResponse
     >(userId, hostUid, cmsRequest);
 
-    const hadbinfolist = Array.isArray(response.hadbinfolist)
-      ? response.hadbinfolist
-      : (response.hadbinfolist ?? {});
+    const data = this.extractDomainData(response);
+    const hadbinfolist = Array.isArray(data.hadbinfolist)
+      ? data.hadbinfolist
+      : (data.hadbinfolist ?? {});
 
     return {
-      __EXEC_TIME: response.__EXEC_TIME,
-      currentnode: response.currentnode,
-      currentnodestate: response.currentnodestate,
+      ...data,
       hadbinfolist,
-      hanodelist: response.hanodelist ?? [],
-      note: response.note ?? 'none',
-      status: response.status ?? 'success',
-      task: response.task ?? 'heartbeatlist',
+      hanodelist: data.hanodelist ?? [],
     };
   }
 

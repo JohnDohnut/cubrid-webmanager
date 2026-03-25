@@ -1,10 +1,24 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import type { GetEnvClientResponse } from '@api-interfaces';
 import { DatabaseInfoService } from './database-info.service';
 import { HostService } from '@host';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import { CmsConfigService } from '@cms-config/cms-config.service';
 import { DatabaseError } from '@error/database/database-error';
 import * as common from '@common';
+
+const mockGetEnvForCreatedb: GetEnvClientResponse = {
+  BROKERVER: '11.4',
+  CUBRID: '/opt/cubrid',
+  CUBRIDVER: '11.4',
+  CUBRID_DATABASES: '/opt/cubrid/databases',
+  CUBRID_DBMT: '',
+  HOSTMONTAB0: '',
+  HOSTMONTAB1: '',
+  HOSTMONTAB2: '',
+  HOSTMONTAB3: '',
+  osinfo: 'Linux',
+};
 
 jest.mock('@common', () => ({
   ...jest.requireActual('@common'),
@@ -123,11 +137,7 @@ describe('DatabaseInfoService', () => {
 
   describe('getCreatedbInfo', () => {
     it('should return create info from env', async () => {
-      cmsConfigService.getEnv.mockResolvedValue({
-        CUBRID_DATABASES: '/opt/cubrid/databases',
-        CUBRIDVER: '11.4',
-        CUBRID: '/opt/cubrid',
-      });
+      cmsConfigService.getEnv.mockResolvedValue(mockGetEnvForCreatedb);
 
       const result = await service.getCreatedbInfo(mockUserId, mockHostUid);
 
