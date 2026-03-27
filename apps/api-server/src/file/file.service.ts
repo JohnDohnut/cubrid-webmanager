@@ -5,7 +5,7 @@ import { UserRepositoryService } from '@repository';
 import { CheckFileCmsRequest, CheckFileCmsResponse, HostInfo } from '@type/index';
 import { CheckFileClientRequest } from '@api-interfaces';
 import { AppError, HostError } from '@error/index';
-import { HandleCmsHttpsClientErrors } from '@decorators/handle-cms-https-client-errors.decorator';
+import { HandleCmsErrors } from '@common';
 import { CmsError } from '@error/cms/cms-error';
 import { checkCmsTokenError, checkCmsStatusError } from '@common';
 
@@ -36,7 +36,7 @@ export class FileService {
    * @returns {Promise<CheckFileCmsResponse>} Response containing file check information
    * @throws {HostError.NoSuchHost} If no host with the given UID is found
    */
-  @HandleCmsHttpsClientErrors()
+  @HandleCmsErrors()
   async checkFile(
     userId: string,
     hostUid: string,
@@ -84,7 +84,7 @@ export class FileService {
    * @returns {Promise<CheckFileCmsResponse>} Response containing file check information
    * @throws {CmsError} If CMS call fails or token is invalid
    */
-  @HandleCmsHttpsClientErrors()
+  @HandleCmsErrors()
   async checkfileInternal(host: HostInfo, files: string[]): Promise<CheckFileCmsResponse> {
     if (!host.token) {
       throw CmsError.InvalidToken();

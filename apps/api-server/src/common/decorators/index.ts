@@ -1,6 +1,6 @@
 export * from './public.decorator';
 export * from './handle-auth-errors.decorator';
-export * from './handle-cms-https-client-errors.decorator';
+export * from './handle-cms-errors.decorator';
 export * from './handle-host-errors.decorator';
 export * from './handle-lock-fs-errors.decorator';
 export * from './handle-storage-fs-errors.decorator';
