@@ -37,17 +37,20 @@ export class GlobalExceptionFilter extends BaseExceptionFilter {
       status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
 
-      if (typeof exceptionResponse === 'string') {
+      if (status >= 500) {
+        note = 'An internal server error occurred.';
+        errorData = { message: note };
+      } else if (typeof exceptionResponse === 'string') {
         note = exceptionResponse;
       } else if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
         const responseObj = exceptionResponse as any;
         note =
-          responseObj.message || responseObj.detail || exception.message || 'An error occurred';
+          responseObj.message || responseObj.detail || exception.message || 'The request could not be processed.';
         if (responseObj.detail || responseObj.message) {
           errorData = { message: responseObj.message || responseObj.detail };
         }
       } else {
-        note = exception.message || 'An error occurred';
+        note = exception.message || 'The request could not be processed.';
       }
 
       this.logger.error(
@@ -78,7 +81,8 @@ export class GlobalExceptionFilter extends BaseExceptionFilter {
       );
     } else {
       status = HttpStatus.INTERNAL_SERVER_ERROR;
-      note = exception?.message || 'An unexpected error occurred';
+      // Do not expose raw internal exception messages to clients
+      note = 'An internal server error occurred.';
 
       this.logger.error(
         'Other Errors',

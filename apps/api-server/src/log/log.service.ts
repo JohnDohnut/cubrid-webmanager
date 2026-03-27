@@ -16,7 +16,7 @@ import {
   GetAdminLogInfoCmsResponse,
   BaseCmsRequest,
 } from '@type';
-import { BaseService } from '@common';
+import { BaseService, HandleDatabaseErrors } from '@common';
 
 @Injectable()
 export class LogService extends BaseService {
@@ -27,6 +27,7 @@ export class LogService extends BaseService {
     super(hostService, client);
   }
 
+  @HandleDatabaseErrors()
   async getBrokerLogList(userId: string, hostUid: string, bname: string) {
     const cmsRequest: BaseCmsRequest & { broker: string } = {
       task: 'getlogfileinfo',
@@ -64,6 +65,7 @@ export class LogService extends BaseService {
     return response;
   }
 
+  @HandleDatabaseErrors()
   async getCMSLogList(userId: string, hostUid: string): Promise<LoadAccessLogClientResponse> {
     const cmsRequest: BaseCmsRequest = {
       task: 'loadaccesslog',
@@ -94,6 +96,7 @@ export class LogService extends BaseService {
    * @param end - End line number (1-based)
    * @returns ViewLogClientResponse Log file content without CMS envelope fields
    */
+  @HandleDatabaseErrors()
   async viewLog(
     userId: string,
     hostUid: string,
@@ -125,6 +128,7 @@ export class LogService extends BaseService {
    * @param hostUid - Host unique identifier
    * @returns GetAdminLogInfoClientResponse Admin log information without CMS envelope fields
    */
+  @HandleDatabaseErrors()
   async getAdminLogInfo(userId: string, hostUid: string): Promise<GetAdminLogInfoClientResponse> {
     const cmsRequest: BaseCmsRequest = {
       task: 'getadminloginfo',
