@@ -26,12 +26,7 @@ import {
 import { CmsConfigService } from '@cms-config/cms-config.service';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import { DatabaseInfoService } from '@database/info/database-info.service';
-import {
-  checkCmsStatusError,
-  checkCmsTokenError,
-  HandleCmsStatusErrors,
-  HandleDatabaseErrors,
-} from '@common';
+import { checkCmsStatusError, checkCmsTokenError, HandleDatabaseErrors } from '@common';
 import { CmsError } from '@error/cms/cms-error';
 import { DatabaseError } from '@error/database/database-error';
 import { HostService } from '@host';
@@ -123,7 +118,7 @@ export class DatabaseManagementService extends BaseService {
     >(userId, hostUid, cmsRequest);
 
     if (response.status !== 'success') {
-      throw DatabaseError.CopyDbFailed({
+      throw CmsError.RequestFailed({
         response,
         srcdbname: request.srcdbname,
         destdbname: request.destdbname,
@@ -145,7 +140,6 @@ export class DatabaseManagementService extends BaseService {
    * @throws DatabaseError If request fails or parameters are invalid
    */
   @HandleDatabaseErrors()
-  @HandleCmsStatusErrors()
   async unloadDatabase(
     userId: string,
     hostUid: string,
@@ -244,7 +238,6 @@ export class DatabaseManagementService extends BaseService {
    * @throws DatabaseError If request fails or CMS status is fail
    */
   @HandleDatabaseErrors()
-  @HandleCmsStatusErrors()
   async loadDatabase(
     userId: string,
     hostUid: string,
@@ -319,7 +312,6 @@ export class DatabaseManagementService extends BaseService {
    * @throws DatabaseError If request fails or CMS status is fail
    */
   @HandleDatabaseErrors()
-  @HandleCmsStatusErrors()
   async optimizeDatabase(
     userId: string,
     hostUid: string,
@@ -354,7 +346,6 @@ export class DatabaseManagementService extends BaseService {
    * @throws DatabaseError If request fails or CMS status is fail
    */
   @HandleDatabaseErrors()
-  @HandleCmsStatusErrors()
   async checkDatabase(
     userId: string,
     hostUid: string,
@@ -387,7 +378,6 @@ export class DatabaseManagementService extends BaseService {
    * @throws DatabaseError If request fails or CMS status is fail
    */
   @HandleDatabaseErrors()
-  @HandleCmsStatusErrors()
   async compactDatabase(
     userId: string,
     hostUid: string,
@@ -427,7 +417,6 @@ export class DatabaseManagementService extends BaseService {
    * @throws DatabaseError If request fails or CMS status is fail
    */
   @HandleDatabaseErrors()
-  @HandleCmsStatusErrors()
   async renameDatabase(
     userId: string,
     hostUid: string,
@@ -475,7 +464,6 @@ export class DatabaseManagementService extends BaseService {
    * @throws DatabaseError If request fails or CMS status is fail
    */
   @HandleDatabaseErrors()
-  @HandleCmsStatusErrors()
   async getAddVolStatus(
     userId: string,
     hostUid: string,
@@ -509,7 +497,6 @@ export class DatabaseManagementService extends BaseService {
    * @throws DatabaseError If request fails or CMS status is fail
    */
   @HandleDatabaseErrors()
-  @HandleCmsStatusErrors()
   async addVolDb(
     userId: string,
     hostUid: string,
@@ -549,7 +536,6 @@ export class DatabaseManagementService extends BaseService {
    * @throws DatabaseError If request fails or CMS status is fail
    */
   @HandleDatabaseErrors()
-  @HandleCmsStatusErrors()
   async lockDatabase(
     userId: string,
     hostUid: string,
@@ -586,7 +572,6 @@ export class DatabaseManagementService extends BaseService {
    * @throws DatabaseError If request fails or CMS status is fail
    */
   @HandleDatabaseErrors()
-  @HandleCmsStatusErrors()
   async getTransactionInfo(
     userId: string,
     hostUid: string,
@@ -628,7 +613,6 @@ export class DatabaseManagementService extends BaseService {
    * @throws DatabaseError If request fails or CMS status is fail
    */
   @HandleDatabaseErrors()
-  @HandleCmsStatusErrors()
   async killTransaction(
     userId: string,
     hostUid: string,

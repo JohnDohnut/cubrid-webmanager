@@ -29,7 +29,7 @@ export { HaMonitoringController } from './monitoring/ha-monitoring/ha-monitoring
 export { HandleStorageFsErrors } from './common/decorators/handle-storage-fs-errors.decorator';
 export { HandleUserErrors } from './common/decorators/handle-user-errors.decorator';
 export { HandleLockFsErrors } from './common/decorators/handle-lock-fs-errors.decorator';
-export { HandleCmsHttpsClientErrors } from './common/decorators/handle-cms-https-client-errors.decorator';
+export { HandleCmsErrors } from './common/decorators/handle-cms-errors.decorator';
 export { HandleHostErrors } from './common/decorators/handle-host-errors.decorator';
 export { HandleUserRepoErrors } from './common/decorators/handle-user-repo-errors.decorator';
 export { HandleAuthErrors } from './common/decorators/handle-auth-errors.decorator';

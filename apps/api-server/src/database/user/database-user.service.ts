@@ -5,11 +5,11 @@ import {
 } from '@api-interfaces';
 import {
   BaseService,
-  HandleCmsHttpsClientErrors,
+  HandleCmsErrors,
   HandleDatabaseErrors,
   HandleHostErrors,
 } from '@common';
-import { DatabaseError } from '@error/database/database-error';
+import { CmsError } from '@error/cms/cms-error';
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import { UserRepositoryService } from '@repository';
@@ -67,10 +67,10 @@ export class DatabaseUserService extends BaseService {
    * @param clientId Client-provided DB user ID (required if profile doesn't exist)
    * @param clientPassword Client-provided DB password (required if profile doesn't exist)
    * @returns true on success
-   * @throws DatabaseError If CMS status is fail or profile doesn't exist and credentials are not provided
+   * @throws CmsError If CMS status is fail or profile doesn't exist and credentials are not provided
    */
   @HandleHostErrors()
-  @HandleCmsHttpsClientErrors()
+  @HandleCmsErrors()
   @HandleDatabaseErrors()
   async loginDatabase(
     userId: string,
@@ -100,7 +100,7 @@ export class DatabaseUserService extends BaseService {
       return true;
     }
 
-    throw DatabaseError.LoginDatabaseFailed({ response, dbname });
+    throw CmsError.RequestFailed({ response, dbname });
   }
 
   /**
@@ -115,10 +115,10 @@ export class DatabaseUserService extends BaseService {
    * @param groups Groups object containing group array
    * @param authorization Authorization array
    * @returns Empty object on success
-   * @throws DatabaseError If CMS status is fail
+   * @throws CmsError If CMS status is fail
    */
   @HandleHostErrors()
-  @HandleCmsHttpsClientErrors()
+  @HandleCmsErrors()
   @HandleDatabaseErrors()
   async updateUser(
     userId: string,
@@ -144,7 +144,7 @@ export class DatabaseUserService extends BaseService {
     >(userId, hostUid, cmsRequest);
 
     if (response.status !== 'success') {
-      throw DatabaseError.InternalError({ response, dbname, username });
+      throw CmsError.RequestFailed({ response, dbname, username });
     }
 
     return { success: true };
@@ -154,7 +154,7 @@ export class DatabaseUserService extends BaseService {
    * Get user info (list of users) for a database. CMS task: userinfo.
    */
   @HandleHostErrors()
-  @HandleCmsHttpsClientErrors()
+  @HandleCmsErrors()
   @HandleDatabaseErrors()
   async getUserInfo(
     userId: string,
@@ -169,7 +169,7 @@ export class DatabaseUserService extends BaseService {
     >(userId, hostUid, cmsRequest);
 
     if (response.status !== 'success') {
-      throw DatabaseError.GetUserInfoFailed({ response, dbname });
+      throw CmsError.RequestFailed({ response, dbname });
     }
 
     return {
@@ -182,7 +182,7 @@ export class DatabaseUserService extends BaseService {
    * Create a database user. CMS task: createuser.
    */
   @HandleHostErrors()
-  @HandleCmsHttpsClientErrors()
+  @HandleCmsErrors()
   @HandleDatabaseErrors()
   async createUser(
     userId: string,
@@ -208,7 +208,7 @@ export class DatabaseUserService extends BaseService {
     >(userId, hostUid, cmsRequest);
 
     if (response.status !== 'success') {
-      throw DatabaseError.CreateUserFailed({ response, dbname, username });
+      throw CmsError.RequestFailed({ response, dbname, username });
     }
 
     return { success: true };
@@ -218,7 +218,7 @@ export class DatabaseUserService extends BaseService {
    * Delete a database user. CMS task: deleteuser.
    */
   @HandleHostErrors()
-  @HandleCmsHttpsClientErrors()
+  @HandleCmsErrors()
   @HandleDatabaseErrors()
   async deleteUser(
     userId: string,
@@ -238,7 +238,7 @@ export class DatabaseUserService extends BaseService {
     >(userId, hostUid, cmsRequest);
 
     if (response.status !== 'success') {
-      throw DatabaseError.DeleteUserFailed({ response, dbname, username });
+      throw CmsError.RequestFailed({ response, dbname, username });
     }
 
     return { success: true };
@@ -248,7 +248,7 @@ export class DatabaseUserService extends BaseService {
    * Verify database user credentials. CMS task: userverify.
    */
   @HandleHostErrors()
-  @HandleCmsHttpsClientErrors()
+  @HandleCmsErrors()
   @HandleDatabaseErrors()
   async userVerify(
     userId: string,
@@ -270,7 +270,7 @@ export class DatabaseUserService extends BaseService {
     >(userId, hostUid, cmsRequest);
 
     if (response.status !== 'success') {
-      throw DatabaseError.UserVerifyFailed({ response, dbname, dbuser });
+      throw CmsError.RequestFailed({ response, dbname, dbuser });
     }
 
     return { verified: true };

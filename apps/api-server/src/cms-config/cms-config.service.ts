@@ -24,7 +24,7 @@ import { GetAllSysParamCmsResponse } from '@type/cms-response/get-all-sys-param-
 import { ParamdumpCmsResponse } from '@type/cms-response/paramdump-cms-response';
 import { StatdumpCmsResponse } from '@type/cms-response/statdump-cms-response';
 import { BaseCmsResponse } from '@type/cms-response/base-cms-response';
-import { BaseService, HandleCmsConfigErrors } from '@common';
+import { BaseService, HandleCmsErrors } from '@common';
 import { ConfigError } from '@error/config/config-error';
 
 /**
@@ -54,7 +54,7 @@ export class CmsConfigService extends BaseService {
    * @returns GetEnvClientResponse Environment information without CMS envelope fields
    * @throws Error if the request fails or CMS status is not success
    */
-  @HandleCmsConfigErrors()
+  @HandleCmsErrors({ appErrorFallback: 'config' })
   async getEnv(userId: string, hostUid: string): Promise<GetEnvClientResponse> {
     const cmsRequest: BaseCmsRequest = {
       task: 'getenv',
@@ -85,7 +85,7 @@ export class CmsConfigService extends BaseService {
    * @returns ParamdumpClientResponse Database parameters without CMS envelope fields
    * @throws Error if the request fails or CMS status is not success
    */
-  @HandleCmsConfigErrors()
+  @HandleCmsErrors({ appErrorFallback: 'config' })
   async getParamDump(
     userId: string,
     hostUid: string,
@@ -121,7 +121,7 @@ export class CmsConfigService extends BaseService {
    * @returns StatdumpClientResponse Database statistics without CMS envelope fields
    * @throws Error if the request fails or CMS status is not success
    */
-  @HandleCmsConfigErrors()
+  @HandleCmsErrors({ appErrorFallback: 'config' })
   async getStatDump(
     userId: string,
     hostUid: string,
@@ -156,7 +156,7 @@ export class CmsConfigService extends BaseService {
    * @returns GetAllSysParamClientResponse System parameters without CMS envelope fields
    * @throws Error if the request fails or CMS status is not success
    */
-  @HandleCmsConfigErrors()
+  @HandleCmsErrors({ appErrorFallback: 'config' })
   async getAllSystemParam(
     userId: string,
     hostUid: string,
@@ -190,7 +190,7 @@ export class CmsConfigService extends BaseService {
    * @returns SetSysParamClientResponse Empty object on success (CMS envelope fields removed)
    * @throws Error if the request fails or CMS status is not success
    */
-  @HandleCmsConfigErrors()
+  @HandleCmsErrors({ appErrorFallback: 'config' })
   async setSystemParam(
     userId: string,
     hostUid: string,
@@ -221,7 +221,7 @@ export class CmsConfigService extends BaseService {
    * @param confname - Config name (e.g. "brokerconf")
    * @returns GetAddBrokerInfoClientResponse conflist, confname
    */
-  @HandleCmsConfigErrors()
+  @HandleCmsErrors({ appErrorFallback: 'config' })
   async getAddBrokerInfo(
     userId: string,
     hostUid: string,
@@ -258,7 +258,7 @@ export class CmsConfigService extends BaseService {
    * @param confdata - Configuration data as array of lines (broker config content)
    * @returns SetSysParamClientResponse Empty object on success
    */
-  @HandleCmsConfigErrors()
+  @HandleCmsErrors({ appErrorFallback: 'config' })
   async setBrokerParam(
     userId: string,
     hostUid: string,

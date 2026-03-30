@@ -1,5 +1,4 @@
 import { CmsError } from '@error/cms/cms-error';
-import { BaseCmsResponse } from '@type/cms-response/base-cms-response';
 
 /**
  * Invalid token error message from CMS.
@@ -41,52 +40,6 @@ export function isInvalidTokenError(response: any): boolean {
  */
 export function checkCmsTokenError(response: any): void {
   if (isInvalidTokenError(response)) {
-    throw CmsError.InvalidToken();
+    throw CmsError.InvalidToken({ response });
   }
-}
-
-/**
- * A method decorator that automatically checks CMS responses for invalid token errors.
- *
- * This decorator wraps methods that return CMS responses and checks if the response
- * indicates an invalid token. If so, it throws CmsError.InvalidToken().
- *
- * @category Decorators
- * @since 1.0.0
- * @example
- * ```typescript
- * class DatabaseService {
- *   @HandleCmsTokenErrors()
- *   async startInfo(userId: string, hostUid: string): Promise<StartInfoCmsResponse> {
- *     const response = await this.cmsClient.postAuthenticated(...);
- *     return response;  // Decorator automatically checks for token errors
- *   }
- * }
- * ```
- */
-export function HandleCmsTokenErrors() {
-  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
-    const originalMethod = descriptor.value;
-
-    descriptor.value = async function (...args: any[]) {
-      const result = await originalMethod.apply(this, args);
-
-      if (result instanceof Promise) {
-        return result.then((response) => {
-          if (isInvalidTokenError(response)) {
-            throw CmsError.InvalidToken();
-          }
-          return response;
-        });
-      }
-
-      if (isInvalidTokenError(result)) {
-        throw CmsError.InvalidToken();
-      }
-
-      return result;
-    };
-
-    return descriptor;
-  };
 }

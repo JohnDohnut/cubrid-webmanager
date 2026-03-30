@@ -10,13 +10,10 @@ import {
 import { GetCreatedbInfoClientResponse } from '@api-interfaces/response/get-createdb-info-client-response';
 import { CmsConfigService } from '@cms-config/cms-config.service';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
-import {
-  BaseService,
-  HandleCmsStatusErrors,
-  HandleDatabaseErrors,
-} from '@common';
+import { BaseService, HandleDatabaseErrors } from '@common';
 import { ConfigError } from '@error/config/config-error';
 import { ConfigErrorCode } from '@error/config/config-error-code';
+import { CmsError } from '@error/cms/cms-error';
 import { DatabaseError } from '@error/database/database-error';
 import { HostError } from '@error/index';
 import { ValidationError } from '@error/validation/validation-error';
@@ -105,7 +102,7 @@ export class DatabaseLifecycleService extends BaseService {
       return await this.databaseInfoService.startInfo(userId, hostUid);
     }
 
-    throw DatabaseError.StartDatabaseFailed({ response, dbname });
+    throw CmsError.RequestFailed({ response, dbname });
   }
 
   /**
@@ -181,13 +178,13 @@ export class DatabaseLifecycleService extends BaseService {
       if (startResponse.status === 'success') {
         return await this.databaseInfoService.startInfo(userId, hostUid);
       } else {
-        throw DatabaseError.StartDatabaseFailed({
+        throw CmsError.RequestFailed({
           response: startResponse,
           dbname,
         });
       }
     } else {
-      throw DatabaseError.StopDatabaseFailed({
+      throw CmsError.RequestFailed({
         response: stopResponse,
         dbname,
       });
@@ -292,7 +289,7 @@ export class DatabaseLifecycleService extends BaseService {
     if (response.status === 'success') {
       return this.extractDomainData(response as DbSpaceInfoCmsResponse);
     } else {
-      throw DatabaseError.GetDBSpaceInfoFailed({ response, dbname });
+      throw CmsError.RequestFailed({ response, dbname });
     }
   }
 
@@ -554,7 +551,6 @@ export class DatabaseLifecycleService extends BaseService {
    * @throws DatabaseError If request fails or CMS status is fail
    */
   @HandleDatabaseErrors()
-  @HandleCmsStatusErrors()
   async deleteDatabase(
     userId: string,
     hostUid: string,
