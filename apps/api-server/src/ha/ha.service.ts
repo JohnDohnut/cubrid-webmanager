@@ -1,6 +1,5 @@
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
-import { BaseService, HandleHostErrors } from '@common';
-import { HandleCmsHttpsClientErrors } from '@decorators/handle-cms-https-client-errors.decorator';
+import { BaseService, HandleCmsErrors, HandleHostErrors } from '@common';
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import { HeartbeatListCmsRequest } from '@type/cms-request';
@@ -21,7 +20,7 @@ export class HaService extends BaseService {
    * CMS task: heartbeatlist.
    */
   @HandleHostErrors()
-  @HandleCmsHttpsClientErrors()
+  @HandleCmsErrors()
   async heartbeatList(
     userId: string,
     hostUid: string,
@@ -50,7 +49,7 @@ export class HaService extends BaseService {
   }
 
   @HandleHostErrors()
-  @HandleCmsHttpsClientErrors()
+  @HandleCmsErrors()
   async heartbeatlistInternal(userId : string, hostUid : string): Promise<HeartbeatListCmsResponse>{
     const cmsRequest : HeartbeatListCmsRequest = {
       task : 'heartbeatlist',
