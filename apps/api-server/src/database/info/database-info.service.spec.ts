@@ -7,6 +7,7 @@ import { CmsConfigService } from '@cms-config/cms-config.service';
 import { DatabaseError } from '@error/database/database-error';
 import * as common from '@common';
 
+// Real GetEnv values (e.g. BROKERVER, CUBRIDVER) vary by host; tests use fixed mock data only.
 const mockGetEnvForCreatedb: GetEnvClientResponse = {
   BROKERVER: '11.4',
   CUBRID: '/opt/cubrid',
@@ -144,7 +145,7 @@ describe('DatabaseInfoService', () => {
       expect(cmsConfigService.getEnv).toHaveBeenCalledWith(mockUserId, mockHostUid);
       expect(result).toEqual({
         defaultDbDirectory: '/opt/cubrid/databases',
-        cubridVersion: '11.4',
+        cubridVersion: '11.4', // Matches mock CUBRIDVER; not tied to any real deployment version
         cubridPath: '/opt/cubrid',
       });
     });
