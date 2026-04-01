@@ -18,3 +18,13 @@ export {
   convertExvolInfoToCmsFormat,
   convertExvolArrayToCmsFormat,
 } from './parse-exvol';
+export {
+  isHostHaModeOnFromCubridConf,
+  getPerDbHaModeOffDbNames,
+  extractDbNamesFromStartInfo,
+  extractDbNamesFromHeartbeatList,
+  computeHaDbTopology,
+  flattenHanodelist,
+  resolveCurrentNodeRole,
+  type HaDbTopologyRow,
+} from './ha-topology-utils';

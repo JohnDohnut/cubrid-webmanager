@@ -42,6 +42,8 @@
       "@extern_storage/*": ["apps/api-server/storage/*"],
       "@file": ["apps/api-server/src/file"],
       "@file/*": ["apps/api-server/src/file/*"],
+      "@ha": ["apps/api-server/src/ha/index"],
+      "@ha/*": ["apps/api-server/src/ha/*"],
       "@host": ["apps/api-server/src/host/index"],
       "@host/*": ["apps/api-server/src/host/*"],
       "@lock": ["apps/api-server/src/lock/index"],

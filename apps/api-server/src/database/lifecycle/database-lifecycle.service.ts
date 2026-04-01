@@ -3,6 +3,7 @@ import {
   CreateDatabaseClientResponse,
   CreateDatabaseWithConfigRequest,
   CreateDatabaseWithConfigResponse,
+  DatabaseLifecycleControlRequest,
   DatabaseVolumeInfoClientResponse,
   DeleteDatabaseRequest,
   StartInfoClientResponse,
@@ -18,6 +19,7 @@ import { DatabaseError } from '@error/database/database-error';
 import { HostError } from '@error/index';
 import { ValidationError } from '@error/validation/validation-error';
 import { FileService } from '@file/file.service';
+import { HaService } from '@ha';
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import { UserRepositoryService } from '@repository';
@@ -57,7 +59,8 @@ export class DatabaseLifecycleService extends BaseService {
     private readonly fileService: FileService,
     private readonly databaseUserService: DatabaseUserService,
     private readonly databaseConfigService: DatabaseConfigService,
-    private readonly databaseInfoService: DatabaseInfoService
+    private readonly databaseInfoService: DatabaseInfoService,
+    private readonly haService: HaService
   ) {
     super(hostService, cmsClient);
   }
@@ -73,30 +76,56 @@ export class DatabaseLifecycleService extends BaseService {
   }
 
   /**
-   * Start a database on a host.
+   * Non-HA path: CMS `startdb`.
+   */
+  private async startNonHaDatabase(
+    userId: string,
+    hostUid: string,
+    dbname: string
+  ): Promise<BaseCmsResponse> {
+    return this.executeCmsRequest<StartDatabaseCmsRequest & { task: 'startdb' }, BaseCmsResponse>(
+      userId,
+      hostUid,
+      { task: 'startdb', dbname }
+    );
+  }
+
+  /**
+   * Non-HA path: CMS `stopdb`.
+   */
+  private async stopNonHaDatabase(
+    userId: string,
+    hostUid: string,
+    dbname: string
+  ): Promise<BaseCmsResponse> {
+    return this.executeCmsRequest<StopDatabaseCmsRequest & { task: 'stopdb' }, BaseCmsResponse>(
+      userId,
+      hostUid,
+      { task: 'stopdb', dbname }
+    );
+  }
+
+  /**
+   * Start a database on a host. When `control.isHA` is true, uses `ha_start`; otherwise `startdb`.
    *
    * @param userId User ID from JWT
    * @param hostUid Host UID
    * @param dbname Database name to start
    * @returns Latest start info (StartInfoClientResponse) on success
-   * @throws DatabaseError If CMS status is fail
+   * @throws CmsError If CMS status is not success (including `ha_start`)
    */
+
   @HandleDatabaseErrors()
   async startDatabase(
     userId: string,
     hostUid: string,
-    dbname: string
+    dbname: string,
+    control?: DatabaseLifecycleControlRequest
   ): Promise<StartInfoClientResponse> {
-    const cmsRequest: StartDatabaseCmsRequest = {
-      task: 'startdb',
-      dbname: dbname,
-    };
-
-    const response = await this.executeCmsRequest<StartDatabaseCmsRequest, BaseCmsResponse>(
-      userId,
-      hostUid,
-      cmsRequest
-    );
+    const useHa = control?.isHA === true;
+    const response = useHa
+      ? await this.haService.haStart(userId, hostUid, dbname)
+      : await this.startNonHaDatabase(userId, hostUid, dbname);
 
     if (response.status === 'success') {
       return await this.databaseInfoService.startInfo(userId, hostUid);
@@ -106,30 +135,25 @@ export class DatabaseLifecycleService extends BaseService {
   }
 
   /**
-   * Stop a database on a host.
+   * Stop a database on a host. When `control.isHA` is true, uses `ha_stop`; otherwise `stopdb`.
    *
    * @param userId User ID from JWT
    * @param hostUid Host UID
    * @param dbname Database name to stop
    * @returns Latest start info (StartInfoClientResponse) on success
-   * @throws DatabaseError If CMS status is fail
+   * @throws DatabaseError If CMS status is fail (including `ha_stop` path)
    */
   @HandleDatabaseErrors()
   async stopDatabase(
     userId: string,
     hostUid: string,
-    dbname: string
+    dbname: string,
+    control?: DatabaseLifecycleControlRequest
   ): Promise<StartInfoClientResponse> {
-    const cmsRequest: StopDatabaseCmsRequest = {
-      task: 'stopdb',
-      dbname: dbname,
-    };
-
-    const response = await this.executeCmsRequest<StopDatabaseCmsRequest, BaseCmsResponse>(
-      userId,
-      hostUid,
-      cmsRequest
-    );
+    const useHa = control?.isHA === true;
+    const response = useHa
+      ? await this.haService.haStop(userId, hostUid, dbname)
+      : await this.stopNonHaDatabase(userId, hostUid, dbname);
 
     if (response.status === 'success') {
       return await this.databaseInfoService.startInfo(userId, hostUid);
@@ -151,29 +175,19 @@ export class DatabaseLifecycleService extends BaseService {
   async restartDatabase(
     userId: string,
     hostUid: string,
-    dbname: string
+    dbname: string,
+    control?: DatabaseLifecycleControlRequest
   ): Promise<StartInfoClientResponse> {
-    const stopRequest: StopDatabaseCmsRequest = {
-      task: 'stopdb',
-      dbname: dbname,
-    };
+    const useHa = control?.isHA === true;
 
-    const stopResponse = await this.executeCmsRequest<StopDatabaseCmsRequest, BaseCmsResponse>(
-      userId,
-      hostUid,
-      stopRequest
-    );
+    const stopResponse = useHa
+      ? await this.haService.haStop(userId, hostUid, dbname)
+      : await this.stopNonHaDatabase(userId, hostUid, dbname);
 
     if (stopResponse.status === 'success') {
-      const startRequest: StartDatabaseCmsRequest = {
-        task: 'startdb',
-        dbname: dbname,
-      };
-
-      const startResponse = await this.executeCmsRequest<
-        StartDatabaseCmsRequest,
-        BaseCmsResponse
-      >(userId, hostUid, startRequest);
+      const startResponse = useHa
+        ? await this.haService.haStart(userId, hostUid, dbname)
+        : await this.startNonHaDatabase(userId, hostUid, dbname);
 
       if (startResponse.status === 'success') {
         return await this.databaseInfoService.startInfo(userId, hostUid);

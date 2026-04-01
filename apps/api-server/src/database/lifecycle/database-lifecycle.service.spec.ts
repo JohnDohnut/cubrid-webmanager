@@ -6,6 +6,7 @@ import { UserRepositoryService } from '@repository';
 import { CmsConfigService } from '@cms-config/cms-config.service';
 import { FileService } from '@file/file.service';
 import { DatabaseInfoService } from '../info/database-info.service';
+import { HaService } from '@ha';
 import { DatabaseUserService } from '../user/database-user.service';
 import { DatabaseConfigService } from '../config/database-config.service';
 import { DatabaseError } from '@error/database/database-error';
@@ -59,7 +60,11 @@ describe('DatabaseLifecycleService', () => {
 
     const mockRepository = {};
 
-    const mockCmsConfigService = {};
+    const mockCmsConfigService = {
+      getAllSystemParam: jest.fn().mockResolvedValue({
+        conflist: [{ confdata: ['[common]', 'ha_mode=off'] }],
+      }),
+    };
 
     const mockFileService = {};
 
@@ -105,6 +110,7 @@ describe('DatabaseLifecycleService', () => {
           provide: DatabaseConfigService,
           useValue: mockDatabaseConfigService,
         },
+        HaService,
       ],
     }).compile();
 
@@ -163,6 +169,7 @@ describe('DatabaseLifecycleService', () => {
             dbname: 'testdb',
             dbdir: '/path/to/testdb',
             isProfileExists: false,
+            isHA: false,
           },
         ],
       },
@@ -186,6 +193,7 @@ describe('DatabaseLifecycleService', () => {
               dbname: 'testdb',
               dbdir: '/path/to/testdb',
               isProfileExists: true,
+              isHA: false,
             },
           ],
         },
@@ -244,11 +252,26 @@ describe('DatabaseLifecycleService', () => {
           dbname: mockDbname,
         })
       );
-      expect(common.checkCmsTokenError).toHaveBeenCalled();
       expect(result).toEqual(mockStartInfoResponse);
     });
 
-    it('should throw DatabaseError when CMS status is fail', async () => {
+    it('should use ha_start when body isHA is true', async () => {
+      const haResp = { ...mockBaseResponse, task: 'ha_start' };
+      cmsClient.postAuthenticated.mockResolvedValue(haResp);
+
+      await service.startDatabase(mockUserId, mockHostUid, mockDbname, { isHA: true });
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        `https://${mockHost.address}:${mockHost.port}/cm_api`,
+        expect.objectContaining({
+          task: 'ha_start',
+          token: mockHost.token,
+          dbname: mockDbname,
+        })
+      );
+    });
+
+    it('should throw CmsError when CMS status is fail', async () => {
       const failedResponse = {
         ...mockBaseResponse,
         status: 'fail',
@@ -256,9 +279,7 @@ describe('DatabaseLifecycleService', () => {
       };
       cmsClient.postAuthenticated.mockResolvedValue(failedResponse);
 
-      await expect(service.startDatabase(mockUserId, mockHostUid, mockDbname)).rejects.toThrow(
-        DatabaseError
-      );
+      await expect(service.startDatabase(mockUserId, mockHostUid, mockDbname)).rejects.toThrow(CmsError);
     });
   });
 
@@ -293,6 +314,22 @@ describe('DatabaseLifecycleService', () => {
         })
       );
       expect(result).toEqual(mockStartInfoResponse);
+    });
+
+    it('should use ha_stop when body isHA is true', async () => {
+      const haResp = { ...mockBaseResponse, task: 'ha_stop' };
+      cmsClient.postAuthenticated.mockResolvedValue(haResp);
+
+      await service.stopDatabase(mockUserId, mockHostUid, mockDbname, { isHA: true });
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        `https://${mockHost.address}:${mockHost.port}/cm_api`,
+        expect.objectContaining({
+          task: 'ha_stop',
+          token: mockHost.token,
+          dbname: mockDbname,
+        })
+      );
     });
 
     it('should throw DatabaseError when CMS status is fail', async () => {
@@ -344,7 +381,26 @@ describe('DatabaseLifecycleService', () => {
       expect(result).toEqual(mockStartInfoResponse);
     });
 
-    it('should throw DatabaseError when stop fails', async () => {
+    it('should use ha_stop and ha_start when isHA is true', async () => {
+      const haStop = { ...mockBaseResponse, task: 'ha_stop' };
+      const haStart = { ...mockStartResponse, task: 'ha_start' };
+      cmsClient.postAuthenticated.mockResolvedValueOnce(haStop).mockResolvedValueOnce(haStart);
+
+      await service.restartDatabase(mockUserId, mockHostUid, mockDbname, { isHA: true });
+
+      expect(cmsClient.postAuthenticated).toHaveBeenNthCalledWith(
+        1,
+        expect.any(String),
+        expect.objectContaining({ task: 'ha_stop', dbname: mockDbname })
+      );
+      expect(cmsClient.postAuthenticated).toHaveBeenNthCalledWith(
+        2,
+        expect.any(String),
+        expect.objectContaining({ task: 'ha_start', dbname: mockDbname })
+      );
+    });
+
+    it('should throw CmsError when stop fails', async () => {
       const failedResponse = {
         ...mockBaseResponse,
         status: 'fail',
@@ -353,11 +409,11 @@ describe('DatabaseLifecycleService', () => {
       cmsClient.postAuthenticated.mockResolvedValueOnce(failedResponse);
 
       await expect(service.restartDatabase(mockUserId, mockHostUid, mockDbname)).rejects.toThrow(
-        DatabaseError
+        CmsError
       );
     });
 
-    it('should throw DatabaseError when start fails', async () => {
+    it('should throw CmsError when start fails', async () => {
       const failedResponse = {
         ...mockStartResponse,
         status: 'fail',
@@ -368,7 +424,7 @@ describe('DatabaseLifecycleService', () => {
         .mockResolvedValueOnce(failedResponse); // start fails
 
       await expect(service.restartDatabase(mockUserId, mockHostUid, mockDbname)).rejects.toThrow(
-        DatabaseError
+        CmsError
       );
     });
   });

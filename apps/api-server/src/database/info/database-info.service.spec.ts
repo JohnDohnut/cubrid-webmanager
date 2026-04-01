@@ -4,23 +4,9 @@ import { DatabaseInfoService } from './database-info.service';
 import { HostService } from '@host';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import { CmsConfigService } from '@cms-config/cms-config.service';
+import { HaService } from '@ha';
 import * as common from '@common';
-import type { GetEnvClientResponse } from '@api-interfaces';
 import { CmsError } from '@error/cms/cms-error';
-
-// Real GetEnv values (e.g. BROKERVER, CUBRIDVER) vary by host; tests use fixed mock data only.
-const mockGetEnvForCreatedb: GetEnvClientResponse = {
-  BROKERVER: '11.4',
-  CUBRID: '/opt/cubrid',
-  CUBRIDVER: '11.4',
-  CUBRID_DATABASES: '/opt/cubrid/databases',
-  CUBRID_DBMT: '',
-  HOSTMONTAB0: '',
-  HOSTMONTAB1: '',
-  HOSTMONTAB2: '',
-  HOSTMONTAB3: '',
-  osinfo: 'Linux',
-};
 
 // Real GetEnv values (e.g. BROKERVER, CUBRIDVER) vary by host; tests use fixed mock data only.
 const mockGetEnvForCreatedb: GetEnvClientResponse = {
@@ -47,6 +33,7 @@ describe('DatabaseInfoService', () => {
   let hostService: jest.Mocked<HostService>;
   let cmsClient: jest.Mocked<CmsHttpsClientService>;
   let cmsConfigService: jest.Mocked<CmsConfigService>;
+  let haService: { heartbeatlistInternal: jest.Mock };
 
   const mockHost = {
     uid: 'host-uid-1',
@@ -64,7 +51,15 @@ describe('DatabaseInfoService', () => {
   beforeEach(async () => {
     const mockHostService = { findHostInternal: jest.fn() };
     const mockCmsClient = { postAuthenticated: jest.fn() };
-    const mockCmsConfigService = { getEnv: jest.fn() };
+    const mockCmsConfigService = {
+      getEnv: jest.fn(),
+      getAllSystemParam: jest.fn().mockResolvedValue({
+        conflist: [{ confdata: ['[common]', 'ha_mode=off'] }],
+      }),
+    };
+    const mockHaService = {
+      heartbeatlistInternal: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -72,6 +67,7 @@ describe('DatabaseInfoService', () => {
         { provide: HostService, useValue: mockHostService },
         { provide: CmsHttpsClientService, useValue: mockCmsClient },
         { provide: CmsConfigService, useValue: mockCmsConfigService },
+        { provide: HaService, useValue: mockHaService },
       ],
     }).compile();
 
@@ -79,6 +75,7 @@ describe('DatabaseInfoService', () => {
     hostService = module.get(HostService);
     cmsClient = module.get(CmsHttpsClientService);
     cmsConfigService = module.get(CmsConfigService);
+    haService = module.get(HaService);
 
     hostService.findHostInternal.mockResolvedValue(mockHost);
     (common.checkCmsTokenError as jest.Mock).mockImplementation(() => {});
@@ -142,10 +139,16 @@ describe('DatabaseInfoService', () => {
 
       const result = await service.startInfo(mockUserId, mockHostUid);
 
+      expect(cmsConfigService.getAllSystemParam).toHaveBeenCalledWith(
+        mockUserId,
+        mockHostUid,
+        'cubridconf'
+      );
+      expect(haService.heartbeatlistInternal).not.toHaveBeenCalled();
       expect(result).toEqual({
         activelist: { active: [{ dbname: 'testdb' }] },
         dblist: {
-          dbs: [{ dbname: 'testdb', dbdir: '/path', isProfileExists: false }],
+          dbs: [{ dbname: 'testdb', dbdir: '/path', isProfileExists: false, isHA: false }],
         },
       });
     });

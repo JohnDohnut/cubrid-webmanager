@@ -8,6 +8,15 @@ import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import { BaseCmsRequest, BaseCmsResponse } from '@type';
 import { StartInfoCmsResponse } from '@type/cms-response';
+import { HaService } from '@ha';
+import { DATABASE_CONSTANTS } from '../database.constants';
+import {
+  computeHaDbTopology,
+  extractDbNamesFromHeartbeatList,
+  extractDbNamesFromStartInfo,
+  getPerDbHaModeOffDbNames,
+  isHostHaModeOnFromCubridConf,
+} from '@util';
 
 /**
  * Service for database information (read-only) used across database modules.
@@ -21,7 +30,8 @@ export class DatabaseInfoService extends BaseService {
   constructor(
     protected readonly hostService: HostService,
     protected readonly cmsClient: CmsHttpsClientService,
-    private readonly cmsConfigService: CmsConfigService
+    private readonly cmsConfigService: CmsConfigService,
+    private readonly haService: HaService
   ) {
     super(hostService, cmsClient);
   }
@@ -63,11 +73,35 @@ export class DatabaseInfoService extends BaseService {
   @HandleDatabaseErrors()
   async startInfo(userId: string, hostUid: string): Promise<StartInfoClientResponse> {
     const host = await this.hostService.findHostInternal(userId, hostUid);
-    const response = await this.startInfoInternal(userId, hostUid);
-    const dataOnly = this.extractDomainData(response);
+    const [cmsStart, conf] = await Promise.all([
+      this.startInfoInternal(userId, hostUid),
+      this.cmsConfigService.getAllSystemParam(userId, hostUid, DATABASE_CONSTANTS.CUBRID_CONF_NAME),
+    ]);
+    const dataOnly = this.extractDomainData(cmsStart);
     const dbProfiles = host.dbProfiles || {};
     const dbs = dataOnly.dblist?.[0]?.dbs || [];
     const activeList = dataOnly.activelist?.[0]?.active || [];
+
+    const hostHa = isHostHaModeOnFromCubridConf(conf);
+    const offNames = getPerDbHaModeOffDbNames(conf);
+    const startNames = extractDbNamesFromStartInfo(dataOnly);
+    let heartbeatNames: string[] = [];
+    if (hostHa) {
+      try {
+        const hb = await this.haService.heartbeatlistInternal(userId, hostUid);
+        heartbeatNames = extractDbNamesFromHeartbeatList(hb);
+      } catch (err) {
+        this.logger.warn(`heartbeatlist failed while building startInfo: ${err}`);
+      }
+    }
+
+    const rows = computeHaDbTopology({
+      hostHaEnabled: hostHa,
+      startInfoNames: startNames,
+      heartbeatNames,
+      confHaModeOffNames: offNames,
+    });
+    const isHAByDb = new Map(rows.map((r) => [r.dbname, r.effectiveHaDb]));
 
     const clientResponse: StartInfoClientResponse = {
       activelist: { active: activeList },
@@ -75,6 +109,7 @@ export class DatabaseInfoService extends BaseService {
         dbs: dbs.map((db) => ({
           ...db,
           isProfileExists: !!dbProfiles[db.dbname],
+          isHA: hostHa ? (isHAByDb.get(db.dbname) ?? false) : false,
         })),
       },
     };
