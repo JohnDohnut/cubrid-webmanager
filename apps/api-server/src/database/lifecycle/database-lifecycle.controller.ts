@@ -154,7 +154,7 @@ export class DatabaseLifecycleController {
   }
 
   /**
-   * Save a database profile for a host.
+   * Create or update a database profile for a host (same route for first save and credential refresh).
    * Returns latest start info on success (isProfileExists is updated).
    *
    * @route POST /:hostUid/database/register/:dbname

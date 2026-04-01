@@ -12,7 +12,7 @@ import * as selfsigned from 'selfsigned';
  */
 export function getOrCreateSSLCert() {
   const isPkg = !!(process as any).pkg;
-  const baseDir = isPkg ? path.dirname(process.execPath) : path.resolve(__dirname, '..');
+  const baseDir = isPkg ? path.dirname(process.execPath) : path.resolve(__dirname, '..', '..');
 
   const sslDir = path.join(baseDir, 'ssl');
   const certPath = path.join(sslDir, 'cert.pem');
@@ -27,13 +27,13 @@ export function getOrCreateSSLCert() {
   // Get server IP from environment or network interfaces
   const getServerIPs = (): string[] => {
     const ips: string[] = ['127.0.0.1']; // Always include localhost
-    
+
     // Try to get IP from environment variable
     const envIP = process.env.SERVER_IP;
     if (envIP) {
       ips.push(envIP);
     }
-    
+
     // Try to get IPs from network interfaces
     try {
       const os = require('os');
@@ -49,7 +49,7 @@ export function getOrCreateSSLCert() {
     } catch (error) {
       console.warn('Failed to get network interfaces:', error);
     }
-    
+
     // Remove duplicates
     return [...new Set(ips)];
   };
@@ -62,7 +62,7 @@ export function getOrCreateSSLCert() {
       name: 'subjectAltName',
       altNames: [
         { type: 2, value: 'localhost' },
-        ...serverIPs.map(ip => ({ type: 7, ip })),
+        ...serverIPs.map((ip) => ({ type: 7, ip })),
       ],
     },
   ];

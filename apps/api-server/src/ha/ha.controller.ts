@@ -1,7 +1,7 @@
 import { Body, Controller, Logger, Param, Post, Request } from '@nestjs/common';
 import { HeartbeatListClientRequest, HeartbeatListClientResponse } from '@api-interfaces';
 import { HaService } from './ha.service';
-import { validateRequiredFields } from '../util';
+import { validateRequiredFields } from '@util';
 
 @Controller(':hostUid/ha')
 export class HaController {

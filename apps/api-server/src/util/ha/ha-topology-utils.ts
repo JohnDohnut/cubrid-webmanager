@@ -9,7 +9,7 @@ import type {
   HeartbeatListCmsResponse,
 } from '@type/cms-response/heartbeat-list-cms-response';
 import type { StartInfoCmsResponse } from '@type/cms-response/start-info-cms-response';
-import { parseConfigParamsBySection } from './parse-config-params';
+import { parseConfigParamsBySection } from '../config/parse-config-params';
 
 /** Normalized flag from `[common]` (or fallback) `ha_mode` — host-level HA enabled. */
 export function isHostHaModeOnFromCubridConf(

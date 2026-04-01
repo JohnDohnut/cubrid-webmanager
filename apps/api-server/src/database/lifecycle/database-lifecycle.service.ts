@@ -206,7 +206,8 @@ export class DatabaseLifecycleService extends BaseService {
   }
 
   /**
-   * Save a database profile for a host.
+   * Create or update a stored database profile for a host (id/password used by Web Manager).
+   * If a profile for `dbname` already exists, it is overwritten.
    *
    * @param userId User ID from JWT
    * @param hostUid Host UID
@@ -214,7 +215,6 @@ export class DatabaseLifecycleService extends BaseService {
    * @param databaseId Database user ID
    * @param databasePassword Database password
    * @returns Latest start info (StartInfoClientResponse) on success
-   * @throws DatabaseError If profile already exists or save fails
    */
   @HandleDatabaseErrors()
   async saveDatabaseProfile(
@@ -224,14 +224,17 @@ export class DatabaseLifecycleService extends BaseService {
     databaseId: string,
     databasePassword: string
   ): Promise<StartInfoClientResponse> {
-    if (dbname == null || databaseId == null || databasePassword == null) {
+    const missing = (v: string | null | undefined) =>
+      v == null || (typeof v === 'string' && v.trim() === '');
+
+    if (missing(dbname) || missing(databaseId) || missing(databasePassword)) {
       const missingFields = [
-        dbname == null && 'dbname',
-        databaseId == null && 'id',
-        databasePassword == null && 'password',
+        missing(dbname) && 'dbname',
+        missing(databaseId) && 'id',
+        missing(databasePassword) && 'password',
       ].filter(Boolean) as string[];
 
-      throw ValidationError.MissingDBCredentials(dbname || 'unknown', missingFields);
+      throw ValidationError.MissingDBCredentials(dbname?.trim() || 'unknown', missingFields);
     }
 
     await this.repository.atomicUpdateUser(userId, async (user) => {
@@ -242,13 +245,6 @@ export class DatabaseLifecycleService extends BaseService {
 
       if (host.dbProfiles == null) {
         host.dbProfiles = {};
-      }
-
-      if (host.dbProfiles[dbname]) {
-        throw DatabaseError.DuplicatedDatabaseProfile({
-          dbname,
-          hostUid,
-        });
       }
 
       host.dbProfiles[dbname] = {

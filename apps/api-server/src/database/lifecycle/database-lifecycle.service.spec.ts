@@ -58,7 +58,9 @@ describe('DatabaseLifecycleService', () => {
       postAuthenticated: jest.fn(),
     };
 
-    const mockRepository = {};
+    const mockRepository = {
+      atomicUpdateUser: jest.fn(),
+    };
 
     const mockCmsConfigService = {
       getAllSystemParam: jest.fn().mockResolvedValue({
@@ -477,10 +479,10 @@ describe('DatabaseLifecycleService', () => {
       ).rejects.toThrow();
     });
 
-    it('should throw DatabaseError when profile already exists', async () => {
+    it('should overwrite existing database profile', async () => {
       const hostWithProfile = {
         ...mockHost,
-        dbProfiles: { [mockDbname]: { dbname: mockDbname, id: 'dba', password: 'pass' } },
+        dbProfiles: { [mockDbname]: { dbname: mockDbname, id: 'dba', password: 'old' } },
       };
       const mockUser = {
         id: mockUserId,
@@ -493,9 +495,14 @@ describe('DatabaseLifecycleService', () => {
         return await callback(mockUser as any);
       });
 
-      await expect(
-        service.saveDatabaseProfile(mockUserId, mockHostUid, mockDbname, 'dba', 'password')
-      ).rejects.toThrow(DatabaseError);
+      await service.saveDatabaseProfile(mockUserId, mockHostUid, mockDbname, 'dba', 'newpass');
+
+      expect(mockUser.host_list[mockHostUid].dbProfiles[mockDbname]).toEqual({
+        dbname: mockDbname,
+        id: 'dba',
+        password: 'newpass',
+      });
+      expect(repository.atomicUpdateUser).toHaveBeenCalled();
     });
 
     it('should throw HostError when host is not found', async () => {

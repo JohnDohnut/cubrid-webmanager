@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import 'module-alias/register';
-import { getOrCreateSSLCert } from '@util/ssl-util';
+import { getOrCreateSSLCert } from '@util';
 import { GlobalExceptionFilter } from '@error/global-filter';
 import { ConfigService } from '@config/config.service';
 import { SuccessResponseInterceptor, LoggingInterceptor } from '@common'; // Updated import
