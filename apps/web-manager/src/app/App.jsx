@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { toggleTheme, toggleSidebar, setIsResizing, setActiveMainTab, closeTab, closeOtherTabs, closeAllTabs } from '../features/layout/layoutSlice';
-import { openAddHostModal, closeAddHostModal, setSelectedHost } from '../features/host/hostSlice';
+import { toggleTheme, toggleSidebar, setIsResizing, setActiveMainTab, closeTab, closeOtherTabs, closeAllTabs, triggerRefreshActiveTab } from '../features/layout/layoutSlice';
+import { openAddHostModal, closeAddHostModal, closeChangePasswordModal, setSelectedHost } from '../features/host/hostSlice';
 import { setSelectedDatabase } from '../features/database/databaseSlice';
 import { closeCreateUserModal, closeEditUserModal, closeDropUserModal } from '../features/user/userSlice';
 import Sidebar from '../features/layout/components/Sidebar';
@@ -10,6 +10,7 @@ import Header from '../features/layout/components/Header';
 import Breadcrumb from '../features/layout/components/Breadcrumb';
 import Footer from '../features/layout/components/Footer';
 import AddHostModal from '../features/host/components/AddHostModal';
+import ChangeHostPasswordModal from '../features/host/components/ChangeHostPasswordModal';
 import ServerContent from '../features/server/components/ServerContent';
 import DatabaseDashboard from '../features/database/components/DatabaseDashboard';
 import DatabaseSpaceMonitor from '../features/database/components/DatabaseSpaceMonitor';
@@ -35,10 +36,15 @@ import CreateDatabaseModal from '../features/database/components/CreateDatabaseM
 import EditBackupPlanModal from '../features/database/components/EditBackupPlanModal';
 import LoginDatabaseModal from '../features/database/components/LoginDatabaseModal';
 import RestoreDatabaseModal from '../features/database/components/RestoreDatabaseModal';
+import SetAutomationVolumeModal from '../features/database/components/SetAutomationVolumeModal';
+import AutoVolumeLogModal from '../features/database/components/AutoVolumeLogModal';
+import AddQueryPlanModal from '../features/database/components/AddQueryPlanModal';
+import AutoQueryLogModal from '../features/database/components/AutoQueryLogModal';
 
 import LockInformationModal from '../features/database/components/LockInformationModal';
 import UnloadResultModal from '../features/database/components/UnloadResultModal';
 import TransactionInfoModal from '../features/database/components/TransactionInfoModal';
+import KillTransactionModal from '../features/database/components/KillTransactionModal';
 import DeleteHostModal from '../features/host/components/DeleteHostModal';
 import EditHostModal from '../features/host/components/EditHostModal';
 import ServerVersionModal from '../features/host/components/ServerVersionModal';
@@ -52,6 +58,7 @@ import CMSLogViewer from '../features/broker/components/CMSLogViewer';
 import BrokerStatus from '../features/broker/components/BrokerStatus';
 import BrokerPropertyModal from '../features/broker/components/BrokerPropertyModal';
 import Brokers from '../features/server/components/Brokers';
+import ServiceDashboard from '../features/server/components/ServiceDashboard';
 
 import CreateUserModal from '../features/user/components/CreateUserModal';
 import DropUserModal from '../features/user/components/DropUserModal';
@@ -65,12 +72,23 @@ import { Icon } from '../components/ds/foundation/Icon';
 
 function DashboardLayout() {
   const dispatch = useDispatch();
-  const { isLoginDatabaseModalOpen, selectedDatabase } = useSelector((state) => state.database);
-  const { theme, isSidebarCollapsed, isResizing, activeMainTab, openTabs } = useSelector((state) => state.layout);
+  const { loading: dbCoreLoading } = useSelector((state) => state.database);
+  const { actionLoading: dbUILoading } = useSelector((state) => state.databaseUI);
+  const { operationLoading: dbOpLoading } = useSelector((state) => state.databaseOperation);
+  const dbActionLoading = dbCoreLoading || dbOpLoading || dbUILoading;
+  const { theme, isSidebarCollapsed, isResizing, activeMainTab, openTabs, refreshCounter } = useSelector((state) => state.layout);
+  const [isFlashing, setIsFlashing] = useState(false);
   const { isAddHostModalOpen, hosts, isServiceOperating, serviceOperationType, serviceProgressMessage } = useSelector((state) => state.host);
   const { isCreateUserModalOpen, createUserDbName, isEditUserModalOpen, editUserData, isDropUserModalOpen } = useSelector((state) => state.user);
-  const { actionLoading: dbActionLoading } = useSelector((state) => state.database);
   const { actionLoading: brokerActionLoading } = useSelector((state) => state.broker);
+
+  useEffect(() => {
+    if (refreshCounter > 0) {
+      setIsFlashing(true);
+      const timer = setTimeout(() => setIsFlashing(false), 400);
+      return () => clearTimeout(timer);
+    }
+  }, [refreshCounter]);
 
   const tabLabels = openTabs.reduce((acc, tabId) => {
     if (tabId.startsWith('host:')) {
@@ -103,6 +121,8 @@ function DashboardLayout() {
     } else if (tabId.startsWith('vol_category:')) {
       const category = tabId.split(':')[3];
       acc[tabId] = `Volumes: ${category.replace(/_/g, ' ')}`;
+    } else if (tabId === 'service_dashboard') {
+      acc[tabId] = 'Service Dashboard';
     }
 
     return acc;
@@ -120,6 +140,17 @@ function DashboardLayout() {
   }, [activeMainTab, dispatch]);
 
   useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'F5') {
+        e.preventDefault();
+        dispatch(triggerRefreshActiveTab());
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [dispatch]);
+
+  useEffect(() => {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
       document.documentElement.classList.remove('light');
@@ -132,6 +163,9 @@ function DashboardLayout() {
   return (
     <MonitoringProvider>
       <div className={`h-screen overflow-hidden ${isResizing ? 'select-none' : ''}`}>
+        {/* Flash Overlay */}
+        <div className={`fixed inset-0 bg-white/20 dark:bg-white/5 pointer-events-none z-[9999] transition-opacity duration-300 ${isFlashing ? 'opacity-100' : 'opacity-0'}`} />
+        
         <SplitPane split="vertical" defaultSize={288} minSize={200} maxSize={600} className="h-full w-full">
           <Sidebar
             isCollapsed={isSidebarCollapsed}
@@ -298,10 +332,9 @@ function DashboardLayout() {
                     />
                   )}
                   {isBrokersStatus && (
-                    <div className="flex-1 overflow-y-auto p-4 bg-slate-50 dark:bg-bk-main">
-                      <Brokers hostUid={tabId.split(':')[1]} />
-                    </div>
+                    <Brokers hostUid={tabId.split(':')[1]} />
                   )}
+                  {tabId === 'service_dashboard' && <ServiceDashboard />}
 
                 </div>
               );
@@ -318,6 +351,7 @@ function DashboardLayout() {
         />
         <DeleteHostModal />
         <EditHostModal />
+        <ChangeHostPasswordModal />
         <ServerVersionModal />
         <ImportExportHostModal />
 
@@ -336,19 +370,24 @@ function DashboardLayout() {
         <CreateDatabaseModal />
         <LoginDatabaseModal />
         <RestoreDatabaseModal />
+        <SetAutomationVolumeModal />
+        <AutoVolumeLogModal />
+        <AddQueryPlanModal />
+        <AutoQueryLogModal />
 
         <LockInformationModal />
         <UnloadResultModal />
         <TransactionInfoModal />
-        <CreateUserModal 
-          isOpen={isCreateUserModalOpen} 
-          onClose={() => dispatch(closeCreateUserModal())} 
-          dbname={createUserDbName} 
+        <KillTransactionModal />
+        <CreateUserModal
+          isOpen={isCreateUserModalOpen}
+          onClose={() => dispatch(closeCreateUserModal())}
+          dbname={createUserDbName}
         />
-        <CreateUserModal 
-          isOpen={isEditUserModalOpen} 
-          onClose={() => dispatch(closeEditUserModal())} 
-          dbname={editUserData?.dbname} 
+        <CreateUserModal
+          isOpen={isEditUserModalOpen}
+          onClose={() => dispatch(closeEditUserModal())}
+          dbname={editUserData?.dbname}
           editingUser={editUserData?.userName}
         />
         <DropUserModal />
