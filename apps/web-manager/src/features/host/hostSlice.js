@@ -165,7 +165,11 @@ export const loginToHost = createAsyncThunk(
     try {
       const response = await hostApi.loginToHost(hostUid);
       // The API returns { data: false } or just false on failure
-      if (response === false || response?.data === false) {
+      if (
+        response === false ||
+        response?.data === false ||
+        (response && typeof response === 'object' && response.success === false)
+      ) {
         return rejectWithValue('Host login failed (bad credentials or unavailable)');
       }
       return hostUid;

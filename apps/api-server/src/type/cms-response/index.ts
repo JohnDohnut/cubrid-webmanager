@@ -34,6 +34,8 @@ export * from './restore-db-cms-response';
 export * from './set-auto-exec-query-cms-response';
 export * from './get-auto-exec-query-cms-response';
 export * from './create-database-cms-response';
+export * from './ha-start-database-cms-response';
+export * from './ha-stop-database-cms-response';
 export * from './unload-database-cms-response';
 export * from './unload-info-cms-response';
 export * from './update-user-cms-response';

@@ -13,7 +13,7 @@ import { CmsError } from '@error/cms/cms-error';
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import { UserRepositoryService } from '@repository';
-import { DBAuthResolver } from '@util/db-auth-resolver';
+import { DBAuthResolver } from '@util';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import { BaseCmsResponse } from '@type';
 import {

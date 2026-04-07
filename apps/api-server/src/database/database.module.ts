@@ -9,6 +9,7 @@ import { DatabaseUserService } from './user/database-user.service';
 import { CmsConfigModule } from '@cms-config/cms-config.module';
 import { FileModule } from '@file/file.module';
 import { DatabaseInfoModule } from './info/database-info.module';
+import { HaModule } from '@ha';
 import { DatabaseLifecycleController } from './lifecycle/database-lifecycle.controller';
 import { DatabaseLifecycleService } from './lifecycle/database-lifecycle.service';
 import { DatabaseBackupController } from './backup/database-backup.controller';
@@ -49,6 +50,7 @@ import { DatabaseConfigService } from './config/database-config.service';
     CmsConfigModule,
     FileModule,
     DatabaseInfoModule,
+    HaModule,
   ],
 })
 export class DatabaseModule {}

@@ -2,8 +2,16 @@ import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.servic
 import { BaseService, HandleCmsErrors, HandleHostErrors } from '@common';
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
-import { HeartbeatListCmsRequest } from '@type/cms-request';
-import { HeartbeatListCmsResponse } from '@type/cms-response';
+import {
+  HaStartDatabaseCmsRequest,
+  HaStopDatabaseCmsRequest,
+  HeartbeatListCmsRequest,
+} from '@type/cms-request';
+import {
+  HaStartDatabaseCmsResponse,
+  HaStopDatabaseCmsResponse,
+  HeartbeatListCmsResponse,
+} from '@type/cms-response';
 import { HeartbeatListClientRequest, HeartbeatListClientResponse } from '@api-interfaces';
 
 @Injectable()
@@ -50,11 +58,53 @@ export class HaService extends BaseService {
 
   @HandleHostErrors()
   @HandleCmsErrors()
-  async heartbeatlistInternal(userId : string, hostUid : string): Promise<HeartbeatListCmsResponse>{
-    const cmsRequest : HeartbeatListCmsRequest = {
-      task : 'heartbeatlist',
-      dbmodeall : 'y'
-    }
-    return this.executeCmsRequest(userId, hostUid, cmsRequest)
+  async heartbeatlistInternal(userId: string, hostUid: string): Promise<HeartbeatListCmsResponse> {
+    const cmsRequest: HeartbeatListCmsRequest = {
+      task: 'heartbeatlist',
+      dbmodeall: 'y',
+    };
+    return this.executeCmsRequest(userId, hostUid, cmsRequest);
+  }
+
+  /**
+   * CMS `ha_start` — `{ task, dbname }` + token; success envelope `task: 'ha_start'`.
+   */
+  @HandleHostErrors()
+  @HandleCmsErrors()
+  async haStart(
+    userId: string,
+    hostUid: string,
+    dbname: string
+  ): Promise<HaStartDatabaseCmsResponse> {
+    const cmsRequest: HaStartDatabaseCmsRequest = {
+      task: 'ha_start',
+      dbname,
+    };
+    return this.executeCmsRequest<HaStartDatabaseCmsRequest, HaStartDatabaseCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
+  }
+
+  /**
+   * CMS `ha_stop` — `{ task, dbname }` + token; success envelope `task: 'ha_stop'`.
+   */
+  @HandleHostErrors()
+  @HandleCmsErrors()
+  async haStop(
+    userId: string,
+    hostUid: string,
+    dbname: string
+  ): Promise<HaStopDatabaseCmsResponse> {
+    const cmsRequest: HaStopDatabaseCmsRequest = {
+      task: 'ha_stop',
+      dbname,
+    };
+    return this.executeCmsRequest<HaStopDatabaseCmsRequest, HaStopDatabaseCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
   }
 }

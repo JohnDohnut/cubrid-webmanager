@@ -1,4 +1,4 @@
-import { HostInfo, DBInfo } from '@type/index';
+import { HostInfo } from '@type/index';
 import { ValidationError } from '@error/validation/validation-error';
 
 /**

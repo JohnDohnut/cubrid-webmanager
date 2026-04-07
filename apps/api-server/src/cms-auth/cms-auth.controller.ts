@@ -19,14 +19,13 @@ export class CmsAuthController {
    * @route POST /:hostUid/cms-auth/login
    * @param request - The Express request object, containing user information from the JWT.
    * @param hostUid - Host unique identifier from path parameter
-   * @returns A boolean indicating successful login.
+   * @returns Login payload: `isHA` false has no extra fields; true includes `currentNodeType` and `haNodes`.
    * @example
    * // POST /host-uid-1/cms-auth/login
    */
   @Post('login')
   async login(@Request() request: any, @Param('hostUid') hostUid: string) {
     const userId = request.user.sub;
-    const rv = (await this.cmsAuthService.login(userId, hostUid)) ? true : false;
-    return rv;
+    return await this.cmsAuthService.login(userId, hostUid);
   }
 }
