@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { usePollingRefresh } from '../../../infrastructure/hooks/usePollingRefresh';
+import React, { useMemo } from 'react';
+import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { fetchDatabaseSpaceInfo } from '../databaseSlice';
 import MonitoringSettingsPopover from '../../user/components/MonitoringSettingsPopover';
 
@@ -8,43 +9,19 @@ import { Typography } from '../../../components/ds/foundation/Typography';
 
 export default function VolumeInfoMonitor({ tabId }) {
   const dispatch = useDispatch();
-  const [lastRefreshed, setLastRefreshed] = useState(new Date());
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const { preferences } = useSelector((state) => state.user);
-  const { refreshCounter } = useSelector((state) => state.layout);
+  const { preferences } = useSelector((state) => state.user, shallowEqual);
   const [, hostUid, dbname, volname] = tabId.split(':');
 
-  const { spaceInfo, spaceInfoLoading } = useSelector((state) => state.databaseMonitoring || {});
+  const { spaceInfo, spaceInfoLoading } = useSelector((state) => state.databaseMonitoring || {}, shallowEqual);
   const dbSpace = spaceInfo?.[dbname];
   const isLoading = spaceInfoLoading?.[dbname];
 
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    try {
-      await dispatch(fetchDatabaseSpaceInfo({ hostUid, dbname })).unwrap();
-      setLastRefreshed(new Date());
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [dispatch, hostUid, dbname]);
-
-  useEffect(() => {
-    if (refreshCounter > 0) {
-      handleRefresh();
-    }
-  }, [refreshCounter]);
-
-  useEffect(() => {
-    if (!dbSpace && !isLoading) {
-      handleRefresh();
-    }
-  }, [dispatch, hostUid, dbname, dbSpace, isLoading]);
-
-  useEffect(() => {
-    if (!preferences.dashboardInterval || preferences.dashboardInterval <= 0) return;
-    const interval = setInterval(handleRefresh, preferences.dashboardInterval * 1000);
-    return () => clearInterval(interval);
-  }, [preferences.dashboardInterval, handleRefresh]);
+  const { isManualRefreshing: isRefreshing, lastRefreshed, handleRefresh } = usePollingRefresh({
+    hostUid,
+    tabId,
+    pollingIntervalSeconds: preferences.dashboardInterval,
+    onFetch: () => () => dispatch(fetchDatabaseSpaceInfo({ hostUid, dbname }))
+  });
 
   const volume = useMemo(() => {
     if (!dbSpace) return null;

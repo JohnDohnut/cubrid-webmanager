@@ -1,5 +1,6 @@
+import { RefreshingOverlay } from '../../../components/ds/feedback/RefreshingOverlay';
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import { useSelector, useDispatch , shallowEqual } from 'react-redux';
 import {
   fetchHosts,
   setSelectedHost,
@@ -62,6 +63,9 @@ import { SplitPane } from '../../../components/ds/layout/SplitPane';
 import { Typography } from '../../../components/ds/foundation/Typography';
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Spinner } from '../../../components/ds/foundation/Spinner';
+import { useActionState } from '../../../infrastructure/hooks/useActionState';
+import { ModalStatusError } from '../../../components/ds/feedback/ActionStatus';
+import { Modal } from '../../../components/ds/layout/Modal';
 import { Button } from '../../../components/ds/foundation/Button';
 
 // Internal Sidebar Components
@@ -101,9 +105,20 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
   const [viewContextMenu, setViewContextMenu] = useState(null);
 
   const dispatch = useDispatch();
-  const { hosts, selectedHostUid, loading: hostsLoading, authorizedHosts, isLoggingIntoHost, hostAuthErrors } = useSelector((state) => state.host);
-  const { databases, activeDatabases, loggedInDatabases, loading: dbActionLoading } = useSelector((state) => state.database);
-  const { brokers, actionLoading: brokerActionLoading } = useSelector((state) => state.broker);
+  const { 
+    startAction, 
+    endError, 
+    resetAction,
+    isLoading: sidebarActionLoading,
+    isError: isSidebarActionError,
+    error: sidebarActionError
+  } = useActionState();
+
+  const [loadingText, setLoadingText] = useState('Updating Resources...');
+
+  const { hosts, selectedHostUid, loading: hostsLoading, authorizedHosts, isLoggingIntoHost, hostAuthErrors } = useSelector((state) => state.host, shallowEqual);
+  const { databases, activeDatabases, loggedInDatabases } = useSelector((state) => state.database, shallowEqual);
+  const { brokers } = useSelector((state) => state.broker, shallowEqual);
 
   useEffect(() => {
     dispatch(fetchHosts());
@@ -451,8 +466,16 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                     />
 
                     <div className="flex-1 overflow-y-auto px-4 pb-4 relative min-h-[200px]">
-                  {/* States Overlay */}
-                  {isLoggingIntoHost && (
+                      {/* States Overlay - Full screen fixed overlay directly handled by component */}
+                      {sidebarActionLoading && (
+                        <RefreshingOverlay 
+                          show={true} 
+                          title={loadingText} 
+                          className="fixed"
+                        />
+                      )}
+                      
+                      {isLoggingIntoHost && (
                     <div className="absolute inset-0 bg-white/80 dark:bg-bk-side z-210 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-200">
                       <div className="size-16 border-4 border-bk-yellow/10 border-t-bk-yellow rounded-full animate-spin mb-6 shadow-[0_0_15px_rgba(255,193,7,0.2)]"></div>
                       <Typography variant="p" className="text-sm font-bold text-slate-900 dark:text-bk-yellow tracking-wide">Host login</Typography>
@@ -471,14 +494,6 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                     </div>
                   )}
 
-                  {(dbActionLoading || brokerActionLoading) && (
-                    <div className="absolute inset-0 bg-white/60 dark:bg-bk-main/60 z-200 flex items-center justify-center backdrop-blur-xs animate-in fade-in duration-200">
-                      <div className="flex flex-col items-center gap-3 bg-white dark:bg-bk-side px-8 py-6 rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10">
-                        <Spinner size="lg" />
-                        <Typography variant="caption" className="font-medium text-slate-900 dark:text-bk-yellow text-[13px]">Processing...</Typography>
-                      </div>
-                    </div>
-                  )}
 
                   <div className={`mt-2 ${(!authorizedHosts.includes(selectedHostUid) || isLoggingIntoHost) ? 'opacity-20 blur-[1px] pointer-events-none' : 'opacity-100'}`} id="db-tree-container">
                     <div className="px-3 flex items-center gap-3 mb-4 opacity-50">
@@ -488,8 +503,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                       </Typography>
                       <div className="h-px flex-1 bg-slate-200 dark:bg-white/5"></div>
                     </div>
-
-                    {activeTab === 'db' && (
+                    <div className={activeTab !== 'db' ? 'hidden' : ''}>
                       <DatabaseTree
                         onContextMenu={handleDbContextMenu}
                         onRootContextMenu={handleDbRootContextMenu}
@@ -503,9 +517,13 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                         onTableContextMenu={handleTableContextMenu}
                         onViewContextMenu={handleViewContextMenu}
                       />
-                    )}
-                    {activeTab === 'broker' && <BrokerTree hostUid={selectedHostUid} onContextMenu={handleBrokerContextMenu} />}
-                    {activeTab === 'log' && <LogTree hostUid={selectedHostUid} />}
+                    </div>
+                    <div className={activeTab !== 'broker' ? 'hidden' : ''}>
+                      <BrokerTree hostUid={selectedHostUid} onContextMenu={handleBrokerContextMenu} />
+                    </div>
+                    <div className={activeTab !== 'log' ? 'hidden' : ''}>
+                      <LogTree hostUid={selectedHostUid} />
+                    </div>
                   </div>
                     </div>
                   </>
@@ -527,22 +545,35 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
             <Typography variant="caption" className="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Server: {contextMenu.server}</Typography>
             <Icon name="dns" size="xs" className="opacity-30"  weight={300} />
           </div>
-          <MenuItem
-            icon="power_settings_new" iconColor="text-rose-500" label="Disconnect"
-            onClick={() => {
-              const hostUid = contextMenu.hostUid;
-              dispatch(revokeHostLogin(hostUid));
-              dispatch(closeHostTabs(hostUid));
-              if (selectedHostUid === hostUid) {
-                dispatch(setSelectedHost(null));
-              }
-              setContextMenu(null);
-            }}
-          />
+          {authorizedHosts.includes(contextMenu.hostUid) ? (
+            <MenuItem
+              icon="power_settings_new" 
+              label="Disconnect"
+              onClick={() => {
+                const hostUid = contextMenu.hostUid;
+                dispatch(revokeHostLogin(hostUid));
+                dispatch(closeHostTabs(hostUid));
+                if (selectedHostUid === hostUid) {
+                  dispatch(setSelectedHost(null));
+                }
+                setContextMenu(null);
+              }}
+            />
+          ) : (
+            <MenuItem
+              icon="login" 
+              label="Connect"
+              onClick={() => {
+                const hostUid = contextMenu.hostUid;
+                handleHostLogin(hostUid);
+                setContextMenu(null);
+              }}
+            />
+          )}
           <MenuDivider />
           <MenuItem icon="add_box" label="Add Host" onClick={() => { onAddHost(); setContextMenu(null); }} />
           <MenuItem icon="edit" label="Edit Host" onClick={() => { dispatch(openEditHostModal(contextMenu.hostUid)); setContextMenu(null); }} />
-          <MenuItem icon="delete" iconColor="text-rose-500" label="Delete Host" onClick={() => { dispatch(openDeleteHostModal({ hostUid: contextMenu.hostUid, alias: contextMenu.alias })); setContextMenu(null); }} />
+          <MenuItem icon="delete" label="Delete Host" onClick={() => { dispatch(openDeleteHostModal({ hostUid: contextMenu.hostUid, alias: contextMenu.alias })); setContextMenu(null); }} />
           <MenuDivider />
           <MenuItem 
             icon="lock" 
@@ -563,27 +594,37 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           {dbContextMenu.isActive ? (
             <MenuItem
               icon="stop"
-              iconColor="text-rose-500"
               label="Stop Database"
-              onClick={() => {
-                dispatch(stopDatabase({ hostUid: selectedHostUid, dbname: dbContextMenu.db }))
-                  .unwrap()
-                  .then(() => dispatch(fetchDatabaseStartInfo(selectedHostUid)))
-                  .catch((err) => dispatch(showStatusModal({ type: 'error', title: 'Action Failed', message: err })));
+              onClick={async () => {
+                const dbName = dbContextMenu.db;
                 setDbContextMenu(null);
+                setLoadingText(`Stopping database : ${dbName} ...`);
+                startAction();
+                try {
+                  await dispatch(stopDatabase({ hostUid: selectedHostUid, dbname: dbName })).unwrap();
+                  dispatch(fetchDatabaseStartInfo(selectedHostUid));
+                  resetAction();
+                } catch (err) {
+                  endError(err);
+                }
               }}
             />
           ) : (
             <MenuItem
               icon="play_arrow"
-              iconColor="text-emerald-500"
               label="Start Database"
-              onClick={() => {
-                dispatch(startDatabase({ hostUid: selectedHostUid, dbname: dbContextMenu.db }))
-                  .unwrap()
-                  .then(() => dispatch(fetchDatabaseStartInfo(selectedHostUid)))
-                  .catch((err) => dispatch(showStatusModal({ type: 'error', title: 'Action Failed', message: err })));
+              onClick={async () => {
+                const dbName = dbContextMenu.db;
                 setDbContextMenu(null);
+                setLoadingText(`Starting database : ${dbName} ...`);
+                startAction();
+                try {
+                  await dispatch(startDatabase({ hostUid: selectedHostUid, dbname: dbName })).unwrap();
+                  dispatch(fetchDatabaseStartInfo(selectedHostUid));
+                  resetAction();
+                } catch (err) {
+                  endError(err);
+                }
               }}
             />
           )}
@@ -606,11 +647,11 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
             <MenuItem icon="auto_fix_high" label="Optimize Database" onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openOptimizeDatabaseModal()); setDbContextMenu(null); }} />
             <MenuItem icon="content_copy" label="Copy Database" onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openCopyDatabaseModal()); setDbContextMenu(null); }} />
             <MenuDivider />
-            <MenuItem icon="drive_file_rename_outline" iconColor="text-accent-orange" label="Rename Database" disabled={dbContextMenu.isActive} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openRenameDatabaseModal()); setDbContextMenu(null); }} />
+            <MenuItem icon="drive_file_rename_outline" label="Rename Database" disabled={dbContextMenu.isActive} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openRenameDatabaseModal()); setDbContextMenu(null); }} />
             <MenuItem icon="restore" label="Restore Database" disabled={dbContextMenu.isActive} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openRestoreDatabaseModal()); setDbContextMenu(null); }} />
             <MenuItem icon="backup" label="Backup Database" onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openBackupDatabaseModal()); setDbContextMenu(null); }} />
             <MenuDivider />
-            <MenuItem icon="delete" iconColor="text-accent-red" label="Delete Database" disabled={dbContextMenu.isActive} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openDeleteDatabaseModal(dbContextMenu.db)); setDbContextMenu(null); }} />
+            <MenuItem icon="delete" label="Delete Database" disabled={dbContextMenu.isActive} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openDeleteDatabaseModal(dbContextMenu.db)); setDbContextMenu(null); }} />
           </SubMenu>
 
           <SubMenu icon="info" label="Database Info" width="w-52">
@@ -658,63 +699,83 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           </div>
           <MenuItem
             icon="play_circle"
-            iconColor="text-emerald-500"
             label="Start All Databases"
-            onClick={() => {
-              databases.forEach(db => {
-                if (!activeDatabases.includes(db.dbname)) {
-                  dispatch(startDatabase({ hostUid: selectedHostUid, dbname: db.dbname }));
-                }
-              });
+            onClick={async () => {
               setDbRootContextMenu(null);
+              setLoadingText(`Starting all databases ...`);
+              startAction();
+              try {
+                for (const db of databases) {
+                  if (!activeDatabases.includes(db.dbname)) {
+                    await dispatch(startDatabase({ hostUid: selectedHostUid, dbname: db.dbname })).unwrap();
+                  }
+                }
+                dispatch(fetchDatabaseStartInfo(selectedHostUid));
+                resetAction();
+              } catch (err) {
+                endError(err);
+              }
             }}
           />
           <MenuItem
             icon="stop_circle"
-            iconColor="text-rose-500"
             label="Stop All Databases"
-            onClick={() => {
-              activeDatabases.forEach(dbname => {
-                dispatch(stopDatabase({ hostUid: selectedHostUid, dbname }));
-              });
+            onClick={async () => {
               setDbRootContextMenu(null);
+              setLoadingText(`Stopping all databases ...`);
+              startAction();
+              try {
+                for (const dbname of activeDatabases) {
+                  await dispatch(stopDatabase({ hostUid: selectedHostUid, dbname })).unwrap();
+                }
+                dispatch(fetchDatabaseStartInfo(selectedHostUid));
+                resetAction();
+              } catch (err) {
+                endError(err);
+              }
             }}
           />
           <MenuItem
             icon="restart_alt"
-            iconColor="text-amber-500"
             label="Restart All Databases"
             onClick={async () => {
-              const currentActive = [...activeDatabases];
-              for (const dbname of currentActive) {
-                await dispatch(stopDatabase({ hostUid: selectedHostUid, dbname })).unwrap();
-              }
-              for (const dbname of currentActive) {
-                await dispatch(startDatabase({ hostUid: selectedHostUid, dbname })).unwrap();
-              }
               setDbRootContextMenu(null);
+              setLoadingText(`Restarting all databases ...`);
+              startAction();
+              try {
+                const currentActive = [...activeDatabases];
+                for (const dbname of currentActive) {
+                  await dispatch(stopDatabase({ hostUid: selectedHostUid, dbname })).unwrap();
+                }
+                for (const dbname of currentActive) {
+                  await dispatch(startDatabase({ hostUid: selectedHostUid, dbname })).unwrap();
+                }
+                dispatch(fetchDatabaseStartInfo(selectedHostUid));
+                resetAction();
+              } catch (err) {
+                endError(err);
+              }
             }}
           />
           <MenuDivider />
           <MenuItem
             icon="add_circle"
-            iconColor="text-emerald-500"
             label="Create Database"
             onClick={() => {
-              dispatch(openCreateDatabaseModal());
               setDbRootContextMenu(null);
+              dispatch(openCreateDatabaseModal());
             }}
           />
           <MenuItem
             icon="refresh"
             label="Refresh"
             onClick={() => {
-              dispatch(fetchDatabaseStartInfo(selectedHostUid));
               setDbRootContextMenu(null);
+              dispatch(fetchDatabaseStartInfo(selectedHostUid));
             }}
           />
           <MenuDivider />
-          <MenuItem icon="tune" label="Properties" onClick={() => { dispatch(setSelectedDatabase(null)); dispatch(openDatabasePropertyModal()); setDbRootContextMenu(null); }} />
+          <MenuItem icon="tune" label="Properties" onClick={() => { setDbRootContextMenu(null); dispatch(setSelectedDatabase(null)); dispatch(openDatabasePropertyModal()); }} />
         </ContextMenuWrapper>
       )}
 
@@ -726,43 +787,64 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           </div>
           <MenuItem
             icon="play_circle"
-            iconColor="text-emerald-500"
             label="Start All Brokers"
-            onClick={() => {
-              brokers.forEach(broker => {
-                if (broker.state !== 'ON') {
-                  dispatch(startBroker({ hostUid: selectedHostUid, brokerName: broker.name }));
-                }
-              });
+            onClick={async () => {
               setBrokerRootContextMenu(null);
+              setLoadingText(`Starting all brokers ...`);
+              startAction();
+              try {
+                for (const broker of brokers) {
+                  if (broker.state !== 'ON') {
+                    await dispatch(startBroker({ hostUid: selectedHostUid, brokerName: broker.name })).unwrap();
+                  }
+                }
+                dispatch(fetchBrokerList(selectedHostUid));
+                resetAction();
+              } catch (err) {
+                endError(err);
+              }
             }}
           />
           <MenuItem
             icon="stop_circle"
-            iconColor="text-rose-500"
             label="Stop All Brokers"
-            onClick={() => {
-              brokers.forEach(broker => {
-                if (broker.state === 'ON') {
-                  dispatch(stopBroker({ hostUid: selectedHostUid, brokerName: broker.name }));
-                }
-              });
+            onClick={async () => {
               setBrokerRootContextMenu(null);
+              setLoadingText(`Stopping all brokers ...`);
+              startAction();
+              try {
+                for (const broker of brokers) {
+                  if (broker.state === 'ON') {
+                    await dispatch(stopBroker({ hostUid: selectedHostUid, brokerName: broker.name })).unwrap();
+                  }
+                }
+                dispatch(fetchBrokerList(selectedHostUid));
+                resetAction();
+              } catch (err) {
+                endError(err);
+              }
             }}
           />
           <MenuItem
             icon="restart_alt"
-            iconColor="text-amber-500"
             label="Restart All Brokers"
             onClick={async () => {
-              const currentActive = brokers.filter(b => b.state === 'ON').map(b => b.name);
-              for (const name of currentActive) {
-                await dispatch(stopBroker({ hostUid: selectedHostUid, brokerName: name })).unwrap();
-              }
-              for (const name of currentActive) {
-                await dispatch(startBroker({ hostUid: selectedHostUid, brokerName: name })).unwrap();
-              }
               setBrokerRootContextMenu(null);
+              setLoadingText(`Restarting all brokers ...`);
+              startAction();
+              try {
+                const currentActive = brokers.filter(b => b.state === 'ON').map(b => b.name);
+                for (const name of currentActive) {
+                  await dispatch(stopBroker({ hostUid: selectedHostUid, brokerName: name })).unwrap();
+                }
+                for (const name of currentActive) {
+                  await dispatch(startBroker({ hostUid: selectedHostUid, brokerName: name })).unwrap();
+                }
+                dispatch(fetchBrokerList(selectedHostUid));
+                resetAction();
+              } catch (err) {
+                endError(err);
+              }
             }}
           />
           <MenuDivider />
@@ -770,28 +852,28 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
             icon="settings"
             label="Edit Broker Config"
             onClick={() => {
+              setBrokerRootContextMenu(null);
               if (selectedHostUid) {
                 dispatch(openTab(`broker_config:${selectedHostUid}`));
               }
-              setBrokerRootContextMenu(null);
             }}
           />
           <MenuItem
             icon="info"
             label="Show Status"
             onClick={() => {
+              setBrokerRootContextMenu(null);
               if (selectedHostUid) {
                 dispatch(openTab(`brokers_status:${selectedHostUid}`));
               }
-              setBrokerRootContextMenu(null);
             }}
           />
           <MenuItem
             icon="refresh"
             label="Refresh"
             onClick={() => {
-              dispatch(fetchBrokerList(selectedHostUid));
               setBrokerRootContextMenu(null);
+              dispatch(fetchBrokerList(selectedHostUid));
             }}
           />
         </ContextMenuWrapper>
@@ -806,27 +888,37 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           {brokerContextMenu.state === 'ON' ? (
             <MenuItem
               icon="stop"
-              iconColor="text-rose-500"
               label="Stop Broker"
-              onClick={() => {
-                dispatch(stopBroker({ hostUid: selectedHostUid, brokerName: brokerContextMenu.broker }))
-                  .unwrap()
-                  .then(() => dispatch(fetchBrokerList(selectedHostUid)))
-                  .catch((err) => dispatch(showStatusModal({ type: 'error', title: 'Action Failed', message: err })));
+              onClick={async () => {
+                const bName = brokerContextMenu.broker;
                 setBrokerContextMenu(null);
+                setLoadingText(`Stopping broker : ${bName} ...`);
+                startAction();
+                try {
+                  await dispatch(stopBroker({ hostUid: selectedHostUid, brokerName: bName })).unwrap();
+                  dispatch(fetchBrokerList(selectedHostUid));
+                  resetAction();
+                } catch (err) {
+                  endError(err);
+                }
               }}
             />
           ) : (
             <MenuItem
               icon="play_arrow"
-              iconColor="text-emerald-500"
               label="Start Broker"
-              onClick={() => {
-                dispatch(startBroker({ hostUid: selectedHostUid, brokerName: brokerContextMenu.broker }))
-                  .unwrap()
-                  .then(() => dispatch(fetchBrokerList(selectedHostUid)))
-                  .catch((err) => dispatch(showStatusModal({ type: 'error', title: 'Action Failed', message: err })));
+              onClick={async () => {
+                const bName = brokerContextMenu.broker;
                 setBrokerContextMenu(null);
+                setLoadingText(`Starting broker : ${bName} ...`);
+                startAction();
+                try {
+                  await dispatch(startBroker({ hostUid: selectedHostUid, brokerName: bName })).unwrap();
+                  dispatch(fetchBrokerList(selectedHostUid));
+                  resetAction();
+                } catch (err) {
+                  endError(err);
+                }
               }}
             />
           )}
@@ -893,7 +985,6 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           />
           <MenuItem
             icon="person_remove"
-            iconColor="text-rose-500"
             label="Drop DB User"
             onClick={() => {
               dispatch(openDropUserModal({ dbname: userContextMenu.db, userName: userContextMenu.user }));
@@ -1020,7 +1111,6 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           />
           <MenuItem
             icon="delete_forever"
-            iconColor="text-rose-500"
             label="Delete Backup Plan"
             onClick={() => {
               dispatch(setSelectedDatabase(backupItemContextMenu.db));
@@ -1096,7 +1186,6 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           />
           <MenuItem
             icon="delete_forever"
-            iconColor="text-rose-500"
             label="Delete Query Plan"
             onClick={() => {
               dispatch(setSelectedDatabase(queryItemContextMenu.db));
@@ -1141,7 +1230,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           <MenuItem icon="link" label="Foreign Keys" />
           <MenuDivider />
           <MenuItem icon="difference" label="Rename Table" />
-          <MenuItem icon="delete_forever" iconColor="text-rose-500" label="Drop Table" />
+          <MenuItem icon="delete_forever" label="Drop Table" />
         </ContextMenuWrapper>
       )}
 
@@ -1164,7 +1253,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           />
           <MenuItem icon="grid_on" label="View Data" />
           <MenuDivider />
-          <MenuItem icon="delete_forever" iconColor="text-rose-500" label="Drop View" />
+          <MenuItem icon="delete_forever" label="Drop View" />
         </ContextMenuWrapper>
       )}
 
@@ -1174,6 +1263,17 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
       <EditQueryPlanModal />
       <DeleteQueryPlanModal />
       <AutoVolumeLogModal />
+      {isSidebarActionError && (
+        <Modal isOpen title="Action Failed" icon="error" iconVariant="danger" onClose={resetAction} maxWidth="400px">
+          <ModalStatusError 
+            title="Update Interrupted"
+            error={sidebarActionError}
+            onRetry={resetAction}
+            onCancel={resetAction}
+            retryText="Dismiss"
+          />
+        </Modal>
+      )}
     </>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import { useSelector, useDispatch , shallowEqual } from 'react-redux';
 import { updateAccount, fetchUser } from '../../auth/authSlice';
 import { authApi } from '../../auth/authApi';
 
@@ -9,7 +9,7 @@ import { Button } from '../../../components/ds/foundation/Button';
 import { Input } from '../../../components/ds/forms/Input';
 
 export default function UserProfileModal({ isOpen, onClose }) {
-  const { user } = useSelector((state) => state.auth);
+  const { user } = useSelector((state) => state.auth, shallowEqual);
   const [editMode, setEditMode] = useState(null); // 'profile' | 'password' | null
 
   const [profile, setProfile] = useState({
@@ -24,12 +24,15 @@ export default function UserProfileModal({ isOpen, onClose }) {
   });
 
   useEffect(() => {
-    if (user) {
-      const newProfile = { id: user.id || '', department: user.department || '' };
+    if (isOpen) {
+      const newProfile = { id: user?.id || '', department: user?.department || '' };
       setProfile(newProfile);
-      if (!editMode) setEditProfile(newProfile);
+      setEditProfile(newProfile);
+      setPasswords({ oldPassword: '', newPassword: '', confirmPassword: '' });
+      setEditMode(null);
+      setError(null);
     }
-  }, [user, editMode]);
+  }, [isOpen, user]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -84,7 +87,7 @@ export default function UserProfileModal({ isOpen, onClose }) {
   const footer = editMode ? (
     <>
       <Button variant="ghost" onClick={handleCancel} disabled={loading || globalLoading}>
-        Cancel
+        Discard
       </Button>
       <Button
         onClick={handleSave}
