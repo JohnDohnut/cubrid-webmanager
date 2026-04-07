@@ -21,7 +21,7 @@ import { FileModule } from '@file/file.module';
 import { DatabaseModule } from '@database/database.module';
 import { CmsHttpsClientModule } from '@cms-https-client/cms-https-client.module';
 import { LogModule } from './log/log.module';
-import { HaModule } from './ha/ha.module';
+import { HaModule } from '@ha';
 
 /**
  * Root application module that configures all feature modules and global providers.

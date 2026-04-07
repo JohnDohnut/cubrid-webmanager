@@ -1,9 +1,6 @@
 import { StorageErrorCode, StorageError } from '@error/storage/storage-error';
 import { Injectable } from '@nestjs/common';
-import {
-    getStoragePath,
-    resolveUserFilePath,
-} from '@util/resolve-storage-path';
+import { getStoragePath, resolveUserFilePath } from '@util';
 import * as fs from 'fs/promises';
 import { LockService } from '@lock/lock.service';
 import { HandleStorageFsErrors } from '@decorators/handle-storage-fs-errors.decorator';

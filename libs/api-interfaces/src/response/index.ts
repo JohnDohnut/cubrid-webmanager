@@ -7,6 +7,7 @@ export * from './host-response';
 export * from './login-response';
 export * from './user-response';
 export * from './standard-response';
+export * from './cms-host-login-client-response';
 // Client response aliases
 export * from './host-client-response';
 export * from './broker-client-response';
