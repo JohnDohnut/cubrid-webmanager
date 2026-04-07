@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeSetAutomationVolumeModal, fetchAutoVolumeConfig, updateAutoVolumeConfig } from '../databaseSlice';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
@@ -8,6 +8,12 @@ import { Button } from '../../../components/ds/foundation/Button';
 import { Input } from '../../../components/ds/forms/Input';
 import { Toggle } from '../../../components/ds/forms/Toggle';
 import { Typography } from '../../../components/ds/foundation/Typography';
+import { useActionState } from '../../../infrastructure/hooks/useActionState';
+import { 
+  ModalStatusLoading, 
+  ModalStatusSuccess, 
+  ModalStatusError 
+} from '../../../components/ds/feedback/ActionStatus';
 
 const PAGE_SIZE_BYTES = 16384;
 const BYTES_TO_MB = 1024 * 1024;
@@ -108,15 +114,14 @@ const PolicyCard = memo(({ title, icon, description, enabled, onToggle, threshol
               suffix={<span className="text-[9px] font-bold text-slate-400">MB</span>}
             />
           </div>
-          <div className="space-y-1">
-            <Typography variant="caption" className="text-[10px] font-semibold text-slate-400 block">
-              Extension pages
-            </Typography>
-            <div className="h-10 px-3.5 flex items-center justify-between bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 rounded-xl">
-              <span className="text-[12px] font-mono font-bold text-slate-600 dark:text-slate-300">{extensionUnits.toLocaleString()}</span>
-              <span className="text-[9px] text-slate-400 font-semibold">pages</span>
-            </div>
-          </div>
+            <Input
+              label="Extension pages"
+              size="sm"
+              readOnly
+              value={extensionUnits.toLocaleString()}
+              suffix="pages"
+              inputClassName="font-mono font-bold text-slate-600 dark:text-slate-300"
+            />
         </div>
       </div>
     </div>
@@ -126,14 +131,22 @@ const PolicyCard = memo(({ title, icon, description, enabled, onToggle, threshol
 // ── Main Component ─────────────────────────────────────────────
 export default function SetAutomationVolumeModal() {
   const dispatch = useDispatch();
-  const { isSetAutomationVolumeModalOpen } = useSelector((state) => state.databaseUI);
-  const { selectedDatabase } = useSelector((state) => state.database);
-  const { autoVolumeConfigs, autoVolumeLoading } = useSelector((state) => state.databaseConfiguration);
-  const { selectedHostUid } = useSelector((state) => state.host);
+  const { isSetAutomationVolumeModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
+  const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
+  const { autoVolumeConfigs, autoVolumeLoading } = useSelector((state) => state.databaseConfiguration, shallowEqual);
+  const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
 
-  const [view, setView] = useState(VIEW_FORM);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
+  const { 
+    state, 
+    error: actionError, 
+    startAction, 
+    endSuccess, 
+    endError, 
+    resetAction,
+    isLoading,
+    isSuccess,
+    isError
+  } = useActionState();
 
   const [dataEnabled, setDataEnabled]       = useState(false);
   const [dataThreshold, setDataThreshold]   = useState(15);
@@ -144,12 +157,13 @@ export default function SetAutomationVolumeModal() {
 
   useEffect(() => {
     if (isSetAutomationVolumeModalOpen && selectedHostUid && selectedDatabase) {
+      resetAction();
+      // Reset local state before fetching new config to avoid stale view
+      setDataEnabled(false);
+      setIndexEnabled(false);
       dispatch(fetchAutoVolumeConfig({ hostUid: selectedHostUid, dbname: selectedDatabase }));
-      setView(VIEW_FORM);
-      setErrorMsg('');
-      setSuccessMsg('');
     }
-  }, [isSetAutomationVolumeModalOpen, selectedHostUid, selectedDatabase, dispatch]);
+  }, [isSetAutomationVolumeModalOpen, selectedHostUid, selectedDatabase, dispatch, resetAction]);
 
   useEffect(() => {
     if (!selectedDatabase || !autoVolumeConfigs) return;
@@ -165,8 +179,7 @@ export default function SetAutomationVolumeModal() {
   }, [autoVolumeConfigs, selectedDatabase]);
 
   const handleSave = useCallback(async () => {
-    setView(VIEW_LOADING);
-    setErrorMsg('');
+    startAction();
     const payload = {
       data: dataEnabled ? 'ON' : 'OFF',
       data_warn_outofspace: (dataThreshold / 100).toFixed(2),
@@ -177,82 +190,52 @@ export default function SetAutomationVolumeModal() {
     };
     try {
       await dispatch(updateAutoVolumeConfig({ hostUid: selectedHostUid, dbname: selectedDatabase, payload })).unwrap();
-      setSuccessMsg(`Auto-volume policies for "${selectedDatabase}" were saved successfully.`);
-      setView(VIEW_SUCCESS);
+      endSuccess(`Auto-volume policies for "${selectedDatabase}" were saved successfully.`);
     } catch (err) {
-      setErrorMsg(typeof err === 'string' ? err : (err?.message || 'Failed to save configuration. Please try again.'));
-      setView(VIEW_ERROR);
+      endError(typeof err === 'string' ? err : (err?.message || 'Failed to save configuration. Please try again.'));
     }
-  }, [dataEnabled, dataThreshold, dataAddSize, indexEnabled, indexThreshold, indexAddSize, selectedHostUid, selectedDatabase, dispatch]);
+  }, [dataEnabled, dataThreshold, dataAddSize, indexEnabled, indexThreshold, indexAddSize, selectedHostUid, selectedDatabase, dispatch, startAction, endSuccess, endError]);
 
   const handleClose = () => dispatch(closeSetAutomationVolumeModal());
 
   /* ── LOADING ── */
-  if (view === VIEW_LOADING) {
+  if (isLoading) {
     return (
-      <Modal isOpen title="Auto Volume" icon="settings_suggest" onClose={handleClose} maxWidth="max-w-md">
-        <div className="flex flex-col items-center justify-center py-14 gap-5 text-center animate-in fade-in duration-300">
-          <div className="relative w-14 h-14">
-            <div className="absolute inset-0 rounded-full border-2 border-slate-100 dark:border-white/5" />
-            <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-amber-500 animate-spin" style={{ animationDuration: '0.8s' }} />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Icon name="storage" size="md" weight={300} className="text-amber-500 animate-pulse" />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <Typography variant="h4" className="text-[14px] font-bold text-slate-800 dark:text-white">Saving policies…</Typography>
-            <Typography variant="p" className="text-[11px] text-slate-400">
-              Updating configuration for <span className="font-bold text-slate-700 dark:text-slate-200 font-mono">{selectedDatabase}</span>
-            </Typography>
-          </div>
-        </div>
+      <Modal isOpen title="Set Auto Volume" icon="settings_suggest" onClose={handleClose} maxWidth="max-w-md">
+        <ModalStatusLoading 
+          title="Saving Policies" 
+          subtitle={`Updating configuration for ${selectedDatabase}.`}
+        />
       </Modal>
     );
   }
 
   /* ── SUCCESS ── */
-  if (view === VIEW_SUCCESS) {
+  if (isSuccess) {
     return (
-      <Modal isOpen title="Auto Volume" icon="settings_suggest" iconVariant="success" onClose={handleClose} maxWidth="max-w-md">
-        <div className="flex flex-col items-center justify-center py-12 gap-5 text-center animate-in fade-in duration-300">
-          <div className="relative">
-            <div className="absolute inset-0 bg-emerald-400/15 rounded-full animate-ping" style={{ animationDuration: '2.5s' }} />
-            <div className="relative w-14 h-14 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/20">
-              <Icon name="check" size="md" weight={400} className="text-white" />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <Typography variant="h4" className="text-[14px] font-bold text-slate-800 dark:text-white">Saved</Typography>
-            <Typography variant="p" className="text-[11px] text-slate-400 max-w-xs mx-auto leading-relaxed">{successMsg}</Typography>
-          </div>
-          <Button variant="secondary" onClick={handleClose} size="sm" className="px-8 mt-2">Close</Button>
-        </div>
+      <Modal isOpen title="Configuration Saved" icon="settings_suggest" iconVariant="success" onClose={handleClose} maxWidth="max-w-md">
+        <ModalStatusSuccess 
+          title="Saved Successfully"
+          message={`Auto-volume policies for ${selectedDatabase} were saved successfully.`}
+          onConfirm={handleClose}
+          confirmText="Acknowledge"
+        />
       </Modal>
     );
   }
 
   /* ── ERROR ── */
-  if (view === VIEW_ERROR) {
+  if (isError) {
     return (
-      <Modal isOpen title="Auto Volume" icon="settings_suggest" iconVariant="danger" onClose={handleClose} maxWidth="max-w-md">
-        <div className="flex flex-col items-center justify-center py-10 gap-5 text-center animate-in fade-in duration-300">
-          <div className="w-14 h-14 bg-rose-500 rounded-full flex items-center justify-center shadow-lg shadow-rose-500/20">
-            <Icon name="error" size="md" weight={400} className="text-white" />
-          </div>
-          <div className="space-y-1">
-            <Typography variant="h4" className="text-[14px] font-bold text-slate-800 dark:text-white">Failed to Save</Typography>
-            <Typography variant="p" className="text-[11px] text-slate-400">Something went wrong. Please check and try again.</Typography>
-          </div>
-          <div className="w-full bg-rose-500/5 border border-rose-500/15 rounded-sm px-4 py-3 text-left">
-            <Typography variant="caption" className="text-rose-400 font-mono text-[10px] leading-relaxed block break-words">
-              {errorMsg}
-            </Typography>
-          </div>
-          <div className="flex items-center gap-2 mt-1">
-            <Button variant="secondary" onClick={handleClose} size="sm">Cancel</Button>
-            <Button variant="primary" icon="refresh" onClick={() => { setView(VIEW_FORM); setErrorMsg(''); }} size="sm">Retry</Button>
-          </div>
-        </div>
+      <Modal isOpen title="Update Failed" icon="settings_suggest" iconVariant="danger" onClose={resetAction} maxWidth="max-w-md">
+        <ModalStatusError 
+          title="Save Interrupted"
+          error={actionError}
+          onRetry={handleSave}
+          onCancel={resetAction}
+          retryText="Retry Update"
+          cancelText="Dismiss"
+        />
       </Modal>
     );
   }
@@ -272,16 +255,15 @@ export default function SetAutomationVolumeModal() {
             Page size: 16K
           </Typography>
           <div className="flex gap-2">
-            <Button variant="ghost" onClick={handleClose} size="sm">Cancel</Button>
+            <Button variant="ghost" onClick={handleClose}>Discard</Button>
             <Button
               variant="primary"
               onClick={handleSave}
               loading={autoVolumeLoading}
               icon="save"
-              size="sm"
-              className="px-6 shadow-sm shadow-amber-500/20"
+              className="min-w-[140px] shadow-sm shadow-amber-500/20"
             >
-              Save
+              Save Policies
             </Button>
           </div>
         </div>

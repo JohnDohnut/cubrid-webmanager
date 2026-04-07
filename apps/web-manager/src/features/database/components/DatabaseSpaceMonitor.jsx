@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo, memo, useRef } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { usePollingRefresh } from '../../../infrastructure/hooks/usePollingRefresh';
+import React, { useState, useCallback, useMemo, memo } from 'react';
+import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { databaseApi } from '../databaseApi';
 import { openTab } from '../../layout/layoutSlice';
 import MonitoringSettingsPopover from '../../user/components/MonitoringSettingsPopover';
+import { formatSize } from '../../../infrastructure/utils/format';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Typography } from '../../../components/ds/foundation/Typography';
@@ -24,16 +26,6 @@ const cleanInt = (v) => {
   if (!v) return 0;
   const cleaned = v.toString().replace(/,/g, '').split(' ')[0];
   return parseInt(cleaned) || 0;
-};
-
-const formatSize = (bytes) => {
-  const b = cleanInt(bytes);
-  if (b === 0) return '0 B';
-  if (b >= 1024 ** 4) return `${(b / 1024 ** 4).toFixed(2)} TB`;
-  if (b >= 1024 ** 3) return `${(b / 1024 ** 3).toFixed(2)} GB`;
-  if (b >= 1024 ** 2) return `${(b / 1024 ** 2).toFixed(2)} MB`;
-  if (b >= 1024) return `${(b / 1024).toFixed(2)} KB`;
-  return `${b} B`;
 };
 
 const formatPages = (pages) => cleanInt(pages).toLocaleString();
@@ -355,70 +347,25 @@ const DistributionChart = memo(({ totals }) => (
 
 // ── Main Component ──
 
-export default function DatabaseSpaceMonitor({ hostUid, dbname }) {
-  const { preferences } = useSelector((state) => state.user);
-  const { refreshCounter, activeMainTab } = useSelector((state) => state.layout);
+const Component = function DatabaseSpaceMonitor({ hostUid, dbname }) {
+  const { preferences } = useSelector((state) => state.user, shallowEqual);
   const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [lastRefreshed, setLastRefreshed] = useState(new Date());
-  
-  const [isBrowserVisible, setIsBrowserVisible] = useState(document.visibilityState === 'visible');
-  const isTabActive = isBrowserVisible && activeMainTab === `db_space:${hostUid}:${dbname}`;
-  const isActiveRef = useRef(isTabActive);
-  const initialLoadDone = useRef(false);
 
-  const fetchSpaceInfo = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    try {
-      const response = await databaseApi.getVolumeInfo(hostUid, dbname);
-      setData(response);
-      setError(null);
-      setLastRefreshed(new Date());
-    } catch (err) {
-       setError('Could not retrieve database space information.');
-    } finally {
-      if (!silent) setLoading(false);
+  const { isManualRefreshing: loading, lastRefreshed, handleRefresh: fetchSpaceInfo } = usePollingRefresh({
+    hostUid,
+    tabId: `db_space:${hostUid}:${dbname}`,
+    pollingIntervalSeconds: preferences.dashboardInterval,
+    onFetch: () => async () => {
+      try {
+        const response = await databaseApi.getVolumeInfo(hostUid, dbname);
+        setData(response);
+        setError(null);
+      } catch (err) {
+        setError(err.message || 'Failed to fetch space info');
+      }
     }
-  }, [hostUid, dbname]);
-
-  // 1. Browser Visibility Listener
-  useEffect(() => {
-    const handleVisibilityChange = () => setIsBrowserVisible(document.visibilityState === 'visible');
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []);
-
-  // 2. Global Refresh (F5) Listener
-  useEffect(() => {
-    if (refreshCounter > 0 && isTabActive) {
-      fetchSpaceInfo();
-    }
-  }, [refreshCounter, fetchSpaceInfo, isTabActive]);
-
-  // 3. Initial Load
-  useEffect(() => {
-    if (hostUid && dbname && !initialLoadDone.current) {
-      initialLoadDone.current = true;
-      fetchSpaceInfo();
-    }
-  }, [hostUid, dbname, fetchSpaceInfo]);
-
-  // 4. Sync Ref and Trigger One-Time Resume Fetch
-  useEffect(() => {
-    const becameActive = !isActiveRef.current && isTabActive;
-    isActiveRef.current = isTabActive;
-    if (becameActive && initialLoadDone.current && preferences.dashboardInterval > 0) fetchSpaceInfo(true);
-  }, [isTabActive, fetchSpaceInfo, preferences.dashboardInterval]);
-
-  // 5. Background Polling Timer
-  useEffect(() => {
-    if (!isTabActive || preferences.dashboardInterval <= 0) return;
-    const timer = setInterval(() => {
-      if (isActiveRef.current) fetchSpaceInfo(true);
-    }, preferences.dashboardInterval * 1000);
-    return () => clearInterval(timer);
-  }, [isTabActive, preferences.dashboardInterval, fetchSpaceInfo]);
+  });
 
   const totals = useMemo(() => {
     if (!data?.dbinfo) return null;
@@ -476,3 +423,5 @@ export default function DatabaseSpaceMonitor({ hostUid, dbname }) {
     </div>
   );
 }
+
+export default React.memo(Component);

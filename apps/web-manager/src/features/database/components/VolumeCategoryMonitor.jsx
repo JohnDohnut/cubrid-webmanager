@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import { usePollingRefresh } from '../../../infrastructure/hooks/usePollingRefresh';
+import React, { useMemo, memo } from 'react';
+import { useSelector, shallowEqual } from 'react-redux';
 import { fetchDatabaseSpaceInfo } from '../databaseSlice';
 import MonitoringSettingsPopover from '../../user/components/MonitoringSettingsPopover';
+import { formatPagesToSize } from '../../../infrastructure/utils/format';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Typography } from '../../../components/ds/foundation/Typography';
@@ -17,12 +19,6 @@ const CATEGORY_META = {
   Archive: { label: 'Archive Log', icon: 'inventory_2', color: 'text-slate-400', bg: 'bg-slate-500/10', border: 'border-slate-400/20', dot: 'bg-slate-400' },
 };
 
-const formatSize = (pages, pageSize) => {
-  const bytes = parseInt(pages) * pageSize;
-  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
-  if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(2)} MB`;
-  return `${(bytes / 1024).toFixed(2)} KB`;
-};
 
 const formatMB = (pages, pageSize) => ((parseInt(pages) * pageSize) / (1024 * 1024)).toFixed(1);
 
@@ -60,7 +56,7 @@ const CategoryHeader = memo(({ meta, summary, usageSeverity, pageSize, onRefresh
       <div className="hidden lg:flex items-center gap-6 mr-4 opacity-80">
         <div className="text-right">
           <Typography variant="label" className="text-[8px] text-slate-400 font-bold uppercase tracking-widest block mb-0.5">Capacity</Typography>
-          <Typography variant="p" className="text-[12px] font-black text-slate-700 dark:text-slate-200 font-mono leading-none">{formatSize(summary.total, pageSize)}</Typography>
+          <Typography variant="p" className="text-[12px] font-black text-slate-700 dark:text-slate-200 font-mono leading-none">{formatPagesToSize(summary.total, pageSize)}</Typography>
         </div>
         <div className="w-px h-6 bg-slate-200 dark:bg-white/6" />
         <div className="text-right">
@@ -95,7 +91,7 @@ const CategoryStats = memo(({ volumes, summary, pageSize }) => (
   <div className="grid grid-cols-3 gap-3">
     {[
       { label: 'Volumes', val: volumes.length, icon: 'layers', color: 'text-sky-500' },
-      { label: 'Provisioned', val: formatSize(summary.total, pageSize), icon: 'dns', color: 'text-slate-600' },
+      { label: 'Provisioned', val: formatPagesToSize(summary.total, pageSize), icon: 'dns', color: 'text-slate-600' },
       { label: 'Used capacity', val: `${summary.pct.toFixed(1)}%`, icon: 'donut_small', color: 'text-amber-500' },
     ].map((stat, i) => (
       <div key={i} className="bg-white dark:bg-white/2 border border-slate-200 dark:border-white/5 rounded-sm p-3.5 flex flex-col gap-1.5 shadow-xs">
@@ -121,8 +117,8 @@ const UtilizationBar = memo(({ summary, usageSeverity, pageSize }) => (
       </div>
     </div>
     <div className="flex justify-between mt-1.5">
-      <Typography variant="label" className="text-[9px] text-slate-400 font-mono">{formatSize(summary.used, pageSize)} used</Typography>
-      <Typography variant="label" className="text-[9px] text-slate-400 font-mono">{formatSize(summary.free, pageSize)} free</Typography>
+      <Typography variant="label" className="text-[9px] text-slate-400 font-mono">{formatPagesToSize(summary.used, pageSize)} used</Typography>
+      <Typography variant="label" className="text-[9px] text-slate-400 font-mono">{formatPagesToSize(summary.free, pageSize)} free</Typography>
     </div>
   </div>
 ));
@@ -174,7 +170,7 @@ const VolumeTableContainer = memo(({ volumes, pageSize }) => (
           accessor: 'totalpage',
           className: 'text-right',
           render: (val) => (
-            <span className="text-[13px] font-bold text-slate-600 dark:text-slate-300 font-mono">{formatSize(val, pageSize)}</span>
+            <span className="text-[13px] font-bold text-slate-600 dark:text-slate-300 font-mono">{formatPagesToSize(val, pageSize)}</span>
           )
         },
         {
@@ -195,47 +191,21 @@ const VolumeTableContainer = memo(({ volumes, pageSize }) => (
 
 // ── Main Component ──
 
-export default function VolumeCategoryMonitor({ hostUid, dbname, category }) {
-  const dispatch = useDispatch();
-  const { spaceInfo, spaceInfoLoading } = useSelector((state) => state.databaseMonitoring);
-  const { preferences } = useSelector((state) => state.user);
-  const { refreshCounter } = useSelector((state) => state.layout);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [lastRefreshed, setLastRefreshed] = useState(new Date());
+const Component = function VolumeCategoryMonitor({ hostUid, dbname, category }) {
+  const { spaceInfo, spaceInfoLoading } = useSelector((state) => state.databaseMonitoring || {}, shallowEqual);
+  const { preferences } = useSelector((state) => state.user, shallowEqual);
+  
+  const tabId = `vol_category:${hostUid}:${dbname}:${category}`;
+  const { isManualRefreshing: isRefreshing, lastRefreshed, handleRefresh } = usePollingRefresh({
+    hostUid,
+    tabId,
+    pollingIntervalSeconds: preferences?.dashboardInterval || 0,
+    onFetch: () => (dispatch) => dispatch(fetchDatabaseSpaceInfo({ hostUid, dbname }))
+  });
+
   const dbSpace = spaceInfo[dbname];
   const isLoading = spaceInfoLoading?.[dbname];
-
-  const handleRefresh = useCallback(async () => {
-    if (hostUid) {
-      setIsRefreshing(true);
-      try {
-        await dispatch(fetchDatabaseSpaceInfo({ hostUid, dbname })).unwrap();
-        setLastRefreshed(new Date());
-      } finally {
-        setIsRefreshing(false);
-      }
-    }
-  }, [dispatch, hostUid, dbname]);
-
-  useEffect(() => {
-    if (refreshCounter > 0) {
-      handleRefresh();
-    }
-  }, [refreshCounter]);
-
-  useEffect(() => {
-    if (!dbSpace && !isLoading && hostUid) {
-      handleRefresh();
-    }
-  }, [dispatch, hostUid, dbname, dbSpace, isLoading]);
-
-  useEffect(() => {
-    if (!preferences?.dashboardInterval || preferences.dashboardInterval <= 0) return;
-    const interval = setInterval(handleRefresh, preferences.dashboardInterval * 1000);
-    return () => clearInterval(interval);
-  }, [preferences?.dashboardInterval, handleRefresh]);
-
-  const meta = CATEGORY_META[category] || CATEGORY_META.Permanent_PermanentData;
+  const meta = useMemo(() => CATEGORY_META[category] || CATEGORY_META.Permanent_PermanentData, [category]);
 
   const volumes = useMemo(() => {
     if (!dbSpace || !dbSpace.volumes) return [];
@@ -288,3 +258,5 @@ export default function VolumeCategoryMonitor({ hostUid, dbname, category }) {
     </div>
   );
 }
+
+export default React.memo(Component);

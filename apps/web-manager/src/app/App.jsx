@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import { useSelector, useDispatch , shallowEqual } from 'react-redux';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { toggleTheme, toggleSidebar, setIsResizing, setActiveMainTab, closeTab, closeOtherTabs, closeAllTabs, triggerRefreshActiveTab } from '../features/layout/layoutSlice';
 import { openAddHostModal, closeAddHostModal, closeChangePasswordModal, setSelectedHost } from '../features/host/hostSlice';
@@ -38,8 +38,11 @@ import LoginDatabaseModal from '../features/database/components/LoginDatabaseMod
 import RestoreDatabaseModal from '../features/database/components/RestoreDatabaseModal';
 import SetAutomationVolumeModal from '../features/database/components/SetAutomationVolumeModal';
 import AutoVolumeLogModal from '../features/database/components/AutoVolumeLogModal';
-import AddQueryPlanModal from '../features/database/components/AddQueryPlanModal';
 import AutoQueryLogModal from '../features/database/components/AutoQueryLogModal';
+import AddQueryPlanModal from '../features/database/components/AddQueryPlanModal';
+import EditQueryPlanModal from '../features/database/components/EditQueryPlanModal';
+import DeleteQueryPlanModal from '../features/database/components/DeleteQueryPlanModal';
+// AddDatabaseModal was here
 
 import LockInformationModal from '../features/database/components/LockInformationModal';
 import UnloadResultModal from '../features/database/components/UnloadResultModal';
@@ -72,15 +75,20 @@ import { Icon } from '../components/ds/foundation/Icon';
 
 function DashboardLayout() {
   const dispatch = useDispatch();
-  const { loading: dbCoreLoading } = useSelector((state) => state.database);
-  const { actionLoading: dbUILoading } = useSelector((state) => state.databaseUI);
-  const { operationLoading: dbOpLoading } = useSelector((state) => state.databaseOperation);
+  const { loading: dbCoreLoading } = useSelector((state) => state.database, shallowEqual);
+  const { actionLoading: dbUILoading } = useSelector((state) => state.databaseUI, shallowEqual);
+  const { operationLoading: dbOpLoading } = useSelector((state) => state.databaseOperation, shallowEqual);
   const dbActionLoading = dbCoreLoading || dbOpLoading || dbUILoading;
-  const { theme, isSidebarCollapsed, isResizing, activeMainTab, openTabs, refreshCounter } = useSelector((state) => state.layout);
+  const { theme, isSidebarCollapsed, isResizing, activeMainTab, openTabs, refreshCounter } = useSelector((state) => state.layout, shallowEqual);
   const [isFlashing, setIsFlashing] = useState(false);
-  const { isAddHostModalOpen, hosts, isServiceOperating, serviceOperationType, serviceProgressMessage } = useSelector((state) => state.host);
-  const { isCreateUserModalOpen, createUserDbName, isEditUserModalOpen, editUserData, isDropUserModalOpen } = useSelector((state) => state.user);
-  const { actionLoading: brokerActionLoading } = useSelector((state) => state.broker);
+  const { isAddHostModalOpen, hosts, isServiceOperating, serviceOperationType, serviceProgressMessage } = useSelector((state) => state.host, shallowEqual);
+  // isAddDatabaseModalOpen removed
+  const { isCreateUserModalOpen, createUserDbName, isEditUserModalOpen, editUserData, isDropUserModalOpen } = useSelector((state) => state.user, shallowEqual);
+  const { 
+    actionLoading: brokerActionLoading, 
+    lastActionTarget: brokerActionName, 
+    lastActionType: brokerActionType 
+  } = useSelector((state) => state.broker, shallowEqual);
 
   useEffect(() => {
     if (refreshCounter > 0) {
@@ -159,6 +167,22 @@ function DashboardLayout() {
       document.documentElement.classList.remove('dark');
     }
   }, [theme]);
+
+  // Construct dynamic loading message
+  const getLoadingSubtitle = () => {
+    if (isServiceOperating) {
+      return serviceProgressMessage || `Please wait while we ${serviceOperationType === 'start' ? 'start' : 'stop'} all brokers and databases...`;
+    }
+    if (brokerActionLoading && brokerActionName) {
+      const action = brokerActionType === 'start' ? 'Start' : 'Stop';
+      return `${action} broker : ${brokerActionName}`;
+    }
+    if (dbActionLoading) {
+      // Fallback for generic DB actions if no specific message is provided
+      return "Processing database request...";
+    }
+    return "Processing your request, please wait...";
+  };
 
   return (
     <MonitoringProvider>
@@ -373,21 +397,22 @@ function DashboardLayout() {
         <SetAutomationVolumeModal />
         <AutoVolumeLogModal />
         <AddQueryPlanModal />
+        <EditQueryPlanModal />
+        <DeleteQueryPlanModal />
         <AutoQueryLogModal />
+        {/* AddDatabaseModal was removed: Redundant with LoginDatabaseModal + Remember Me */}
 
         <LockInformationModal />
         <UnloadResultModal />
         <TransactionInfoModal />
         <KillTransactionModal />
         <CreateUserModal
-          isOpen={isCreateUserModalOpen}
-          onClose={() => dispatch(closeCreateUserModal())}
-          dbname={createUserDbName}
-        />
-        <CreateUserModal
-          isOpen={isEditUserModalOpen}
-          onClose={() => dispatch(closeEditUserModal())}
-          dbname={editUserData?.dbname}
+          isOpen={isCreateUserModalOpen || isEditUserModalOpen}
+          onClose={() => {
+            dispatch(closeCreateUserModal());
+            dispatch(closeEditUserModal());
+          }}
+          dbname={createUserDbName || editUserData?.dbname}
           editingUser={editUserData?.userName}
         />
         <DropUserModal />
@@ -403,14 +428,10 @@ function DashboardLayout() {
           isVisible={isServiceOperating || dbActionLoading || brokerActionLoading} 
           title={
             isServiceOperating 
-              ? (serviceOperationType === 'start' ? 'Starting CUBRID Service' : 'Stopping CUBRID Service')
+              ? (serviceOperationType === 'start' ? 'Service Action' : 'Service Action')
               : (dbActionLoading ? 'Database Action' : 'Broker Action')
           }
-          subtitle={
-            isServiceOperating
-              ? (serviceProgressMessage || `Please wait while we ${serviceOperationType === 'start' ? 'start' : 'stop'} all brokers and databases...`)
-              : "Processing your request, please wait..."
-          }
+          subtitle={getLoadingSubtitle()}
         />
       </div>
     </MonitoringProvider>
@@ -418,7 +439,7 @@ function DashboardLayout() {
 }
 
 function ProtectedRoute({ children }) {
-  const { isAuthenticated } = useSelector((state) => state.auth);
+  const { isAuthenticated } = useSelector((state) => state.auth, shallowEqual);
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 }
 

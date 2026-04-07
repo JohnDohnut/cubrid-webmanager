@@ -1,5 +1,7 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import { usePollingRefresh } from '../../../infrastructure/hooks/usePollingRefresh';
+import React, { useState } from 'react';
+import { useSelector, useDispatch , shallowEqual } from 'react-redux';
+import { formatSize } from '../../../infrastructure/utils/format';
 import { fetchHostSummary } from '../globalMonitoringSlice';
 import { setActiveMainTab } from '../../layout/layoutSlice';
 import { setSelectedHost, startService, stopService } from '../../host/hostSlice';
@@ -8,8 +10,12 @@ import { Table } from '../../../components/ds/layout/Table';
 import { Card } from '../../../components/ds/layout/Card';
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Typography } from '../../../components/ds/foundation/Typography';
+import LoadingOverlay from '../../../components/common/LoadingOverlay';
 import { Badge } from '../../../components/ds/foundation/Badge';
 import { Spinner } from '../../../components/ds/foundation/Spinner';
+import { useActionState } from '../../../infrastructure/hooks/useActionState';
+import { Modal } from '../../../components/ds/layout/Modal';
+import { ModalStatusError } from '../../../components/ds/feedback/ActionStatus';
 
 const MetricBar = ({ pct }) => (
   <div className="w-full h-1 bg-slate-100 dark:bg-white/6 overflow-hidden mt-1 rounded-full">
@@ -17,68 +23,25 @@ const MetricBar = ({ pct }) => (
   </div>
 );
 
-export default function ServiceDashboard() {
-  const dispatch = useDispatch();
-  const { hosts, authorizedHosts } = useSelector((state) => state.host);
-  const { summaries } = useSelector((state) => state.globalMonitoring);
-  const { preferences } = useSelector((state) => state.user);
-  const { refreshCounter, activeMainTab } = useSelector((state) => state.layout);
-  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
-  const [lastRefreshed, setLastRefreshed] = useState(new Date());
-  
-  const [isBrowserVisible, setIsBrowserVisible] = useState(document.visibilityState === 'visible');
-  const isTabActive = isBrowserVisible && activeMainTab === 'service_dashboard';
-  const isActiveRef = useRef(isTabActive);
-  const initialLoadDone = useRef(false);
+import { ConfirmDialog } from '../../../components/ds/layout/ConfirmDialog';
 
-  const refreshAll = useCallback(async (silent = false) => {
-    if (authorizedHosts.length === 0 || (isManualRefreshing && !silent)) return;
-    if (!silent) setIsManualRefreshing(true);
-    try {
+const Component = function ServiceDashboard() {
+  const dispatch = useDispatch();
+  const { hosts, authorizedHosts } = useSelector((state) => state.host, shallowEqual);
+  const { summaries } = useSelector((state) => state.globalMonitoring, shallowEqual);
+  const { preferences } = useSelector((state) => state.user, shallowEqual);
+  const { refreshCounter, activeMainTab } = useSelector((state) => state.layout, shallowEqual);
+  const { isManualRefreshing, lastRefreshed, handleRefresh: refreshAll } = usePollingRefresh({
+    hostUid: 'global',
+    tabId: 'service_dashboard',
+    pollingIntervalSeconds: preferences.dashboardInterval,
+    onFetch: (silent) => async (dispatch) => {
+      if (authorizedHosts.length === 0) return;
       await Promise.all(authorizedHosts.map(hostUid => 
         dispatch(fetchHostSummary(silent ? { hostUid, isBackground: true } : hostUid)).unwrap().catch(() => {})
       ));
-      setLastRefreshed(new Date());
-    } finally {
-      if (!silent) setIsManualRefreshing(false);
     }
-  }, [authorizedHosts, dispatch]);
-
-  // 1. Initial Load
-  useEffect(() => {
-    if (authorizedHosts.length > 0 && !initialLoadDone.current) {
-      initialLoadDone.current = true;
-      refreshAll();
-    }
-  }, [authorizedHosts, refreshAll]);
-
-  // 2. Global Refresh (F5) Listener
-  useEffect(() => {
-    if (refreshCounter > 0 && isTabActive) refreshAll();
-  }, [refreshCounter, isTabActive, refreshAll]);
-
-  // 3. Browser Visibility Listener
-  useEffect(() => {
-    const handleVisibilityChange = () => setIsBrowserVisible(document.visibilityState === 'visible');
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []);
-
-  // 4. Sync Ref and Trigger One-Time Resume Fetch
-  useEffect(() => {
-    const becameActive = !isActiveRef.current && isTabActive;
-    isActiveRef.current = isTabActive;
-    if (becameActive && initialLoadDone.current && preferences.dashboardInterval > 0) refreshAll(true);
-  }, [isTabActive, refreshAll, preferences.dashboardInterval]);
-
-  // 5. Background Polling Timer
-  useEffect(() => {
-    if (!isTabActive || preferences.dashboardInterval <= 0) return;
-    const timer = setInterval(() => {
-      if (isActiveRef.current) refreshAll(true);
-    }, preferences.dashboardInterval * 1000);
-    return () => clearInterval(timer);
-  }, [isTabActive, preferences.dashboardInterval, refreshAll]);
+  });
 
   const handleRowDoubleClick = (row) => {
     const hostUid = row.uid;
@@ -86,33 +49,79 @@ export default function ServiceDashboard() {
     dispatch(setActiveMainTab(`host:${hostUid}`));
   };
 
-  const handleStartService = (e, hostUid) => {
+  const { 
+    startAction, 
+    endError, 
+    resetAction,
+    isLoading,
+    isError,
+    error: actionError
+  } = useActionState();
+
+  const [loadingTitle, setLoadingTitle] = useState('Synchronizing Services');
+  const [confirmConfig, setConfirmConfig] = useState({ 
+    isOpen: false, 
+    title: '', 
+    description: '', 
+    confirmLabel: '',
+    variant: 'primary',
+    onConfirm: () => {} 
+  });
+
+  const closeConfirm = () => setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+
+  const handleStartService = (e, row) => {
     e.stopPropagation();
-    if (window.confirm('Are you sure you want to start all CUBRID services on this host?')) {
-      dispatch(startService(hostUid));
-    }
+    const hostUid = row.uid;
+    const serverName = row.alias || row.id;
+
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Start Services',
+      description: `Are you sure you want to start all CUBRID services on host "${serverName}"?`,
+      confirmLabel: 'Start Services',
+      variant: 'primary',
+      onConfirm: async () => {
+        closeConfirm();
+        setLoadingTitle(`Starting services on ${serverName}`);
+        startAction();
+        try {
+          await dispatch(startService(hostUid)).unwrap();
+          resetAction();
+        } catch (err) {
+          endError(typeof err === 'string' ? err : (err.message || 'Service start command rejected by host agent.'));
+        }
+      }
+    });
   };
 
-  const handleStopService = (e, hostUid) => {
+  const handleStopService = (e, row) => {
     e.stopPropagation();
-    if (window.confirm('Are you sure you want to stop all CUBRID services on this host? This will stop all brokers and databases.')) {
-      dispatch(stopService(hostUid));
-    }
+    const hostUid = row.uid;
+    const serverName = row.alias || row.id;
+
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Stop Services',
+      description: `Are you sure you want to stop all CUBRID services on host "${serverName}"? This will terminate all active brokers and databases.`,
+      confirmLabel: 'Stop All Services',
+      variant: 'danger',
+      onConfirm: async () => {
+        closeConfirm();
+        setLoadingTitle(`Stopping services on ${serverName}`);
+        startAction();
+        try {
+          await dispatch(stopService(hostUid)).unwrap();
+          resetAction();
+        } catch (err) {
+          endError(typeof err === 'string' ? err : (err.message || 'Service termination failed. Check agent logs.'));
+        }
+      }
+    });
   };
 
-  const formatSize = (bytes) => {
-    if (!bytes || bytes === 0) return '0 B';
-    const k = 1024, sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
-  };
 
-  const formatGB = (bytes) => {
-    if (!bytes || bytes === 0) return '0.0 GB';
-    return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
-  };
-
-  const columns = [
+  const columns = React.useMemo(() => [
     {
       header: 'GROUP/HOST',
       accessor: 'alias',
@@ -180,7 +189,7 @@ export default function ServiceDashboard() {
         if (!s) return <span className="text-slate-300">—</span>;
         return (
           <div className="min-w-[120px]">
-            <span className="text-[11px] text-slate-700 dark:text-slate-200 font-mono font-semibold">{formatGB(s.memUsed)} / {formatGB(s.memTotal)}</span>
+            <span className="text-[11px] text-slate-700 dark:text-slate-200 font-mono font-semibold">{formatSize(s.memUsed)} / {formatSize(s.memTotal)}</span>
             <MetricBar pct={s.memory} />
           </div>
         );
@@ -221,16 +230,16 @@ export default function ServiceDashboard() {
         const isConnected = authorizedHosts.includes(row.uid);
         if (!isConnected) return null;
         return (
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-1">
             <button 
-              onClick={(e) => handleStartService(e, row.uid)}
+              onClick={(e) => handleStartService(e, row)}
               className="w-7 h-7 flex items-center justify-center rounded-md bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all shadow-sm active:scale-90"
               title="Start Services"
             >
               <Icon name="play_arrow" size="16px" weight={400} />
             </button>
             <button 
-              onClick={(e) => handleStopService(e, row.uid)}
+              onClick={(e) => handleStopService(e, row)}
               className="w-7 h-7 flex items-center justify-center rounded-md bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all shadow-sm active:scale-90"
               title="Stop Services"
             >
@@ -240,7 +249,7 @@ export default function ServiceDashboard() {
         );
       }
     },
-  ];
+  ], [authorizedHosts, summaries]);
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white dark:bg-background-dark overflow-hidden font-sans">
@@ -301,7 +310,9 @@ export default function ServiceDashboard() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 relative">
+        <LoadingOverlay isVisible={isLoading} subtitle={loadingTitle} />
+        
         <Card noPadding className="overflow-hidden border-slate-200 dark:border-white/10 shadow-sm rounded-xl bg-white dark:bg-white/1">
           <Table 
             columns={columns} 
@@ -323,7 +334,31 @@ export default function ServiceDashboard() {
             </div>
           </div>
         )}
+
+        <ConfirmDialog
+          isOpen={confirmConfig.isOpen}
+          title={confirmConfig.title}
+          description={confirmConfig.description}
+          confirmLabel={confirmConfig.confirmLabel}
+          variant={confirmConfig.variant}
+          onConfirm={confirmConfig.onConfirm}
+          onCancel={closeConfirm}
+        />
       </div>
+
+      {isError && (
+        <Modal isOpen title="Service Error" icon="error" iconVariant="danger" onClose={resetAction} maxWidth="400px">
+          <ModalStatusError 
+            title="Action Aborted"
+            error={actionError}
+            onRetry={resetAction}
+            onCancel={resetAction}
+            retryText="Dismiss"
+          />
+        </Modal>
+      )}
     </div>
   );
 }
+
+export default React.memo(Component);

@@ -38,7 +38,7 @@ export const Checkbox = forwardRef(({
             checked={checked}
             onChange={onChange}
             disabled={disabled}
-            className="peer absolute inset-0 opacity-0 cursor-pointer z-10"
+            className="peer sr-only"
             {...props}
           />
           {/* Custom Checkbox UI */}

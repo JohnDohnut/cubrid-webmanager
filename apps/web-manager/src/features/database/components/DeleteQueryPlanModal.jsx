@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeDeleteQueryPlanModal, setAutoExecQuery, fetchQueryPlan } from '../databaseSlice';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
@@ -15,10 +15,10 @@ const VIEW_ERROR   = 'error';
 
 export default function DeleteQueryPlanModal() {
   const dispatch = useDispatch();
-  const { isDeleteQueryPlanModalOpen, selectedQueryPlanId } = useSelector((state) => state.databaseUI);
-  const { selectedDatabase } = useSelector((state) => state.database);
-  const { selectedHostUid } = useSelector((state) => state.host);
-  const { queryPlans } = useSelector((state) => state.databaseOperation);
+  const { isDeleteQueryPlanModalOpen, selectedQueryPlanId } = useSelector((state) => state.databaseUI, shallowEqual);
+  const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
+  const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
+  const { queryPlans } = useSelector((state) => state.databaseOperation, shallowEqual);
   
   const [view, setView] = useState(VIEW_FORM);
   const [errorMsg, setErrorMsg] = useState('');
@@ -155,7 +155,7 @@ export default function DeleteQueryPlanModal() {
       maxWidth="440px"
       footer={
         <div className="flex justify-end gap-3 w-full">
-          <Button variant="ghost" onClick={handleClose}>Cancel</Button>
+          <Button variant="ghost" onClick={handleClose}>Discard</Button>
           <Button variant="danger" onClick={handleDelete} icon="delete" className="min-w-[130px]">Execute Discard</Button>
         </div>
       }
