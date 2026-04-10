@@ -13,6 +13,7 @@ import { Typography } from '../../../components/ds/foundation/Typography';
 import LoadingOverlay from '../../../components/common/LoadingOverlay';
 import { Badge } from '../../../components/ds/foundation/Badge';
 import { Spinner } from '../../../components/ds/foundation/Spinner';
+import { InfoBanner } from '../../../components/ds/foundation/InfoBanner';
 import { useActionState } from '../../../infrastructure/hooks/useActionState';
 import { Modal } from '../../../components/ds/layout/Modal';
 import { ModalStatusError } from '../../../components/ds/feedback/ActionStatus';
@@ -145,7 +146,8 @@ const Component = function ServiceDashboard() {
       header: 'PERMANENT', 
       accessor: 'permFree',
       render: (_, row) => {
-        const v = summaries[row.uid]?.permFree;
+        const isConnected = authorizedHosts.includes(row.uid);
+        const v = isConnected ? summaries[row.uid]?.permFree : undefined;
         if (v === undefined || v === -1) return <span className="text-slate-300">—</span>;
         return <Badge variant={v > 30 ? 'success' : v > 10 ? 'warning' : 'danger'}>{v}%</Badge>;
       }
@@ -154,7 +156,8 @@ const Component = function ServiceDashboard() {
       header: 'PERMANENTTEMP', 
       accessor: 'permTempFree',
       render: (_, row) => {
-        const v = summaries[row.uid]?.permTempFree;
+        const isConnected = authorizedHosts.includes(row.uid);
+        const v = isConnected ? summaries[row.uid]?.permTempFree : undefined;
         if (v === undefined || v === -1) return <span className="text-slate-300">—</span>;
         return <Badge variant={v > 30 ? 'success' : v > 10 ? 'warning' : 'danger'}>{v}%</Badge>;
       }
@@ -163,7 +166,8 @@ const Component = function ServiceDashboard() {
       header: 'TEMPTEMP', 
       accessor: 'tempTempFree',
       render: (_, row) => {
-        const v = summaries[row.uid]?.tempTempFree;
+        const isConnected = authorizedHosts.includes(row.uid);
+        const v = isConnected ? summaries[row.uid]?.tempTempFree : undefined;
         if (v === undefined || v === -1) return <span className="text-slate-300">—</span>;
         return <Badge variant={v > 30 ? 'success' : v > 10 ? 'warning' : 'danger'}>{v}%</Badge>;
       }
@@ -172,20 +176,28 @@ const Component = function ServiceDashboard() {
       header: 'TPS', 
       accessor: 'tps',
       render: (_, row) => {
-        const v = summaries[row.uid]?.tps || 0;
+        const isConnected = authorizedHosts.includes(row.uid);
+        const v = isConnected ? summaries[row.uid]?.tps : undefined;
+        if (v === undefined) return <span className="text-slate-300">—</span>;
         return <span className="font-mono text-[12px] text-emerald-600 dark:text-emerald-400 font-bold">{v}</span>;
       }
     },
     { 
       header: 'QPS', 
       accessor: 'qps',
-      render: (_, row) => <span className="font-mono text-[12px] text-slate-600 dark:text-slate-300">{summaries[row.uid]?.qps || 0}</span>
+      render: (_, row) => {
+        const isConnected = authorizedHosts.includes(row.uid);
+        const v = isConnected ? summaries[row.uid]?.qps : undefined;
+        if (v === undefined) return <span className="text-slate-300">—</span>;
+        return <span className="font-mono text-[12px] text-slate-600 dark:text-slate-300">{v}</span>;
+      }
     },
     { 
       header: 'MEMORY', 
       accessor: 'memory',
       render: (_, row) => {
-        const s = summaries[row.uid];
+        const isConnected = authorizedHosts.includes(row.uid);
+        const s = isConnected ? summaries[row.uid] : undefined;
         if (!s) return <span className="text-slate-300">—</span>;
         return (
           <div className="min-w-[120px]">
@@ -199,7 +211,8 @@ const Component = function ServiceDashboard() {
       header: 'CPU', 
       accessor: 'cpu',
       render: (_, row) => {
-        const s = summaries[row.uid];
+        const isConnected = authorizedHosts.includes(row.uid);
+        const s = isConnected ? summaries[row.uid] : undefined;
         if (!s) return <span className="text-slate-300">—</span>;
         return (
           <div className="min-w-[80px]">
@@ -213,7 +226,8 @@ const Component = function ServiceDashboard() {
       header: 'DB STATUS', 
       accessor: 'dbStatus',
       render: (_, row) => {
-        const s = summaries[row.uid];
+        const isConnected = authorizedHosts.includes(row.uid);
+        const s = isConnected ? summaries[row.uid] : undefined;
         if (!s) return <span className="text-slate-300">—</span>;
         return (
           <div className="flex items-center gap-1.5 font-bold text-[10px]">
@@ -253,14 +267,16 @@ const Component = function ServiceDashboard() {
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white dark:bg-background-dark overflow-hidden font-sans">
-      <header className="px-6 py-2.5 border-b border-slate-100 dark:border-white/4 flex items-center justify-between shrink-0 sticky top-0 z-20 bg-linear-to-r from-amber-500/[0.03] to-transparent bg-white dark:bg-background-dark">
+      <header className="px-6 py-2.5 border-b border-slate-100 dark:border-white/4 flex items-center justify-between shrink-0 sticky top-0 z-20 bg-linear-to-r from-amber-500/[0.03] to-transparent bg-white dark:bg-background-dark font-sans shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0 shadow-sm">
+          <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
             <Icon name="monitoring" size="sm" weight={300} className="text-amber-500" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <Typography variant="h1" className="text-[13px] font-bold text-slate-800 dark:text-slate-100 tracking-tight leading-tight">Service Dashboard</Typography>
+              <Typography variant="h1" className="text-[13px] font-bold text-slate-800 dark:text-slate-100 leading-tight">
+                Service Dashboard
+              </Typography>
               <div className={`px-2 py-0.5 rounded-full border flex items-center gap-1.5 shrink-0 transition-all duration-300 ${preferences.dashboardInterval > 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10'}`}>
                 <div className={`w-1 h-1 rounded-full ${preferences.dashboardInterval > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
                 <span className={`text-[9px] font-bold ${preferences.dashboardInterval > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
@@ -268,10 +284,7 @@ const Component = function ServiceDashboard() {
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-amber-500/60" />
-              <Typography variant="label" className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">Global Health Overview</Typography>
-            </div>
+            <Typography variant="label" className="text-[10px] text-slate-400 font-mono tracking-tight mt-0.5">Global Health Overview</Typography>
           </div>
         </div>
 
@@ -287,7 +300,7 @@ const Component = function ServiceDashboard() {
               ${isManualRefreshing
                 ? 'bg-slate-100 dark:bg-white/5 text-slate-300 dark:text-slate-600 border-slate-200 dark:border-white/5 cursor-not-allowed opacity-50'
                 : 'bg-slate-50 dark:bg-white/[0.03] border-slate-200 dark:border-white/10 text-slate-400 hover:text-amber-600 dark:hover:text-amber-500 hover:border-amber-500/50 hover:bg-white dark:hover:bg-white/5'}`}
-            title="Refresh health status"
+            title="Refresh dashboard"
           >
             <Icon name="refresh" size="18px" className={isManualRefreshing ? 'animate-spin' : ''} />
           </button>
@@ -324,15 +337,9 @@ const Component = function ServiceDashboard() {
         </Card>
         
         {authorizedHosts.length === 0 && (
-          <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-500/5 border border-amber-200 dark:border-amber-500/10 flex items-center gap-4 animate-pulse">
-            <div className="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-500/10 flex items-center justify-center text-amber-500">
-              <Icon name="dns" size="20px" />
-            </div>
-            <div className="flex flex-col">
-              <Typography variant="body2" className="text-[12px] text-amber-800 dark:text-amber-400 font-bold uppercase tracking-tight">Sensors Offline</Typography>
-              <Typography variant="caption" className="text-[11px] text-amber-600 dark:text-amber-500/70 font-medium">Connect to a host server from the navigator to activate global resource monitoring.</Typography>
-            </div>
-          </div>
+          <InfoBanner variant="warning" title="Sensors Offline" icon="dns" className="animate-pulse">
+            Connect to a host server from the navigator to activate global resource monitoring.
+          </InfoBanner>
         )}
 
         <ConfirmDialog

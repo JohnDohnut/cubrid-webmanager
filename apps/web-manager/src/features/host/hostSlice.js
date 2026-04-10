@@ -235,7 +235,13 @@ const hostSlice = createSlice({
       state.serviceProgressMessage = action.payload;
     },
     revokeHostLogin: (state, action) => {
-      state.authorizedHosts = state.authorizedHosts.filter(uid => uid !== action.payload);
+      const hostUid = action.payload;
+      state.authorizedHosts = state.authorizedHosts.filter(uid => uid !== hostUid);
+      // Reset specific host data
+      if (state.hostEnvs[hostUid]) delete state.hostEnvs[hostUid];
+      if (state.hostAuthErrors[hostUid]) delete state.hostAuthErrors[hostUid];
+      // Reset general error if it was likely related to this host
+      state.error = null;
     },
     openDeleteHostModal: (state, action) => {
       state.isDeleteHostModalOpen = true;
@@ -311,6 +317,7 @@ const hostSlice = createSlice({
       })
       .addCase(loginToHost.pending, (state, action) => {
         state.isLoggingIntoHost = true;
+        state.loading = true;
         // Clean up previous error for this host if any
         if (state.hostAuthErrors[action.meta.arg]) {
           delete state.hostAuthErrors[action.meta.arg];
@@ -318,13 +325,16 @@ const hostSlice = createSlice({
       })
       .addCase(loginToHost.fulfilled, (state, action) => {
         state.isLoggingIntoHost = false;
+        state.loading = false;
         if (!state.authorizedHosts.includes(action.payload)) {
           state.authorizedHosts.push(action.payload);
         }
       })
       .addCase(loginToHost.rejected, (state, action) => {
         state.isLoggingIntoHost = false;
+        state.loading = false;
         state.hostAuthErrors[action.meta.arg] = action.payload;
+        state.error = action.payload;
       })
       .addCase(deleteHost.pending, (state) => {
         state.loading = true;
@@ -351,10 +361,6 @@ const hostSlice = createSlice({
       .addCase(editHost.fulfilled, (state, action) => {
         state.loading = false;
         state.hosts = action.payload; // Payload is the full updated host list array
-        state.isEditHostModalOpen = false;
-        state.isChangePasswordModalOpen = false;
-        state.hostToEditUid = null;
-        state.changePasswordHostUid = null;
       })
       .addCase(editHost.rejected, (state, action) => {
         state.loading = false;
