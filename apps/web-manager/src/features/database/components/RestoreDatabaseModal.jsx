@@ -1,14 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeRestoreDatabaseModal, fetchBackupList, restoreDatabase } from '../databaseSlice';
-import { showStatusModal } from '../../layout/layoutSlice';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
 import { Button } from '../../../components/ds/foundation/Button';
 import { Input } from '../../../components/ds/forms/Input';
+import { Toggle } from '../../../components/ds/forms/Toggle';
 import { Typography } from '../../../components/ds/foundation/Typography';
 import { Spinner } from '../../../components/ds/foundation/Spinner';
+import { EmptyState } from '../../../components/ds/feedback/EmptyState';
+import { useActionState } from '../../../infrastructure/hooks/useActionState';
+import { 
+  ModalStatusLoading, 
+  ModalStatusSuccess, 
+  ModalStatusError 
+} from '../../../components/ds/feedback/ActionStatus';
+import { StatusBadge } from '../../../components/ds/foundation/StatusBadge';
+
+// view states
+const VIEW_FORM    = 'form';
+const VIEW_LOADING = 'loading';
+const VIEW_SUCCESS = 'success';
+const VIEW_ERROR   = 'error';
 
 /* ── meta config ─────────────────────────────────────────────── */
 const LEVEL_META = {
@@ -52,30 +66,28 @@ const SectionLabel = ({ children, count }) => (
   </div>
 );
 
-const Toggle = ({ checked, onChange, disabled }) => (
-  <button
-    type="button"
-    onClick={onChange}
-    disabled={disabled}
-    className={`w-9 h-5 rounded-full relative shrink-0 transition-all duration-200 border-2 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1
-      ${checked ? 'bg-amber-500 border-amber-500' : 'bg-slate-200 dark:bg-white/10 border-slate-300 dark:border-white/15'}
-      ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
-  >
-    <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-xs transition-all duration-200 ${checked ? 'left-[18px]' : 'left-0.5'}`} />
-  </button>
-);
-
 /* ── main component ─────────────────────────────────────────── */
 export default function RestoreDatabaseModal() {
   const dispatch = useDispatch();
+  const { isRestoreDatabaseModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
+  const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
   const {
-    isRestoreDatabaseModalOpen,
-    selectedDatabase,
     databaseBackups,
     databaseBackupsLoading,
-    actionLoading,
-  } = useSelector((state) => state.database);
-  const { selectedHostUid } = useSelector((state) => state.host);
+  } = useSelector((state) => state.databaseOperation);
+  const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
+
+  const { 
+    state, 
+    error: actionError, 
+    startAction, 
+    endSuccess, 
+    endError, 
+    resetAction,
+    isLoading,
+    isSuccess,
+    isError
+  } = useActionState();
 
   const [formData, setFormData] = useState({ selectedBackup: null, recoveryPath: '', isPartial: false });
   const [filter, setFilter] = useState('all'); // 'all' | 0 | 1 | 2
@@ -104,15 +116,15 @@ export default function RestoreDatabaseModal() {
 
   const backups = filter === 'all' ? allBackups : allBackups.filter(b => b.level === filter);
   const isLoadingBackups = databaseBackupsLoading[selectedDatabase];
-  const selectedBackupObj = allBackups.find(b => b.pathname === formData.selectedBackup);
 
   useEffect(() => {
     if (isRestoreDatabaseModalOpen && selectedHostUid && selectedDatabase) {
       setFormData({ selectedBackup: null, recoveryPath: '', isPartial: false });
       setFilter('all');
+      resetAction();
       dispatch(fetchBackupList({ hostUid: selectedHostUid, dbname: selectedDatabase }));
     }
-  }, [isRestoreDatabaseModalOpen, selectedHostUid, selectedDatabase, dispatch]);
+  }, [isRestoreDatabaseModalOpen, selectedHostUid, selectedDatabase, dispatch, resetAction]);
 
   if (!isRestoreDatabaseModalOpen) return null;
 
@@ -120,9 +132,11 @@ export default function RestoreDatabaseModal() {
 
   const handleRestore = async () => {
     if (!formData.selectedBackup) {
-      dispatch(showStatusModal({ type: 'error', title: 'Selection Required', message: 'Please select a backup point to restore from.' }));
+      endError('Please select a backup point to restore from.');
       return;
     }
+
+    startAction();
     try {
       const backup = allBackups.find(b => b.pathname === formData.selectedBackup);
       await dispatch(restoreDatabase({
@@ -136,24 +150,68 @@ export default function RestoreDatabaseModal() {
           recoverypath: formData.recoveryPath || '',
         }
       })).unwrap();
-      dispatch(showStatusModal({ type: 'success', title: 'Restore Completed', message: `Successfully restored "${selectedDatabase}" from backup.` }));
-      dispatch(closeRestoreDatabaseModal());
+      endSuccess(`Successfully restored "${selectedDatabase}" from snapshot ${backup.date || backup.pathname}.`);
     } catch (error) {
-      dispatch(showStatusModal({ type: 'error', title: 'Restore Failed', message: typeof error === 'string' ? error : (error.message || 'An error occurred during restore.') }));
+      endError(typeof error === 'string' ? error : (error.message || 'An unexpected error occurred during restore.'));
     }
   };
 
+  const handleClose = () => dispatch(closeRestoreDatabaseModal());
+
   const levelCounts = { 0: allBackups.filter(b => b.level === 0).length, 1: allBackups.filter(b => b.level === 1).length, 2: allBackups.filter(b => b.level === 2).length };
 
+  /* ─── LOADING view ─── */
+  if (isLoading) {
+    return (
+      <Modal isOpen title="Restoring Database" icon="settings_backup_restore" onClose={handleClose} maxWidth="600px" iconVariant="danger">
+        <ModalStatusLoading 
+          title="Reconstructing Instance" 
+          subtitle={`Applying snapshot volumes to ${selectedDatabase}. This may take several minutes.`}
+          variant="danger"
+        />
+      </Modal>
+    );
+  }
+
+  /* ─── SUCCESS view ─── */
+  if (isSuccess) {
+    return (
+      <Modal isOpen title="Restore Successful" icon="settings_backup_restore" iconVariant="success" onClose={handleClose} maxWidth="600px">
+        <ModalStatusSuccess 
+          title="Restore Completed"
+          message={`Instance ${selectedDatabase} has been successfully rolled back to the selected state.`}
+          onConfirm={handleClose}
+          confirmText="Close"
+        />
+      </Modal>
+    );
+  }
+
+  /* ─── ERROR view ─── */
+  if (isError) {
+    return (
+      <Modal isOpen title="Recovery Failed" icon="restore" iconVariant="danger" onClose={resetAction} maxWidth="900px">
+        <ModalStatusError 
+          title="Transaction Dropped"
+          error={actionError}
+          onRetry={handleRestore}
+          onCancel={resetAction}
+          retryText="Retry Recovery"
+          cancelText="Dismiss"
+        />
+      </Modal>
+    );
+  }
+
+  /* ─── FORM view ─── */
   return (
     <Modal
       isOpen={isRestoreDatabaseModalOpen}
-      onClose={() => dispatch(closeRestoreDatabaseModal())}
+      onClose={handleClose}
       title="Restore Database"
       subtitle="Roll back instance to a historical snapshot"
       icon="settings_backup_restore"
-      maxWidth="max-w-[680px]"
-      loading={actionLoading}
+      maxWidth="680px"
       footer={
         <div className="flex items-center justify-between w-full gap-3">
           <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium">
@@ -161,20 +219,12 @@ export default function RestoreDatabaseModal() {
             <span>Database must be stopped before restoration</span>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => dispatch(closeRestoreDatabaseModal())}
-              disabled={actionLoading}
-              className="text-[12px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors px-2"
-            >
-              Cancel
-            </button>
+            <Button variant="secondary" onClick={handleClose}>Discard</Button>
             <Button
               variant="primary"
               onClick={handleRestore}
-              loading={actionLoading}
               icon="settings_backup_restore"
-              disabled={!formData.selectedBackup || actionLoading}
+              disabled={!formData.selectedBackup}
               className="px-6 min-w-[150px]"
             >
               Execute Restore
@@ -195,14 +245,11 @@ export default function RestoreDatabaseModal() {
                 <Icon name="database" size="md" weight={300} className="text-rose-400" />
               </div>
               <div>
-                <p className="text-[9px] font-bold uppercase tracking-widest text-rose-500/70 dark:text-rose-400/60 mb-0.5">Target Instance</p>
-                <p className="text-[15px] font-bold font-mono text-rose-700 dark:text-rose-400">{selectedDatabase}</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-rose-500/70 dark:text-rose-400/60 mb-0.5">Target Instance</p>
+                <p className="text-[15px] font-bold font-mono text-rose-700 dark:text-rose-400 leading-none">{selectedDatabase}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/20">
-              <Icon name="warning" size="12px" className="text-rose-500 animate-pulse" />
-              <span className="text-[9px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400">Destructive Action</span>
-            </div>
+            <StatusBadge label="Destructive Action" variant="rose" icon="warning" pulse={true} className="rounded-full" />
           </div>
 
           {/* Available level summary */}
@@ -234,7 +281,7 @@ export default function RestoreDatabaseModal() {
                     <button
                       key={String(f)}
                       onClick={() => setFilter(f)}
-                      className={`text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border transition-all
+                      className={`text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border transition-all cursor-pointer
                         ${isActive
                           ? 'bg-slate-900 dark:bg-white dark:text-slate-900 text-white border-transparent shadow-xs'
                           : 'text-slate-400 border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 hover:text-slate-600 dark:hover:text-slate-200'
@@ -251,29 +298,26 @@ export default function RestoreDatabaseModal() {
           {isLoadingBackups ? (
             <div className="flex flex-col items-center justify-center py-14 gap-3 bg-slate-50/50 dark:bg-white/2 border border-dashed border-slate-200 dark:border-white/10 rounded-xl">
               <Spinner size="sm" />
-              <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Scanning catalog…</p>
+              <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black">Scanning catalog…</p>
             </div>
           ) : backups.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-14 gap-4 bg-slate-50/50 dark:bg-white/2 border border-dashed border-slate-200 dark:border-white/10 rounded-xl text-center">
-              <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-white/5 flex items-center justify-center">
-                <Icon name="search_off" size="lg" weight={100} className="text-slate-300 dark:text-white/20" />
-              </div>
-              <div>
-                <p className="text-[12px] font-bold text-slate-600 dark:text-slate-300 mb-1">
-                  {filter === 'all' ? 'No Backup Records Found' : `No ${LEVEL_META[filter]?.title} Backups Found`}
-                </p>
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 italic max-w-[240px] leading-relaxed mx-auto">
-                  {filter === 'all'
-                    ? 'Ensure the backup directory is synchronized with this host.'
-                    : 'Try selecting another backup level or view all.'}
-                </p>
-              </div>
-              {filter !== 'all' && (
-                <button onClick={() => setFilter('all')} className="text-[10px] font-bold text-amber-500 hover:text-amber-600 transition-colors underline underline-offset-2">
+            <EmptyState
+              icon={filter === 'all' ? 'search_off' : 'filter_list_off'}
+              title={filter === 'all' ? 'No Backup Records Found' : `No ${LEVEL_META[filter]?.title} Backups`}
+              subtitle={
+                filter === 'all'
+                  ? 'Ensure the backup directory is synchronized with this host.'
+                  : 'Try selecting another backup level or view all.'
+              }
+              action={filter !== 'all' && (
+                <button
+                  onClick={() => setFilter('all')}
+                  className="text-[10px] font-bold text-amber-500 hover:text-amber-600 transition-colors underline underline-offset-2 cursor-pointer"
+                >
                   Show all backups
                 </button>
               )}
-            </div>
+            />
           ) : (
             <div className="space-y-2 max-h-[260px] overflow-y-auto custom-scrollbar pr-1">
               {backups.map((backup, idx) => {
@@ -284,7 +328,7 @@ export default function RestoreDatabaseModal() {
                     key={backup.pathname || idx}
                     onClick={() => handleInputChange('selectedBackup', isSel ? null : backup.pathname)}
                     type="button"
-                    className={`w-full text-left flex items-center gap-3.5 p-3.5 rounded-xl border transition-all duration-200 group focus:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-500
+                    className={`w-full text-left flex items-center gap-3.5 p-3.5 rounded-xl border transition-all duration-200 group focus:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-500 cursor-pointer
                       ${isSel
                         ? 'border-amber-500/40 bg-amber-500/5 dark:bg-amber-500/[0.07] shadow-xs'
                         : `${meta.ring} hover:border-opacity-50 hover:shadow-xs`
@@ -340,14 +384,13 @@ export default function RestoreDatabaseModal() {
           <div className="grid grid-cols-2 gap-3">
 
             {/* Partial recovery toggle */}
-            <button
-              type="button"
-              onClick={() => handleInputChange('isPartial', !formData.isPartial)}
-              className={`flex items-center gap-3 p-4 rounded-xl border transition-all duration-200 text-left w-full group focus:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-500
+            <div
+              className={`flex items-center gap-3 p-4 rounded-xl border transition-all duration-200 text-left w-full group cursor-pointer
                 ${formData.isPartial
                   ? 'bg-amber-500/5 border-amber-500/30 dark:border-amber-500/25 shadow-xs'
                   : 'bg-slate-50/50 dark:bg-white/2 border-slate-200 dark:border-white/8 hover:border-slate-300 dark:hover:border-white/15'
                 }`}
+              onClick={() => handleInputChange('isPartial', !formData.isPartial)}
             >
               <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border transition-all
                 ${formData.isPartial
@@ -363,8 +406,10 @@ export default function RestoreDatabaseModal() {
                 </p>
                 <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-tight">Apply intermediate archive logs</p>
               </div>
-              <Toggle checked={formData.isPartial} onChange={() => handleInputChange('isPartial', !formData.isPartial)} />
-            </button>
+              <div onClick={(e) => e.stopPropagation()}>
+                <Toggle checked={formData.isPartial} onChange={() => handleInputChange('isPartial', !formData.isPartial)} />
+              </div>
+            </div>
 
             {/* Recovery path override */}
             <div className="space-y-1.5">
@@ -390,7 +435,7 @@ export default function RestoreDatabaseModal() {
               Irreversible Operation
             </p>
             <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">
-              All existing volumes for <span className="font-mono font-bold text-slate-700 dark:text-slate-200">{selectedDatabase}</span> will be permanently overwritten by the selected snapshot. Ensure the database is stopped and confirm you have a recent copy of critical data before proceeding.
+              All existing volumes for <span className="font-mono font-bold text-slate-700 dark:text-slate-200">{selectedDatabase}</span> will be permanently overwritten by the selected snapshot.
             </p>
           </div>
         </div>

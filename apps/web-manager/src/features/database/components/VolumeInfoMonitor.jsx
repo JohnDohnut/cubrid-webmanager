@@ -1,23 +1,29 @@
-import React, { useEffect, useMemo } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { usePollingRefresh } from '../../../infrastructure/hooks/usePollingRefresh';
+import React, { useMemo } from 'react';
+import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { fetchDatabaseSpaceInfo } from '../databaseSlice';
+import MonitoringSettingsPopover from '../../user/components/MonitoringSettingsPopover';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Typography } from '../../../components/ds/foundation/Typography';
+import { PageLoader } from '../../../components/ds/feedback/PageLoader';
+import { EmptyState } from '../../../components/ds/feedback/EmptyState';
 
 export default function VolumeInfoMonitor({ tabId }) {
   const dispatch = useDispatch();
+  const { preferences } = useSelector((state) => state.user, shallowEqual);
   const [, hostUid, dbname, volname] = tabId.split(':');
 
-  const { spaceInfo, spaceInfoLoading } = useSelector((state) => state.database);
-  const dbSpace = spaceInfo[dbname];
-  const isLoading = spaceInfoLoading[dbname];
+  const { spaceInfo, spaceInfoLoading } = useSelector((state) => state.databaseMonitoring || {}, shallowEqual);
+  const dbSpace = spaceInfo?.[dbname];
+  const isLoading = spaceInfoLoading?.[dbname];
 
-  useEffect(() => {
-    if (!dbSpace && !isLoading) {
-      dispatch(fetchDatabaseSpaceInfo({ hostUid, dbname }));
-    }
-  }, [dispatch, hostUid, dbname, dbSpace, isLoading]);
+  const { isManualRefreshing: isRefreshing, lastRefreshed, handleRefresh } = usePollingRefresh({
+    hostUid,
+    tabId,
+    pollingIntervalSeconds: preferences.dashboardInterval,
+    onFetch: () => () => dispatch(fetchDatabaseSpaceInfo({ hostUid, dbname }))
+  });
 
   const volume = useMemo(() => {
     if (!dbSpace) return null;
@@ -28,19 +34,24 @@ export default function VolumeInfoMonitor({ tabId }) {
 
   if (isLoading && !volume) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-3 bg-white dark:bg-background-dark">
-        <div className="h-8 w-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-        <Typography variant="p" className="text-xs text-slate-400">Loading volume data…</Typography>
+      <div className="flex-1 flex h-full bg-white dark:bg-background-dark">
+        <PageLoader
+          title="Hydrating Volume Matrix"
+          subtitle="Streaming real-time allocation maps and page distribution from the IO layer..."
+          icon="storage"
+        />
       </div>
     );
   }
 
   if (!volume) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-2 bg-white dark:bg-background-dark">
-        <Icon name="inventory_2" size="sm" weight={300} className="text-4xl text-slate-300" />
-        <Typography variant="p" className="text-sm font-semibold text-slate-400">Volume not found</Typography>
-        <Typography variant="caption" className="text-xs text-slate-300">"{volname}" in {dbname}</Typography>
+      <div className="flex-1 flex h-full bg-white dark:bg-background-dark">
+        <EmptyState
+          icon="inventory_2"
+          title="Volume Not Found"
+          subtitle={`"${volname}" could not be resolved in the ${dbname} space catalog.`}
+        />
       </div>
     );
   }
@@ -75,28 +86,50 @@ export default function VolumeInfoMonitor({ tabId }) {
     <div className="flex-1 flex flex-col h-full bg-white dark:bg-background-dark overflow-hidden select-none animate-in fade-in duration-300">
 
       {/* ── Header ── */}
-      <header className="px-6 py-4 border-b border-slate-100 dark:border-white/4 flex items-center justify-between shrink-0">
+      <header className="px-6 py-2.5 border-b border-slate-100 dark:border-white/4 flex items-center justify-between shrink-0 bg-white dark:bg-background-dark sticky top-0 z-10">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+          <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0 shadow-sm">
             <Icon name="hard_drive" size="sm" weight={300} className="text-amber-500" />
           </div>
           <div>
-            <Typography variant="h1" className="text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight">
-              Volume Info
-            </Typography>
-            <Typography variant="label" className="text-[10px] text-slate-400 font-mono truncate max-w-sm">
-              {volume.location}
-            </Typography>
+            <div className="flex items-center gap-2">
+              <Typography variant="h1" className="text-[13px] font-bold text-slate-800 dark:text-slate-100 tracking-tight leading-tight">Volume Info</Typography>
+              <div className={`px-2 py-0.5 rounded-full border flex items-center gap-1.5 shrink-0 transition-all duration-300 ${preferences.dashboardInterval > 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10'}`}>
+                <div className={`w-1 h-1 rounded-full ${preferences.dashboardInterval > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                <span className={`text-[9px] font-bold ${preferences.dashboardInterval > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                  {preferences.dashboardInterval > 0 ? 'Live' : 'Paused'}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-500/60" />
+              <Typography variant="label" className="text-[10px] text-slate-400 font-mono leading-none truncate max-w-sm">
+                {volume.location}
+              </Typography>
+            </div>
           </div>
         </div>
 
-        <button
-          onClick={() => dispatch(fetchDatabaseSpaceInfo({ hostUid, dbname }))}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-white/5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10 transition-all active:scale-95 border border-slate-200 dark:border-white/6"
-        >
-          <Icon name="refresh" size="sm" weight={300} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-1.5">
+          <Typography variant="label" className="text-[10px] text-slate-400 font-mono tracking-tight hidden lg:block mr-2">
+            Synced {lastRefreshed.toLocaleTimeString('en-US', { hour12: true })}
+          </Typography>
+
+          <button
+            onClick={handleRefresh}
+            disabled={isLoading || isRefreshing}
+            className={`w-9 h-9 flex items-center justify-center rounded-lg border transition-all active:scale-[0.98]
+              ${(isLoading || isRefreshing)
+                ? 'bg-slate-100 dark:bg-white/5 text-slate-300 dark:text-slate-600 border-slate-200 dark:border-white/5 cursor-not-allowed opacity-50'
+                : 'bg-slate-50 dark:bg-white/[0.03] border-slate-200 dark:border-white/10 text-slate-400 hover:text-amber-600 dark:hover:text-amber-500 hover:border-amber-500/50 hover:bg-white dark:hover:bg-white/5'}`}
+            title="Refresh volume data"
+          >
+            <Icon name="refresh" size="18px" className={(isLoading || isRefreshing) ? 'animate-spin' : ''} />
+          </button>
+
+          <div className="w-[1px] h-4 bg-slate-200 dark:bg-white/10 mx-0.5" />
+          <MonitoringSettingsPopover />
+        </div>
       </header>
 
       {/* ── Body ── */}
@@ -171,7 +204,7 @@ export default function VolumeInfoMonitor({ tabId }) {
           <div className="flex gap-4 w-full max-w-sm">
             <div className="flex-1 bg-amber-50 dark:bg-amber-500/6 border border-amber-100 dark:border-amber-500/20 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-1">
-                <span className="w-2. h-2 rounded-full bg-amber-500 shrink-0" />
+                <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
                 <Typography variant="label" className="text-[9px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-widest">Used</Typography>
               </div>
               <Typography variant="p" className="text-lg font-black text-slate-700 dark:text-slate-200 font-mono">{usedM.toFixed(1)}</Typography>

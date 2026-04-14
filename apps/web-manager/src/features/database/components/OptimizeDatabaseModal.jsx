@@ -1,30 +1,72 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { createPortal } from 'react-dom';
+import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeOptimizeDatabaseModal, optimizeDatabase } from '../databaseSlice';
 import { databaseApi } from '../databaseApi';
-import { showStatusModal } from '../../layout/layoutSlice';
-import LoadingOverlay from '../../../components/common/LoadingOverlay';
-import ErrorOverlay from '../../../components/common/ErrorOverlay';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
 import { Button } from '../../../components/ds/foundation/Button';
 import { Input } from '../../../components/ds/forms/Input';
-import { Select } from '../../../components/ds/forms/Select';
-import { Divider } from '../../../components/ds/layout/Divider';
 import { Typography } from '../../../components/ds/foundation/Typography';
+import { Spinner } from '../../../components/ds/foundation/Spinner';
+import { SectionHeader } from '../../../components/ds/foundation/SectionHeader';
+import { InfoBanner } from '../../../components/ds/foundation/InfoBanner';
+import { EmptyState } from '../../../components/ds/feedback/EmptyState';
+
+// view states
+const VIEW_FORM    = 'form';
+const VIEW_LOADING = 'loading';
+const VIEW_SUCCESS = 'success';
+const VIEW_ERROR   = 'error';
 
 /**
- * Custom Searchable Select for Class List
+ * Custom Dropdown for Class Selection
  */
-const ClassSelect = ({ value, userClasses, systemClasses, onChange, disabled, isLoading }) => {
+const ClassSelect = ({ value, userClasses, onChange, disabled, isLoading }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const dropdownRef = useRef(null);
+  const containerRef = useRef(null);
+  const buttonRef = useRef(null);
+  const [dropdownStyle, setDropdownStyle] = useState({});
+
+  const filteredClasses = useMemo(() => 
+    userClasses.filter(c => c.classname.toLowerCase().includes(search.toLowerCase())),
+    [userClasses, search]
+  );
+
+  const updatePosition = useCallback(() => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const margin = 24; // space from bottom of viewport
+      const maxHeight = Math.min(360, window.innerHeight - rect.bottom - margin);
+      
+      setDropdownStyle({
+        position: 'fixed',
+        top: rect.bottom + 8,
+        left: rect.left,
+        width: rect.width,
+        maxHeight: maxHeight > 120 ? maxHeight : 360,
+        zIndex: 9999,
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      updatePosition();
+      window.addEventListener('scroll', updatePosition, true);
+      window.addEventListener('resize', updatePosition);
+    }
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [isOpen, updatePosition]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
         setIsOpen(false);
       }
     };
@@ -32,148 +74,110 @@ const ClassSelect = ({ value, userClasses, systemClasses, onChange, disabled, is
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const filteredUserClasses = useMemo(() => 
-    userClasses.filter(c => c.classname.toLowerCase().includes(search.toLowerCase())),
-    [userClasses, search]
-  );
+  useEffect(() => {
+    if (!isOpen) setSearch('');
+  }, [isOpen]);
 
-  const filteredSystemClasses = useMemo(() => 
-    systemClasses.filter(c => c.classname.toLowerCase().includes(search.toLowerCase())),
-    [systemClasses, search]
-  );
-
-  const hasResults = filteredUserClasses.length > 0 || filteredSystemClasses.length > 0;
+  const hasResults = filteredClasses.length > 0;
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative" ref={containerRef}>
       <button
+        ref={buttonRef}
         type="button"
         disabled={disabled || isLoading}
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full h-10 px-4 flex items-center justify-between bg-white dark:bg-white/3 border border-slate-200 dark:border-white/10 rounded-2xl shadow-xs transition-all text-left outline-hidden ${
-          isOpen ? 'ring-2 ring-bk-yellow/20 border-bk-yellow/60' : 'hover:border-bk-yellow/40'
+        className={`w-full h-11 px-4 flex items-center justify-between bg-white dark:bg-white/3 border border-slate-200 dark:border-white/10 rounded-2xl shadow-xs transition-all text-left outline-hidden ${
+          isOpen ? 'ring-2 ring-amber-500/20 border-amber-500/60' : 'hover:border-amber-500/40'
         } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
       >
-        <div className="flex items-center gap-2.5 overflow-hidden">
+        <div className="flex items-center gap-3 overflow-hidden">
           <Icon 
             name={value ? 'table_view' : 'database'} 
             size="sm" 
             weight={300} 
-            className={value ? 'text-bk-yellow' : 'text-slate-400'} 
+            className={value ? 'text-amber-500' : 'text-slate-400'} 
           />
-        <span className={`text-[12px] font-bold truncate ${value ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>
-          <Typography variant="span">{value ? value : 'Entire Registry (Global Scan)'}</Typography>
+        <span className={`text-[12px] font-medium truncate ${value ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>
+          {value ? value : 'All Tables'}
         </span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {isLoading && <div className="w-3.5 h-3.5 border-2 border-bk-yellow/30 border-t-bk-yellow rounded-full animate-spin"></div>}
-          <Icon name="expand_more" size="sm" weight={300} className={`text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180 text-bk-yellow' : ''}`} />
+          {isLoading && <Spinner size="xs" />}
+          <Icon name="expand_more" size="sm" weight={300} className={`text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180 text-amber-500' : ''}`} />
         </div>
       </button>
 
-      {isOpen && (
-        <div className="absolute top-[calc(100%+8px)] left-0 right-0 bg-white dark:bg-bk-side border border-slate-200 dark:border-slate-800 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] z-110 overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[320px]">
-          <div className="p-3 border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-bk-main/40">
-            <div className="relative">
-              <Icon name="search" size="sm" weight={300} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input 
-                autoFocus
-                type="text"
-                placeholder="Lookup schema objects..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full h-9 pl-9 pr-3 bg-white dark:bg-bk-main border border-slate-200 dark:border-slate-800/80 rounded-xl text-[11px] font-medium text-slate-700 dark:text-white placeholder:text-slate-400 focus:border-bk-yellow/60 outline-hidden transition-all shadow-inner"
-              />
-            </div>
+      {isOpen && createPortal(
+        <div 
+          style={dropdownStyle}
+          className="bg-white dark:bg-bk-side border border-slate-200 dark:border-slate-800 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] z-110 overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col"
+        >
+          {/* Search Header */}
+          <div className="p-2 border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-white/2">
+            <Input 
+              size="sm"
+              icon="search"
+              placeholder="Filter objects..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              autoFocus
+            />
           </div>
 
-          <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <div className="flex-1 overflow-y-auto custom-scrollbar pb-2">
             {search === '' && (
               <button
                 type="button"
                 onClick={() => { onChange(''); setIsOpen(false); }}
-                className={`w-full px-4 py-3 flex items-center gap-3 text-left transition-colors border-b border-slate-100 dark:border-slate-800/40 group ${
-                  value === '' ? 'bg-bk-yellow/10' : 'hover:bg-slate-50 dark:hover:bg-white/5'
+                className={`w-full px-4 py-2.5 flex items-center gap-3 text-left transition-colors border-b border-slate-100 dark:border-slate-800/40 group ${
+                  value === '' ? 'bg-amber-500/10' : 'hover:bg-slate-50 dark:hover:bg-white/5'
                 }`}
               >
-                <div className={`w-2 h-2 rounded-full transition-all ${value === '' ? 'bg-bk-yellow scale-125 shadow-[0_0_8px_rgba(255,188,4,0.6)]' : 'bg-slate-300 dark:bg-slate-700 group-hover:bg-bk-yellow/40'}`}></div>
-                <Typography variant="label" className={`text-[10px] font-bold uppercase tracking-[0.15em] ${value === '' ? 'text-bk-yellow' : 'text-slate-500 dark:text-slate-400'}`}>Entire database</Typography>
+                <div className={`w-2 h-2 rounded-full transition-all ${value === '' ? 'bg-amber-500 scale-125 shadow-[0_0_8px_rgba(255,188,4,0.6)]' : 'bg-slate-300 dark:bg-slate-700 group-hover:bg-amber-500/40'}`}></div>
+                <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${value === '' ? 'text-amber-500' : 'text-slate-500 dark:text-slate-400'}`}>All Tables</span>
               </button>
             )}
 
             {!hasResults && !isLoading && (
-              <div className="py-12 text-center space-y-3">
-                <Icon name="search_off" size="xl" weight={100} className="text-slate-200 dark:text-slate-800" />
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">No matches for "{search}"</p>
+              <div className="py-8">
+                <EmptyState
+                  icon="search_off"
+                  title="No Matches"
+                  subtitle={`No tables matching "${search}" were found.`}
+                />
               </div>
             )}
 
             {isLoading && (
               <div className="py-12 text-center space-y-4">
-                <div className="w-8 h-8 border-2 border-bk-yellow/20 border-t-bk-yellow rounded-full animate-spin mx-auto shadow-xs"></div>
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-[0.2em]">Inspecting Schema</p>
+                <Spinner size="md" className="mx-auto" />
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-[0.2em]">Inspecting Schema</p>
               </div>
             )}
 
-            {filteredUserClasses.length > 0 && (
-              <div className="py-2">
-                <div className="px-4 py-1.5 flex items-center justify-between sticky top-0 bg-white/95 dark:bg-bk-side/95 backdrop-blur-md z-10 border-b border-slate-100 dark:border-slate-800/50 mb-1">
-                  <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">User Tables</span>
-                  <span className="text-[9px] bg-slate-100 dark:bg-bk-main/50 px-2 py-0.5 rounded-full text-slate-500 font-mono">{filteredUserClasses.length}</span>
-                </div>
-                <div className="px-1.5 space-y-0.5">
-                  {filteredUserClasses.map((cls) => (
-                    <button
-                      key={cls.classname}
-                      type="button"
-                      onClick={() => { onChange(cls.classname); setIsOpen(false); }}
-                      className={`w-full px-3 py-2.5 flex items-center gap-3 text-left transition-all rounded-xl group ${
-                        value === cls.classname 
-                          ? 'bg-bk-yellow text-bk-side font-bold shadow-lg shadow-bk-yellow/10' 
-                          : 'text-slate-600 dark:text-slate-400 hover:bg-bk-yellow/5 hover:text-bk-yellow'
-                      }`}
-                    >
-                      <Icon name="table" size="sm" weight={300} className={value === cls.classname ? 'text-bk-side' : 'text-slate-400 group-hover:text-bk-yellow'} />
-                      <div className="flex flex-col min-w-0">
-                        <Typography variant="label" className="text-[11px] font-bold truncate leading-tight select-none">{cls.classname}</Typography>
-                        <Typography variant="span" className={`text-[9px] truncate transition-opacity ${value === cls.classname ? 'text-bk-side/60' : 'text-slate-400 group-hover:text-bk-yellow/60'}`}>Owner: {cls.owner}</Typography>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {filteredSystemClasses.length > 0 && (
-              <div className="py-2 border-t border-slate-100 dark:border-slate-800/80">
-                <div className="px-4 py-1.5 flex items-center justify-between sticky top-0 bg-white/95 dark:bg-bk-side/95 backdrop-blur-md z-10 border-b border-slate-100 dark:border-slate-800/50 mb-1">
-                  <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Internal Catalog</span>
-                  <span className="text-[9px] bg-slate-100 dark:bg-bk-main/50 px-2 py-0.5 rounded-full text-slate-500 font-mono">{filteredSystemClasses.length}</span>
-                </div>
-                <div className="px-1.5 space-y-0.5">
-                  {filteredSystemClasses.map((cls) => (
-                    <button
-                      key={cls.classname}
-                      type="button"
-                      onClick={() => { onChange(cls.classname); setIsOpen(false); }}
-                      className={`w-full px-3 py-2.5 flex items-center gap-3 text-left transition-all rounded-xl group ${
-                        value === cls.classname 
-                        ? 'bg-bk-yellow text-bk-side font-bold shadow-lg shadow-bk-yellow/10' 
-                        : 'text-slate-600 dark:text-slate-400 hover:bg-bk-yellow/5 hover:text-bk-yellow'
-                      }`}
-                    >
-                      <Icon name="manufacturing" size="sm" weight={300} className={value === cls.classname ? 'text-bk-side' : 'text-slate-400 group-hover:text-bk-yellow'} />
-                      <div className="flex flex-col min-w-0">
-                        <Typography variant="label" className="text-[11px] font-bold truncate leading-tight select-none">{cls.classname}</Typography>
-                        <Typography variant="span" className={`text-[9px] truncate transition-opacity ${value === cls.classname ? 'text-bk-side/60' : 'text-slate-400 group-hover:text-bk-yellow/60'}`}>System object</Typography>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+            {filteredClasses.length > 0 && (
+              <div className="py-1 px-1.5 space-y-0.5">
+                {filteredClasses.map((cls) => (
+                  <button
+                    key={cls.classname}
+                    type="button"
+                    onClick={() => { onChange(cls.classname); setIsOpen(false); }}
+                    className={`w-full px-3 py-1.5 flex items-center gap-3 text-left transition-all rounded-xl group ${
+                      value === cls.classname 
+                        ? 'bg-amber-500 text-status-dark font-bold shadow-lg shadow-amber-500/10' 
+                        : 'text-slate-600 dark:text-slate-400 hover:bg-amber-500/5 hover:text-amber-500'
+                    }`}
+                  >
+                    <Icon name="table" size="sm" weight={300} className={value === cls.classname ? 'text-status-dark' : 'text-slate-400 group-hover:text-amber-500'} />
+                    <span className="text-[12px] font-medium truncate leading-none select-none flex-1 lowercase">{cls.classname}</span>
+                  </button>
+                ))}
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -181,19 +185,16 @@ const ClassSelect = ({ value, userClasses, systemClasses, onChange, disabled, is
 
 export default function OptimizeDatabaseModal() {
   const dispatch = useDispatch();
-  const { 
-    isOptimizeDatabaseModalOpen, 
-    selectedDatabase, 
-    activeDatabases
-  } = useSelector((state) => state.database);
-  const { selectedHostUid } = useSelector((state) => state.host);
+  const { isOptimizeDatabaseModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
+  const { selectedDatabase, activeDatabases } = useSelector((state) => state.database, shallowEqual);
+  const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
   
+  const [view, setView] = useState(VIEW_FORM);
   const [selectedClassName, setSelectedClassName] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [errorMsg, setErrorMsg] = useState('');
 
   // Direct state for classes to follow user requirement for direct getClassInfo usage
-  const [classesData, setClassesData] = useState({ userclass: [], systemclass: [] });
+  const [classesData, setClassesData] = useState({ userclass: [] });
   const [isLoadingClasses, setIsLoadingClasses] = useState(false);
 
   const isActive = selectedDatabase && activeDatabases.includes(selectedDatabase);
@@ -203,16 +204,12 @@ export default function OptimizeDatabaseModal() {
     setIsLoadingClasses(true);
     try {
       const dbstatus = isActive ? 'on' : 'off';
-      // Calling the API exactly as requested: getClassInfo: (hostUid, dbname, dbstatus)
       const res = await databaseApi.getClassInfo(selectedHostUid, selectedDatabase, dbstatus);
       
-      // Robust extraction handling potential nesting or direct arrays
       const rawUser = res.userclass?.[0]?.class || res.userclass || [];
-      const rawSystem = res.systemclass?.[0]?.class || res.systemclass || [];
       
       setClassesData({
-        userclass: rawUser.filter(c => c.virtual !== 'view'),
-        systemclass: rawSystem.filter(c => c.virtual !== 'view')
+        userclass: rawUser.filter(c => c.virtual !== 'view')
       });
     } catch (err) {
       console.error('Failed to fetch optimized classes:', err);
@@ -223,11 +220,10 @@ export default function OptimizeDatabaseModal() {
 
   useEffect(() => {
     if (isOptimizeDatabaseModalOpen && selectedDatabase) {
-      fetchClasses();
-    } else {
-      // Reset state when closing
+      setView(VIEW_FORM);
       setSelectedClassName('');
-      setClassesData({ userclass: [], systemclass: [] });
+      setErrorMsg('');
+      fetchClasses();
     }
   }, [isOptimizeDatabaseModalOpen, selectedDatabase, fetchClasses]);
 
@@ -236,8 +232,8 @@ export default function OptimizeDatabaseModal() {
   const handleOptimize = async () => {
     if (!selectedHostUid || !selectedDatabase) return;
     
-    setLoading(true);
-    setError(null);
+    setView(VIEW_LOADING);
+    setErrorMsg('');
     try {
       const payload = selectedClassName && selectedClassName !== '' 
         ? { class: [{ classname: selectedClassName }] }
@@ -249,117 +245,182 @@ export default function OptimizeDatabaseModal() {
         payload 
       })).unwrap();
       
-      dispatch(closeOptimizeDatabaseModal());
-      dispatch(showStatusModal({
-        type: 'success',
-        title: 'Optimization Success',
-        message: selectedClassName 
-          ? `Table "${selectedClassName}" in database ${selectedDatabase} optimized successfully.`
-          : `Database ${selectedDatabase} optimized successfully.`
-      }));
+      setView(VIEW_SUCCESS);
     } catch (err) {
-      setError(err || 'Failed to optimize database. Please ensure the database is accessible and try again.');
-    } finally {
-      setLoading(false);
+      setErrorMsg(typeof err === 'string' ? err : (err.message || 'The optimization sequence was interrupted. Please verify database connectivity and state.'));
+      setView(VIEW_ERROR);
     }
   };
 
-  const totalTables = classesData.userclass.length + classesData.systemclass.length;
+  const handleClose = () => dispatch(closeOptimizeDatabaseModal());
 
+  const totalTables = classesData.userclass.length;
+
+  /* ─── LOADING view ─── */
+  if (view === VIEW_LOADING) {
+    return (
+      <Modal isOpen title="Executing Heuristics" icon="auto_fix_high" onClose={handleClose} maxWidth="460px">
+        <div className="flex flex-col items-center justify-center py-12 space-y-6 animate-in fade-in duration-200">
+          <div className="relative w-16 h-16">
+            <div className="absolute inset-0 rounded-full border-2 border-slate-100 dark:border-white/5" />
+            <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-amber-500 animate-spin" style={{ animationDuration: '0.9s' }} />
+            <div className="absolute inset-[10px] rounded-full border-[1.5px] border-transparent border-b-amber-500/30 animate-spin" style={{ animationDuration: '1.7s', animationDirection: 'reverse' }} />
+            <div className="absolute inset-0 flex items-center justify-center text-amber-500">
+              <Icon name="auto_fix_high" size="md" weight={400} className="animate-pulse" />
+            </div>
+          </div>
+          <div className="text-center space-y-1.5 px-8">
+            <Typography variant="h4" className="text-[14px] font-black text-slate-800 dark:text-white tracking-tight">Regenerating Statistics</Typography>
+            <Typography variant="p" className="text-[11px] text-slate-500 font-medium leading-relaxed max-w-[280px] mx-auto">
+              Updating the cost-based optimizer for <span className="font-black text-slate-900 dark:text-white">{selectedClassName || selectedDatabase}</span>.
+            </Typography>
+          </div>
+          <div className="w-32 h-[2px] bg-slate-100 dark:bg-white/4 rounded-full overflow-hidden">
+            <div className="h-full bg-amber-500 rounded-full" style={{ animation: 'modalSlide 1.5s ease-in-out infinite' }} />
+          </div>
+          <style>{`
+            @keyframes modalSlide {
+              0%   { transform: translateX(-100%); width: 50%; }
+              50%  { transform: translateX(100%);  width: 60%; }
+              100% { transform: translateX(200%);  width: 50%; }
+            }
+          `}</style>
+        </div>
+      </Modal>
+    );
+  }
+
+  /* ─── SUCCESS view ─── */
+  if (view === VIEW_SUCCESS) {
+    return (
+      <Modal isOpen title="Optimization Complete" icon="auto_fix_high" iconVariant="success" onClose={handleClose} maxWidth="460px">
+        <div className="flex flex-col items-center justify-center py-12 gap-7 text-center animate-in fade-in duration-200">
+          <div className="relative">
+            <div className="absolute inset-0 bg-emerald-500/10 rounded-full animate-ping" style={{ animationDuration: '2s' }} />
+            <div className="relative w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center shadow-[0_0_24px_rgba(16,185,129,0.3)]">
+              <Icon name="check" size="lg" weight={700} className="text-white" />
+            </div>
+          </div>
+
+          <div className="space-y-2 px-8">
+            <Typography variant="h4" className="text-[15px] font-black text-slate-900 dark:text-white tracking-tight">
+              Performance Restored
+            </Typography>
+            <Typography variant="p" className="text-[11.5px] text-slate-500 font-medium leading-relaxed max-w-[280px] mx-auto">
+              Query statistics for {selectedClassName ? 'table' : 'database'} <span className="font-bold text-slate-900 dark:text-white">{selectedClassName || selectedDatabase}</span> have been synchronized.
+            </Typography>
+          </div>
+
+          <Button variant="secondary" onClick={handleClose} className="min-w-[140px]">Acknowledge</Button>
+        </div>
+      </Modal>
+    );
+  }
+
+  /* ─── ERROR view ─── */
+  if (view === VIEW_ERROR) {
+    return (
+      <Modal isOpen title="Execution Interrupted" icon="auto_fix_high" iconVariant="danger" onClose={handleClose} maxWidth="460px">
+        <div className="flex flex-col items-center justify-center py-10 gap-6 text-center animate-in fade-in duration-200">
+          <div className="relative">
+            <div className="absolute inset-0 bg-rose-500/10 rounded-full animate-ping" style={{ animationDuration: '2s' }} />
+            <div className="relative w-14 h-14 bg-rose-500 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(244,63,94,0.3)]">
+              <Icon name="error_outline" size="md" weight={300} className="text-white" />
+            </div>
+          </div>
+
+          <div className="space-y-2 px-6">
+            <Typography variant="h4" className="text-[15px] font-black text-slate-900 dark:text-white tracking-tight">
+              Optimization Failed
+            </Typography>
+            <Typography variant="p" className="text-[11.5px] text-slate-500 font-medium leading-relaxed">
+              System was unable to finalize statistics for <span className="font-black text-slate-900 dark:text-white">{selectedDatabase}</span>.
+            </Typography>
+          </div>
+
+          <div className="w-full max-w-[340px] bg-rose-500/5 border border-rose-500/15 rounded-xl px-4 py-3 text-left">
+            <div className="flex items-center gap-2 mb-1.5">
+              <Icon name="terminal" size="xs" weight={300} className="text-rose-400" />
+              <span className="text-[9px] font-black uppercase tracking-widest text-rose-400">Error Manifest</span>
+            </div>
+            <Typography variant="caption" className="text-rose-400/80 font-mono leading-relaxed break-words">
+              {errorMsg}
+            </Typography>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button variant="secondary" onClick={handleClose}>Dismiss</Button>
+            <Button variant="primary" icon="refresh" onClick={() => { setView(VIEW_FORM); setErrorMsg(''); }}>
+              Retry Task
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
+
+  /* ─── FORM view ─── */
   return (
     <Modal
       isOpen={isOptimizeDatabaseModalOpen}
-      onClose={() => dispatch(closeOptimizeDatabaseModal())}
-      title="Database Performance Optimization"
+      onClose={handleClose}
+      title="Performance Tuning"
+      subtitle="Optimize query execution plans"
       icon="auto_fix_high"
       maxWidth="460px"
       footer={
         <div className="flex justify-end gap-3 w-full">
-          <Button variant="secondary" onClick={() => dispatch(closeOptimizeDatabaseModal())} disabled={loading}>
+          <Button variant="ghost" onClick={handleClose}>
             Discard
           </Button>
           <Button 
             variant="primary" 
             onClick={handleOptimize} 
-            loading={loading}
             icon="play_circle"
             disabled={isLoadingClasses}
+            className="min-w-[140px]"
           >
-            Execute Optimization
+            Execute Tuning
           </Button>
         </div>
       }
     >
-      <div className="relative">
-        <LoadingOverlay 
-          isVisible={loading} 
-          title="Optimizing Database" 
-          subtitle="Regenerating index and query optimization statistics..." 
-        />
-        <ErrorOverlay 
-          isVisible={!!error} 
-          error={error} 
-          onRetry={handleOptimize}
-          onClose={() => setError(null)}
-        />
+      <div className="space-y-6">
+        <div className="px-1">
+          <SectionHeader title="Target Instance" icon="database" />
+          <Input 
+            value={selectedDatabase}
+            disabled
+            icon="database"
+            className="mt-2"
+          />
+        </div>
 
-        <div className="space-y-8">
-          {/* Section: Target Information */}
-          <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-            <Divider label="MAINTENANCE CONTEXT" />
-            <div className="px-1">
-              <Input 
-                label="Environment Identifier"
-                value={selectedDatabase}
-                disabled
-                icon="database"
-              />
-            </div>
-          </div>
+        <div className="space-y-5">
+          <InfoBanner title="Optimizer Intel" icon="insights">
+            Regenerating statistics allows the query optimizer to choose the most efficient execution paths for complex JOIN and SELECT operations.
+          </InfoBanner>
 
-          {/* Section: Configuration */}
-          <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-400">
-            <Divider label="OPTIMIZATION CONFIGURATION" />
+          <div className="space-y-2">
+            <SectionHeader 
+              title="Optimization Scope" 
+              icon="tune" 
+              badge={isLoadingClasses ? 'Traversing' : `${totalTables.toLocaleString()} objects`}
+            />
             
-            <div className="px-1 space-y-5">
-              <div className="p-4 bg-bk-yellow/5 border border-bk-yellow/10 rounded-2xl flex gap-4 transition-all hover:bg-bk-yellow/10">
-                <div className="w-10 h-10 rounded-xl bg-bk-yellow/10 flex items-center justify-center text-bk-yellow border border-bk-yellow/20 shrink-0">
-                  <Icon name="info" size="md" weight={300} />
-                </div>
-                <Typography variant="p" className="text-[11px] text-slate-500 dark:text-slate-400 italic font-medium leading-relaxed">
-                  Optimization regenerates statistics for the cost-based query optimizer. It is highly recommended to perform this after bulk data ingestion or significant schema restructuring.
-                </Typography>
-              </div>
+            <ClassSelect 
+               value={selectedClassName}
+               userClasses={classesData.userclass}
+               onChange={setSelectedClassName}
+               isLoading={isLoadingClasses}
+            />
 
-              <div className="space-y-2">
-                <Typography variant="label" className="text-slate-500 dark:text-slate-400 font-medium ml-1 flex items-center gap-1.5">
-                  Scope selection
-                  <span className="text-[9px] text-slate-300 uppercase tracking-widest">(Class / Table)</span>
-                </Typography>
-                <ClassSelect 
-                   value={selectedClassName}
-                   userClasses={classesData.userclass}
-                   systemClasses={classesData.systemclass}
-                   onChange={setSelectedClassName}
-                   disabled={loading}
-                   isLoading={isLoadingClasses}
-                />
-
-                <div className="flex items-center justify-between px-1.5 pt-1">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-1.5 h-1.5 rounded-full ${isLoadingClasses ? 'bg-slate-300 animate-pulse' : 'bg-bk-yellow/60'}`}></div>
-                    <Typography variant="p" className="text-[10px] text-slate-500 font-bold tracking-tight">
-                      {isLoadingClasses ? 'Searching Registry...' : `${totalTables.toLocaleString()} objects indexed`}
-                    </Typography>
-                  </div>
-                  {!isLoadingClasses && totalTables > 0 && (
-                    <Typography variant="p" className="text-[9px] text-slate-400 italic font-medium">
-                      Select specific target to minimize lock time
-                    </Typography>
-                  )}
-                </div>
-              </div>
-            </div>
+            {!isLoadingClasses && totalTables > 0 && (
+              <p className="text-[9.5px] text-slate-400 font-medium px-1 flex items-center gap-1.5">
+                <Icon name="lock_clock" size="10px" weight={400} />
+                Global scans may briefly locking schema metadata during analysis.
+              </p>
+            )}
           </div>
         </div>
       </div>

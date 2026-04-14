@@ -1,105 +1,129 @@
 import React from 'react';
-import SelectField from '../../../../components/common/SelectField';
-import { Typography } from '../../../../components/ds/foundation/Typography';
 import { Icon } from '../../../../components/ds/foundation/Icon';
+import { Input } from '../../../../components/ds/forms/Input';
+import { Toggle } from '../../../../components/ds/forms/Toggle';
+import { StatusBadge } from '../../../../components/ds/foundation/StatusBadge';
 
-export default function ConfigTableEditor({ 
-  sections, 
-  allPropertyKeys, 
-  selectedCell, 
-  setSelectedCell, 
-  handleKeyChange, 
-  handleValueChange 
+function isBool(val = '') {
+  const u = val.toUpperCase();
+  return u === 'ON' || u === 'OFF' || val === 'yes' || val === 'no';
+}
+
+export default function ConfigTableEditor({
+  sections,
+  allPropertyKeys,
+  selectedCell,
+  setSelectedCell,
+  handleKeyChange,
+  handleValueChange,
 }) {
   return (
-    <div className="flex-1 overflow-auto p-4 custom-scrollbar">
-      <div className="inline-block min-w-full align-middle font-sans">
-        <div className="border border-slate-200 dark:border-white/5 rounded-xl bg-white dark:bg-[#1a1c1e] shadow-2xl overflow-hidden ring-1 ring-black/5">
-          <table className="min-w-full border-collapse">
-            <thead>
-              <tr className="bg-slate-50 dark:bg-white/5">
-                <th className="px-4 py-3 text-left border border-slate-200 dark:border-white/5 w-72 bg-slate-100/50 dark:bg-black/40">
-                  <Typography variant="overline" className="text-slate-500 dark:text-slate-400">Property name</Typography>
-                </th>
-                {sections.map((sec, idx) => (
-                  <th key={idx} className="px-4 py-3 text-left border border-slate-200 dark:border-white/5 min-w-[200px] bg-slate-100/50 dark:bg-black/40">
-                    <Typography variant="overline" className="text-bk-yellow opacity-80">Broker#{idx}</Typography>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-[#1a1c1e]">
-              {allPropertyKeys.map((key, rowIdx) => (
-                <tr 
-                  key={rowIdx} 
-                  className={`group transition-colors ${
-                    (selectedCell.row === rowIdx) ? 'bg-emerald-500/3' : 'odd:bg-white dark:odd:bg-[#1a1c1e] even:bg-slate-50/10 dark:even:bg-white/1'
-                  }`}
+    <div className="flex-1 flex flex-col overflow-hidden">
+
+      {/* Scrollable table */}
+      <div className="flex-1 overflow-auto">
+        <div className="block w-full">
+
+          {/* Sticky header */}
+          <div className="sticky top-0 z-20 flex w-full bg-slate-50 dark:bg-[#0D1117] border-b border-slate-200 dark:border-white/8">
+            <div className="w-80 shrink-0 px-4 py-2.5 border-r border-slate-200 dark:border-white/8 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              Property
+            </div>
+            {sections.map((sec, idx) => (
+              <div key={idx} className="w-full min-w-0 px-4 py-2.5 border-r border-slate-200 dark:border-white/8 flex items-center gap-1.5">
+                <Icon name="hub" size="sm" weight={300} className="text-amber-500 dark:text-bk-yellow shrink-0" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-bk-yellow truncate">
+                  {sec.properties?.BROKER_NAME || `Broker ${idx + 1}`}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Rows */}
+          <div className="bg-white dark:bg-bk-side w-full">
+            {allPropertyKeys.map((key, rowIdx) => {
+              const isBrokerName = key === 'BROKER_NAME';
+              const isRowSelected = selectedCell.row === rowIdx;
+
+              return (
+                <div
+                  key={rowIdx}
+                  className="flex border-b border-slate-100 dark:border-white/4 transition-colors"
                 >
-                  <td className={`p-0 border border-slate-200 dark:border-white/5 font-medium ${
-                    key === 'BROKER_NAME' ? 'bg-slate-50/50 dark:bg-black/20' : ''
-                  }`}>
-                    {key === 'BROKER_NAME' ? (
-                      <div className="px-4 py-2 text-blue-600 dark:text-blue-400 flex items-center gap-2">
-                         <Icon name="label_important" size="14px"  weight={300} />
-                         <Typography variant="span" className="text-[13px] font-bold">{key}</Typography>
+                  {/* Key cell */}
+                  <div className={`w-80 shrink-0 flex items-center border-r border-slate-100 dark:border-white/5`}>
+                    {isBrokerName ? (
+                      <div className="flex items-center gap-2 px-4 py-2">
+                        <Icon name="label_important" size="sm" weight={300} className="text-sky-500" />
+                        <span className="text-[12px] font-bold text-sky-600 dark:text-sky-400 font-mono">{key}</span>
                       </div>
                     ) : (
-                      <input 
-                        id={`property-name-${key}`}
-                        type="text"
-                        value={key}
-                        onChange={(e) => handleKeyChange(key, e.target.value)}
-                        className="w-full px-4 py-2 bg-transparent outline-hidden text-slate-700 dark:text-slate-300 text-[13px] font-medium transition-all focus:bg-white dark:focus:bg-white/5"
-                        placeholder="Property Name"
-                      />
+                      <div className={`w-full h-full flex items-center ${isRowSelected && selectedCell.col === -1 ? 'ring-1 ring-inset ring-amber-500/60 transition-all z-10' : ''}`}
+                           onClick={() => setSelectedCell({ row: rowIdx, col: -1 })}>
+                        <Input
+                          size="sm"
+                          value={key}
+                          onChange={(e) => handleKeyChange(key, e.target.value)}
+                          className="w-full gap-0"
+                          inputClassName="border-none bg-transparent rounded-none! font-mono text-[12px]! px-4! focus:outline-none"
+                        />
+                      </div>
                     )}
-                  </td>
+                  </div>
+
+                  {/* Value cells */}
                   {sections.map((sec, colIdx) => {
                     const isSelected = selectedCell.row === rowIdx && selectedCell.col === colIdx;
-                    const currentValue = sec.properties[key] || '';
-                    const isBoolean = ['ON', 'OFF'].includes(currentValue.toUpperCase());
-                    
+                    const val = sec.properties[key] ?? '';
+                    const bool = isBool(val);
+                    const isActive = val.toUpperCase() === 'ON' || val === 'yes';
+                    const isYesNo = val === 'yes' || val === 'no';
+
                     return (
-                      <td 
-                        key={colIdx} 
+                      <div
+                        key={colIdx}
                         onClick={() => setSelectedCell({ row: rowIdx, col: colIdx })}
-                        className={`p-0 border border-slate-200 dark:border-white/5 relative ${
-                            isSelected ? 'bg-emerald-500/8' : ''
-                        }`}
+                        className={`relative w-full min-w-0 border-r border-slate-100 dark:border-white/5 cursor-pointer transition-all bg-transparent dark:bg-transparent
+                          ${isSelected && !bool ? 'ring-1 ring-inset ring-amber-500/60 z-10 shadow-inner' : ''}
+                          ${!bool ? 'hover:bg-amber-50/20 dark:hover:bg-white/2' : ''}`}
                       >
-                        {isBoolean ? (
-                          <SelectField 
-                            value={currentValue.toUpperCase()}
-                            onChange={(val) => handleValueChange(colIdx, key, val)}
-                            isHighlight={true}
-                            triggerClassName="h-9! border-0! bg-transparent text-[13px]!"
-                            options={[
-                              { value: 'ON', label: 'ON' },
-                              { value: 'OFF', label: 'OFF' }
-                            ]}
-                          />
+                        {bool ? (
+                          <div className="flex items-center gap-2 px-4 h-[38px]">
+                            <Toggle
+                              checked={isActive}
+                              onChange={(checked) => {
+                                const next = isYesNo ? (checked ? 'yes' : 'no') : (checked ? 'ON' : 'OFF');
+                                handleValueChange(colIdx, key, next);
+                              }}
+                            />
+                            <span className={`text-[11px] font-mono font-bold ${isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
+                              {val}
+                            </span>
+                          </div>
                         ) : (
-                          <input 
-                            type="text"
-                            value={currentValue}
+                          <Input
+                            size="sm"
+                            value={val}
                             onChange={(e) => handleValueChange(colIdx, key, e.target.value)}
-                            className={`w-full px-4 py-2 bg-transparent outline-hidden transition-all text-[13px] ${
-                                isSelected ? 'text-slate-900 dark:text-white font-bold' : 'text-slate-800 dark:text-slate-400'
-                            } ${key === 'BROKER_NAME' ? 'text-blue-600 dark:text-blue-400 font-bold italic' : ''}`}
+                            className="w-full gap-0"
+                            inputClassName={`border-none bg-transparent rounded-none! font-mono text-[12px]! px-4! focus:outline-none
+                              ${isSelected ? 'text-amber-600 dark:text-bk-yellow font-bold' : ''}`}
                           />
                         )}
-                        {isSelected && (
-                            <div className="absolute inset-x-0 bottom-0 h-[2px] bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
-                        )}
-                      </td>
+                      </div>
                     );
                   })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                </div>
+              );
+            })}
+          </div>
         </div>
+      </div>
+
+      {/* Footer */}
+      <div className="shrink-0 px-4 py-1.5 bg-white dark:bg-bk-side border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 font-medium uppercase tracking-wider">
+        <span>{allPropertyKeys.length} properties · {sections.length} brokers</span>
+        <StatusBadge label="Table Editor" variant="emerald" className="border-none bg-transparent" />
       </div>
     </div>
   );

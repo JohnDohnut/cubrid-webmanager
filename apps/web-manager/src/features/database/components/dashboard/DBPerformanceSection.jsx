@@ -5,12 +5,9 @@ import { Icon } from '../../../../components/ds/foundation/Icon';
 import { Table } from '../../../../components/ds/layout/Table';
 import { Typography } from '../../../../components/ds/foundation/Typography';
 import { Card } from '../../../../components/ds/layout/Card';
+import { ProgressBar } from '../../../../components/ds/foundation/ProgressBar';
 
-const Bar = ({ pct, colorClass }) => (
-  <div className="w-full h-1 bg-slate-100 dark:bg-white/6 overflow-hidden mt-1">
-    <div className={`h-full ${colorClass} transition-all duration-500`} style={{ width: `${pct}%` }} />
-  </div>
-);
+
 
 export default function DBPerformanceSection({ dbStats, pollingProps }) {
   const dispatch = useDispatch();
@@ -46,9 +43,13 @@ export default function DBPerformanceSection({ dbStats, pollingProps }) {
       header: 'CPU',
       accessor: 'cpu',
       render: (val, row) => (
-        <div className="min-w-[90px]">
-          <span className="font-mono text-[12px] font-semibold text-slate-700 dark:text-slate-200">{val}</span>
-          <Bar pct={row.cpuPct} colorClass={row.cpuPct > 80 ? 'bg-rose-500' : row.cpuPct > 50 ? 'bg-amber-500' : 'bg-emerald-500'} />
+        <div className="min-w-[90px] pr-4">
+          <ProgressBar 
+            pct={row.cpuPct} 
+            showValue 
+            valueLabel={val} 
+            variant="auto"
+          />
         </div>
       )
     },
@@ -56,39 +57,55 @@ export default function DBPerformanceSection({ dbStats, pollingProps }) {
       header: 'Memory',
       accessor: 'memory',
       render: (val, row) => (
-        <div className="min-w-[100px]">
-          <span className="font-mono text-[12px] font-semibold text-slate-700 dark:text-slate-200">{val}</span>
-          <Bar pct={row.memPct} colorClass={row.memPct > 80 ? 'bg-rose-500' : 'bg-amber-500'} />
+        <div className="min-w-[100px] pr-4">
+          <ProgressBar 
+            pct={row.memPct} 
+            showValue 
+            valueLabel={val} 
+            variant="auto"
+          />
         </div>
       )
     },
     {
       header: 'TPS',
       accessor: 'tps',
-      render: (val) => (
-        <div className="flex flex-col">
-          <span className="font-mono text-[18px] font-black text-emerald-500 leading-none">{val}</span>
-          <span className="text-[9px] text-slate-400 uppercase tracking-widest font-bold mt-0.5">Trans/sec</span>
-        </div>
-      )
+      render: (val) => {
+        const v = parseFloat(val);
+        const color = v > 0 ? 'text-emerald-500' : 'text-slate-400';
+        return (
+          <div className="flex flex-col">
+            <span className={`font-mono text-[18px] font-black leading-none transition-colors duration-500 ${color}`}>{val}</span>
+            <span className="text-[9px] text-slate-400 uppercase tracking-widest font-bold mt-0.5">Trans/sec</span>
+          </div>
+        );
+      }
     },
     {
       header: 'QPS',
       accessor: 'qps',
-      render: (val) => (
-        <div className="flex flex-col">
-          <span className="font-mono text-[18px] font-black text-amber-500 leading-none">{val}</span>
-          <span className="text-[9px] text-slate-400 uppercase tracking-widest font-bold mt-0.5">Queries/sec</span>
-        </div>
-      )
+      render: (val) => {
+        const v = parseInt(val.replace(/,/g, ''));
+        const color = v > 0 ? 'text-rose-500' : 'text-slate-400';
+        return (
+          <div className="flex flex-col">
+            <span className={`font-mono text-[18px] font-black leading-none transition-colors duration-500 ${color}`}>{val}</span>
+            <span className="text-[9px] text-slate-400 uppercase tracking-widest font-bold mt-0.5">Queries/sec</span>
+          </div>
+        );
+      }
     },
     {
       header: 'Buffer Hit',
       accessor: 'hitRatio',
       render: (val, row) => (
-        <div className="min-w-[100px]">
-          <span className="font-mono text-[12px] font-semibold text-slate-700 dark:text-slate-200">{val}</span>
-          <Bar pct={row.hitPct} colorClass={row.hitPct < 80 ? 'bg-rose-500' : 'bg-emerald-500'} />
+        <div className="min-w-[100px] pr-4">
+          <ProgressBar 
+            pct={row.hitPct} 
+            showValue 
+            valueLabel={val} 
+            variant={row.hitPct < 85 ? 'rose' : 'emerald'}
+          />
         </div>
       )
     },

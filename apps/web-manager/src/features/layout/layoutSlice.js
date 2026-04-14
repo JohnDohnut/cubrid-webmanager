@@ -18,7 +18,8 @@ const initialState = {
     type: 'success', // success, error, info
     title: '',
     message: ''
-  }
+  },
+  refreshCounter: 0,
 };
 
 const layoutSlice = createSlice({
@@ -84,7 +85,12 @@ const layoutSlice = createSlice({
     },
     closeHostTabs: (state, action) => {
       const hostUid = action.payload;
-      const tabsToClose = state.openTabs.filter(tab => tab === `host:${hostUid}` || tab.startsWith('db:'));
+      const tabsToClose = state.openTabs.filter(tab => 
+        tab.includes(hostUid) || 
+        // Fallback for database tabs which might not have UID in identifier yet 
+        // (shared model - assumes they belong to the disconnected host if it was active)
+        (tab.startsWith('db:') && state.activeMainTab?.includes(hostUid))
+      );
       state.openTabs = state.openTabs.filter(tab => !tabsToClose.includes(tab));
       state.dirtyTabs = state.dirtyTabs.filter(id => !tabsToClose.includes(id));
       
@@ -118,6 +124,9 @@ const layoutSlice = createSlice({
     closeStatusModal: (state) => {
       state.statusModal.isOpen = false;
     },
+    triggerRefreshActiveTab: (state) => {
+      state.refreshCounter += 1;
+    },
   },
 });
 
@@ -136,6 +145,7 @@ export const {
   closeHostTabs,
   showStatusModal,
   closeStatusModal,
+  triggerRefreshActiveTab,
 } = layoutSlice.actions;
 
 export default layoutSlice.reducer;

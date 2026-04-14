@@ -175,7 +175,7 @@ export const updateBrokerConfig = createAsyncThunk(
   'broker/updateBrokerConfig',
   async ({ hostUid, confdata }, { dispatch, rejectWithValue }) => {
     try {
-      await brokerApi.updateBrokerConfig(hostUid, 'brokerconf', confdata);
+      await brokerApi.updateBrokerConfig(hostUid, 'cubrid_broker.conf', confdata);
       dispatch(fetchBrokerConfig({ hostUid }));
       return { success: true };
     } catch (err) {
@@ -194,6 +194,8 @@ const initialState = {
   adminLogsByHost: {}, // { hostUid: [logs] }
   loading: false,
   actionLoading: false,
+  lastActionTarget: null, // Track broker name
+  lastActionType: null,   // Track 'start' or 'stop'
   logsLoading: false,
   adminLogsLoading: false,
   cmsLogsByHost: {}, // { hostUid: { accesslog: [], errorlog: [] } }
@@ -228,6 +230,18 @@ const brokerSlice = createSlice({
     },
     closeBrokerPropertyModal: (state) => {
       state.propertyModal.isOpen = false;
+    },
+    resetBrokerState: (state) => {
+      state.brokers = [];
+      state.selectedBroker = null;
+      state.selectedBrokerSubItem = null;
+      state.detailedStatus = {};
+      state.logsByBroker = {};
+      state.viewingLogs = {};
+      state.adminLogsByHost = {};
+      state.cmsLogsByHost = {};
+      state.brokerConfig = {};
+      state.error = null;
     }
   },
   extraReducers: (builder) => {
@@ -270,23 +284,35 @@ const brokerSlice = createSlice({
         state.detailedStatus[brokerName].loading = false;
         state.detailedStatus[brokerName].error = action.payload;
       })
-      .addCase(startBroker.pending, (state) => {
+      .addCase(startBroker.pending, (state, action) => {
         state.actionLoading = true;
+        state.lastActionTarget = action.meta.arg?.brokerName;
+        state.lastActionType = 'start';
       })
       .addCase(startBroker.fulfilled, (state) => {
         state.actionLoading = false;
+        state.lastActionTarget = null;
+        state.lastActionType = null;
       })
       .addCase(startBroker.rejected, (state) => {
         state.actionLoading = false;
+        state.lastActionTarget = null;
+        state.lastActionType = null;
       })
-      .addCase(stopBroker.pending, (state) => {
+      .addCase(stopBroker.pending, (state, action) => {
         state.actionLoading = true;
+        state.lastActionTarget = action.meta.arg?.brokerName;
+        state.lastActionType = 'stop';
       })
       .addCase(stopBroker.fulfilled, (state) => {
         state.actionLoading = false;
+        state.lastActionTarget = null;
+        state.lastActionType = null;
       })
       .addCase(stopBroker.rejected, (state) => {
         state.actionLoading = false;
+        state.lastActionTarget = null;
+        state.lastActionType = null;
       })
       .addCase(fetchBrokerLogs.pending, (state) => {
         state.logsLoading = true;
@@ -362,7 +388,32 @@ const brokerSlice = createSlice({
         const { hostUid } = action.meta.arg;
         state.brokerConfig[hostUid].loading = false;
         state.brokerConfig[hostUid].error = action.payload;
-      });
+      })
+      // Cleanup on tab close to prevent memory leaks
+      .addMatcher(
+        (action) => action.type === 'layout/closeTab',
+        (state, action) => {
+          const tabId = action.payload;
+          const statusMatch = tabId.match(/^broker_status:[^:]+:([^:]+)/);
+          const logMatch = tabId.match(/^log:[^:]+:(.+)/);
+          
+          if (statusMatch) {
+            delete state.detailedStatus[statusMatch[1]];
+          } else if (logMatch) {
+            delete state.viewingLogs[logMatch[1]];
+          }
+        }
+      )
+      .addMatcher(
+        (action) => action.type === 'layout/closeHostTabs',
+        (state, action) => {
+          const hostUid = action.payload;
+          // Clean up logs and config for specifically closed host
+          delete state.adminLogsByHost[hostUid];
+          delete state.cmsLogsByHost[hostUid];
+          delete state.brokerConfig[hostUid];
+        }
+      );
   },
 });
 
@@ -370,7 +421,8 @@ export const {
   setSelectedBroker, 
   setSelectedBrokerSubItem, 
   openBrokerPropertyModal, 
-  closeBrokerPropertyModal 
+  closeBrokerPropertyModal,
+  resetBrokerState 
 } = brokerSlice.actions;
 
 export default brokerSlice.reducer;

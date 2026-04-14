@@ -1,9 +1,12 @@
 import { useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { loginStart, loginSuccess, loginFailure } from '../authSlice';
 import { authApi } from '../authApi';
 import { Icon } from '../../../components/ds/foundation/Icon';
+import { Toggle } from '../../../components/ds/forms/Toggle';
+import { Input } from '../../../components/ds/forms/Input';
+import { InfoBanner } from '../../../components/ds/foundation/InfoBanner';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -11,9 +14,10 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState('');
+  const [remember, setRemember] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { loading } = useSelector((state) => state.auth);
+  const { loading } = useSelector((state) => state.auth, shallowEqual);
 
   const validate = () => {
     const errs = {};
@@ -177,76 +181,50 @@ export default function LoginPage() {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
 
-            {/* Username */}
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Username</label>
-              <div className="relative group">
-                <Icon name="account_circle" size="sm" weight={300} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-600 group-focus-within:text-amber-500 transition-colors pointer-events-none" />
-                <input
-                  type="text"
-                  value={username}
-                  autoComplete="username"
-                  onChange={(e) => { setUsername(e.target.value); if (errors.username) setErrors({ ...errors, username: '' }); }}
-                  className={`${inputBase} pl-10 pr-4 ${errors.username ? inputError : `${inputFocus} ${inputNormal}`}`}
-                  placeholder="Enter username"
-                />
-              </div>
-              {errors.username && (
-                <p className="text-[11px] text-rose-500 font-medium flex items-center gap-1 ml-0.5">
-                  <Icon name="error" size="12px" weight={400} />{errors.username}
-                </p>
-              )}
-            </div>
+            <Input
+              label="Username"
+              icon="account_circle"
+              placeholder="Enter username"
+              value={username}
+              onChange={(e) => { setUsername(e.target.value); if (errors.username) setErrors({ ...errors, username: '' }); }}
+              error={errors.username}
+              autoComplete="username"
+            />
 
-            {/* Password */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Password</label>
-                <Link to="/forgot-password" className="text-[10px] font-bold text-amber-500 hover:text-amber-400 transition-colors tracking-wide">Forgot?</Link>
-              </div>
-              <div className="relative group">
-                <Icon name="lock" size="sm" weight={300} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-600 group-focus-within:text-amber-500 transition-colors pointer-events-none" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  autoComplete="current-password"
-                  onChange={(e) => { setPassword(e.target.value); if (errors.password) setErrors({ ...errors, password: '' }); }}
-                  className={`${inputBase} pl-10 pr-11 ${errors.password ? inputError : `${inputFocus} ${inputNormal}`}`}
-                  placeholder="••••••••"
-                />
+            <Input
+              label="Password"
+              labelExtra={<Link to="/forgot-password" title="Recover your password" className="text-amber-500 hover:text-amber-400 transition-colors">Forgot?</Link>}
+              icon="lock"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); if (errors.password) setErrors({ ...errors, password: '' }); }}
+              error={errors.password}
+              autoComplete="current-password"
+              suffix={
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                  className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors p-1"
                 >
                   <Icon name={showPassword ? 'visibility_off' : 'visibility'} size="sm" weight={300} />
                 </button>
-              </div>
-              {errors.password && (
-                <p className="text-[11px] text-rose-500 font-medium flex items-center gap-1 ml-0.5">
-                  <Icon name="error" size="12px" weight={400} />{errors.password}
-                </p>
-              )}
-            </div>
+              }
+            />
 
             {/* Remember me */}
-            <label className="flex items-center gap-2.5 cursor-pointer group w-fit py-1 select-none">
-              <input type="checkbox" id="remember" className="peer sr-only" />
-              <div
-                onClick={() => document.getElementById('remember').click()}
-                className="w-4 h-4 rounded-md border border-slate-300 dark:border-white/15 peer-checked:bg-amber-500 peer-checked:border-amber-500 flex items-center justify-center transition-all bg-white dark:bg-white/3"
-              >
-                <Icon name="check" size="12px" weight={600} className="text-white opacity-0 peer-checked:opacity-100" />
-              </div>
-              <span className="text-[12px] font-medium text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-300 transition-colors">Remember this device</span>
-            </label>
+            <Toggle
+              label="Remember this device"
+              checked={remember}
+              onChange={setRemember}
+              className="py-1"
+            />
 
             {/* API error */}
             {apiError && (
-              <div className="p-3 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 rounded-xl flex items-start gap-2.5 animate-in fade-in slide-in-from-top-1 duration-200">
-                <Icon name="error_outline" size="sm" weight={300} className="text-rose-500 shrink-0 mt-0.5" />
-                <p className="text-[12px] text-rose-600 dark:text-rose-400 font-medium leading-snug">{apiError}</p>
-              </div>
+              <InfoBanner variant="danger" title="Authentication Failed">
+                {apiError}
+              </InfoBanner>
             )}
 
             {/* Submit */}

@@ -1,9 +1,9 @@
-import { useSelector } from 'react-redux';
+import { useSelector, shallowEqual } from 'react-redux';
 import { Typography } from '../../../components/ds/foundation/Typography';
 import { Icon } from '../../../components/ds/foundation/Icon';
 
 export default function Footer() {
-  const { selectedHostUid, hosts, authorizedHosts, hostEnvs } = useSelector((state) => state.host);
+  const { selectedHostUid, hosts, authorizedHosts, hostEnvs } = useSelector((state) => state.host, shallowEqual);
   const currentHost = hosts.find(h => h.uid === selectedHostUid);
   const isConnected = selectedHostUid && authorizedHosts.includes(selectedHostUid);
   const version = hostEnvs[selectedHostUid]?.CUBRIDVER || '11.2.0.4501';
@@ -28,20 +28,7 @@ export default function Footer() {
         )}
       </div>
 
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-2 text-slate-400">
-          <Icon name="text_snippet" size="xs"  weight={300} />
-          <Typography variant="caption" className="font-medium">UTF-8</Typography>
-        </div>
-        <div className="flex items-center gap-2">
-           <Typography 
-             variant="caption" 
-             className={`font-bold tracking-wider uppercase text-[9px] ${isConnected ? 'text-emerald-500' : 'text-slate-500 opacity-50'}`}
-           >
-            {isConnected ? 'Active Connection' : 'Disconnected'}
-          </Typography>
-        </div>
-      </div>
+      <div />
     </footer>
   );
 }
