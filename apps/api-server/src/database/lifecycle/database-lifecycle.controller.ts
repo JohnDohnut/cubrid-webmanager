@@ -4,7 +4,6 @@ import {
   CreateDatabaseClientResponse,
   CreateDatabaseWithConfigRequest,
   CreateDatabaseWithConfigResponse,
-  DatabaseLifecycleControlRequest,
   DatabaseVolumeInfoClientResponse,
   DeleteDatabaseRequest,
   GetCreatedbInfoClientResponse,
@@ -91,13 +90,12 @@ export class DatabaseLifecycleController {
   async startDatabase(
     @Request() req,
     @Param('hostUid') hostUid: string,
-    @Param('dbname') dbname: string,
-    @Body() body?: DatabaseLifecycleControlRequest
+    @Param('dbname') dbname: string
   ): Promise<StartInfoClientResponse> {
     const userId = req.user.sub;
 
     this.logger.log(`Starting database: ${dbname} on host: ${hostUid}`);
-    const result = await this.lifecycleService.startDatabase(userId, hostUid, dbname, body ?? {});
+    const result = await this.lifecycleService.startDatabase(userId, hostUid, dbname);
     return result;
   }
 
@@ -117,13 +115,12 @@ export class DatabaseLifecycleController {
   async stopDatabase(
     @Request() req,
     @Param('hostUid') hostUid: string,
-    @Param('dbname') dbname: string,
-    @Body() body?: DatabaseLifecycleControlRequest
+    @Param('dbname') dbname: string
   ): Promise<StartInfoClientResponse> {
     const userId = req.user.sub;
 
     this.logger.log(`Stopping database: ${dbname} on host: ${hostUid}`);
-    const result = await this.lifecycleService.stopDatabase(userId, hostUid, dbname, body ?? {});
+    const result = await this.lifecycleService.stopDatabase(userId, hostUid, dbname);
     return result;
   }
 
@@ -143,13 +140,12 @@ export class DatabaseLifecycleController {
   async restartDatabase(
     @Request() req,
     @Param('hostUid') hostUid: string,
-    @Param('dbname') dbname: string,
-    @Body() body?: DatabaseLifecycleControlRequest
+    @Param('dbname') dbname: string
   ): Promise<StartInfoClientResponse> {
     const userId = req.user.sub;
 
     this.logger.log(`Restarting database: ${dbname} on host: ${hostUid}`);
-    const result = await this.lifecycleService.restartDatabase(userId, hostUid, dbname, body ?? {});
+    const result = await this.lifecycleService.restartDatabase(userId, hostUid, dbname);
     return result;
   }
 
