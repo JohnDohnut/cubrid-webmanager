@@ -23,6 +23,7 @@ export * from './ha-stop-database-cms-request';
 export * from './ha-reload-cms-request';
 export * from './restart-database-cms-request';
 export * from './paramdump-cms-request';
+export * from './plandump-cms-request';
 export * from './statdump-cms-request';
 export * from './db-space-info-cms-request';
 export * from './get-database-log-info-cms-request';

@@ -14,6 +14,7 @@ export * from './stop-all-brokers-cms-response';
 export * from './get-env-cms-response';
 export * from './start-info-cms-response';
 export * from './paramdump-cms-response';
+export * from './plandump-cms-response';
 export * from './statdump-cms-response';
 export * from './db-space-info-cms-response';
 export * from './get-log-file-info-cms-response';
