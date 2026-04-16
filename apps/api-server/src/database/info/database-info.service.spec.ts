@@ -154,6 +154,46 @@ describe('DatabaseInfoService', () => {
     });
   });
 
+  describe('effectiveHaDbForDbname', () => {
+    it('returns false when host HA is off', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({
+        __EXEC_TIME: '10 ms',
+        note: 'none',
+        status: 'success',
+        task: 'startinfo',
+        dblist: [{ dbs: [{ dbname: 'testdb' }] }],
+        activelist: [{ active: [] }],
+      });
+
+      const result = await service.effectiveHaDbForDbname(mockUserId, mockHostUid, 'testdb');
+
+      expect(result).toBe(false);
+      expect(haService.heartbeatlistInternal).not.toHaveBeenCalled();
+    });
+
+    it('returns true when host HA is on and db is in startinfo and heartbeat', async () => {
+      cmsConfigService.getAllSystemParam.mockResolvedValue({
+        confname: 'cubridconf',
+        conflist: [{ confdata: ['[common]', 'ha_mode=on'] }],
+      });
+      cmsClient.postAuthenticated.mockResolvedValue({
+        __EXEC_TIME: '10 ms',
+        note: 'none',
+        status: 'success',
+        task: 'startinfo',
+        dblist: [{ dbs: [{ dbname: 'testdb' }] }],
+        activelist: [{ active: [] }],
+      });
+      haService.heartbeatlistInternal.mockResolvedValue({
+        hadbinfolist: [{ server: [{ dbmode: [{ dbname: 'testdb' }] }] }],
+      });
+
+      const result = await service.effectiveHaDbForDbname(mockUserId, mockHostUid, 'testdb');
+
+      expect(result).toBe(true);
+    });
+  });
+
   describe('getCreatedbInfo', () => {
     it('should return create info from env', async () => {
       cmsConfigService.getEnv.mockResolvedValue(mockGetEnvForCreatedb);

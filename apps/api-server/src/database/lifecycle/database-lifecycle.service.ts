@@ -3,7 +3,6 @@ import {
   CreateDatabaseClientResponse,
   CreateDatabaseWithConfigRequest,
   CreateDatabaseWithConfigResponse,
-  DatabaseLifecycleControlRequest,
   DatabaseVolumeInfoClientResponse,
   DeleteDatabaseRequest,
   StartInfoClientResponse,
@@ -106,7 +105,8 @@ export class DatabaseLifecycleService extends BaseService {
   }
 
   /**
-   * Start a database on a host. When `control.isHA` is true, uses `ha_start`; otherwise `startdb`.
+   * Start a database on a host. Uses `ha_start` when server-side HA detection says this DB is HA
+   * (same rules as start-info per-DB `isHA`); otherwise `startdb`.
    *
    * @param userId User ID from JWT
    * @param hostUid Host UID
@@ -119,10 +119,9 @@ export class DatabaseLifecycleService extends BaseService {
   async startDatabase(
     userId: string,
     hostUid: string,
-    dbname: string,
-    control?: DatabaseLifecycleControlRequest
+    dbname: string
   ): Promise<StartInfoClientResponse> {
-    const useHa = control?.isHA === true;
+    const useHa = await this.databaseInfoService.effectiveHaDbForDbname(userId, hostUid, dbname);
     const response = useHa
       ? await this.haService.haStart(userId, hostUid, dbname)
       : await this.startNonHaDatabase(userId, hostUid, dbname);
@@ -135,7 +134,7 @@ export class DatabaseLifecycleService extends BaseService {
   }
 
   /**
-   * Stop a database on a host. When `control.isHA` is true, uses `ha_stop`; otherwise `stopdb`.
+   * Stop a database on a host. Uses `ha_stop` when HA commands apply; otherwise `stopdb`.
    *
    * @param userId User ID from JWT
    * @param hostUid Host UID
@@ -147,10 +146,9 @@ export class DatabaseLifecycleService extends BaseService {
   async stopDatabase(
     userId: string,
     hostUid: string,
-    dbname: string,
-    control?: DatabaseLifecycleControlRequest
+    dbname: string
   ): Promise<StartInfoClientResponse> {
-    const useHa = control?.isHA === true;
+    const useHa = await this.databaseInfoService.effectiveHaDbForDbname(userId, hostUid, dbname);
     const response = useHa
       ? await this.haService.haStop(userId, hostUid, dbname)
       : await this.stopNonHaDatabase(userId, hostUid, dbname);
@@ -163,7 +161,7 @@ export class DatabaseLifecycleService extends BaseService {
   }
 
   /**
-   * Restart a database (stop then start).
+   * Restart a database (stop then start). Uses HA or non-HA tasks for both steps per the same rules as start/stop.
    *
    * @param userId User ID from JWT
    * @param hostUid Host UID
@@ -175,10 +173,9 @@ export class DatabaseLifecycleService extends BaseService {
   async restartDatabase(
     userId: string,
     hostUid: string,
-    dbname: string,
-    control?: DatabaseLifecycleControlRequest
+    dbname: string
   ): Promise<StartInfoClientResponse> {
-    const useHa = control?.isHA === true;
+    const useHa = await this.databaseInfoService.effectiveHaDbForDbname(userId, hostUid, dbname);
 
     const stopResponse = useHa
       ? await this.haService.haStop(userId, hostUid, dbname)
