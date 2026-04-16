@@ -118,6 +118,47 @@ export class DatabaseInfoService extends BaseService {
   }
 
   /**
+   * Same rules as per-DB `isHA` in {@link startInfo}: host HA enabled, DB appears in both
+   * startinfo and heartbeat lists, and not `ha_mode=off` under `[@dbname]` in cubrid.conf.
+   * Used by database start/stop/restart to choose `ha_*` vs `startdb`/`stopdb`.
+   */
+  @HandleDatabaseErrors()
+  async effectiveHaDbForDbname(
+    userId: string,
+    hostUid: string,
+    dbname: string
+  ): Promise<boolean> {
+    const [cmsStart, conf] = await Promise.all([
+      this.startInfoInternal(userId, hostUid),
+      this.cmsConfigService.getAllSystemParam(userId, hostUid, DATABASE_CONSTANTS.CUBRID_CONF_NAME),
+    ]);
+    const dataOnly = this.extractDomainData(cmsStart);
+    const hostHa = isHostHaModeOnFromCubridConf(conf);
+    if (!hostHa) {
+      return false;
+    }
+    const offNames = getPerDbHaModeOffDbNames(conf);
+    const startNames = extractDbNamesFromStartInfo(dataOnly);
+    let heartbeatNames: string[] = [];
+    try {
+      const hb = await this.haService.heartbeatlistInternal(userId, hostUid);
+      heartbeatNames = extractDbNamesFromHeartbeatList(hb);
+    } catch (err) {
+      this.logger.warn(
+        `heartbeatlist failed while resolving effective HA for "${dbname}": ${err}`
+      );
+    }
+    const rows = computeHaDbTopology({
+      hostHaEnabled: hostHa,
+      startInfoNames: startNames,
+      heartbeatNames,
+      confHaModeOffNames: offNames,
+    });
+    const row = rows.find((r) => r.dbname === dbname);
+    return row?.effectiveHaDb === true;
+  }
+
+  /**
    * Get default information for creating a database.
    *
    * @param userId User ID from JWT
