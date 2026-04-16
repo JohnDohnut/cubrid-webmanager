@@ -8,12 +8,8 @@ import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import { BaseCmsRequest, BaseCmsResponse } from '@type';
 import { StartInfoCmsResponse } from '@type/cms-response';
-import { HaService } from '@ha';
 import { DATABASE_CONSTANTS } from '../database.constants';
 import {
-  computeHaDbTopology,
-  extractDbNamesFromHeartbeatList,
-  extractDbNamesFromStartInfo,
   getPerDbHaModeOffDbNames,
   isHostHaModeOnFromCubridConf,
 } from '@util';
@@ -30,8 +26,7 @@ export class DatabaseInfoService extends BaseService {
   constructor(
     protected readonly hostService: HostService,
     protected readonly cmsClient: CmsHttpsClientService,
-    private readonly cmsConfigService: CmsConfigService,
-    private readonly haService: HaService
+    private readonly cmsConfigService: CmsConfigService
   ) {
     super(hostService, cmsClient);
   }
@@ -64,6 +59,8 @@ export class DatabaseInfoService extends BaseService {
 
   /**
    * Get start information for databases on a host (client shape with isProfileExists).
+   * Per-DB `isHA` is derived only from cubrid.conf:
+   * host `[common] ha_mode=on` and no `[@dbname] ha_mode=off` override.
    *
    * @param userId User ID from JWT
    * @param hostUid Host UID
@@ -84,24 +81,6 @@ export class DatabaseInfoService extends BaseService {
 
     const hostHa = isHostHaModeOnFromCubridConf(conf);
     const offNames = getPerDbHaModeOffDbNames(conf);
-    const startNames = extractDbNamesFromStartInfo(dataOnly);
-    let heartbeatNames: string[] = [];
-    if (hostHa) {
-      try {
-        const hb = await this.haService.heartbeatlistInternal(userId, hostUid);
-        heartbeatNames = extractDbNamesFromHeartbeatList(hb);
-      } catch (err) {
-        this.logger.warn(`heartbeatlist failed while building startInfo: ${err}`);
-      }
-    }
-
-    const rows = computeHaDbTopology({
-      hostHaEnabled: hostHa,
-      startInfoNames: startNames,
-      heartbeatNames,
-      confHaModeOffNames: offNames,
-    });
-    const isHAByDb = new Map(rows.map((r) => [r.dbname, r.effectiveHaDb]));
 
     const clientResponse: StartInfoClientResponse = {
       activelist: { active: activeList },
@@ -109,7 +88,7 @@ export class DatabaseInfoService extends BaseService {
         dbs: dbs.map((db) => ({
           ...db,
           isProfileExists: !!dbProfiles[db.dbname],
-          isHA: hostHa ? (isHAByDb.get(db.dbname) ?? false) : false,
+          isHA: hostHa && !offNames.has((db.dbname ?? '').trim()),
         })),
       },
     };
@@ -118,8 +97,8 @@ export class DatabaseInfoService extends BaseService {
   }
 
   /**
-   * Same rules as per-DB `isHA` in {@link startInfo}: host HA enabled, DB appears in both
-   * startinfo and heartbeat lists, and not `ha_mode=off` under `[@dbname]` in cubrid.conf.
+   * Same rules as per-DB `isHA` in {@link startInfo}: host HA enabled and not
+   * `ha_mode=off` under `[@dbname]` in cubrid.conf.
    * Used by database start/stop/restart to choose `ha_*` vs `startdb`/`stopdb`.
    */
   @HandleDatabaseErrors()
@@ -128,34 +107,17 @@ export class DatabaseInfoService extends BaseService {
     hostUid: string,
     dbname: string
   ): Promise<boolean> {
-    const [cmsStart, conf] = await Promise.all([
-      this.startInfoInternal(userId, hostUid),
-      this.cmsConfigService.getAllSystemParam(userId, hostUid, DATABASE_CONSTANTS.CUBRID_CONF_NAME),
-    ]);
-    const dataOnly = this.extractDomainData(cmsStart);
+    const conf = await this.cmsConfigService.getAllSystemParam(
+      userId,
+      hostUid,
+      DATABASE_CONSTANTS.CUBRID_CONF_NAME
+    );
     const hostHa = isHostHaModeOnFromCubridConf(conf);
     if (!hostHa) {
       return false;
     }
     const offNames = getPerDbHaModeOffDbNames(conf);
-    const startNames = extractDbNamesFromStartInfo(dataOnly);
-    let heartbeatNames: string[] = [];
-    try {
-      const hb = await this.haService.heartbeatlistInternal(userId, hostUid);
-      heartbeatNames = extractDbNamesFromHeartbeatList(hb);
-    } catch (err) {
-      this.logger.warn(
-        `heartbeatlist failed while resolving effective HA for "${dbname}": ${err}`
-      );
-    }
-    const rows = computeHaDbTopology({
-      hostHaEnabled: hostHa,
-      startInfoNames: startNames,
-      heartbeatNames,
-      confHaModeOffNames: offNames,
-    });
-    const row = rows.find((r) => r.dbname === dbname);
-    return row?.effectiveHaDb === true;
+    return !offNames.has(dbname.trim());
   }
 
   /**
