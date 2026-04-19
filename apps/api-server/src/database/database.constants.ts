@@ -11,6 +11,11 @@ export const DATABASE_CONSTANTS = {
   CUBRID_CONF_NAME: 'cubridconf',
 
   /**
+   * CUBRID HA configuration file name (cubrid_ha.conf) for CMS getallsysparam
+   */
+  HACONF_NAME: 'haconf',
+
+  /**
    * CMS API protocol
    */
   CMS_API_PROTOCOL: 'https://',

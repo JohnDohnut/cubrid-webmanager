@@ -106,7 +106,7 @@ export class DatabaseLifecycleService extends BaseService {
 
   /**
    * Start a database on a host. Uses `ha_start` when server-side HA detection says this DB is HA.
-   * Rule: host `ha_mode=on` and this DB is not explicitly `ha_mode=off` under `[@dbname]` in cubrid.conf.
+   * Rule: this DB must appear in `[common]` `ha_db_list` in cubrid_ha.conf (`haconf`).
    * Otherwise uses `startdb`.
    *
    * @param userId User ID from JWT
@@ -136,7 +136,7 @@ export class DatabaseLifecycleService extends BaseService {
 
   /**
    * Stop a database on a host. Uses `ha_stop` when server-side HA detection says this DB is HA.
-   * Rule: host `ha_mode=on` and this DB is not explicitly `ha_mode=off` under `[@dbname]` in cubrid.conf.
+   * Rule: this DB must appear in `[common]` `ha_db_list` in cubrid_ha.conf (`haconf`).
    * Otherwise uses `stopdb`.
    *
    * @param userId User ID from JWT
@@ -166,7 +166,7 @@ export class DatabaseLifecycleService extends BaseService {
   /**
    * Restart a database (stop then start).
    * For both steps, HA selection follows the same rule as start/stop:
-   * host `ha_mode=on` and this DB is not explicitly `ha_mode=off` under `[@dbname]` in cubrid.conf.
+   * DB name must be listed in `[common]` `ha_db_list` in cubrid_ha.conf (`haconf`).
    *
    * @param userId User ID from JWT
    * @param hostUid Host UID

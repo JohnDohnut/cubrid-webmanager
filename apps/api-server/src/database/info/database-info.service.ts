@@ -9,10 +9,7 @@ import { Injectable } from '@nestjs/common';
 import { BaseCmsRequest, BaseCmsResponse } from '@type';
 import { StartInfoCmsResponse } from '@type/cms-response';
 import { DATABASE_CONSTANTS } from '../database.constants';
-import {
-  getPerDbHaModeOffDbNames,
-  isHostHaModeOnFromCubridConf,
-} from '@util';
+import { parseHaDbListDbNamesFromHaConf } from '@util';
 
 /**
  * Service for database information (read-only) used across database modules.
@@ -59,8 +56,8 @@ export class DatabaseInfoService extends BaseService {
 
   /**
    * Get start information for databases on a host (client shape with isProfileExists).
-   * Per-DB `isHA` is derived only from cubrid.conf:
-   * host `[common] ha_mode=on` and no `[@dbname] ha_mode=off` override.
+   * Per-DB `isHA` is derived from cubrid_ha.conf (CMS `haconf`): the DB name must appear
+   * in `[common]` `ha_db_list`. If it is not listed, the DB is treated as non-HA.
    *
    * @param userId User ID from JWT
    * @param hostUid Host UID
@@ -70,17 +67,16 @@ export class DatabaseInfoService extends BaseService {
   @HandleDatabaseErrors()
   async startInfo(userId: string, hostUid: string): Promise<StartInfoClientResponse> {
     const host = await this.hostService.findHostInternal(userId, hostUid);
-    const [cmsStart, conf] = await Promise.all([
+    const [cmsStart, haConf] = await Promise.all([
       this.startInfoInternal(userId, hostUid),
-      this.cmsConfigService.getAllSystemParam(userId, hostUid, DATABASE_CONSTANTS.CUBRID_CONF_NAME),
+      this.cmsConfigService.getAllSystemParam(userId, hostUid, DATABASE_CONSTANTS.HACONF_NAME),
     ]);
     const dataOnly = this.extractDomainData(cmsStart);
     const dbProfiles = host.dbProfiles || {};
     const dbs = dataOnly.dblist?.[0]?.dbs || [];
     const activeList = dataOnly.activelist?.[0]?.active || [];
 
-    const hostHa = isHostHaModeOnFromCubridConf(conf);
-    const offNames = getPerDbHaModeOffDbNames(conf);
+    const haDbNames = parseHaDbListDbNamesFromHaConf(haConf);
 
     const clientResponse: StartInfoClientResponse = {
       activelist: { active: activeList },
@@ -88,7 +84,7 @@ export class DatabaseInfoService extends BaseService {
         dbs: dbs.map((db) => ({
           ...db,
           isProfileExists: !!dbProfiles[db.dbname],
-          isHA: hostHa && !offNames.has((db.dbname ?? '').trim()),
+          isHA: haDbNames.has((db.dbname ?? '').trim()),
         })),
       },
     };
@@ -97,8 +93,8 @@ export class DatabaseInfoService extends BaseService {
   }
 
   /**
-   * Same rules as per-DB `isHA` in {@link startInfo}: host HA enabled and not
-   * `ha_mode=off` under `[@dbname]` in cubrid.conf.
+   * Same rules as per-DB `isHA` in {@link startInfo}: DB name must be in `ha_db_list`
+   * in cubrid_ha.conf (`haconf`).
    * Used by database start/stop/restart to choose `ha_*` vs `startdb`/`stopdb`.
    */
   @HandleDatabaseErrors()
@@ -107,17 +103,13 @@ export class DatabaseInfoService extends BaseService {
     hostUid: string,
     dbname: string
   ): Promise<boolean> {
-    const conf = await this.cmsConfigService.getAllSystemParam(
+    const haConf = await this.cmsConfigService.getAllSystemParam(
       userId,
       hostUid,
-      DATABASE_CONSTANTS.CUBRID_CONF_NAME
+      DATABASE_CONSTANTS.HACONF_NAME
     );
-    const hostHa = isHostHaModeOnFromCubridConf(conf);
-    if (!hostHa) {
-      return false;
-    }
-    const offNames = getPerDbHaModeOffDbNames(conf);
-    return !offNames.has(dbname.trim());
+    const haDbNames = parseHaDbListDbNamesFromHaConf(haConf);
+    return haDbNames.has(dbname.trim());
   }
 
   /**

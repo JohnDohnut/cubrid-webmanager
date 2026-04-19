@@ -52,7 +52,7 @@ describe('DatabaseInfoService', () => {
     const mockCmsConfigService = {
       getEnv: jest.fn(),
       getAllSystemParam: jest.fn().mockResolvedValue({
-        conflist: [{ confdata: ['[common]', 'ha_mode=off'] }],
+        conflist: [{ confdata: ['[common]', 'ha_db_list='] }],
       }),
     };
     const module: TestingModule = await Test.createTestingModule({
@@ -134,7 +134,7 @@ describe('DatabaseInfoService', () => {
       expect(cmsConfigService.getAllSystemParam).toHaveBeenCalledWith(
         mockUserId,
         mockHostUid,
-        'cubridconf'
+        'haconf'
       );
       expect(result).toEqual({
         activelist: { active: [{ dbname: 'testdb' }] },
@@ -146,25 +146,26 @@ describe('DatabaseInfoService', () => {
   });
 
   describe('effectiveHaDbForDbname', () => {
-    it('returns false when host HA is off', async () => {
-      cmsClient.postAuthenticated.mockResolvedValue({
-        __EXEC_TIME: '10 ms',
-        note: 'none',
-        status: 'success',
-        task: 'startinfo',
-        dblist: [{ dbs: [{ dbname: 'testdb' }] }],
-        activelist: [{ active: [] }],
+    it('returns false when dbname is not in ha_db_list', async () => {
+      cmsConfigService.getAllSystemParam.mockResolvedValue({
+        confname: 'haconf',
+        conflist: [{ confdata: ['[common]', 'ha_db_list=demodb,otherdb'] }],
       });
 
       const result = await service.effectiveHaDbForDbname(mockUserId, mockHostUid, 'testdb');
 
+      expect(cmsConfigService.getAllSystemParam).toHaveBeenCalledWith(
+        mockUserId,
+        mockHostUid,
+        'haconf'
+      );
       expect(result).toBe(false);
     });
 
-    it('returns true when host HA is on and db is not explicitly off', async () => {
+    it('returns true when dbname is in ha_db_list', async () => {
       cmsConfigService.getAllSystemParam.mockResolvedValue({
-        confname: 'cubridconf',
-        conflist: [{ confdata: ['[common]', 'ha_mode=on'] }],
+        confname: 'haconf',
+        conflist: [{ confdata: ['[common]', 'ha_db_list=demodb,testdb'] }],
       });
 
       const result = await service.effectiveHaDbForDbname(mockUserId, mockHostUid, 'testdb');
@@ -172,10 +173,10 @@ describe('DatabaseInfoService', () => {
       expect(result).toBe(true);
     });
 
-    it('returns false when db has [@dbname] ha_mode=off', async () => {
+    it('returns false when ha_db_list is empty', async () => {
       cmsConfigService.getAllSystemParam.mockResolvedValue({
-        confname: 'cubridconf',
-        conflist: [{ confdata: ['[common]', 'ha_mode=on', '[@testdb]', 'ha_mode=off'] }],
+        confname: 'haconf',
+        conflist: [{ confdata: ['[common]', 'ha_port_id=59901'] }],
       });
 
       const result = await service.effectiveHaDbForDbname(mockUserId, mockHostUid, 'testdb');
