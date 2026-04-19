@@ -19,8 +19,6 @@ import { CmsConfigService } from '@cms-config/cms-config.service';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import {
   BaseService,
-  checkCmsStatusError,
-  checkCmsTokenError,
   HandleCmsErrors,
   HandleDatabaseErrors,
 } from '@common';
@@ -510,7 +508,7 @@ export class DatabaseConfigService extends BaseService {
   async getAutoExecQueryErrLog(
     userId: string,
     hostUid: string,
-    request: GetAutoExecQueryErrLogRequest
+    _request: GetAutoExecQueryErrLogRequest
   ): Promise<GetAutoExecQueryErrLogResponse> {
     const cmsRequest: GetAutoExecQueryErrLogCmsRequest = {
       task: 'getautoexecqueryerrlog',
