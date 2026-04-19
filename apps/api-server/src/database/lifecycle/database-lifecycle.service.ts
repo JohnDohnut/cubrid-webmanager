@@ -26,7 +26,7 @@ import { BaseCmsResponse } from '@type';
 import { DatabaseInfoService } from '../info/database-info.service';
 import { DatabaseUserService } from '../user/database-user.service';
 import { DatabaseConfigService } from '../config/database-config.service';
-import { DATABASE_CONSTANTS } from '../database.constants';
+import { CMS_CONFNAME_CUBRID } from '@database/database.constants';
 import {
   CreateDatabaseCmsRequest,
   DeleteDatabaseCmsRequest,
@@ -533,7 +533,7 @@ export class DatabaseLifecycleService extends BaseService {
       try {
         // Use top-level dbname and automatically use "cubridconf" as confname
         const setAutoStartResult = await this.databaseConfigService.setAutoStart(userId, hostUid, {
-          confname: DATABASE_CONSTANTS.CUBRID_CONF_NAME,
+          confname: CMS_CONFNAME_CUBRID,
           dbname: createDbRequest.dbname,
         });
         response.setAutoStart = {
@@ -596,7 +596,7 @@ export class DatabaseLifecycleService extends BaseService {
     // Remove dbname from server parameter in cubridconf if it exists
     try {
       await this.databaseConfigService.removeAutoStart(userId, hostUid, {
-        confname: DATABASE_CONSTANTS.CUBRID_CONF_NAME,
+        confname: CMS_CONFNAME_CUBRID,
         dbname: dbname,
       });
       this.logger.debug(

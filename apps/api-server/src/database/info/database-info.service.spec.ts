@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import type { GetEnvClientResponse } from '@api-interfaces';
+import { CMS_CONFNAME_HACONF } from '@database/database.constants';
 import { DatabaseInfoService } from './database-info.service';
 import { HostService } from '@host';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
@@ -134,7 +135,7 @@ describe('DatabaseInfoService', () => {
       expect(cmsConfigService.getAllSystemParam).toHaveBeenCalledWith(
         mockUserId,
         mockHostUid,
-        'haconf'
+        CMS_CONFNAME_HACONF
       );
       expect(result).toEqual({
         activelist: { active: [{ dbname: 'testdb' }] },
@@ -148,7 +149,7 @@ describe('DatabaseInfoService', () => {
   describe('effectiveHaDbForDbname', () => {
     it('returns false when dbname is not in ha_db_list', async () => {
       cmsConfigService.getAllSystemParam.mockResolvedValue({
-        confname: 'haconf',
+        confname: CMS_CONFNAME_HACONF,
         conflist: [{ confdata: ['[common]', 'ha_db_list=demodb,otherdb'] }],
       });
 
@@ -157,14 +158,14 @@ describe('DatabaseInfoService', () => {
       expect(cmsConfigService.getAllSystemParam).toHaveBeenCalledWith(
         mockUserId,
         mockHostUid,
-        'haconf'
+        CMS_CONFNAME_HACONF
       );
       expect(result).toBe(false);
     });
 
     it('returns true when dbname is in ha_db_list', async () => {
       cmsConfigService.getAllSystemParam.mockResolvedValue({
-        confname: 'haconf',
+        confname: CMS_CONFNAME_HACONF,
         conflist: [{ confdata: ['[common]', 'ha_db_list=demodb,testdb'] }],
       });
 
@@ -175,7 +176,7 @@ describe('DatabaseInfoService', () => {
 
     it('returns false when ha_db_list is empty', async () => {
       cmsConfigService.getAllSystemParam.mockResolvedValue({
-        confname: 'haconf',
+        confname: CMS_CONFNAME_HACONF,
         conflist: [{ confdata: ['[common]', 'ha_port_id=59901'] }],
       });
 

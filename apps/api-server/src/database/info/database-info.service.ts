@@ -8,7 +8,7 @@ import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import { BaseCmsRequest, BaseCmsResponse } from '@type';
 import { StartInfoCmsResponse } from '@type/cms-response';
-import { DATABASE_CONSTANTS } from '../database.constants';
+import { CMS_CONFNAME_HACONF } from '@database/database.constants';
 import { parseHaDbListDbNamesFromHaConf } from '@util';
 
 /**
@@ -69,7 +69,7 @@ export class DatabaseInfoService extends BaseService {
     const host = await this.hostService.findHostInternal(userId, hostUid);
     const [cmsStart, haConf] = await Promise.all([
       this.startInfoInternal(userId, hostUid),
-      this.cmsConfigService.getAllSystemParam(userId, hostUid, DATABASE_CONSTANTS.HACONF_NAME),
+      this.cmsConfigService.getAllSystemParam(userId, hostUid, CMS_CONFNAME_HACONF),
     ]);
     const dataOnly = this.extractDomainData(cmsStart);
     const dbProfiles = host.dbProfiles || {};
@@ -103,11 +103,7 @@ export class DatabaseInfoService extends BaseService {
     hostUid: string,
     dbname: string
   ): Promise<boolean> {
-    const haConf = await this.cmsConfigService.getAllSystemParam(
-      userId,
-      hostUid,
-      DATABASE_CONSTANTS.HACONF_NAME
-    );
+    const haConf = await this.cmsConfigService.getAllSystemParam(userId, hostUid, CMS_CONFNAME_HACONF);
     const haDbNames = parseHaDbListDbNamesFromHaConf(haConf);
     return haDbNames.has(dbname.trim());
   }
