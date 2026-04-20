@@ -26,7 +26,7 @@ import { BaseCmsResponse } from '@type';
 import { DatabaseInfoService } from '../info/database-info.service';
 import { DatabaseUserService } from '../user/database-user.service';
 import { DatabaseConfigService } from '../config/database-config.service';
-import { DATABASE_CONSTANTS } from '../database.constants';
+import { CMS_CONFNAME_CUBRID } from '@database/database.constants';
 import {
   CreateDatabaseCmsRequest,
   DeleteDatabaseCmsRequest,
@@ -105,8 +105,9 @@ export class DatabaseLifecycleService extends BaseService {
   }
 
   /**
-   * Start a database on a host. Uses `ha_start` when server-side HA detection says this DB is HA
-   * (same rules as start-info per-DB `isHA`); otherwise `startdb`.
+   * Start a database on a host. Uses `ha_start` when server-side HA detection says this DB is HA.
+   * Rule: this DB must appear in `[common]` `ha_db_list` in cubrid_ha.conf (`haconf`).
+   * Otherwise uses `startdb`.
    *
    * @param userId User ID from JWT
    * @param hostUid Host UID
@@ -134,7 +135,9 @@ export class DatabaseLifecycleService extends BaseService {
   }
 
   /**
-   * Stop a database on a host. Uses `ha_stop` when HA commands apply; otherwise `stopdb`.
+   * Stop a database on a host. Uses `ha_stop` when server-side HA detection says this DB is HA.
+   * Rule: this DB must appear in `[common]` `ha_db_list` in cubrid_ha.conf (`haconf`).
+   * Otherwise uses `stopdb`.
    *
    * @param userId User ID from JWT
    * @param hostUid Host UID
@@ -161,7 +164,9 @@ export class DatabaseLifecycleService extends BaseService {
   }
 
   /**
-   * Restart a database (stop then start). Uses HA or non-HA tasks for both steps per the same rules as start/stop.
+   * Restart a database (stop then start).
+   * For both steps, HA selection follows the same rule as start/stop:
+   * DB name must be listed in `[common]` `ha_db_list` in cubrid_ha.conf (`haconf`).
    *
    * @param userId User ID from JWT
    * @param hostUid Host UID
@@ -528,7 +533,7 @@ export class DatabaseLifecycleService extends BaseService {
       try {
         // Use top-level dbname and automatically use "cubridconf" as confname
         const setAutoStartResult = await this.databaseConfigService.setAutoStart(userId, hostUid, {
-          confname: DATABASE_CONSTANTS.CUBRID_CONF_NAME,
+          confname: CMS_CONFNAME_CUBRID,
           dbname: createDbRequest.dbname,
         });
         response.setAutoStart = {
@@ -591,7 +596,7 @@ export class DatabaseLifecycleService extends BaseService {
     // Remove dbname from server parameter in cubridconf if it exists
     try {
       await this.databaseConfigService.removeAutoStart(userId, hostUid, {
-        confname: DATABASE_CONSTANTS.CUBRID_CONF_NAME,
+        confname: CMS_CONFNAME_CUBRID,
         dbname: dbname,
       });
       this.logger.debug(
