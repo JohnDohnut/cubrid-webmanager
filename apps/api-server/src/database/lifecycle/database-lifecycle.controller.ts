@@ -1,7 +1,5 @@
 import { Body, Controller, Delete, Get, Logger, Param, Post, Request } from '@nestjs/common';
 import {
-  CreateDatabaseClientRequest,
-  CreateDatabaseClientResponse,
   CreateDatabaseWithConfigRequest,
   CreateDatabaseWithConfigResponse,
   DatabaseVolumeInfoClientResponse,

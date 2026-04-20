@@ -11,9 +11,7 @@ import {
   StatdumpClientResponse,
 } from '@api-interfaces';
 import {
-  ParamdumpCmsRequest,
   SetSysParamCmsRequest,
-  StatdumpCmsRequest,
   BaseCmsRequest,
   GetAddBrokerInfoCmsRequest,
   BrokerSetParamCmsRequest,
