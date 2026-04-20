@@ -39,7 +39,7 @@ import {
   DeleteDatabaseCmsResponse,
   DbSpaceInfoCmsResponse,
 } from '@type/cms-response';
-import { convertExvolArrayToCmsFormat } from '@util';
+import { convertExvolArrayToCmsFormat, isHostHaModeOnFromCubridConf } from '@util';
 
 /**
  * Service for managing database lifecycle operations.
@@ -323,6 +323,19 @@ export class DatabaseLifecycleService extends BaseService {
     request: CreateDatabaseClientRequest
   ): Promise<CreateDatabaseClientResponse> {
     const host = await this.hostService.findHostInternal(userId, hostUid);
+
+    const cubridConf = await this.cmsConfigService.getAllSystemParam(
+      userId,
+      hostUid,
+      CMS_CONFNAME_CUBRID
+    );
+    if (isHostHaModeOnFromCubridConf(cubridConf)) {
+      throw DatabaseError.InvalidParameter('Creating database is not allowed on HA hosts.', {
+        hostUid,
+        dbname: request.dbname,
+        reason: 'HA_HOST_CREATE_DB_BLOCKED',
+      });
+    }
 
     // Collect files to check before parsing exvol
     const filesToCheck: string[] = [];
