@@ -330,11 +330,14 @@ export class DatabaseLifecycleService extends BaseService {
       CMS_CONFNAME_CUBRID
     );
     if (isHostHaModeOnFromCubridConf(cubridConf)) {
-      throw DatabaseError.InvalidParameter('Creating database is not allowed on HA hosts.', {
-        hostUid,
-        dbname: request.dbname,
-        reason: 'HA_HOST_CREATE_DB_BLOCKED',
-      });
+      throw DatabaseError.InvalidParameter(
+        'Cannot create databases on hosts configured for HA.',
+        {
+          hostUid,
+          dbname: request.dbname,
+          reason: 'HA_HOST_CREATE_DB_BLOCKED',
+        }
+      );
     }
 
     // Collect files to check before parsing exvol
@@ -598,11 +601,14 @@ export class DatabaseLifecycleService extends BaseService {
       CMS_CONFNAME_CUBRID
     );
     if (isHostHaModeOnFromCubridConf(cubridConf)) {
-      throw DatabaseError.InvalidParameter('Deleting database is not allowed on HA hosts.', {
-        hostUid,
-        dbname,
-        reason: 'HA_HOST_DELETE_DB_BLOCKED',
-      });
+      throw DatabaseError.InvalidParameter(
+        'Cannot delete databases on hosts configured for HA.',
+        {
+          hostUid,
+          dbname,
+          reason: 'HA_HOST_DELETE_DB_BLOCKED',
+        }
+      );
     }
 
     const cmsRequest: DeleteDatabaseCmsRequest = {
