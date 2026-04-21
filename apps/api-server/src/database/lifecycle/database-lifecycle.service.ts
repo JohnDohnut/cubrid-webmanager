@@ -592,6 +592,19 @@ export class DatabaseLifecycleService extends BaseService {
     dbname: string,
     request: DeleteDatabaseRequest
   ): Promise<StartInfoClientResponse> {
+    const cubridConf = await this.cmsConfigService.getAllSystemParam(
+      userId,
+      hostUid,
+      CMS_CONFNAME_CUBRID
+    );
+    if (isHostHaModeOnFromCubridConf(cubridConf)) {
+      throw DatabaseError.InvalidParameter('Deleting database is not allowed on HA hosts.', {
+        hostUid,
+        dbname,
+        reason: 'HA_HOST_DELETE_DB_BLOCKED',
+      });
+    }
+
     const cmsRequest: DeleteDatabaseCmsRequest = {
       task: 'deletedb',
       dbname: dbname,
