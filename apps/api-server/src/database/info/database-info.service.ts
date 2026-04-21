@@ -10,6 +10,7 @@ import { BaseCmsRequest, BaseCmsResponse } from '@type';
 import { StartInfoCmsResponse } from '@type/cms-response';
 import { CMS_CONFNAME_HACONF } from '@database/database.constants';
 import { parseHaDbListDbNamesFromHaConf } from '@util';
+import { mapStartInfoToClientResponse } from './start-info.mapper';
 
 /**
  * Service for database information (read-only) used across database modules.
@@ -66,22 +67,7 @@ export class DatabaseInfoService extends BaseService {
   async startInfo(userId: string, hostUid: string): Promise<StartInfoClientResponse> {
     const host = await this.hostService.findHostInternal(userId, hostUid);
     const cmsStart = await this.startInfoInternal(userId, hostUid);
-    const dataOnly = this.extractDomainData(cmsStart);
-    const dbProfiles = host.dbProfiles || {};
-    const dbs = dataOnly.dblist?.[0]?.dbs || [];
-    const activeList = dataOnly.activelist?.[0]?.active || [];
-
-    const clientResponse: StartInfoClientResponse = {
-      activelist: { active: activeList },
-      dblist: {
-        dbs: dbs.map((db) => ({
-          ...db,
-          isProfileExists: !!dbProfiles[db.dbname],
-        })),
-      },
-    };
-
-    return clientResponse;
+    return mapStartInfoToClientResponse(cmsStart, host.dbProfiles);
   }
 
   /**
