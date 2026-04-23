@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 #
-# dist가 이미 서버에 있는 상태에서 런타임 구성만 수행:
-# - Node/nginx 설치(없을 때만)
-# - TLS PEM 생성(/etc/ssl/cubrid-webmanager)
-# - /etc/cubrid-webmanager.env 작성
-# - systemd 서비스 등록/재시작
-# - nginx 설정/재시작
+# Runtime-only setup when dist already exists on server:
+# - Install Node/nginx (only if missing)
+# - Generate TLS PEM files (/etc/ssl/cubrid-webmanager)
+# - Write /etc/cubrid-webmanager.env
+# - Register/restart systemd service
+# - Configure/restart nginx
 #
-# 전제:
+# Prerequisites:
 #   /opt/cubrid-webmanager/dist/apps/api-server/main.js
 #   /opt/cubrid-webmanager/dist/apps/web-manager/index.html
 #
-# 사용:
+# Usage:
 #   sudo ./scripts/setup-runtime-from-dist.sh
 #
-# 비대화식 예:
+# Non-interactive example:
 #   sudo CWM_SEED=seed CWM_SALT=salt \
 #     CWM_ALLOWED_ORIGINS='https://192.168.3.120' \
 #     CWM_PUBLIC_HOST=192.168.3.120 \
@@ -32,10 +32,10 @@ CWM_SERVICE_USER="${CWM_SERVICE_USER:-cubrid}"
 CWM_SERVICE_GROUP="${CWM_SERVICE_GROUP:-cubrid}"
 CWM_PUBLIC_HOST="${CWM_PUBLIC_HOST:-localhost}"
 
-die() { echo "오류: $*" >&2; exit 1; }
+die() { echo "Error: $*" >&2; exit 1; }
 
 need_root() {
-  [[ "${EUID:-$(id -u)}" -eq 0 ]] || die "root 또는 sudo로 실행하세요."
+  [[ "${EUID:-$(id -u)}" -eq 0 ]] || die "Run as root or with sudo."
 }
 
 detect_pkg() {
@@ -46,7 +46,7 @@ detect_pkg() {
   elif command -v yum >/dev/null 2>&1; then
     echo "rhel_yum"
   else
-    die "지원 패키지 매니저를 찾지 못했습니다 (apt/dnf/yum)."
+    die "No supported package manager found (apt/dnf/yum)."
   fi
 }
 
@@ -62,7 +62,7 @@ detect_primary_ip() {
 }
 
 install_node_if_missing() {
-  echo "=== Node 확인/설치 ==="
+  echo "=== Check/install Node ==="
   if command -v node >/dev/null 2>&1; then
     node -v
     return
@@ -93,7 +93,7 @@ install_node_if_missing() {
 }
 
 install_nginx_if_missing() {
-  echo "=== nginx 확인/설치 ==="
+  echo "=== Check/install nginx ==="
   if command -v nginx >/dev/null 2>&1; then
     nginx -v
     return
@@ -108,11 +108,11 @@ install_nginx_if_missing() {
 }
 
 validate_dist() {
-  echo "=== dist 유효성 확인 ==="
+  echo "=== Validate dist ==="
   [[ -f "${CWM_INSTALL_ROOT}/dist/apps/api-server/main.js" ]] \
-    || die "api-server main.js 없음: ${CWM_INSTALL_ROOT}/dist/apps/api-server/main.js"
+    || die "api-server main.js not found: ${CWM_INSTALL_ROOT}/dist/apps/api-server/main.js"
   [[ -f "${CWM_INSTALL_ROOT}/dist/apps/web-manager/index.html" ]] \
-    || echo "경고: web-manager index.html 없음 (${CWM_INSTALL_ROOT}/dist/apps/web-manager/index.html)"
+    || echo "Warning: web-manager index.html not found (${CWM_INSTALL_ROOT}/dist/apps/web-manager/index.html)"
 }
 
 read_inputs() {
@@ -125,7 +125,7 @@ read_inputs() {
       read -r -s -p "SEED: " seed
       echo
     else
-      die "비대화식 실행에서는 CWM_SEED를 지정하세요."
+      die "Set CWM_SEED for non-interactive execution."
     fi
   fi
 
@@ -134,7 +134,7 @@ read_inputs() {
       read -r -s -p "SALT: " salt
       echo
     else
-      die "비대화식 실행에서는 CWM_SALT를 지정하세요."
+      die "Set CWM_SALT for non-interactive execution."
     fi
   fi
 
@@ -143,10 +143,10 @@ read_inputs() {
     guessed_ip="$(detect_primary_ip)"
     if [[ -n "$guessed_ip" ]]; then
       default_origin="https://${guessed_ip}"
-      read -r -p "ALLOWED_ORIGINS (기본 ${default_origin}): " origins
+      read -r -p "ALLOWED_ORIGINS (default ${default_origin}): " origins
       [[ -z "$origins" ]] && origins="$default_origin"
     else
-      read -r -p "ALLOWED_ORIGINS (쉼표 구분, 예: https://192.168.3.120): " origins
+      read -r -p "ALLOWED_ORIGINS (comma-separated, e.g. https://192.168.3.120): " origins
     fi
   fi
 
@@ -155,9 +155,9 @@ read_inputs() {
     auto_ip="$(detect_primary_ip)"
     if [[ -n "$auto_ip" ]]; then
       origins="https://${auto_ip}"
-      echo "ALLOWED_ORIGINS 미지정 → 자동 설정: ${origins}"
+      echo "ALLOWED_ORIGINS not provided -> auto-set to: ${origins}"
     else
-      die "ALLOWED_ORIGINS 자동 감지 실패. CWM_ALLOWED_ORIGINS를 지정하세요."
+      die "Failed to auto-detect ALLOWED_ORIGINS. Set CWM_ALLOWED_ORIGINS explicitly."
     fi
   fi
 
@@ -167,14 +167,14 @@ read_inputs() {
 }
 
 setup_tls() {
-  echo "=== TLS PEM 준비 ==="
+  echo "=== Prepare TLS PEM files ==="
   local cert key
   cert="${CWM_SSL_DIR}/cert.pem"
   key="${CWM_SSL_DIR}/key.pem"
   mkdir -p "$CWM_SSL_DIR"
 
   if [[ ! -f "$cert" || ! -f "$key" ]]; then
-    echo "인증서가 없어 자체서명 PEM 생성"
+    echo "Certificates not found. Generating self-signed PEM files."
     openssl req -x509 -nodes -newkey rsa:2048 \
       -keyout "$key" \
       -out "$cert" \
@@ -191,7 +191,7 @@ setup_tls() {
 }
 
 write_env_file() {
-  echo "=== env 파일 작성 (${CWM_ENV_FILE}) ==="
+  echo "=== Write env file (${CWM_ENV_FILE}) ==="
   umask 077
   cat >"$CWM_ENV_FILE" <<EOF
 ENVIRONMENT=production
@@ -206,28 +206,28 @@ EOF
 }
 
 install_runtime_deps_if_needed() {
-  echo "=== api-server 런타임 의존성 확인 ==="
+  echo "=== Check api-server runtime dependencies ==="
   local app_dir="${CWM_INSTALL_ROOT}/dist/apps/api-server"
   if [[ ! -f "${app_dir}/package.json" ]]; then
-    echo "경고: ${app_dir}/package.json 없음. tslib 같은 모듈 누락 시 앱이 죽을 수 있음."
-    echo "      (권장) 배포 전 로컬에서 'npx nx run api-server:prune' 후 dist 재전송"
+    echo "Warning: ${app_dir}/package.json not found. Missing modules (e.g. tslib) can crash the app."
+    echo "      (Recommended) Run 'npx nx run api-server:prune' locally before deployment and re-upload dist."
     return
   fi
 
   if [[ ! -d "${app_dir}/node_modules" ]]; then
-    echo "node_modules 없음 → npm ci --omit=dev 실행"
+    echo "node_modules not found -> running npm ci --omit=dev"
     (cd "$app_dir" && npm ci --omit=dev)
   else
-    echo "node_modules 이미 존재"
+    echo "node_modules already present"
   fi
 }
 
 setup_systemd() {
-  echo "=== systemd 서비스 등록 ==="
+  echo "=== Register systemd service ==="
   local svc="/etc/systemd/system/cubrid-webmanager-api.service"
   local node_path
   node_path="$(command -v node || true)"
-  [[ -n "$node_path" ]] || die "node 경로를 찾지 못했습니다."
+  [[ -n "$node_path" ]] || die "Could not resolve node executable path."
 
   cat >"$svc" <<EOF
 [Unit]
@@ -254,7 +254,7 @@ EOF
 }
 
 setup_nginx() {
-  echo "=== nginx 설정 ==="
+  echo "=== Configure nginx ==="
   local web_root="${CWM_INSTALL_ROOT}/dist/apps/web-manager"
   local conf
 
@@ -301,11 +301,11 @@ NGX
 
 show_status() {
   echo
-  echo "=== 상태 확인 ==="
+  echo "=== Status check ==="
   systemctl --no-pager -l status cubrid-webmanager-api.service || true
   systemctl --no-pager -l status nginx || true
   echo
-  echo "접속: https://${CWM_PUBLIC_HOST}:${CWM_NGINX_SSL_PORT}/"
+  echo "Access URL: https://${CWM_PUBLIC_HOST}:${CWM_NGINX_SSL_PORT}/"
 }
 
 main() {

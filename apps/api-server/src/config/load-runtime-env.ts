@@ -5,8 +5,8 @@ import { parseCliArgs } from './parse-cli-args';
 
 /**
  * Loads env before Nest bootstrap (pkg-aware base dir).
- * - production: `/etc/cubrid-webmanager.env` → 없으면 `apps/api-server/.env` → 없으면 루트 `.env` (로컬 테스트)
- * - 그 외: 루트 `.env` → 없으면 `apps/api-server/.env`
+ * - production: `/etc/cubrid-webmanager.env` -> `apps/api-server/.env` -> root `.env` (local fallback)
+ * - non-production: root `.env` -> `apps/api-server/.env`
  * Does not override variables already set (e.g. systemd EnvironmentFile).
  */
 export function loadRuntimeEnv(): void {
@@ -34,7 +34,7 @@ export function loadRuntimeEnv(): void {
   const envFilePath = candidates.find((p) => fs.existsSync(p)) ?? null;
   if (!envFilePath) {
     console.warn(
-      `[load-runtime-env] env 파일 없음 (시도: ${candidates.join(', ')}) — 기존 process.env 만 사용합니다.`
+      `[load-runtime-env] no env file found (tried: ${candidates.join(', ')}) - using existing process.env only.`
     );
     return;
   }
