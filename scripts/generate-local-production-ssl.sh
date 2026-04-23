@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# 로컬에서 ENVIRONMENT=production 테스트용 자체서명 PEM 생성 → apps/api-server/ssl/
-# 사용: ./scripts/generate-local-production-ssl.sh
-# (선택) 추가 IP/SAN: SAN_IP=192.168.1.1 ./scripts/generate-local-production-ssl.sh
+# Generate self-signed PEM files for local ENVIRONMENT=production testing -> apps/api-server/ssl/
+# Usage: ./scripts/generate-local-production-ssl.sh
+# (Optional) Add extra IP/SAN: SAN_IP=192.168.1.1 ./scripts/generate-local-production-ssl.sh
 
 set -euo pipefail
 
@@ -28,10 +28,10 @@ openssl req -x509 -nodes -newkey rsa:2048 \
 chmod 640 "$KEY"
 chmod 644 "$CERT"
 
-echo "생성됨:"
+echo "Generated:"
 echo "  SSL_CERT_PATH=${CERT}"
 echo "  SSL_KEY_PATH=${KEY}"
 echo ""
-echo "워크스페이스 루트 기준 .env 예:"
+echo ".env example from workspace root:"
 echo "  SSL_CERT_PATH=apps/api-server/ssl/cert.pem"
 echo "  SSL_KEY_PATH=apps/api-server/ssl/key.pem"

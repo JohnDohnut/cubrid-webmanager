@@ -733,7 +733,7 @@ describe('DatabaseLifecycleService', () => {
 
       await expect(service.createDatabase(mockUserId, mockHostUid, request)).rejects.toThrow(createError);
 
-      // createdb가 실패하면 나머지 단계는 중단되어야 함
+      // If createdb fails, subsequent steps must not run.
       expect(databaseUserService.updateUser).not.toHaveBeenCalled();
       expect(databaseConfigService.setAutoStart).not.toHaveBeenCalled();
     });

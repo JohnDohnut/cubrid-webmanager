@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# CUBRID Web Manager — 서버 초기 배포 (Linux: Debian/Ubuntu, RHEL 계열)
+# CUBRID Web Manager - initial server deployment (Linux: Debian/Ubuntu, RHEL family)
 #
-# 순서: Node → nginx → TLS(자체서명) → dist zip 배치 → /etc/cubrid-webmanager.env → systemd API → nginx
+# Order: Node -> nginx -> TLS (self-signed) -> deploy dist zip -> /etc/cubrid-webmanager.env -> systemd API -> nginx
 #
 #   sudo ./scripts/deploy-cubrid-webmanager.sh
 #   sudo CWM_ARTIFACT_ZIP=~/dist.zip CWM_SEED=s CWM_SALT=t CWM_ALLOWED_ORIGINS='https://h:443' ./scripts/deploy-cubrid-webmanager.sh
@@ -17,10 +17,10 @@ CWM_NODE_MAJOR="${CWM_NODE_MAJOR:-20}"
 CWM_API_PORT="${CWM_API_PORT:-8080}"
 CWM_NGINX_SSL_PORT="${CWM_NGINX_SSL_PORT:-443}"
 
-die() { echo "오류: $*" >&2; exit 1; }
+die() { echo "Error: $*" >&2; exit 1; }
 
 need_root() {
-  [[ "${EUID:-$(id -u)}" -eq 0 ]] || die "root 또는 sudo 로 실행하세요."
+  [[ "${EUID:-$(id -u)}" -eq 0 ]] || die "Run as root or with sudo."
 }
 
 detect_pkg() {
@@ -31,12 +31,12 @@ detect_pkg() {
   elif command -v yum >/dev/null 2>&1; then
     echo rhel_yum
   else
-    die "지원 패키지 매니저를 찾지 못했습니다 (apt/dnf/yum)."
+    die "No supported package manager found (apt/dnf/yum)."
   fi
 }
 
 step_install_node() {
-  echo "=== [1] Node.js ${CWM_NODE_MAJOR}.x 설치 ==="
+  echo "=== [1] Install Node.js ${CWM_NODE_MAJOR}.x ==="
   if command -v node >/dev/null 2>&1; then
     node -v
     return
@@ -68,7 +68,7 @@ step_install_node() {
 }
 
 step_install_nginx() {
-  echo "=== [2] nginx 설치 ==="
+  echo "=== [2] Install nginx ==="
   if command -v nginx >/dev/null 2>&1; then
     nginx -v
     return
@@ -83,13 +83,13 @@ step_install_nginx() {
 }
 
 step_tls() {
-  echo "=== [3] TLS 자체서명 인증서 (${CWM_SSL_DIR}) ==="
+  echo "=== [3] TLS self-signed certificate (${CWM_SSL_DIR}) ==="
   mkdir -p "$CWM_SSL_DIR"
   local cert key cn
   cert="${CWM_SSL_DIR}/cert.pem"
   key="${CWM_SSL_DIR}/key.pem"
   if [[ -f "$cert" && -f "$key" ]]; then
-    echo "기존 인증서 유지."
+    echo "Keeping existing certificate files."
     return
   fi
   cn="${CWM_PUBLIC_IP:-localhost}"
@@ -115,19 +115,19 @@ resolve_artifact() {
       shopt -s nullglob
       local found=( "${tmp}"/*.zip )
       shopt -u nullglob
-      [[ ${#found[@]} -gt 0 ]] || die "gh 다운로드에 zip 이 없습니다."
+      [[ ${#found[@]} -gt 0 ]] || die "No zip file found in gh download output."
       echo "${found[0]}"
       return
     fi
   fi
   local reply
-  read -r -p "dist 아티팩트 zip 경로 (GitHub Actions cubrid-webmanager-dist): " reply
-  [[ -f "$reply" ]] || die "파일이 없습니다: $reply"
+  read -r -p "Path to dist artifact zip (GitHub Actions cubrid-webmanager-dist): " reply
+  [[ -f "$reply" ]] || die "File not found: $reply"
   echo "$reply"
 }
 
 step_unpack() {
-  echo "=== [4][5] 빌드 산출물 → ${CWM_INSTALL_ROOT} ==="
+  echo "=== [4][5] Deploy build output -> ${CWM_INSTALL_ROOT} ==="
   local zip
   zip=$(resolve_artifact)
   mkdir -p "$CWM_INSTALL_ROOT"
@@ -142,7 +142,7 @@ step_unpack() {
   fi
   unzip -o -q "$zip" -d "$CWM_INSTALL_ROOT"
   [[ -f "${CWM_INSTALL_ROOT}/dist/apps/api-server/main.js" ]] \
-    || die "main.js 없음. zip 최상위에 dist/ 가 있어야 합니다."
+    || die "main.js not found. The zip root must contain dist/."
 }
 
 read_env_inputs() {
@@ -158,7 +158,7 @@ read_env_inputs() {
       read -r -s -p "SEED: " seed
       echo
     else
-      die "비대화식이면 CWM_SEED 를 설정하세요."
+      die "Set CWM_SEED for non-interactive execution."
     fi
   fi
   if [[ -z "$salt" ]]; then
@@ -166,19 +166,19 @@ read_env_inputs() {
       read -r -s -p "SALT: " salt
       echo
     else
-      die "비대화식이면 CWM_SALT 를 설정하세요."
+      die "Set CWM_SALT for non-interactive execution."
     fi
   fi
   if [[ "${CWM_API_PORT_SET:-}" != 1 && -t 0 ]]; then
-    read -r -p "API가 listen 할 포트 (백엔드, 기본 ${port}): " r
+    read -r -p "API listen port (backend, default ${port}): " r
     [[ -n "$r" ]] && port="$r"
   fi
   if [[ -z "$origins" && -t 0 ]]; then
-    read -r -p "ALLOWED_ORIGINS (쉼표로 구분, 예: https://192.168.1.1:443): " origins
+    read -r -p "ALLOWED_ORIGINS (comma-separated, e.g. https://192.168.1.1:443): " origins
   fi
 
-  [[ -n "$seed" ]] || die "SEED 가 비었습니다."
-  [[ -n "$salt" ]] || die "SALT 가 비었습니다."
+  [[ -n "$seed" ]] || die "SEED is empty."
+  [[ -n "$salt" ]] || die "SALT is empty."
 
   CWM_SEED="$seed"
   CWM_SALT="$salt"
@@ -186,7 +186,7 @@ read_env_inputs() {
   CWM_ALLOWED_ORIGINS="$origins"
 
   if [[ -t 0 ]] && [[ -z "${CWM_NGINX_SSL_PORT_FIXED:-}" ]]; then
-    read -r -p "nginx HTTPS 포트 (기본 ${CWM_NGINX_SSL_PORT}): " rp
+    read -r -p "nginx HTTPS port (default ${CWM_NGINX_SSL_PORT}): " rp
     [[ -n "$rp" ]] && CWM_NGINX_SSL_PORT="$rp"
   fi
 }
@@ -203,7 +203,7 @@ SSL_CERT_PATH=${CWM_SSL_DIR}/cert.pem
 SSL_KEY_PATH=${CWM_SSL_DIR}/key.pem
 EOF
   chmod 600 "$CWM_ENV_FILE"
-  echo "작성: $CWM_ENV_FILE"
+  echo "Written: $CWM_ENV_FILE"
 }
 
 web_root_guess() {
@@ -222,7 +222,7 @@ web_root_guess() {
 }
 
 step_systemd() {
-  echo "=== [10] 백엔드 systemd (cubrid-webmanager-api) ==="
+  echo "=== [10] Backend systemd (cubrid-webmanager-api) ==="
   local svc=/etc/systemd/system/cubrid-webmanager-api.service
   cat >"$svc" <<EOF
 [Unit]
@@ -247,11 +247,11 @@ EOF
 }
 
 step_nginx_site() {
-  echo "=== [11] nginx (HTTPS + SPA + /api → 백엔드) ==="
+  echo "=== [11] nginx (HTTPS + SPA + /api -> backend) ==="
   local web_root
   web_root=$(web_root_guess)
   if [[ ! -f "${web_root}/index.html" ]]; then
-    echo "경고: 프론트 index.html 없음 → ${web_root} (웹 빌드 포함 여부 확인)"
+    echo "Warning: frontend index.html not found -> ${web_root} (check whether web build is included)."
   fi
 
   local conf
@@ -293,8 +293,8 @@ NGX
   nginx -t
   systemctl enable nginx
   systemctl restart nginx
-  echo "HTTPS: https://<이 서버>:${CWM_NGINX_SSL_PORT}/"
-  echo "API 프록시: /api/ → 백엔드. 프론트 빌드 시 VITE_API_BASE_URL=https://<호스트>:${CWM_NGINX_SSL_PORT}/api 권장."
+  echo "HTTPS: https://<this-server>:${CWM_NGINX_SSL_PORT}/"
+  echo "API proxy: /api/ -> backend. Recommended frontend build setting: VITE_API_BASE_URL=https://<host>:${CWM_NGINX_SSL_PORT}/api"
 }
 
 main() {
@@ -307,7 +307,7 @@ main() {
   step_write_env
   step_systemd
   step_nginx_site
-  echo "=== 배포 스크립트 완료 ==="
+  echo "=== Deployment script completed ==="
 }
 
 main "$@"
