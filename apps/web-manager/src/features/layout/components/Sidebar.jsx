@@ -686,6 +686,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
               icon="login"
               label="Login Database"
               onClick={() => {
+                dispatch(setSelectedDatabase(dbContextMenu.db));
                 dispatch(openLoginDatabaseModal(dbContextMenu.db));
                 setDbContextMenu(null);
               }}
