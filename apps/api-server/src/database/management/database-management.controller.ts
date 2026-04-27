@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Logger, Param, Post, Request } from '@nestjs/common';
+import { Body, Controller, Get, Logger, Param, Post, Request } from '@nestjs/common';
 import {
   AddVolDbRequest,
   AddVolDbResponse,
@@ -6,8 +6,8 @@ import {
   CheckDatabaseResponse,
   CompactDatabaseRequest,
   CompactDatabaseResponse,
-  DeleteDatabaseRequest,
-  DeleteDatabaseResponse,
+  CopyDbRequest,
+  CmsSuccessClientResponse,
   GetAddVolStatusResponse,
   LoadDatabaseRequest,
   LoadDatabaseResponse,
@@ -20,7 +20,7 @@ import {
   OptimizeDatabaseRequest,
   OptimizeDatabaseResponse,
   RenameDatabaseRequest,
-  RenameDatabaseResponse,
+  StartInfoClientResponse,
   UnloadDatabaseRequest,
   UnloadInfoClientResponse,
 } from '@api-interfaces';
@@ -43,6 +43,40 @@ export class DatabaseManagementController {
   private readonly logger = new Logger(DatabaseManagementController.name);
 
   constructor(private readonly managementService: DatabaseManagementService) {}
+
+  /**
+   * Copy a database. CMS task: copydb.
+   * volume is only sent when advanced is "on".
+   *
+   * @route POST /:hostUid/database/copy
+   */
+  @Post('copy')
+  async copyDb(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Body() body: CopyDbRequest
+  ): Promise<CmsSuccessClientResponse> {
+    const userId = req.user.sub;
+    validateRequiredFields(
+      body,
+      [
+        'srcdbname',
+        'destdbname',
+        'destdbpath',
+        'exvolpath',
+        'logpath',
+        'overwrite',
+        'move',
+        'advanced',
+      ],
+      'database/copy',
+      this.logger
+    );
+    this.logger.log(
+      `Copying database: ${body.srcdbname} -> ${body.destdbname} on host: ${hostUid}`
+    );
+    return await this.managementService.copyDb(userId, hostUid, body);
+  }
 
   /**
    * Unload a database.
@@ -241,7 +275,7 @@ export class DatabaseManagementController {
    * @param hostUid Host unique identifier from path parameter
    * @param dbname Current database name from path parameter
    * @param body Request body containing rename configuration
-   * @returns RenameDatabaseResponse Empty object on success
+   * @returns StartInfoClientResponse Latest database list (start-info) on success
    * @example
    * // POST /host-uid/database/rename/rename_test
    * // Body: { "rename": "renamed_db", "exvolpath": "none", "advanced": "on", "volume": [{ "/old/path": "/new/path" }], "forcedel": "n" }
@@ -252,7 +286,7 @@ export class DatabaseManagementController {
     @Param('hostUid') hostUid: string,
     @Param('dbname') dbname: string,
     @Body() body: RenameDatabaseRequest
-  ): Promise<RenameDatabaseResponse> {
+  ): Promise<StartInfoClientResponse> {
     const userId = req.user.sub;
 
     validateRequiredFields(
@@ -441,35 +475,4 @@ export class DatabaseManagementController {
     return await this.managementService.killTransaction(userId, hostUid, dbname, body);
   }
 
-  /**
-   * Delete a database.
-   * Also removes the database name from the server parameter in cubridconf if it exists.
-   * Returns empty object on success.
-   *
-   * @route DELETE /:hostUid/database/:dbname
-   * @param req Express request (contains authenticated user)
-   * @param hostUid Host unique identifier from path parameter
-   * @param dbname Database name from path parameter
-   * @param body Request body containing delbackup option
-   * @returns DeleteDatabaseResponse Empty object on success
-   * @example
-   * // DELETE /host-uid/database/test
-   * // Body: { "delbackup": "y" }
-   */
-  @Delete(':dbname')
-  async deleteDatabase(
-    @Request() req,
-    @Param('hostUid') hostUid: string,
-    @Param('dbname') dbname: string,
-    @Body() body: DeleteDatabaseRequest
-  ): Promise<DeleteDatabaseResponse> {
-    const userId = req.user.sub;
-
-    validateRequiredFields(body, ['delbackup'], 'database/delete', this.logger);
-
-    this.logger.log(
-      `Deleting database: ${dbname} on host: ${hostUid}`
-    );
-    return await this.managementService.deleteDatabase(userId, hostUid, dbname, body);
-  }
 }

@@ -2,26 +2,30 @@ import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import {
-  CmsForwardClientRequest,
+  GetAddBrokerInfoClientResponse,
   GetEnvClientResponse,
   GetAllSysParamClientResponse,
   ParamdumpClientResponse,
+  PlandumpClientResponse,
   SetSysParamClientResponse,
   StatdumpClientResponse,
 } from '@api-interfaces';
 import {
-  ParamdumpCmsRequest,
   SetSysParamCmsRequest,
-  StatdumpCmsRequest,
   BaseCmsRequest,
+  GetAddBrokerInfoCmsRequest,
+  BrokerSetParamCmsRequest,
 } from '@type';
+import { GetAddBrokerInfoCmsResponse } from '@type/cms-response/get-add-broker-info-cms-response';
 import { GetEnvCmsResponse } from '@type/cms-response/get-env-cms-response';
 import { GetAllSysParamCmsRequest } from '@type/cms-request/get-all-sys-param-cms-request';
 import { GetAllSysParamCmsResponse } from '@type/cms-response/get-all-sys-param-cms-response';
 import { ParamdumpCmsResponse } from '@type/cms-response/paramdump-cms-response';
+import { PlandumpCmsResponse } from '@type/cms-response/plandump-cms-response';
 import { StatdumpCmsResponse } from '@type/cms-response/statdump-cms-response';
+import { LogContentContainer } from '@type/cms-response/view-log-cms-response';
 import { BaseCmsResponse } from '@type/cms-response/base-cms-response';
-import { BaseService, HandleCmsConfigErrors } from '@common';
+import { BaseService, HandleCmsErrors } from '@common';
 import { ConfigError } from '@error/config/config-error';
 
 /**
@@ -51,7 +55,7 @@ export class CmsConfigService extends BaseService {
    * @returns GetEnvClientResponse Environment information without CMS envelope fields
    * @throws Error if the request fails or CMS status is not success
    */
-  @HandleCmsConfigErrors()
+  @HandleCmsErrors({ appErrorFallback: 'config' })
   async getEnv(userId: string, hostUid: string): Promise<GetEnvClientResponse> {
     const cmsRequest: BaseCmsRequest = {
       task: 'getenv',
@@ -82,7 +86,7 @@ export class CmsConfigService extends BaseService {
    * @returns ParamdumpClientResponse Database parameters without CMS envelope fields
    * @throws Error if the request fails or CMS status is not success
    */
-  @HandleCmsConfigErrors()
+  @HandleCmsErrors({ appErrorFallback: 'config' })
   async getParamDump(
     userId: string,
     hostUid: string,
@@ -118,7 +122,7 @@ export class CmsConfigService extends BaseService {
    * @returns StatdumpClientResponse Database statistics without CMS envelope fields
    * @throws Error if the request fails or CMS status is not success
    */
-  @HandleCmsConfigErrors()
+  @HandleCmsErrors({ appErrorFallback: 'config' })
   async getStatDump(
     userId: string,
     hostUid: string,
@@ -144,6 +148,41 @@ export class CmsConfigService extends BaseService {
   }
 
   /**
+   * Query plan / XASL-related dump (`plandump`) from a CMS host.
+   * CMS returns lines nested as `log[].line[]`; this flattens to `lines` and `text` for clients.
+   *
+   * @param userId - User ID from JWT
+   * @param hostUid - Host unique identifier
+   * @param dbname - Database name
+   */
+  @HandleCmsErrors({ appErrorFallback: 'config' })
+  async getPlanDump(
+    userId: string,
+    hostUid: string,
+    dbname: string
+  ): Promise<PlandumpClientResponse> {
+    const cmsRequest: BaseCmsRequest & { dbname: string } = {
+      task: 'plandump',
+      dbname,
+    };
+
+    const response = await this.executeCmsRequest<
+      BaseCmsRequest & { dbname: string },
+      PlandumpCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    if (response.status === 'success') {
+      const { log } = this.extractDomainData(response) as { log: LogContentContainer[] };
+      const lines = this.flattenCmsLogLines(log);
+      return { lines, text: lines.join('\n') };
+    }
+
+    throw ConfigError.GetAllSysParamFailed('plandump', {
+      note: response.note || 'Unknown error',
+    });
+  }
+
+  /**
    * Get all system parameters from a configuration file on a CMS host.
    * Returns domain-only data (CMS envelope removed).
    *
@@ -153,7 +192,7 @@ export class CmsConfigService extends BaseService {
    * @returns GetAllSysParamClientResponse System parameters without CMS envelope fields
    * @throws Error if the request fails or CMS status is not success
    */
-  @HandleCmsConfigErrors()
+  @HandleCmsErrors({ appErrorFallback: 'config' })
   async getAllSystemParam(
     userId: string,
     hostUid: string,
@@ -187,7 +226,7 @@ export class CmsConfigService extends BaseService {
    * @returns SetSysParamClientResponse Empty object on success (CMS envelope fields removed)
    * @throws Error if the request fails or CMS status is not success
    */
-  @HandleCmsConfigErrors()
+  @HandleCmsErrors({ appErrorFallback: 'config' })
   async setSystemParam(
     userId: string,
     hostUid: string,
@@ -206,7 +245,87 @@ export class CmsConfigService extends BaseService {
       cmsRequest
     );
 
-    return {};
+    return { success: true };
   }
 
+  /**
+   * Get broker config file content from a CMS host (CMS task: getaddbrokerinfo).
+   * Returns conflist (config lines) and confname (CMS envelope omitted).
+   *
+   * @param userId - User ID from JWT
+   * @param hostUid - Host unique identifier
+   * @param confname - Config name (e.g. "brokerconf")
+   * @returns GetAddBrokerInfoClientResponse conflist, confname
+   */
+  @HandleCmsErrors({ appErrorFallback: 'config' })
+  async getAddBrokerInfo(
+    userId: string,
+    hostUid: string,
+    confname: string
+  ): Promise<GetAddBrokerInfoClientResponse> {
+    const cmsRequest: GetAddBrokerInfoCmsRequest = {
+      task: 'getaddbrokerinfo',
+      confname,
+    };
+
+    const response = await this.executeCmsRequest<
+      GetAddBrokerInfoCmsRequest,
+      GetAddBrokerInfoCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    if (response.status === 'success') {
+      const cms = response as GetAddBrokerInfoCmsResponse;
+      return {
+        conflist: cms.conflist,
+        confname: cms.confname,
+      };
+    }
+
+    throw ConfigError.GetAllSysParamFailed('getaddbrokerinfo', {
+      note: response.note || 'Unknown error',
+    });
+  }
+
+  /**
+   * Set broker configuration file content on a CMS host (CMS task: broker_setparam).
+   *
+   * @param userId - User ID from JWT
+   * @param hostUid - Host unique identifier
+   * @param confdata - Configuration data as array of lines (broker config content)
+   * @returns SetSysParamClientResponse Empty object on success
+   */
+  @HandleCmsErrors({ appErrorFallback: 'config' })
+  async setBrokerParam(
+    userId: string,
+    hostUid: string,
+    confdata: string[]
+  ): Promise<SetSysParamClientResponse> {
+    const cmsRequest: BrokerSetParamCmsRequest = {
+      task: 'broker_setparam',
+      confdata,
+    };
+
+    const response = await this.executeCmsRequest<
+      BrokerSetParamCmsRequest,
+      BaseCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    if (response.status !== 'success') {
+      throw ConfigError.SetSysParamFailed('broker', {
+        note: response.note || 'Unknown error',
+      });
+    }
+
+    return { success: true };
+  }
+
+  private flattenCmsLogLines(log: LogContentContainer[] | undefined): string[] {
+    const lines: string[] = [];
+    for (const block of log ?? []) {
+      if (Array.isArray(block?.line)) {
+        lines.push(...block.line);
+      }
+    }
+    return lines;
+  }
 }

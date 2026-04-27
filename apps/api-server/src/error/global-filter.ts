@@ -1,15 +1,7 @@
-import {
-  ExceptionFilter,
-  Catch,
-  ArgumentsHost,
-  HttpException,
-  HttpStatus,
-  Logger,
-} from '@nestjs/common';
+import { Catch, ArgumentsHost, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { BaseExceptionFilter } from '@nestjs/core';
 import { Response } from 'express';
 import { AppError } from './app-error';
-import { ValidationError } from './validation';
 import { StandardResponse } from '@api-interfaces';
 
 /**
@@ -37,17 +29,20 @@ export class GlobalExceptionFilter extends BaseExceptionFilter {
       status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
 
-      if (typeof exceptionResponse === 'string') {
+      if (status >= 500) {
+        note = 'An internal server error occurred.';
+        errorData = { message: note };
+      } else if (typeof exceptionResponse === 'string') {
         note = exceptionResponse;
       } else if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
         const responseObj = exceptionResponse as any;
         note =
-          responseObj.message || responseObj.detail || exception.message || 'An error occurred';
+          responseObj.message || responseObj.detail || exception.message || 'The request could not be processed.';
         if (responseObj.detail || responseObj.message) {
           errorData = { message: responseObj.message || responseObj.detail };
         }
       } else {
-        note = exception.message || 'An error occurred';
+        note = exception.message || 'The request could not be processed.';
       }
 
       this.logger.error(
@@ -67,6 +62,9 @@ export class GlobalExceptionFilter extends BaseExceptionFilter {
         code: problemDetails.code,
         type: problemDetails.type,
         title: problemDetails.title,
+        /** Same text as top-level `note` — clients that read `data.message` / `data.detail` (e.g. Problem Details) */
+        message: note,
+        detail: note,
       };
 
       const logDetails = exception.toLogDetails(req.url);
@@ -78,7 +76,8 @@ export class GlobalExceptionFilter extends BaseExceptionFilter {
       );
     } else {
       status = HttpStatus.INTERNAL_SERVER_ERROR;
-      note = exception?.message || 'An unexpected error occurred';
+      // Do not expose raw internal exception messages to clients
+      note = 'An internal server error occurred.';
 
       this.logger.error(
         'Other Errors',

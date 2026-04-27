@@ -2,12 +2,13 @@ import { Body, Controller, Delete, Get, Logger, Param, Post, Request } from '@ne
 import {
   SetAutoExecQueryClientRequest,
   SetAutoExecQueryClientResponse,
-  GetAutoExecQueryClientRequest,
   GetAutoExecQueryClientResponse,
   SetAutoStartRequest,
   SetAutoStartResponse,
   RemoveAutoStartRequest,
   RemoveAutoStartResponse,
+  GetAutoAddVolClientResponse,
+  GetDbSizeClientResponse,
   SetAutoAddVolRequest,
   SetAutoAddVolResponse,
   ClassInfoRequest,
@@ -104,7 +105,7 @@ export class DatabaseConfigController {
    * // POST /host-uid/database/auto-start
    * // Body: { "confname": "cubridconf", "dbname": "testdb" }
    */
-  @Post('auto-start')
+  @Post('auto-start/set')
   async setAutoStart(
     @Request() req,
     @Param('hostUid') hostUid: string,
@@ -131,7 +132,7 @@ export class DatabaseConfigController {
    * // DELETE /host-uid/database/auto-start
    * // Body: { "confname": "cubridconf", "dbname": "testdb" }
    */
-  @Delete('auto-start')
+  @Delete('auto-start/remove')
   async removeAutoStart(
     @Request() req,
     @Param('hostUid') hostUid: string,
@@ -143,6 +144,41 @@ export class DatabaseConfigController {
       `Disabling auto-start for database: ${body.dbname} on host: ${hostUid}`
     );
     return await this.configService.removeAutoStart(userId, hostUid, body);
+  }
+
+  /**
+   * Get database size. CMS task: getdbsize.
+   * @route GET /:hostUid/database/db-size/:dbname
+   */
+  @Get('db-size/:dbname')
+  async getDbSize(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string
+  ): Promise<GetDbSizeClientResponse> {
+    const userId = req.user.sub;
+    this.logger.log(`Getting db size for database: ${dbname} on host: ${hostUid}`);
+    return await this.configService.getDbSize(userId, hostUid, dbname);
+  }
+
+  /**
+   * Get auto-add volume configuration for a database (CMS task: getautoaddvol).
+   *
+   * @route GET /:hostUid/database/auto-add-vol/:dbname
+   * @example
+   * // GET /host-uid/database/auto-add-vol/test
+   */
+  @Get('auto-add-vol/:dbname')
+  async getAutoAddVol(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string
+  ): Promise<GetAutoAddVolClientResponse> {
+    const userId = req.user.sub;
+    this.logger.log(
+      `Getting auto-add volume for database: ${dbname} on host: ${hostUid}`
+    );
+    return await this.configService.getAutoAddVol(userId, hostUid, dbname);
   }
 
   /**

@@ -1,5 +1,5 @@
 import { CmsError } from '@error/cms/cms-error';
-import { BaseCmsResponse } from '@type/cms-response/base-cms-response';
+import { Logger } from '@nestjs/common';
 
 /**
  * Checks if a CMS response indicates a failure (status === 'fail').
@@ -42,52 +42,10 @@ export function checkCmsStatusError(response: any, errorMessage?: string): void 
     const message =
       errorMessage ||
       (response.note ? `CMS request failed: ${response.note}` : 'CMS request failed');
+    Logger.log(message);
     throw CmsError.RequestFailed({
       message: message,
       response: response,
     });
   }
-}
-
-/**
- * A method decorator that automatically checks CMS responses for failure status.
- *
- * CMS returns HTTP 201 but the body's status field may be 'fail'.
- * This decorator checks the method's return value and throws CmsError.RequestFailed if status is 'fail'.
- *
- * @category Decorators
- * @since 1.0.0
- * @example
- * ```typescript
- * class LogService {
- *   @HandleCmsStatusErrors()
- *   async getBrokerLogList(...): Promise<GetBrokerLogListClientResponse> {
- *     const response = await this.client.forwardAuthenticated(...);
- *     // Decorator automatically checks status === 'fail'
- *     return { broker: response.broker, logfileinfo: response.logfileinfo };
- *   }
- * }
- * ```
- */
-export function HandleCmsStatusErrors() {
-  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
-    const originalMethod = descriptor.value;
-
-    descriptor.value = async function (...args: any[]) {
-      const result = await originalMethod.apply(this, args);
-
-      if (result instanceof Promise) {
-        return result.then((response) => {
-          checkCmsStatusError(response);
-          return response;
-        });
-      }
-
-      checkCmsStatusError(result);
-
-      return result;
-    };
-
-    return descriptor;
-  };
 }

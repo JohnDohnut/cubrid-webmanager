@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import { HandleCmsHttpsClientErrors } from '@decorators/handle-cms-https-client-errors.decorator';
+import { HandleCmsErrors } from '@common';
 import { CmsForwardClientRequest } from '@api-interfaces';
 import { BaseCmsRequest } from '@type';
 import * as https from 'https';
@@ -51,7 +51,7 @@ export class CmsHttpsClientService {
    * @returns A Promise that resolves with the response data from the CMS API.
    * @throws CmsError if the request fails or an unexpected error occurs.
    */
-  @HandleCmsHttpsClientErrors()
+  @HandleCmsErrors()
   public async postPublic<T extends Omit<BaseCmsRequest, 'token'>, P>(
     url: string,
     data: T
@@ -78,7 +78,7 @@ export class CmsHttpsClientService {
    * @returns A Promise that resolves with the response data from the CMS API.
    * @throws CmsError if the request fails or an unexpected error occurs.
    */
-  @HandleCmsHttpsClientErrors()
+  @HandleCmsErrors()
   public async postAuthenticated<T extends BaseCmsRequest, P>(url: string, data: T): Promise<P> {
     const config = {
       headers: { 'Content-Type': 'application/json' },
@@ -104,7 +104,7 @@ export class CmsHttpsClientService {
    * @throws HostError.NoSuchHost if the specified host is not found.
    * @throws CmsError if the forwarded request fails or an unexpected error occurs.
    */
-  @HandleCmsHttpsClientErrors()
+  @HandleCmsErrors()
   public async forwardAuthenticated<T extends CmsForwardClientRequest, P>(
     sub: string,
     requestBody: T,

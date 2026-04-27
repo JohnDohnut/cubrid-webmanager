@@ -1,20 +1,35 @@
-// Export utility functions
-export { omitPassword, omitPasswordArray, omitPasswordHashMap, omitHashMap } from './omit_password';
-export { passwordValidityChecker } from './password-validity-checker';
-export { getOrCreateSSLCert } from './ssl-util';
+/**
+ * Public API for shared helpers. Prefer importing from `@util`.
+ * Subfolders group concerns: `auth/`, `config/`, `cubrid/`, `ha/`, `network/`, `redaction/`, `ssl/`, `validation/`.
+ * `resolve-storage-path.ts` lives at util root (not under a `storage/` folder) so it is not ignored by `.gitignore` (`storage/`).
+ */
+export { omitPassword, omitPasswordArray, omitPasswordHashMap, omitHashMap } from './redaction/omit_password';
+export { passwordValidityChecker } from './validation/password-validity-checker';
+export { getOrCreateSSLCert, getHttpsOptions } from './ssl/ssl-util';
 export { getStoragePath, resolveUserFilePath } from './resolve-storage-path';
-export { isValidIPv4, isValidIPv6 } from './ip-checker';
-export { DBAuthResolver, ResolvedDBAuth } from './db-auth-resolver';
-export { validateRequiredFields } from './validate-required-fields';
+export { isValidIPv4, isValidIPv6 } from './network/ip-checker';
+export { DBAuthResolver, ResolvedDBAuth } from './auth/db-auth-resolver';
+export { validateRequiredFields } from './validation/validate-required-fields';
 export {
   parseConfigParams,
   parseConfigParamsBySection,
   getConfigParam,
   getSectionParams,
-} from './parse-config-params';
+} from './config/parse-config-params';
 export {
   parseExvolString,
   parseExvolArray,
   convertExvolInfoToCmsFormat,
   convertExvolArrayToCmsFormat,
-} from './parse-exvol';
+} from './cubrid/parse-exvol';
+export {
+  parseHaDbListDbNamesFromHaConf,
+  isHostHaModeOnFromCubridConf,
+  getPerDbHaModeOffDbNames,
+  extractDbNamesFromStartInfo,
+  extractDbNamesFromHeartbeatList,
+  computeHaDbTopology,
+  flattenHanodelist,
+  resolveCurrentNodeRole,
+  type HaDbTopologyRow,
+} from './ha/ha-topology-utils';
