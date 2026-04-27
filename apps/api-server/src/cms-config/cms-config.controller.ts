@@ -1,9 +1,13 @@
 import { Body, Controller, Get, Logger, Param, Post, Request } from '@nestjs/common';
+import { validateRequiredFields } from '@util';
 import { CmsConfigService } from './cms-config.service';
 import {
+  BrokerSetParamClientRequest,
+  GetAddBrokerInfoClientResponse,
   GetEnvClientResponse,
   GetAllSysParamClientResponse,
   ParamdumpClientResponse,
+  PlandumpClientResponse,
   SetSysParamClientResponse,
   StatdumpClientResponse,
 } from '@api-interfaces';
@@ -36,6 +40,28 @@ export class CmsConfigController {
    * @example
    * // POST /host-uid/cms-config/env
    */
+  /**
+   * Get broker config file content from a CMS host (CMS task: getaddbrokerinfo).
+   * Returns conflist (config lines), confname, note, execTime.
+   *
+   * @route GET /:hostUid/cms-config/broker-config/:confname
+   * @example
+   * // GET /host-uid/cms-config/broker-config/brokerconf
+   */
+  @Get('broker-config/:confname')
+  async getAddBrokerInfo(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('confname') confname: string
+  ): Promise<GetAddBrokerInfoClientResponse> {
+    const userId = req.user.sub;
+    this.logger.log(
+      `Getting broker config for confname: ${confname} on host: ${hostUid}`,
+      'CmsConfigController'
+    );
+    return await this.cmsConfigService.getAddBrokerInfo(userId, hostUid, confname);
+  }
+
   @Get('env')
   async getEnv(@Request() req, @Param('hostUid') hostUid: string): Promise<GetEnvClientResponse> {
     const userId = req.user.sub;
@@ -102,6 +128,27 @@ export class CmsConfigController {
   }
 
   /**
+   * Plan / XASL dump (`plandump`) from a CMS host.
+   * Response includes flattened `lines` and `text` (CMS returns nested `log[].line[]`).
+   *
+   * @route GET /:hostUid/cms-config/plan-dump/:dbname
+   */
+  @Get('plan-dump/:dbname')
+  async planDump(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string
+  ): Promise<PlandumpClientResponse> {
+    const userId = req.user.sub;
+
+    Logger.log(
+      `Getting plandump for host: ${hostUid}, dbname: ${dbname}`,
+      'CmsConfigController'
+    );
+    return await this.cmsConfigService.getPlanDump(userId, hostUid, dbname);
+  }
+
+  /**
    * Get all system parameters from a configuration file on a CMS host.
    * Returns configuration file content without CMS envelope fields.
    *
@@ -163,4 +210,27 @@ export class CmsConfigController {
     return response;
   }
 
+  /**
+   * Set broker configuration file content on a CMS host (CMS task: broker_setparam).
+   *
+   * @route POST /:hostUid/cms-config/broker-set-param
+   * @example
+   * // POST /host-uid/cms-config/broker-set-param
+   * // Body: { "confdata": ["[broker]", "SERVICE=ON", ...] }
+   */
+  @Post('broker-set-param')
+  async setBrokerParam(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Body() body: BrokerSetParamClientRequest
+  ): Promise<SetSysParamClientResponse> {
+    const userId = req.user.sub;
+    validateRequiredFields(body, ['confdata'], 'cms-config/broker-set-param', this.logger);
+
+    this.logger.log(
+      `Setting broker param for host: ${hostUid}`,
+      'CmsConfigController'
+    );
+    return await this.cmsConfigService.setBrokerParam(userId, hostUid, body.confdata);
+  }
 }

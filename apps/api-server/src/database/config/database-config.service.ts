@@ -1,4 +1,6 @@
 import {
+  GetAutoAddVolClientResponse,
+  GetDbSizeClientResponse,
   GetAutoExecQueryClientResponse,
   SetAutoExecQueryClientRequest,
   SetAutoExecQueryClientResponse,
@@ -17,19 +19,19 @@ import { CmsConfigService } from '@cms-config/cms-config.service';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import {
   BaseService,
-  checkCmsStatusError,
-  checkCmsTokenError,
-  HandleCmsConfigErrors,
+  HandleCmsErrors,
   HandleDatabaseErrors,
 } from '@common';
 import { ConfigError } from '@error/config/config-error';
-import { DatabaseError } from '@error/database/database-error';
+import { CmsError } from '@error/cms/cms-error';
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import {
   GetAutoExecQueryCmsRequest,
   SetAutoExecQueryCmsRequest,
   SetAutoAddVolCmsRequest,
+  GetAutoAddVolCmsRequest,
+  GetDbSizeCmsRequest,
   ClassInfoCmsRequest,
   GetAutoExecQueryErrLogCmsRequest,
 } from '@type/cms-request';
@@ -37,12 +39,14 @@ import {
   GetAutoExecQueryCmsResponse,
   SetAutoExecQueryCmsResponse,
   SetAutoAddVolCmsResponse,
+  GetAutoAddVolCmsResponse,
+  GetDbSizeCmsResponse,
   ClassInfoCmsResponse,
   GetAutoExecQueryErrLogCmsResponse,
 } from '@type/cms-response';
 import { GetAllSysParamCmsResponse } from '@type/cms-response/get-all-sys-param-cms-response';
 import { parseConfigParams } from '@util';
-import { DATABASE_CONSTANTS } from '../database.constants';
+import { CMS_CONFNAME_CUBRID } from '@database/database.constants';
 
 /**
  * Service for managing database configuration operations.
@@ -91,7 +95,7 @@ export class DatabaseConfigService extends BaseService {
       cmsRequest
     );
 
-    return {};
+    return { success: true };
   }
 
   /**
@@ -122,8 +126,10 @@ export class DatabaseConfigService extends BaseService {
 
     const dataOnly = this.extractDomainData(response);
 
-    const planlist = dataOnly.planlist.map((plan) => {
-      const queryplan = plan.queryplan.map((query) => {
+    const rawPlanlist = Array.isArray(dataOnly.planlist) ? dataOnly.planlist : [];
+    const planlist = rawPlanlist.map((plan) => {
+      const rawQueryplan = Array.isArray(plan.queryplan) ? plan.queryplan : [];
+      const queryplan = rawQueryplan.map((query) => {
         // Handle @username field (from XML) and convert to username
         // Client response requires username to be non-optional
         if ('@username' in query && query['@username'] !== undefined) {
@@ -142,7 +148,7 @@ export class DatabaseConfigService extends BaseService {
       });
 
       return {
-        dbname: plan.dbname,
+        dbname: plan.dbname ?? '',
         queryplan: queryplan,
       };
     });
@@ -164,13 +170,13 @@ export class DatabaseConfigService extends BaseService {
    * @returns SetAutoStartResponse Configuration response on success
    * @throws ConfigError If request fails, [service] section not found, or server parameter cannot be added
    */
-  @HandleCmsConfigErrors()
+  @HandleCmsErrors({ appErrorFallback: 'config' })
   async setAutoStart(
     userId: string,
     hostUid: string,
     request: SetAutoStartRequest
   ): Promise<SetAutoStartResponse> {
-    const confname = DATABASE_CONSTANTS.CUBRID_CONF_NAME;
+    const confname = CMS_CONFNAME_CUBRID;
 
     // Get current configuration from cubridconf
     const currentConfig = await this.cmsConfigService.getAllSystemParam(
@@ -279,13 +285,13 @@ export class DatabaseConfigService extends BaseService {
    * @returns RemoveAutoStartResponse Empty object on success
    * @throws ConfigError If request fails, server parameter not found in [service] section, or dbname does not exist
    */
-  @HandleCmsConfigErrors()
+  @HandleCmsErrors({ appErrorFallback: 'config' })
   async removeAutoStart(
     userId: string,
     hostUid: string,
     request: RemoveAutoStartRequest
   ): Promise<RemoveAutoStartResponse> {
-    const confname = DATABASE_CONSTANTS.CUBRID_CONF_NAME;
+    const confname = CMS_CONFNAME_CUBRID;
 
     // Get current configuration from cubridconf
     const currentConfig = await this.cmsConfigService.getAllSystemParam(
@@ -381,7 +387,80 @@ export class DatabaseConfigService extends BaseService {
       cmsRequest
     );
 
-    return {};
+    return { success: true };
+  }
+
+  /**
+   * Get database size (CMS task: getdbsize).
+   * Request: task, token, dbname. Response: __EXEC_TIME, dbsize, note, status, task.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param dbname Database name
+   * @returns GetDbSizeClientResponse dbsize (bytes as string)
+   */
+  @HandleDatabaseErrors()
+  async getDbSize(
+    userId: string,
+    hostUid: string,
+    dbname: string
+  ): Promise<GetDbSizeClientResponse> {
+    const cmsRequest: GetDbSizeCmsRequest = {
+      task: 'getdbsize',
+      dbname,
+    };
+
+    const response = await this.executeCmsRequest<
+      GetDbSizeCmsRequest,
+      GetDbSizeCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    if (response.status !== 'success') {
+      throw CmsError.RequestFailed({ response, dbname });
+    }
+
+    return {
+      dbsize: response.dbsize ?? '0',
+    };
+  }
+
+  /**
+   * Get auto-add volume configuration for a database (CMS task: getautoaddvol).
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param dbname Database name
+   * @returns GetAutoAddVolClientResponse volume fields only (CMS envelope omitted)
+   */
+  @HandleDatabaseErrors()
+  async getAutoAddVol(
+    userId: string,
+    hostUid: string,
+    dbname: string
+  ): Promise<GetAutoAddVolClientResponse> {
+    const cmsRequest: GetAutoAddVolCmsRequest = {
+      task: 'getautoaddvol',
+      dbname,
+    };
+
+    const response = await this.executeCmsRequest<
+      GetAutoAddVolCmsRequest,
+      GetAutoAddVolCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    if (response.status === 'success') {
+      const cms = response as GetAutoAddVolCmsResponse;
+      return {
+        data: cms.data,
+        data_ext_page: cms.data_ext_page,
+        data_warn_outofspace: cms.data_warn_outofspace,
+        index: cms.index,
+        index_ext_page: cms.index_ext_page,
+        index_warn_outofspace: cms.index_warn_outofspace,
+      };
+    }
+
+    throw CmsError.RequestFailed({ response, dbname });
   }
 
   /**
@@ -431,7 +510,7 @@ export class DatabaseConfigService extends BaseService {
   async getAutoExecQueryErrLog(
     userId: string,
     hostUid: string,
-    request: GetAutoExecQueryErrLogRequest
+    _request: GetAutoExecQueryErrLogRequest
   ): Promise<GetAutoExecQueryErrLogResponse> {
     const cmsRequest: GetAutoExecQueryErrLogCmsRequest = {
       task: 'getautoexecqueryerrlog',

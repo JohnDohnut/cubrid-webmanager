@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { DatabaseManagementService } from './database-management.service';
 import { HostService } from '@host';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
+import { DatabaseInfoService } from '@database/info/database-info.service';
 import { DatabaseError } from '@error/database/database-error';
 import { HostError } from '@error/index';
 import { CmsError } from '@error/cms/cms-error';
@@ -14,7 +15,6 @@ import {
   LockDatabaseRequest,
   GetTransactionInfoRequest,
   KillTransactionRequest,
-  DeleteDatabaseRequest,
 } from '@api-interfaces';
 import {
   UnloadDatabaseCmsResponse,
@@ -25,7 +25,6 @@ import {
   LockDatabaseCmsResponse,
   GetTransactionInfoCmsResponse,
   KillTransactionCmsResponse,
-  DeleteDatabaseCmsResponse,
 } from '@type/cms-response';
 import * as common from '@common';
 
@@ -64,6 +63,11 @@ describe('DatabaseManagementService', () => {
       postAuthenticated: jest.fn(),
     };
 
+    const mockStartInfoResponse = { activelist: { active: [] }, dblist: { dbs: [] } };
+    const mockDatabaseInfoService = {
+      startInfo: jest.fn().mockResolvedValue(mockStartInfoResponse),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DatabaseManagementService,
@@ -74,6 +78,10 @@ describe('DatabaseManagementService', () => {
         {
           provide: CmsHttpsClientService,
           useValue: mockCmsClient,
+        },
+        {
+          provide: DatabaseInfoService,
+          useValue: mockDatabaseInfoService,
         },
       ],
     }).compile();
@@ -482,7 +490,7 @@ describe('DatabaseManagementService', () => {
       );
       expect(common.checkCmsTokenError).toHaveBeenCalledWith(mockSuccessResponse);
       expect(common.checkCmsStatusError).toHaveBeenCalledWith(mockSuccessResponse);
-      expect(result).toEqual({});
+      expect(result).toEqual({ success: true });
     });
 
     it('should include all request fields in CMS request', async () => {
@@ -694,7 +702,7 @@ describe('DatabaseManagementService', () => {
       );
       expect(common.checkCmsTokenError).toHaveBeenCalledWith(mockSuccessResponse);
       expect(common.checkCmsStatusError).toHaveBeenCalledWith(mockSuccessResponse);
-      expect(result).toEqual({});
+      expect(result).toEqual({ success: true });
     });
 
     it('should successfully check database with repairdb "y"', async () => {
@@ -714,7 +722,7 @@ describe('DatabaseManagementService', () => {
           repairdb: 'y',
         })
       );
-      expect(result).toEqual({});
+      expect(result).toEqual({ success: true });
     });
 
     it('should throw HostError if host is not found', async () => {
@@ -815,6 +823,7 @@ describe('DatabaseManagementService', () => {
       expect(common.checkCmsTokenError).toHaveBeenCalledWith(mockSuccessResponseWithLog);
       expect(common.checkCmsStatusError).toHaveBeenCalledWith(mockSuccessResponseWithLog);
       expect(result).toEqual({
+        success: true,
         log: mockSuccessResponseWithLog.log,
       });
     });
@@ -836,7 +845,7 @@ describe('DatabaseManagementService', () => {
           verbose: 'n',
         })
       );
-      expect(result).toEqual({});
+      expect(result).toEqual({ success: true });
     });
 
     it('should throw HostError if host is not found', async () => {
@@ -939,7 +948,7 @@ describe('DatabaseManagementService', () => {
       );
       expect(common.checkCmsTokenError).toHaveBeenCalledWith(mockSuccessResponse);
       expect(common.checkCmsStatusError).toHaveBeenCalledWith(mockSuccessResponse);
-      expect(result).toEqual({});
+      expect(result).toEqual(mockStartInfoResponse);
     });
 
     it('should successfully rename database with advanced "off" without volume', async () => {
@@ -971,7 +980,7 @@ describe('DatabaseManagementService', () => {
           volume: expect.anything(),
         })
       );
-      expect(result).toEqual({});
+      expect(result).toEqual(mockStartInfoResponse);
     });
 
     it('should not include volume in CMS request when advanced is "off" even if volume is provided', async () => {
@@ -994,7 +1003,7 @@ describe('DatabaseManagementService', () => {
       // Volume should not be included when advanced is 'off'
       const callArgs = cmsClient.postAuthenticated.mock.calls[0][1] as any;
       expect(callArgs.volume).toBeUndefined();
-      expect(result).toEqual({});
+      expect(result).toEqual(mockStartInfoResponse);
     });
 
     it('should throw HostError if host is not found', async () => {
@@ -1852,115 +1861,4 @@ describe('DatabaseManagementService', () => {
     });
   });
 
-  describe('deleteDatabase', () => {
-    const mockSuccessResponse: DeleteDatabaseCmsResponse = {
-      __EXEC_TIME: '848 ms',
-      note: 'none',
-      status: 'success',
-      task: 'deletedb',
-    };
-
-    it('should successfully delete database with delbackup "y"', async () => {
-      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
-      const request: DeleteDatabaseRequest = {
-        delbackup: 'y',
-      };
-
-      const result = await service.deleteDatabase(
-        mockUserId,
-        mockHostUid,
-        mockDbname,
-        request
-      );
-
-      expect(hostService.findHostInternal).toHaveBeenCalledWith(mockUserId, mockHostUid);
-      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
-        `https://${mockHost.address}:${mockHost.port}/cm_api`,
-        {
-          task: 'deletedb',
-          token: mockHost.token,
-          dbname: mockDbname,
-          delbackup: 'y',
-        }
-      );
-      expect(result).toEqual({});
-    });
-
-    it('should successfully delete database with delbackup "n"', async () => {
-      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
-      const request: DeleteDatabaseRequest = {
-        delbackup: 'n',
-      };
-
-      const result = await service.deleteDatabase(
-        mockUserId,
-        mockHostUid,
-        mockDbname,
-        request
-      );
-
-      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          task: 'deletedb',
-          delbackup: 'n',
-        })
-      );
-      expect(result).toEqual({});
-    });
-
-    it('should throw HostError if host is not found', async () => {
-      hostService.findHostInternal.mockRejectedValue(
-        HostError.NoSuchHost({ hostUid: mockHostUid })
-      );
-      const request: DeleteDatabaseRequest = {
-        delbackup: 'y',
-      };
-
-      await expect(
-        service.deleteDatabase(mockUserId, mockHostUid, mockDbname, request)
-      ).rejects.toThrow(HostError);
-    });
-
-    it('should throw CmsError if CMS request fails', async () => {
-      cmsClient.postAuthenticated.mockRejectedValue(
-        CmsError.RequestFailed({ message: 'CMS request failed' })
-      );
-      const request: DeleteDatabaseRequest = {
-        delbackup: 'y',
-      };
-
-      await expect(
-        service.deleteDatabase(mockUserId, mockHostUid, mockDbname, request)
-      ).rejects.toThrow(CmsError);
-    });
-
-    it('should throw DatabaseError if CMS token error occurs', async () => {
-      (common.checkCmsTokenError as jest.Mock).mockImplementation(() => {
-        throw DatabaseError.InvalidParameter('Invalid CMS token');
-      });
-      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
-      const request: DeleteDatabaseRequest = {
-        delbackup: 'y',
-      };
-
-      await expect(
-        service.deleteDatabase(mockUserId, mockHostUid, mockDbname, request)
-      ).rejects.toThrow(DatabaseError);
-    });
-
-    it('should throw DatabaseError if CMS status is fail', async () => {
-      (common.checkCmsStatusError as jest.Mock).mockImplementation(() => {
-        throw DatabaseError.InvalidParameter('CMS status failed');
-      });
-      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
-      const request: DeleteDatabaseRequest = {
-        delbackup: 'y',
-      };
-
-      await expect(
-        service.deleteDatabase(mockUserId, mockHostUid, mockDbname, request)
-      ).rejects.toThrow(DatabaseError);
-    });
-  });
 });

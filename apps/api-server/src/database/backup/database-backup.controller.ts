@@ -4,12 +4,18 @@ import {
   AddBackupInfoClientResponse,
   DeleteBackupInfoClientRequest,
   DeleteBackupInfoClientResponse,
-  GetBackupInfoClientRequest,
   GetBackupInfoClientResponse,
   SetBackupInfoClientRequest,
   SetBackupInfoClientResponse,
   GetAutoBackupDbErrLogRequest,
   GetAutoBackupDbErrLogResponse,
+  BackupDbInfoClientResponse,
+  BackupDbListClientRequest,
+  BackupDbListClientResponse,
+  BackupDbClientRequest,
+  BackupDbClientResponse,
+  RestoreDbClientRequest,
+  RestoreDbClientResponse,
 } from '@api-interfaces';
 import { validateRequiredFields } from '@util';
 import { DatabaseBackupService } from './database-backup.service';
@@ -104,14 +110,14 @@ export class DatabaseBackupController {
 
   /**
    * Delete automated backup schedule information for a database.
-   * Returns response with execution details.
+   * Returns empty object on success (CMS envelope omitted).
    *
    * @route DELETE /:hostUid/database/backup-schedule/:dbname
    * @param req Express request (contains authenticated user)
    * @param hostUid Host unique identifier from path parameter
    * @param dbname Database name from path parameter
    * @param body Request body containing backup ID to delete
-   * @returns DeleteBackupInfoClientResponse Response with execution details
+   * @returns DeleteBackupInfoClientResponse empty on success
    * @example
    * // DELETE /host-uid/database/backup-schedule/demodb
    * // Body: { "backupid": "t2" }
@@ -157,6 +163,103 @@ export class DatabaseBackupController {
       `Getting backup schedule for database: ${dbname} on host: ${hostUid}`
     );
     return await this.backupService.getBackupSchedule(userId, hostUid, dbname);
+  }
+
+  /**
+   * Get backup DB physical info (dbdir, freespace, level0/1/2). CMS task: backupdbinfo.
+   *
+   * @route GET /:hostUid/database/backup-db-info/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Database name from path parameter
+   * @returns BackupDbInfoClientResponse dbdir, freespace, level0, level1, level2
+   * @example
+   * // GET /host-uid/database/backup-db-info/test
+   */
+  @Get('backup-db-info/:dbname')
+  async getBackupDbInfo(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string
+  ): Promise<BackupDbInfoClientResponse> {
+    const userId = req.user.sub;
+    this.logger.log(`Getting backup db info for database: ${dbname} on host: ${hostUid}`);
+    return await this.backupService.getBackupDbInfo(userId, hostUid, { dbname });
+  }
+
+  /**
+   * Get backup DB list (level0/1/2 entries only).
+   * CMS task: getbackuplist.
+   *
+   * @route GET /:hostUid/database/backup-db-list/:dbname
+   */
+  @Get('backup-db-list/:dbname')
+  async getBackupList(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string
+  ): Promise<BackupDbListClientResponse> {
+    const userId = req.user.sub;
+    this.logger.log(`Getting backup db list for database: ${dbname} on host: ${hostUid}`);
+    const request: BackupDbListClientRequest = { dbname };
+    return await this.backupService.getBackupList(userId, hostUid, request);
+  }
+
+  /**
+   * Execute database backup (level 0, 1, or 2). CMS task: backupdb.
+   *
+   * @route POST /:hostUid/database/backup-db/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Database name from path parameter
+   * @param body Request body: level, volname, backupdir, removelog?, check?, mt?, zip?, safereplication?
+   * @returns BackupDbClientResponse empty body on success (CMS envelope omitted)
+   * @example
+   * // POST /host-uid/database/backup-db/demodb
+   * // Body: { "level": "0", "volname": "demodb_backup_lv0", "backupdir": "/path/to/backup", "removelog": "y", "check": "y", "mt": "2", "zip": "y", "safereplication": "n" }
+   */
+  @Post('backup-db/:dbname')
+  async backupDb(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: BackupDbClientRequest
+  ): Promise<BackupDbClientResponse> {
+    const userId = req.user.sub;
+    validateRequiredFields(
+      body,
+      ['level', 'volname', 'backupdir'],
+      'database/backup-db',
+      this.logger
+    );
+    this.logger.log(`Executing backup for database: ${dbname} level: ${body.level} on host: ${hostUid}`);
+    return await this.backupService.backupDb(userId, hostUid, dbname, body);
+  }
+
+  /**
+   * Restore database from backup.
+   * CMS task: restoredb.
+   *
+   * @route POST /:hostUid/database/restore-db/:dbname
+   */
+  @Post('restore-db/:dbname')
+  async restoreDb(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: RestoreDbClientRequest
+  ): Promise<RestoreDbClientResponse> {
+    const userId = req.user.sub;
+
+    validateRequiredFields(
+      body,
+      ['date', 'level', 'partial', 'pathname', 'recoverypath'],
+      'database/restore-db',
+      this.logger
+    );
+
+    this.logger.log(`Restoring database: ${dbname} on host: ${hostUid}`);
+    return await this.backupService.restoreDb(userId, hostUid, dbname, body);
   }
 
   /**
