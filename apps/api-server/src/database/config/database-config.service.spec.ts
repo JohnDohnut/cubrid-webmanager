@@ -27,6 +27,7 @@ describe('DatabaseConfigService', () => {
     address: 'localhost',
     port: 8001,
     password: 'host-password',
+    initialLogin: false,
     token: 'test-token',
     dbProfiles: {},
   };
@@ -147,6 +148,33 @@ describe('DatabaseConfigService', () => {
         })
       );
       expect(result).toEqual({ planlist: [] });
+    });
+
+    it('should return empty planlist when CMS response has no planlist', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({
+        __EXEC_TIME: '10 ms',
+        note: 'none',
+        status: 'success',
+        task: 'getautoexecquery',
+      });
+
+      const result = await service.getAutoExecQuery(mockUserId, mockHostUid, mockDbname);
+      expect(result).toEqual({ planlist: [] });
+    });
+
+    it('should return empty queryplan when a plan has invalid queryplan', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({
+        __EXEC_TIME: '10 ms',
+        note: 'none',
+        status: 'success',
+        task: 'getautoexecquery',
+        planlist: [{ dbname: 'testdb', queryplan: null }],
+      });
+
+      const result = await service.getAutoExecQuery(mockUserId, mockHostUid, mockDbname);
+      expect(result).toEqual({
+        planlist: [{ dbname: 'testdb', queryplan: [] }],
+      });
     });
   });
 
