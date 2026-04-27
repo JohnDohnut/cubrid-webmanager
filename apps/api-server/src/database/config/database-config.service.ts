@@ -126,8 +126,10 @@ export class DatabaseConfigService extends BaseService {
 
     const dataOnly = this.extractDomainData(response);
 
-    const planlist = dataOnly.planlist.map((plan) => {
-      const queryplan = plan.queryplan.map((query) => {
+    const rawPlanlist = Array.isArray(dataOnly.planlist) ? dataOnly.planlist : [];
+    const planlist = rawPlanlist.map((plan) => {
+      const rawQueryplan = Array.isArray(plan.queryplan) ? plan.queryplan : [];
+      const queryplan = rawQueryplan.map((query) => {
         // Handle @username field (from XML) and convert to username
         // Client response requires username to be non-optional
         if ('@username' in query && query['@username'] !== undefined) {
@@ -146,7 +148,7 @@ export class DatabaseConfigService extends BaseService {
       });
 
       return {
-        dbname: plan.dbname,
+        dbname: plan.dbname ?? '',
         queryplan: queryplan,
       };
     });
