@@ -1,4 +1,5 @@
 import { AppError, DatabaseError, CmsError, HostError } from '@error/index';
+import { ValidationError } from '@error/validation/validation-error';
 
 /**
  * A method decorator that wraps database service methods in a try...catch block.
@@ -27,6 +28,11 @@ export function HandleDatabaseErrors() {
 
         // Handle HostError - pass through as-is (already appropriate error type)
         if (err instanceof HostError) {
+          throw err;
+        }
+
+        // Handle ValidationError - pass through as-is (client input issues)
+        if (err instanceof ValidationError) {
           throw err;
         }
 
