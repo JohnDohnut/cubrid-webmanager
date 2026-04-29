@@ -155,11 +155,11 @@ export class DatabaseLifecycleController {
    * @param req Express request (contains authenticated user)
    * @param hostUid Host unique identifier from path parameter
    * @param dbname Database name from path parameter
-   * @param body Request body containing `id`, `password`
+   * @param body Request body: `id` required; `password` optional (omitted → `""`)
    * @returns StartInfoClientResponse Latest database start information
    * @example
    * // POST /host-uid/database/register/demodb
-   * // Body: { "id": "user", "password": "pass" }
+   * // Body: { "id": "user" } or { "id": "user", "password": "pass" }
    */
   @Post('register/:dbname')
   async saveDatabaseProfile(
@@ -170,14 +170,14 @@ export class DatabaseLifecycleController {
   ): Promise<StartInfoClientResponse> {
     const userId = req.user.sub;
 
-    validateRequiredFields(body, ['id', 'password'], 'database/register', this.logger);
+    validateRequiredFields(body, ['id'], 'database/register', this.logger);
 
     return await this.lifecycleService.saveDatabaseProfile(
       userId,
       hostUid,
       dbname,
       body.id,
-      body.password
+      body.password ?? ''
     );
   }
 
