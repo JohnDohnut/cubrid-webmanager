@@ -1,13 +1,17 @@
+const MIN_PASSWORD_LENGTH = 8;
+
 /**
- * Checks the validity of a given password.
- * Currently a placeholder, always returns true.
- * TODO: Implement actual password validity logic, including regex.
- *
- * @param password - The password string to check.
- * @returns Always true for now.
- * @category Utilities
- * @since 1.0.0
+ * Validates password strength for registration and password changes.
  */
-export function passwordValidityChecker(_password: string) {
-  return true;
+export function passwordValidityChecker(password: string): boolean {
+  if (typeof password !== 'string') {
+    return false;
+  }
+
+  const trimmed = password.trim();
+  if (trimmed.length < MIN_PASSWORD_LENGTH) {
+    return false;
+  }
+
+  return /[A-Za-z]/.test(trimmed) && /\d/.test(trimmed);
 }

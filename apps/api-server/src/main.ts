@@ -25,23 +25,14 @@ async function bootstrap() {
       credentials: true,
     });
   } else {
-    // Allow all origins starting with localhost
     const whitelist = [...allowedOrigins];
     console.log('[main.ts] Production CORS whitelist:', whitelist);
     app.enableCors({
       origin: (origin, callback) => {
-        console.log('[main.ts] Received Origin header:', origin);
-        // Allow if origin is not present (same-origin requests, etc.)
         if (!origin) {
-          callback(null, true);
+          callback(new Error('Not allowed by CORS'));
           return;
         }
-        // Allow all origins starting with localhost
-        if (origin.startsWith('http://localhost:') || origin.startsWith('https://localhost:')) {
-          callback(null, true);
-          return;
-        }
-        // Allow origins in whitelist
         if (whitelist.includes(origin)) {
           callback(null, true);
           return;
