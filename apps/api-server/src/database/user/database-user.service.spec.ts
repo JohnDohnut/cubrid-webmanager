@@ -62,9 +62,27 @@ describe('DatabaseUserService', () => {
   });
 
   describe('getDatabaseUsers', () => {
-    it('should return empty array', async () => {
-      const result = await service.getDatabaseUsers(mockUserId);
-      expect(result).toEqual([]);
+    it('should send userinfo task and return dbname and user list', async () => {
+      const mockResponse = {
+        __EXEC_TIME: '359 ms',
+        dbname: 'demodb',
+        note: 'none',
+        status: 'success',
+        task: 'userinfo',
+        user: [{ '@id': '163810704', '@name': 'PUBLIC' }],
+      };
+      cmsClient.postAuthenticated.mockResolvedValue(mockResponse);
+
+      const result = await service.getDatabaseUsers(mockUserId, mockHostUid, 'demodb');
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ task: 'userinfo', dbname: 'demodb' })
+      );
+      expect(result).toEqual({
+        dbname: 'demodb',
+        user: mockResponse.user,
+      });
     });
   });
 
