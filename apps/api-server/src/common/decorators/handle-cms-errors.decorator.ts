@@ -1,6 +1,7 @@
 import { AppError, ConfigError, CmsError, HostError } from '@error';
 import { Logger } from '@nestjs/common';
 import { AxiosError } from 'axios';
+import { buildLogLine } from '@util';
 
 export type HandleCmsErrorsOptions = {
   /**
@@ -29,7 +30,15 @@ function mapAxiosToCmsError(error: unknown): CmsError | null {
     );
   }
   if (e.request) {
-    Logger.log(e.request);
+    const request = e.request as { method?: string; host?: string; path?: string };
+    Logger.warn(
+      buildLogLine({
+        event: 'cms_no_response',
+        method: request.method,
+        host: request.host,
+        path: request.path,
+      })
+    );
     return CmsError.NoResponse(undefined, error as Error);
   }
   return null;

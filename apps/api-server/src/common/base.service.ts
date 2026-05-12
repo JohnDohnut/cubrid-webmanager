@@ -50,7 +50,6 @@ export abstract class BaseService {
       url,
       requestWithToken
     );
-    this.logger.debug.apply(JSON.stringify(response));
     checkCmsTokenError(response);
     checkCmsStatusError(response);
 

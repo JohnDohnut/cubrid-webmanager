@@ -8,6 +8,7 @@ import * as https from 'https';
 import { HostService } from '@host';
 import { EncryptionService } from '@security';
 import { checkCmsTokenError, checkCmsStatusError } from '@common';
+import { buildLogLine, formatLogPayload } from '@util';
 
 /**
  * Callback function to determine whether status check should be skipped.
@@ -29,6 +30,8 @@ export type ShouldSkipStatusCheckCallback = (task: string, response: any) => boo
  */
 @Injectable()
 export class CmsHttpsClientService {
+  private readonly logger = new Logger(CmsHttpsClientService.name);
+
   /**
    * @param httpService - The NestJS HttpService for making HTTP requests.
    * @param hostService - Service for retrieving host-related information.
@@ -62,8 +65,10 @@ export class CmsHttpsClientService {
         rejectUnauthorized: false,
       }),
     };
-    Logger.log({ url, data, config });
+    const startedAt = Date.now();
+    this.logCmsRequest('public', url, data);
     const response = await firstValueFrom(this.httpService.post<P>(url, data, config));
+    this.logCmsResponse('public', url, data, response.data, Date.now() - startedAt);
     return response.data;
   }
 
@@ -86,8 +91,10 @@ export class CmsHttpsClientService {
         rejectUnauthorized: false,
       }),
     };
-    Logger.log({ url, data, config });
+    const startedAt = Date.now();
+    this.logCmsRequest('authenticated', url, data);
     const response = await firstValueFrom(this.httpService.post<P>(url, data, config));
+    this.logCmsResponse('authenticated', url, data, response.data, Date.now() - startedAt);
     return response.data;
   }
 
@@ -118,7 +125,6 @@ export class CmsHttpsClientService {
       token: (host.token as string) || '',
       ...requestBody,
     };
-    Logger.log(request);
     const rv = (await this.postAuthenticated(url, request)) as any;
 
     checkCmsTokenError(rv);
@@ -131,5 +137,48 @@ export class CmsHttpsClientService {
     }
 
     return rv;
+  }
+
+  private logCmsRequest(scope: 'public' | 'authenticated', url: string, data: unknown): void {
+    this.logger.debug(
+      buildLogLine({
+        event: 'cms_request',
+        scope,
+        url,
+        task: this.extractTask(data),
+        payload: formatLogPayload(data, 1000),
+      })
+    );
+  }
+
+  private logCmsResponse(
+    scope: 'public' | 'authenticated',
+    url: string,
+    data: unknown,
+    response: unknown,
+    durationMs: number
+  ): void {
+    const cmsResponse = response as { status?: string; __EXEC_TIME?: string };
+    this.logger.debug(
+      buildLogLine({
+        event: 'cms_response',
+        scope,
+        url,
+        task: this.extractTask(data),
+        status: cmsResponse.status ?? 'unknown',
+        execTime: cmsResponse.__EXEC_TIME,
+        durationMs,
+        payload: formatLogPayload(response, 1000),
+      })
+    );
+  }
+
+  private extractTask(data: unknown): string | undefined {
+    if (!data || typeof data !== 'object' || !('task' in data)) {
+      return undefined;
+    }
+
+    const task = (data as { task?: unknown }).task;
+    return typeof task === 'string' ? task : undefined;
   }
 }
