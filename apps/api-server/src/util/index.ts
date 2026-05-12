@@ -6,6 +6,8 @@
 export { omitPassword, omitPasswordArray, omitPasswordHashMap, omitHashMap } from './redaction/omit_password';
 export { REDACTED_VALUE, isSensitiveLogKey, sanitizeForLog, sanitizeHeadersForLog } from './redaction/sanitize-for-log';
 export { buildLogLine, formatLogPayload } from './logging/format-log-payload';
+export { formatAuditLog } from './logging/format-audit-log';
+export { resolveClientIp } from './logging/resolve-client-ip';
 export { passwordValidityChecker } from './validation/password-validity-checker';
 export { getOrCreateSSLCert, getHttpsOptions } from './ssl/ssl-util';
 export { getStoragePath, resolveUserFilePath } from './resolve-storage-path';

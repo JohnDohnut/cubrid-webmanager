@@ -11,6 +11,7 @@ async function bootstrap() {
   loadRuntimeEnv();
   const httpsOptions = getHttpsOptions();
   const app = await NestFactory.create(AppModule, { httpsOptions });
+  app.getHttpAdapter().getInstance().set('trust proxy', true);
   const configService = app.get(ConfigService);
   const port: string = configService.getPort();
   const allowedOrigins = configService.getAllowedOrigins();

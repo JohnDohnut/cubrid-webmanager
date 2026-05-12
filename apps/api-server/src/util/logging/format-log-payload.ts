@@ -10,7 +10,7 @@ export function formatLogPayload(value: unknown, maxLength = 2000): string {
   }
 
   try {
-    const serialized = JSON.stringify(sanitizeForLog(value));
+    const serialized = JSON.stringify(sanitizeForLog(value), null, 2);
     if (!serialized || serialized.length <= maxLength) {
       return serialized ?? String(value);
     }
@@ -21,7 +21,7 @@ export function formatLogPayload(value: unknown, maxLength = 2000): string {
   }
 }
 
-function formatFieldValue(value: unknown): string {
+function formatFieldValue(value: unknown, maxLength = 2000): string {
   if (value === undefined || value === null || value === '') {
     return '';
   }
@@ -30,12 +30,16 @@ function formatFieldValue(value: unknown): string {
     return String(value);
   }
 
-  return formatLogPayload(value, 500);
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  return formatLogPayload(value, maxLength);
 }
 
-export function buildLogLine(fields: Record<string, unknown>): string {
+export function buildLogLine(fields: Record<string, unknown>, maxFieldLength = 2000): string {
   return Object.entries(fields)
     .filter(([, value]) => value !== undefined && value !== null && value !== '')
-    .map(([key, value]) => `${key}=${formatFieldValue(value)}`)
+    .map(([key, value]) => `${key}=${formatFieldValue(value, maxFieldLength)}`)
     .join(' ');
 }

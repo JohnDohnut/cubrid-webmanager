@@ -1,7 +1,7 @@
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor, Logger } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
-import { buildLogLine, formatLogPayload, sanitizeHeadersForLog } from '@util';
+import { formatAuditLog, resolveClientIp } from '@util';
 
 /**
  * Interceptor for logging incoming requests and outgoing responses.
@@ -23,50 +23,27 @@ export class LoggingInterceptor implements NestInterceptor {
     const requestContext = this.buildRequestContext(request);
 
     this.logger.log(
-      buildLogLine({
-        event: 'http_request',
-        phase: 'start',
+      formatAuditLog('http_request', {
         ...requestContext,
+        body: request.body,
       })
     );
-
-    if (request.body && Object.keys(request.body).length > 0) {
-      this.logger.debug(
-        buildLogLine({
-          event: 'http_request_body',
-          ...requestContext,
-          body: formatLogPayload(request.body),
-        })
-      );
-    }
-
-    if (request.headers && Object.keys(request.headers).length > 0) {
-      this.logger.debug(
-        buildLogLine({
-          event: 'http_request_headers',
-          ...requestContext,
-          headers: formatLogPayload(sanitizeHeadersForLog(request.headers)),
-        })
-      );
-    }
 
     return next.handle().pipe(
       tap({
         next: (data) => {
           this.logger.log(
-            buildLogLine({
-              event: 'http_response',
+            formatAuditLog('http_response', {
               ...requestContext,
               statusCode: response.statusCode,
               durationMs: Date.now() - now,
-              payload: formatLogPayload(data, 500),
+              payload: data,
             })
           );
         },
         error: (error) => {
           this.logger.error(
-            buildLogLine({
-              event: 'http_error',
+            formatAuditLog('http_error', {
               ...requestContext,
               statusCode: error.status || 'N/A',
               durationMs: Date.now() - now,
@@ -81,10 +58,10 @@ export class LoggingInterceptor implements NestInterceptor {
 
   private buildRequestContext(request: any): Record<string, unknown> {
     return {
+      user: request.user?.sub ?? 'anonymous',
+      ip: resolveClientIp(request),
       method: request.method,
-      path: request.url,
-      ip: request.ip,
-      userId: request.user?.sub,
+      address: request.originalUrl ?? request.url,
       hostUid: request.params?.hostUid,
     };
   }
