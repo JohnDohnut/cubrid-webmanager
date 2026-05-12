@@ -53,6 +53,7 @@ export * from './get-add-vol-status-request';
 export * from './add-vol-db-request';
 export * from './lock-database-request';
 export * from './get-auto-exec-query-err-log-request';
+export * from './get-auto-add-vol-log-request';
 export * from './get-auto-backup-db-err-log-request';
 export * from './get-transaction-info-request';
 export * from './kill-transaction-request';

@@ -535,4 +535,43 @@ describe('DatabaseConfigService', () => {
       ).rejects.toThrow(DatabaseError);
     });
   });
+
+  describe('getAutoAddVolLog', () => {
+    it('should send getautoaddvollog task and return log entries', async () => {
+      const mockSuccessResponse = {
+        __EXEC_TIME: '3 ms',
+        note: 'none',
+        status: 'success',
+        task: 'getautoaddvollog',
+        log: [
+          {
+            dbname: 'testdb',
+            volname: 'testdb_x002',
+            purpose: 'data',
+            page: '1024',
+            time: '2012-11-16,10:4:57',
+            outcome: 'success',
+          },
+        ],
+      };
+
+      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
+
+      const result = await service.getAutoAddVolLog(mockUserId, mockHostUid, {
+        start_time: '2012-11-16,10:4:57',
+        end_time: '2012-11-16,23:59:59',
+      });
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'getautoaddvollog',
+          start_time: '2012-11-16,10:4:57',
+          end_time: '2012-11-16,23:59:59',
+          token: mockHost.token,
+        })
+      );
+      expect(result).toEqual(mockSuccessResponse.log);
+    });
+  });
 });
