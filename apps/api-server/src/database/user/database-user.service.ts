@@ -2,6 +2,7 @@ import {
   CreateDbUserResponse,
   DeleteDbUserResponse,
   UpdateDbUserResponse,
+  UserInfoClientResponse,
 } from '@api-interfaces';
 import {
   BaseService,
@@ -49,13 +50,17 @@ export class DatabaseUserService extends BaseService {
   }
 
   /**
-   * Get list of database users for a specific host.
-   *
-   * @param userId User ID from JWT
-   * @returns Database users list
+   * Get list of database users for a database on a host. CMS task: userinfo.
    */
-  async getDatabaseUsers(_userId: string) {
-    return [];
+  @HandleHostErrors()
+  @HandleCmsErrors()
+  @HandleDatabaseErrors()
+  async getDatabaseUsers(
+    userId: string,
+    hostUid: string,
+    dbname: string
+  ): Promise<UserInfoClientResponse> {
+    return this.getUserInfo(userId, hostUid, dbname);
   }
 
   /**
