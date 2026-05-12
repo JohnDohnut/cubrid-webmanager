@@ -1,5 +1,7 @@
+import * as fs from 'fs';
 import { Injectable } from '@nestjs/common';
 import { parseCliArgs } from './parse-cli-args';
+import { parseBooleanEnv } from './parse-boolean-env';
 import { deriveSecretKeyHexFromSeedSalt } from './master-key';
 
 /**
@@ -15,6 +17,10 @@ export class ConfigService {
   public secret_key!: string;
   public environment: string = 'development';
   public allowedOrigins: string[] = [];
+  public cmsRejectUnauthorized!: boolean;
+  public cmsForwardEnabled!: boolean;
+  public authRegistrationEnabled!: boolean;
+  private readonly cmsCaCert?: string;
 
   constructor() {
     const args = parseCliArgs(process.argv.slice(2));
@@ -27,6 +33,19 @@ export class ConfigService {
       );
     }
     this.secret_key = deriveSecretKeyHexFromSeedSalt(seed, salt);
+
+    this.environment = (
+      args.ENVIRONMENT ??
+      args.ENV ??
+      process.env.ENVIRONMENT ??
+      'development'
+    ).toLowerCase();
+    console.log('[ConfigService] Environment:', this.environment);
+
+    this.cmsRejectUnauthorized = this.resolveCmsRejectUnauthorized(args);
+    this.cmsForwardEnabled = this.resolveCmsForwardEnabled(args);
+    this.authRegistrationEnabled = this.resolveAuthRegistrationEnabled(args);
+    this.cmsCaCert = this.resolveCmsCaCert(args);
 
     if (args.PORT) {
       const portNumber = parseInt(args.PORT, 10);
@@ -48,14 +67,6 @@ export class ConfigService {
       this.port = '8080';
     }
 
-    this.environment = (
-      args.ENVIRONMENT ??
-      args.ENV ??
-      process.env.ENVIRONMENT ??
-      'development'
-    ).toLowerCase();
-    console.log('[ConfigService] Environment:', this.environment);
-
     const allowedFromEnvOrArg =
       args.ALLOWED_ORIGINS ?? process.env.ALLOWED_ORIGINS;
     this.setAllowedOrigins(allowedFromEnvOrArg);
@@ -73,12 +84,72 @@ export class ConfigService {
     return this.environment;
   }
 
+  isProduction(): boolean {
+    return this.environment === 'production';
+  }
+
   getAllowedOrigins(): string[] {
     return this.allowedOrigins;
   }
 
+  getCmsRejectUnauthorized(): boolean {
+    return this.cmsRejectUnauthorized;
+  }
+
+  getCmsCaCert(): string | undefined {
+    return this.cmsCaCert;
+  }
+
+  isCmsForwardEnabled(): boolean {
+    return this.cmsForwardEnabled;
+  }
+
+  isAuthRegistrationEnabled(): boolean {
+    return this.authRegistrationEnabled;
+  }
+
+  private resolveCmsRejectUnauthorized(args: Record<string, string>): boolean {
+    const raw = args.CMS_REJECT_UNAUTHORIZED ?? process.env.CMS_REJECT_UNAUTHORIZED;
+    if (raw != null && raw !== '') {
+      return parseBooleanEnv(raw);
+    }
+
+    return this.isProduction();
+  }
+
+  private resolveCmsForwardEnabled(args: Record<string, string>): boolean {
+    const raw = args.CMS_FORWARD_ENABLED ?? process.env.CMS_FORWARD_ENABLED;
+    if (raw != null && raw !== '') {
+      return parseBooleanEnv(raw);
+    }
+
+    return !this.isProduction();
+  }
+
+  private resolveAuthRegistrationEnabled(args: Record<string, string>): boolean {
+    const raw = args.AUTH_REGISTRATION_ENABLED ?? process.env.AUTH_REGISTRATION_ENABLED;
+    if (raw != null && raw !== '') {
+      return parseBooleanEnv(raw);
+    }
+
+    return !this.isProduction();
+  }
+
+  private resolveCmsCaCert(args: Record<string, string>): string | undefined {
+    const certPath = args.CMS_CA_CERT_PATH ?? process.env.CMS_CA_CERT_PATH;
+    if (!certPath) {
+      return undefined;
+    }
+
+    if (!fs.existsSync(certPath)) {
+      throw new Error(`CMS CA certificate file not found: ${certPath}`);
+    }
+
+    return fs.readFileSync(certPath, 'utf8');
+  }
+
   private setAllowedOrigins(allowedOrigins?: string): void {
-    if (this.environment === 'production') {
+    if (this.isProduction()) {
       if (allowedOrigins) {
         this.allowedOrigins = allowedOrigins.split(',').map((s) => s.trim());
       } else {
