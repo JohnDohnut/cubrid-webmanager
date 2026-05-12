@@ -1,6 +1,7 @@
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor, Logger } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
+import { buildLogLine, formatLogPayload, sanitizeHeadersForLog } from '@util';
 
 /**
  * Interceptor for logging incoming requests and outgoing responses.
@@ -18,34 +19,73 @@ export class LoggingInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest();
     const response = context.switchToHttp().getResponse();
-
     const now = Date.now();
+    const requestContext = this.buildRequestContext(request);
 
     this.logger.log(
-      `Incoming Request: ${request.method} ${request.url}`,
-      `IP: ${request.ip}`,
-      `Headers: ${JSON.stringify(request.headers)}`,
-      `Body: ${JSON.stringify(request.body)}`
+      buildLogLine({
+        event: 'http_request',
+        phase: 'start',
+        ...requestContext,
+      })
     );
+
+    if (request.body && Object.keys(request.body).length > 0) {
+      this.logger.debug(
+        buildLogLine({
+          event: 'http_request_body',
+          ...requestContext,
+          body: formatLogPayload(request.body),
+        })
+      );
+    }
+
+    if (request.headers && Object.keys(request.headers).length > 0) {
+      this.logger.debug(
+        buildLogLine({
+          event: 'http_request_headers',
+          ...requestContext,
+          headers: formatLogPayload(sanitizeHeadersForLog(request.headers)),
+        })
+      );
+    }
 
     return next.handle().pipe(
       tap({
         next: (data) => {
           this.logger.log(
-            `Outgoing Response: ${request.method} ${request.url} - ${response.statusCode}`,
-            `Duration: ${Date.now() - now}ms`,
-            `Response Body (partial): ${JSON.stringify(data).substring(0, 200)}...`
+            buildLogLine({
+              event: 'http_response',
+              ...requestContext,
+              statusCode: response.statusCode,
+              durationMs: Date.now() - now,
+              payload: formatLogPayload(data, 500),
+            })
           );
         },
         error: (error) => {
           this.logger.error(
-            `Error Response: ${request.method} ${request.url} - ${error.status || 'N/A'}`,
-            `Duration: ${Date.now() - now}ms`,
-            `Error Message: ${error.message}`,
+            buildLogLine({
+              event: 'http_error',
+              ...requestContext,
+              statusCode: error.status || 'N/A',
+              durationMs: Date.now() - now,
+              message: error.message,
+            }),
             error.stack
           );
         },
       })
     );
+  }
+
+  private buildRequestContext(request: any): Record<string, unknown> {
+    return {
+      method: request.method,
+      path: request.url,
+      ip: request.ip,
+      userId: request.user?.sub,
+      hostUid: request.params?.hostUid,
+    };
   }
 }
