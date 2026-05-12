@@ -9,7 +9,7 @@ import { ConfigService } from '@config/config.service';
 import { HostService } from '@host';
 import { EncryptionService } from '@security';
 import { checkCmsTokenError, checkCmsStatusError } from '@common';
-import { buildLogLine, formatLogPayload } from '@util';
+import { formatAuditLog } from '@util';
 
 /**
  * Callback function to determine whether status check should be skipped.
@@ -133,12 +133,11 @@ export class CmsHttpsClientService {
 
   private logCmsRequest(scope: 'public' | 'authenticated', url: string, data: unknown): void {
     this.logger.debug(
-      buildLogLine({
-        event: 'cms_request',
+      formatAuditLog('cms_request', {
         scope,
-        url,
+        address: url,
         task: this.extractTask(data),
-        payload: formatLogPayload(data, 1000),
+        payload: data,
       })
     );
   }
@@ -152,15 +151,14 @@ export class CmsHttpsClientService {
   ): void {
     const cmsResponse = response as { status?: string; __EXEC_TIME?: string };
     this.logger.debug(
-      buildLogLine({
-        event: 'cms_response',
+      formatAuditLog('cms_response', {
         scope,
-        url,
+        address: url,
         task: this.extractTask(data),
         status: cmsResponse.status ?? 'unknown',
         execTime: cmsResponse.__EXEC_TIME,
         durationMs,
-        payload: formatLogPayload(response, 1000),
+        payload: response,
       })
     );
   }

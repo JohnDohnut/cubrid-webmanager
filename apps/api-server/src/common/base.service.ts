@@ -3,6 +3,7 @@ import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.servic
 import { checkCmsStatusError, checkCmsTokenError } from '@common';
 import { Logger } from '@nestjs/common';
 import { BaseCmsRequest } from '@type/cms-request/base-cms-request';
+import { formatAuditLog } from '@util';
 
 /**
  * Base service class for CMS API communication.
@@ -45,11 +46,43 @@ export abstract class BaseService {
 
     // Add token to request if not already present
     const requestWithToken = { ...cmsRequest, token: host.token || '' };
+    const startedAt = Date.now();
+
+    this.logger.log(
+      formatAuditLog('cms_request', {
+        user: userId,
+        method: 'POST',
+        address: url,
+        hostUid,
+        task: cmsRequest.task,
+        body: requestWithToken,
+      })
+    );
 
     const response = await this.cmsClient.postAuthenticated<TRequest, TResponse>(
       url,
       requestWithToken
     );
+    const cmsResponse = response as {
+      status?: string;
+      task?: string;
+      __EXEC_TIME?: string;
+    };
+
+    this.logger.log(
+      formatAuditLog('cms_response', {
+        user: userId,
+        method: 'POST',
+        address: url,
+        hostUid,
+        task: cmsRequest.task,
+        status: cmsResponse.status ?? 'unknown',
+        execTime: cmsResponse.__EXEC_TIME,
+        durationMs: Date.now() - startedAt,
+        payload: response,
+      })
+    );
+
     checkCmsTokenError(response);
     checkCmsStatusError(response);
 
