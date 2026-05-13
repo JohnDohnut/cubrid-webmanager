@@ -19,9 +19,14 @@ describe('HaService', () => {
   const mockHostUid = 'host-uid-1';
   const mockHost = {
     uid: mockHostUid,
+    id: 'host-1',
     address: 'localhost',
     port: 8001,
+    password: 'host-password',
     token: 'test-token',
+    initialLogin: false,
+    alias: 'host-1',
+    dbProfiles: {},
   };
 
   beforeEach(async () => {
