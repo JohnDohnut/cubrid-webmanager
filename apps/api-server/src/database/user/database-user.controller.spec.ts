@@ -40,12 +40,31 @@ describe('DatabaseUserController', () => {
 
   describe('getDatabaseUsers', () => {
     it('should call service.getDatabaseUsers and return result', async () => {
-      service.getDatabaseUsers.mockResolvedValue([]);
+      const mockResponse = {
+        dbname: 'demodb',
+        user: [{ '@id': '163810704', '@name': 'PUBLIC' }],
+      };
+      service.getDatabaseUsers.mockResolvedValue(mockResponse);
 
-      const result = await controller.getDatabaseUsers(mockReq, 'host-uid-1');
+      const result = await controller.getDatabaseUsers(
+        mockReq,
+        'host-uid-1',
+        'demodb'
+      );
 
-      expect(service.getDatabaseUsers).toHaveBeenCalledWith('user-123');
-      expect(result).toEqual([]);
+      expect(service.getDatabaseUsers).toHaveBeenCalledWith(
+        'user-123',
+        'host-uid-1',
+        'demodb'
+      );
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should throw ValidationError when dbname is missing', async () => {
+      await expect(
+        controller.getDatabaseUsers(mockReq, 'host-uid-1', undefined as unknown as string)
+      ).rejects.toThrow(ValidationError);
+      expect(service.getDatabaseUsers).not.toHaveBeenCalled();
     });
   });
 

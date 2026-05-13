@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Logger, Param, Post, Request } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Logger, Param, Post, Query, Request } from '@nestjs/common';
 import {
   SetAutoExecQueryClientRequest,
   SetAutoExecQueryClientResponse,
@@ -15,6 +15,7 @@ import {
   ClassInfoResponse,
   GetAutoExecQueryErrLogRequest,
   GetAutoExecQueryErrLogResponse,
+  GetAutoAddVolLogResponse,
 } from '@api-interfaces';
 import { validateRequiredFields } from '@util';
 import { DatabaseConfigService } from './database-config.service';
@@ -280,5 +281,26 @@ export class DatabaseConfigController {
       `Getting auto-exec query error log on host: ${hostUid}`
     );
     return await this.configService.getAutoExecQueryErrLog(userId, hostUid, body);
+  }
+
+  /**
+   * Get auto-add volume log entries. CMS task: getautoaddvollog.
+   *
+   * @route GET /:hostUid/database/auto-add-vol-log?start_time=...&end_time=...
+   */
+  @Get('auto-add-vol-log')
+  async getAutoAddVolLog(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Query('start_time') startTime?: string,
+    @Query('end_time') endTime?: string
+  ): Promise<GetAutoAddVolLogResponse> {
+    const userId = req.user.sub;
+
+    this.logger.log(`Getting auto-add volume log on host: ${hostUid}`);
+    return await this.configService.getAutoAddVolLog(userId, hostUid, {
+      start_time: startTime,
+      end_time: endTime,
+    });
   }
 }

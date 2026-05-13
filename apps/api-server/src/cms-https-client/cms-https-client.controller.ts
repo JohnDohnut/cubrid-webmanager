@@ -1,4 +1,6 @@
 import { Body, Controller, Param, Post, Req } from '@nestjs/common';
+import { ConfigService } from '@config/config.service';
+import { AuthError } from '@error/auth/auth-error';
 import { CmsHttpsClientService } from './cms-https-client.service';
 import { CmsForwardClientRequest } from '@api-interfaces';
 
@@ -16,7 +18,10 @@ export class CmsHttpsClientController {
   /**
    * @param clientService - The service responsible for forwarding requests to the CMS API.
    */
-  constructor(private readonly clientService: CmsHttpsClientService) {}
+  constructor(
+    private readonly clientService: CmsHttpsClientService,
+    private readonly configService: ConfigService
+  ) {}
 
   /**
    * Forwards an authenticated request from the client to the CMS API.
@@ -38,6 +43,10 @@ export class CmsHttpsClientController {
     @Param('hostUid') hostUid: string,
     @Body() request: Omit<CmsForwardClientRequest, 'hostUid'>
   ) {
+    if (!this.configService.isCmsForwardEnabled()) {
+      throw AuthError.PermissionDenied({ reason: 'CMS_FORWARD_DISABLED' });
+    }
+
     return this.clientService.forwardAuthenticated(req.user.sub, { ...request, hostUid });
   }
 }
