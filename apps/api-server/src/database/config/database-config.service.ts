@@ -14,6 +14,8 @@ import {
   ClassInfoResponse,
   GetAutoExecQueryErrLogRequest,
   GetAutoExecQueryErrLogResponse,
+  GetAutoAddVolLogRequest,
+  GetAutoAddVolLogResponse,
 } from '@api-interfaces';
 import { CmsConfigService } from '@cms-config/cms-config.service';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
@@ -34,6 +36,7 @@ import {
   GetDbSizeCmsRequest,
   ClassInfoCmsRequest,
   GetAutoExecQueryErrLogCmsRequest,
+  GetAutoAddVolLogCmsRequest,
 } from '@type/cms-request';
 import {
   GetAutoExecQueryCmsResponse,
@@ -43,6 +46,7 @@ import {
   GetDbSizeCmsResponse,
   ClassInfoCmsResponse,
   GetAutoExecQueryErrLogCmsResponse,
+  GetAutoAddVolLogCmsResponse,
 } from '@type/cms-response';
 import { GetAllSysParamCmsResponse } from '@type/cms-response/get-all-sys-param-cms-response';
 import { parseConfigParams } from '@util';
@@ -524,5 +528,57 @@ export class DatabaseConfigService extends BaseService {
     >(userId, hostUid, cmsRequest);
 
     return this.extractDomainData(response);
+  }
+
+  /**
+   * Get auto-add volume log entries for a time range. CMS task: getautoaddvollog.
+   */
+  @HandleDatabaseErrors()
+  async getAutoAddVolLog(
+    userId: string,
+    hostUid: string,
+    request: GetAutoAddVolLogRequest
+  ): Promise<GetAutoAddVolLogResponse> {
+    const { start_time, end_time } = this.resolveAutoAddVolLogRange(request);
+    const cmsRequest: GetAutoAddVolLogCmsRequest = {
+      task: 'getautoaddvollog',
+      start_time,
+      end_time,
+    };
+
+    const response = await this.executeCmsRequest<
+      GetAutoAddVolLogCmsRequest,
+      GetAutoAddVolLogCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    const domain = this.extractDomainData(response);
+    return domain.log ?? [];
+  }
+
+  private resolveAutoAddVolLogRange(request: GetAutoAddVolLogRequest): {
+    start_time: string;
+    end_time: string;
+  } {
+    const now = new Date();
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(now);
+    end.setHours(23, 59, 59, 999);
+
+    return {
+      start_time: request.start_time ?? this.formatCmsLogDateTime(start),
+      end_time: request.end_time ?? this.formatCmsLogDateTime(end),
+    };
+  }
+
+  private formatCmsLogDateTime(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    const seconds = date.getSeconds();
+
+    return `${year}-${month}-${day},${hours}:${minutes}:${seconds}`;
   }
 }

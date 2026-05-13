@@ -5,9 +5,11 @@ import { HandleCmsErrors } from '@common';
 import { CmsForwardClientRequest } from '@api-interfaces';
 import { BaseCmsRequest } from '@type';
 import * as https from 'https';
+import { ConfigService } from '@config/config.service';
 import { HostService } from '@host';
 import { EncryptionService } from '@security';
 import { checkCmsTokenError, checkCmsStatusError } from '@common';
+import { formatAuditLog } from '@util';
 
 /**
  * Callback function to determine whether status check should be skipped.
@@ -29,6 +31,8 @@ export type ShouldSkipStatusCheckCallback = (task: string, response: any) => boo
  */
 @Injectable()
 export class CmsHttpsClientService {
+  private readonly logger = new Logger(CmsHttpsClientService.name);
+
   /**
    * @param httpService - The NestJS HttpService for making HTTP requests.
    * @param hostService - Service for retrieving host-related information.
@@ -37,15 +41,13 @@ export class CmsHttpsClientService {
   constructor(
     private readonly httpService: HttpService,
     private readonly hostService: HostService,
-    private readonly encryptionService: EncryptionService
+    private readonly encryptionService: EncryptionService,
+    private readonly configService: ConfigService
   ) {}
 
   /**
    * Sends an unauthenticated POST request to a public CMS API endpoint.
    * This method is suitable for endpoints that do not require a user authentication token.
-   * Note: `rejectUnauthorized` is set to `false` for development/testing purposes,
-   * which means SSL certificates will not be validated. This should be reviewed for production environments.
-   *
    * @param url - The target URL of the CMS API endpoint.
    * @param data - The request payload, excluding the authentication token.
    * @returns A Promise that resolves with the response data from the CMS API.
@@ -58,21 +60,18 @@ export class CmsHttpsClientService {
   ): Promise<P> {
     const config = {
       headers: { 'Content-Type': 'application/json' },
-      httpsAgent: new https.Agent({
-        rejectUnauthorized: false,
-      }),
+      httpsAgent: this.createHttpsAgent(),
     };
-    Logger.log({ url, data, config });
+    const startedAt = Date.now();
+    this.logCmsRequest('public', url, data);
     const response = await firstValueFrom(this.httpService.post<P>(url, data, config));
+    this.logCmsResponse('public', url, data, response.data, Date.now() - startedAt);
     return response.data;
   }
 
   /**
    * Sends an authenticated POST request to a CMS API endpoint.
    * This method expects the request data to include an authentication token.
-   * Note: `rejectUnauthorized` is set to `false` for development/testing purposes,
-   * which means SSL certificates will not be validated. This should be reviewed for production environments.
-   *
    * @param url - The target URL of the CMS API endpoint.
    * @param data - The request payload, including the authentication token.
    * @returns A Promise that resolves with the response data from the CMS API.
@@ -82,12 +81,12 @@ export class CmsHttpsClientService {
   public async postAuthenticated<T extends BaseCmsRequest, P>(url: string, data: T): Promise<P> {
     const config = {
       headers: { 'Content-Type': 'application/json' },
-      httpsAgent: new https.Agent({
-        rejectUnauthorized: false,
-      }),
+      httpsAgent: this.createHttpsAgent(),
     };
-    Logger.log({ url, data, config });
+    const startedAt = Date.now();
+    this.logCmsRequest('authenticated', url, data);
     const response = await firstValueFrom(this.httpService.post<P>(url, data, config));
+    this.logCmsResponse('authenticated', url, data, response.data, Date.now() - startedAt);
     return response.data;
   }
 
@@ -118,7 +117,6 @@ export class CmsHttpsClientService {
       token: (host.token as string) || '',
       ...requestBody,
     };
-    Logger.log(request);
     const rv = (await this.postAuthenticated(url, request)) as any;
 
     checkCmsTokenError(rv);
@@ -131,5 +129,54 @@ export class CmsHttpsClientService {
     }
 
     return rv;
+  }
+
+  private logCmsRequest(scope: 'public' | 'authenticated', url: string, data: unknown): void {
+    this.logger.debug(
+      formatAuditLog('cms_request', {
+        scope,
+        address: url,
+        task: this.extractTask(data),
+        payload: data,
+      })
+    );
+  }
+
+  private logCmsResponse(
+    scope: 'public' | 'authenticated',
+    url: string,
+    data: unknown,
+    response: unknown,
+    durationMs: number
+  ): void {
+    const cmsResponse = response as { status?: string; __EXEC_TIME?: string };
+    this.logger.debug(
+      formatAuditLog('cms_response', {
+        scope,
+        address: url,
+        task: this.extractTask(data),
+        status: cmsResponse.status ?? 'unknown',
+        execTime: cmsResponse.__EXEC_TIME,
+        durationMs,
+        payload: response,
+      })
+    );
+  }
+
+  private extractTask(data: unknown): string | undefined {
+    if (!data || typeof data !== 'object' || !('task' in data)) {
+      return undefined;
+    }
+
+    const task = (data as { task?: unknown }).task;
+    return typeof task === 'string' ? task : undefined;
+  }
+
+  private createHttpsAgent(): https.Agent {
+    const ca = this.configService.getCmsCaCert();
+    return new https.Agent({
+      rejectUnauthorized: this.configService.getCmsRejectUnauthorized(),
+      ...(ca ? { ca } : {}),
+    });
   }
 }

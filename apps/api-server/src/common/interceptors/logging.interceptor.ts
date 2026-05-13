@@ -1,6 +1,7 @@
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor, Logger } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
+import { formatAuditLog, resolveClientIp } from '@util';
 
 /**
  * Interceptor for logging incoming requests and outgoing responses.
@@ -18,34 +19,50 @@ export class LoggingInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest();
     const response = context.switchToHttp().getResponse();
-
     const now = Date.now();
+    const requestContext = this.buildRequestContext(request);
 
     this.logger.log(
-      `Incoming Request: ${request.method} ${request.url}`,
-      `IP: ${request.ip}`,
-      `Headers: ${JSON.stringify(request.headers)}`,
-      `Body: ${JSON.stringify(request.body)}`
+      formatAuditLog('http_request', {
+        ...requestContext,
+        body: request.body,
+      })
     );
 
     return next.handle().pipe(
       tap({
         next: (data) => {
           this.logger.log(
-            `Outgoing Response: ${request.method} ${request.url} - ${response.statusCode}`,
-            `Duration: ${Date.now() - now}ms`,
-            `Response Body (partial): ${JSON.stringify(data).substring(0, 200)}...`
+            formatAuditLog('http_response', {
+              ...requestContext,
+              statusCode: response.statusCode,
+              durationMs: Date.now() - now,
+              payload: data,
+            })
           );
         },
         error: (error) => {
           this.logger.error(
-            `Error Response: ${request.method} ${request.url} - ${error.status || 'N/A'}`,
-            `Duration: ${Date.now() - now}ms`,
-            `Error Message: ${error.message}`,
+            formatAuditLog('http_error', {
+              ...requestContext,
+              statusCode: error.status || 'N/A',
+              durationMs: Date.now() - now,
+              message: error.message,
+            }),
             error.stack
           );
         },
       })
     );
+  }
+
+  private buildRequestContext(request: any): Record<string, unknown> {
+    return {
+      user: request.user?.sub ?? 'anonymous',
+      ip: resolveClientIp(request),
+      method: request.method,
+      address: request.originalUrl ?? request.url,
+      hostUid: request.params?.hostUid,
+    };
   }
 }

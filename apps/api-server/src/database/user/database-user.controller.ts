@@ -7,6 +7,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
   Request,
 } from '@nestjs/common';
 import { DatabaseUserService } from './database-user.service';
@@ -125,19 +126,20 @@ export class DatabaseUserController {
   }
 
   /**
-   * Get list of database users for a specific host.
+   * Get list of database users for a database. CMS task: userinfo.
    *
-   * @route GET /:hostUid/database/users
-   * @param req Express request (contains authenticated user)
-   * @param hostUid Host unique identifier from path parameter
-   * @returns Database users list
-   * @example
-   * // GET /host-uid/database/users
+   * @route GET /:hostUid/database/users?dbname=:dbname
    */
   @Get()
-  async getDatabaseUsers(@Request() req, @Param('hostUid') _hostUid: string) {
+  async getDatabaseUsers(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Query('dbname') dbname: string
+  ): Promise<UserInfoClientResponse> {
     const userId = req.user.sub;
-    return await this.databaseUserService.getDatabaseUsers(userId);
+    validateRequiredFields({ dbname }, ['dbname'], 'database/users', this.logger);
+    this.logger.log(`Getting database users for database: ${dbname} on host: ${hostUid}`);
+    return await this.databaseUserService.getDatabaseUsers(userId, hostUid, dbname);
   }
 
   /**
