@@ -10,6 +10,16 @@ registerPrivilegedAppScheme();
 
 let apiProcess: ApiProcessHandle | null = null;
 
+function clearRendererAuthToken(window: BrowserWindow): void {
+  if (window.isDestroyed()) {
+    return;
+  }
+
+  void window.webContents
+    .executeJavaScript('localStorage.removeItem("token")', true)
+    .catch(() => undefined);
+}
+
 function configureLoopbackTls(): void {
   session.defaultSession.setCertificateVerifyProc((request, callback) => {
     if (request.hostname === '127.0.0.1' || request.hostname === 'localhost') {
@@ -36,6 +46,10 @@ async function createMainWindow(apiBaseUrl: string): Promise<BrowserWindow> {
       sandbox: true,
       additionalArguments: [`--cwm-api-base-url=${apiBaseUrl}`],
     },
+  });
+
+  window.on('close', () => {
+    clearRendererAuthToken(window);
   });
 
   await window.loadURL('app://./index.html');

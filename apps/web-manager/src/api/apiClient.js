@@ -28,6 +28,28 @@ if (initialToken) {
 
 // Map to track active host re-authentication promises
 const refreshingHosts = new Map();
+let isHandlingSystemSessionExpiry = false;
+
+async function handleSystemSessionExpired() {
+  if (isHandlingSystemSessionExpiry) {
+    return;
+  }
+
+  const path = window.location.pathname;
+  if (path === '/login' || path === '/register') {
+    return;
+  }
+
+  isHandlingSystemSessionExpiry = true;
+  try {
+    localStorage.removeItem('token');
+    const { store } = await import('../app/store');
+    const { logout } = await import('../features/auth/authSlice');
+    store.dispatch(logout());
+  } finally {
+    isHandlingSystemSessionExpiry = false;
+  }
+}
 
 // Helper to determine if a URL belongs to a specific host
 const getHostUidFromUrl = (url) => {
@@ -84,11 +106,6 @@ apiClient.interceptors.response.use(
         // SCENARIO: Host-level 401
 
         if (isLoginRequest) {
-          // 401 during a host login attempt -> System session itself is expired
-          // "if revoke host login failed 401-> then it is consider as system login is expired. so do a logout operation."
-          console.error('Host authentication failed with 401. Main system session has expired.');
-          localStorage.removeItem('token');
-          window.location.href = '/login';
           return Promise.reject(error);
         }
 
@@ -127,12 +144,8 @@ apiClient.interceptors.response.use(
           return Promise.reject(error);
         }
       } else {
-        // Generic or system-level 401
         console.warn('Authentication expired. Redirecting to system login...');
-        localStorage.removeItem('token');
-        if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
-          window.location.href = '/login';
-        }
+        await handleSystemSessionExpired();
         return Promise.reject(error);
       }
     }

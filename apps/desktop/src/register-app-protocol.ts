@@ -27,11 +27,16 @@ export function registerAppProtocol(rendererRoot: string): void {
   protocol.handle('app', async (request) => {
     const url = new URL(request.url);
     const pathname = decodeURIComponent(url.pathname);
-    const relativePath = pathname === '/' ? '/index.html' : pathname;
-    const filePath = path.resolve(rendererRootResolved, relativePath.replace(/^\//, ''));
+    const relativePath = pathname === '/' ? 'index.html' : pathname.replace(/^\//, '');
+    let filePath = path.resolve(rendererRootResolved, relativePath);
 
     if (!filePath.startsWith(rendererRootResolved)) {
       return new Response('Forbidden', { status: 403 });
+    }
+
+    const hasFileExtension = path.extname(relativePath) !== '';
+    if (!fs.existsSync(filePath) && !hasFileExtension) {
+      filePath = path.join(rendererRootResolved, 'index.html');
     }
 
     return net.fetch(pathToFileURL(filePath).toString());
