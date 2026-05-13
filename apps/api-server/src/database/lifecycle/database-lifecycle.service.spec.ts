@@ -471,7 +471,7 @@ describe('DatabaseLifecycleService', () => {
       expect(result).toEqual(mockStartInfoResponse);
     });
 
-    it('should throw ValidationError when credentials are missing', async () => {
+    it('should throw ValidationError when dbname or id is missing', async () => {
       await expect(
         service.saveDatabaseProfile(mockUserId, mockHostUid, '', 'dba', 'password')
       ).rejects.toThrow();
@@ -479,10 +479,25 @@ describe('DatabaseLifecycleService', () => {
       await expect(
         service.saveDatabaseProfile(mockUserId, mockHostUid, mockDbname, '', 'password')
       ).rejects.toThrow();
+    });
 
-      await expect(
-        service.saveDatabaseProfile(mockUserId, mockHostUid, mockDbname, 'dba', '')
-      ).rejects.toThrow();
+    it('should save empty password when password is omitted or null', async () => {
+      const mockUser = {
+        id: mockUserId,
+        host_list: {
+          [mockHostUid]: { ...mockHost, dbProfiles: {} },
+        },
+      };
+
+      repository.atomicUpdateUser.mockImplementation(async (userId, callback) => {
+        return await callback(mockUser as any);
+      });
+
+      await service.saveDatabaseProfile(mockUserId, mockHostUid, mockDbname, 'dba', '');
+      expect(mockUser.host_list[mockHostUid].dbProfiles[mockDbname].password).toBe('');
+
+      await service.saveDatabaseProfile(mockUserId, mockHostUid, mockDbname, 'dba', null as any);
+      expect(mockUser.host_list[mockHostUid].dbProfiles[mockDbname].password).toBe('');
     });
 
     it('should overwrite existing database profile', async () => {

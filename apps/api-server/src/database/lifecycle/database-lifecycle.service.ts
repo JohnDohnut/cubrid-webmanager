@@ -215,7 +215,7 @@ export class DatabaseLifecycleService extends BaseService {
    * @param hostUid Host UID
    * @param dbname Database name
    * @param databaseId Database user ID
-   * @param databasePassword Database password
+   * @param databasePassword Database password (`null`/`undefined` → stored as `""`)
    * @returns Latest start info (StartInfoClientResponse) on success
    */
   @HandleDatabaseErrors()
@@ -224,16 +224,17 @@ export class DatabaseLifecycleService extends BaseService {
     hostUid: string,
     dbname: string,
     databaseId: string,
-    databasePassword: string
+    databasePassword: string | null | undefined
   ): Promise<StartInfoClientResponse> {
     const missing = (v: string | null | undefined) =>
       v == null || (typeof v === 'string' && v.trim() === '');
 
-    if (missing(dbname) || missing(databaseId) || missing(databasePassword)) {
+    const passwordToStore = databasePassword == null ? '' : databasePassword;
+
+    if (missing(dbname) || missing(databaseId)) {
       const missingFields = [
         missing(dbname) && 'dbname',
         missing(databaseId) && 'id',
-        missing(databasePassword) && 'password',
       ].filter(Boolean) as string[];
 
       throw ValidationError.MissingDBCredentials(dbname?.trim() || 'unknown', missingFields);
@@ -252,7 +253,7 @@ export class DatabaseLifecycleService extends BaseService {
       host.dbProfiles[dbname] = {
         dbname,
         id: databaseId,
-        password: databasePassword,
+        password: passwordToStore,
       };
 
       return user;
