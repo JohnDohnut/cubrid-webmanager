@@ -70,10 +70,14 @@ export class CmsAuthService {
       });
     }
 
-    host.token = response.token;
-    host.initialLogin = false;
+    const token = response.token;
     await this.repository.atomicUpdateUser(userId, async (user: User) => {
-      user.host_list[uid] = host;
+      const persisted = user.host_list[uid];
+      if (!persisted) {
+        throw HostError.NoSuchHost({ uid });
+      }
+      persisted.token = token;
+      persisted.initialLogin = false;
       return user;
     });
 

@@ -14,7 +14,9 @@ async function bootstrap() {
   app.getHttpAdapter().getInstance().set('trust proxy', true);
   const configService = app.get(ConfigService);
   const port: string = configService.getPort();
+  const listenHost = configService.getListenHost();
   const allowedOrigins = configService.getAllowedOrigins();
+  const desktopMode = (process.env.CWM_DESKTOP ?? '').trim() === '1';
   console.log('[main.ts] Allowed Origins from ConfigService:', allowedOrigins);
 
   if (allowedOrigins.includes('*')) {
@@ -31,6 +33,10 @@ async function bootstrap() {
     app.enableCors({
       origin: (origin, callback) => {
         if (!origin) {
+          if (desktopMode) {
+            callback(null, true);
+            return;
+          }
           callback(new Error('Not allowed by CORS'));
           return;
         }
@@ -48,7 +54,12 @@ async function bootstrap() {
 
   app.useGlobalFilters(new GlobalExceptionFilter());
   app.useGlobalInterceptors(new LoggingInterceptor(), new SuccessResponseInterceptor());
-  await app.listen(port);
-  console.log('\t@ server running port :', port);
+  if (listenHost) {
+    await app.listen(port, listenHost);
+    console.log('\t@ server running on', `${listenHost}:${port}`);
+  } else {
+    await app.listen(port);
+    console.log('\t@ server running port :', port);
+  }
 }
 bootstrap();

@@ -2,7 +2,10 @@ import axios from 'axios';
 
 const apiClient = axios.create({
   // Default to same-origin API path so deployments work across arbitrary customer hostnames/IPs.
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  baseURL:
+    (typeof window !== 'undefined' && window.desktopConfig?.apiBaseUrl) ||
+    import.meta.env.VITE_API_BASE_URL ||
+    'https://localhost:8080',
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',

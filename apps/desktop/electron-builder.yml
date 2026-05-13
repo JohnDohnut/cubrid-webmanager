@@ -1,0 +1,34 @@
+appId: com.cubrid.webmanager
+productName: CUBRID Web Manager
+electronVersion: 35.7.5
+asar: false
+directories:
+  output: dist/portable
+  buildResources: apps/desktop/build-resources
+files:
+  - dist/apps/desktop/**/*
+  - package.json
+extraMetadata:
+  name: cubrid-web-manager-desktop
+  version: 0.0.1
+  main: dist/apps/desktop/main.js
+extraResources:
+  - from: dist/apps/web-manager
+    to: web-manager
+  - from: dist/apps/api-server
+    to: api-server
+    filter:
+      - "**/*"
+      - "!node_modules/**"
+      - "!**/*.map"
+  - from: dist/apps/api-server/node_modules
+    to: api-server/node_modules
+mac:
+  target:
+    - dir
+win:
+  target:
+    - dir
+linux:
+  target:
+    - dir
