@@ -10,6 +10,10 @@ import { parseCliArgs } from './parse-cli-args';
  * Does not override variables already set (e.g. systemd EnvironmentFile).
  */
 export function loadRuntimeEnv(): void {
+  if ((process.env.CWM_DESKTOP ?? '').trim() === '1') {
+    return;
+  }
+
   const args = parseCliArgs(process.argv.slice(2));
   const rawMode = (
     args.ENV ??

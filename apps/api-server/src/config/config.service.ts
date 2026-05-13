@@ -20,6 +20,7 @@ export class ConfigService {
   public cmsRejectUnauthorized!: boolean;
   public cmsForwardEnabled!: boolean;
   public authRegistrationEnabled!: boolean;
+  public listenHost?: string;
   private readonly cmsCaCert?: string;
 
   constructor() {
@@ -69,7 +70,14 @@ export class ConfigService {
 
     const allowedFromEnvOrArg =
       args.ALLOWED_ORIGINS ?? process.env.ALLOWED_ORIGINS;
-    this.setAllowedOrigins(allowedFromEnvOrArg);
+    const desktopMode = (process.env.CWM_DESKTOP ?? '').trim() === '1';
+    this.setAllowedOrigins(allowedFromEnvOrArg, desktopMode);
+
+    const listenHost =
+      args.LISTEN_HOST ?? process.env.LISTEN_HOST ?? process.env.HOST;
+    if (listenHost?.trim()) {
+      this.listenHost = listenHost.trim();
+    }
   }
 
   getSecretKey(): string {
@@ -90,6 +98,10 @@ export class ConfigService {
 
   getAllowedOrigins(): string[] {
     return this.allowedOrigins;
+  }
+
+  getListenHost(): string | undefined {
+    return this.listenHost;
   }
 
   getCmsRejectUnauthorized(): boolean {
@@ -148,7 +160,16 @@ export class ConfigService {
     return fs.readFileSync(certPath, 'utf8');
   }
 
-  private setAllowedOrigins(allowedOrigins?: string): void {
+  private setAllowedOrigins(allowedOrigins: string | undefined, desktopMode: boolean): void {
+    if (desktopMode) {
+      if (!allowedOrigins?.trim()) {
+        throw new Error('ALLOWED_ORIGINS is required when CWM_DESKTOP=1.');
+      }
+      this.allowedOrigins = allowedOrigins.split(',').map((s) => s.trim()).filter(Boolean);
+      console.log('[ConfigService] Allowed Origins (desktop):', this.allowedOrigins);
+      return;
+    }
+
     if (this.isProduction()) {
       if (allowedOrigins) {
         this.allowedOrigins = allowedOrigins.split(',').map((s) => s.trim());
