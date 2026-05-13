@@ -31,6 +31,8 @@ describe('DatabaseBackupService', () => {
     port: 8001,
     password: 'host-password',
     token: 'test-token',
+    initialLogin: false,
+    alias: 'host-1',
     dbProfiles: {},
   };
 

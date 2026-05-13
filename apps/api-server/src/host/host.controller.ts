@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Request } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Logger, Param, Post, Put, Request } from '@nestjs/common';
 import {
   AddHostRequest,
   GetHostsResponse,
@@ -6,6 +6,7 @@ import {
   UpdateHostClientRequest,
 } from '@api-interfaces';
 import { HostService } from './host.service';
+import { validateRequiredFields } from '@util';
 
 /**
  * Controller for managing host-related operations.
@@ -19,6 +20,8 @@ import { HostService } from './host.service';
  */
 @Controller('host')
 export class HostController {
+  private readonly logger = new Logger(HostController.name);
+
   constructor(private readonly hostService: HostService) {}
 
   /**
@@ -31,6 +34,12 @@ export class HostController {
   @Post()
   async addHost(@Request() request, @Body() hostInfo: AddHostRequest): Promise<GetHostsResponse> {
     const userId = request.user.sub;
+    validateRequiredFields(
+      hostInfo,
+      ['address', 'port', 'id', 'password', 'alias'],
+      'host/add',
+      this.logger
+    );
     return { host_list: await this.hostService.addHost(userId, hostInfo) };
   }
 
