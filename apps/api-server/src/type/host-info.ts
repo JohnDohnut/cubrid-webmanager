@@ -5,7 +5,7 @@ import { HashMap } from './collections';
  * Interface representing host information.
  *
  * Contains host identification and connection details including
- * unique ID, address, port, and password.
+ * unique ID, address, port, password, and display alias.
  *
  * @category Types
  * @since 1.0.0
@@ -18,6 +18,6 @@ export type HostInfo = {
   port: number;
   password: string;
   initialLogin: boolean;
-  alias?: string;
+  alias: string;
   dbProfiles: HashMap<DBInfo>;
 };
