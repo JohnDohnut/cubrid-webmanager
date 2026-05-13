@@ -29,6 +29,7 @@ describe('DatabaseConfigService', () => {
     password: 'host-password',
     initialLogin: false,
     token: 'test-token',
+    alias: 'host-1',
     dbProfiles: {},
   };
 
