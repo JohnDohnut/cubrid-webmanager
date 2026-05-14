@@ -4,13 +4,7 @@ import { HostService } from '@host';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import { UserRepositoryService } from '@repository';
 import { DatabaseError } from '@error/database/database-error';
-import * as common from '@common';
-
-jest.mock('@common', () => ({
-  ...jest.requireActual('@common'),
-  checkCmsTokenError: jest.fn(),
-  checkCmsStatusError: jest.fn(),
-}));
+import { CmsError } from '@error/cms/cms-error';
 
 describe('DatabaseUserService', () => {
   let service: DatabaseUserService;
@@ -51,8 +45,6 @@ describe('DatabaseUserService', () => {
     cmsClient = module.get(CmsHttpsClientService);
 
     hostService.findHostInternal.mockResolvedValue(mockHost as any);
-    (common.checkCmsTokenError as jest.Mock).mockImplementation(() => {});
-    (common.checkCmsStatusError as jest.Mock).mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -112,7 +104,7 @@ describe('DatabaseUserService', () => {
       });
     });
 
-    it('should throw DatabaseError when CMS status is not success', async () => {
+    it('should throw CmsError when CMS status is not success', async () => {
       cmsClient.postAuthenticated.mockResolvedValue({
         __EXEC_TIME: '0 ms',
         note: 'failed',
@@ -122,7 +114,7 @@ describe('DatabaseUserService', () => {
 
       await expect(
         service.getUserInfo(mockUserId, mockHostUid, 'demodb')
-      ).rejects.toThrow(DatabaseError);
+      ).rejects.toThrow(CmsError);
     });
   });
 
@@ -167,7 +159,7 @@ describe('DatabaseUserService', () => {
       expect(result).toEqual({ success: true });
     });
 
-    it('should throw DatabaseError when CMS status is not success', async () => {
+    it('should throw CmsError when CMS status is not success', async () => {
       cmsClient.postAuthenticated.mockResolvedValue({
         __EXEC_TIME: '0 ms',
         note: 'failed',
@@ -185,7 +177,7 @@ describe('DatabaseUserService', () => {
           createParams.groups,
           createParams.authorization
         )
-      ).rejects.toThrow(DatabaseError);
+      ).rejects.toThrow(CmsError);
     });
   });
 
@@ -216,7 +208,7 @@ describe('DatabaseUserService', () => {
       expect(result).toEqual({ success: true });
     });
 
-    it('should throw DatabaseError when CMS status is not success', async () => {
+    it('should throw CmsError when CMS status is not success', async () => {
       cmsClient.postAuthenticated.mockResolvedValue({
         __EXEC_TIME: '0 ms',
         note: 'failed',
@@ -226,7 +218,7 @@ describe('DatabaseUserService', () => {
 
       await expect(
         service.deleteUser(mockUserId, mockHostUid, 'demodb', 'yifan')
-      ).rejects.toThrow(DatabaseError);
+      ).rejects.toThrow(CmsError);
     });
   });
 
@@ -269,7 +261,7 @@ describe('DatabaseUserService', () => {
       expect(result).toEqual({ success: true });
     });
 
-    it('should throw DatabaseError when CMS status is not success', async () => {
+    it('should throw CmsError when CMS status is not success', async () => {
       cmsClient.postAuthenticated.mockResolvedValue({
         __EXEC_TIME: '0 ms',
         note: 'failed',
@@ -287,7 +279,7 @@ describe('DatabaseUserService', () => {
           updateParams.groups,
           updateParams.authorization
         )
-      ).rejects.toThrow(DatabaseError);
+      ).rejects.toThrow(CmsError);
     });
   });
 
@@ -320,7 +312,7 @@ describe('DatabaseUserService', () => {
       expect(result).toEqual({ verified: true });
     });
 
-    it('should throw DatabaseError when CMS status is not success', async () => {
+    it('should throw CmsError when CMS status is not success', async () => {
       cmsClient.postAuthenticated.mockResolvedValue({
         __EXEC_TIME: '0 ms',
         note: 'failed',
@@ -330,7 +322,7 @@ describe('DatabaseUserService', () => {
 
       await expect(
         service.userVerify(mockUserId, mockHostUid, 'demodb', 'dba', '')
-      ).rejects.toThrow(DatabaseError);
+      ).rejects.toThrow(CmsError);
     });
   });
 });

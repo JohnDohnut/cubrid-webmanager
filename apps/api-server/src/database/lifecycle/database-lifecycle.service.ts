@@ -10,10 +10,9 @@ import {
 import { GetCreatedbInfoClientResponse } from '@api-interfaces/response/get-createdb-info-client-response';
 import { CmsConfigService } from '@cms-config/cms-config.service';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
-import { BaseService, HandleDatabaseErrors } from '@common';
+import { BaseService, HandleCmsErrors } from '@common';
 import { ConfigError } from '@error/config/config-error';
 import { ConfigErrorCode } from '@error/config/config-error-code';
-import { CmsError } from '@error/cms/cms-error';
 import { DatabaseError } from '@error/database/database-error';
 import { HostError } from '@error/index';
 import { ValidationError } from '@error/validation/validation-error';
@@ -116,22 +115,20 @@ export class DatabaseLifecycleService extends BaseService {
    * @throws CmsError If CMS status is not success (including `ha_start`)
    */
 
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async startDatabase(
     userId: string,
     hostUid: string,
     dbname: string
   ): Promise<StartInfoClientResponse> {
     const useHa = await this.databaseInfoService.effectiveHaDbForDbname(userId, hostUid, dbname);
-    const response = useHa
-      ? await this.haService.haStart(userId, hostUid, dbname)
-      : await this.startNonHaDatabase(userId, hostUid, dbname);
-
-    if (response.status === 'success') {
-      return await this.databaseInfoService.startInfo(userId, hostUid);
+    if (useHa) {
+      await this.haService.haStart(userId, hostUid, dbname);
+    } else {
+      await this.startNonHaDatabase(userId, hostUid, dbname);
     }
 
-    throw CmsError.RequestFailed({ response, dbname });
+    return await this.databaseInfoService.startInfo(userId, hostUid);
   }
 
   /**
@@ -145,22 +142,20 @@ export class DatabaseLifecycleService extends BaseService {
    * @returns Latest start info (StartInfoClientResponse) on success
    * @throws DatabaseError If CMS status is fail (including `ha_stop` path)
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async stopDatabase(
     userId: string,
     hostUid: string,
     dbname: string
   ): Promise<StartInfoClientResponse> {
     const useHa = await this.databaseInfoService.effectiveHaDbForDbname(userId, hostUid, dbname);
-    const response = useHa
-      ? await this.haService.haStop(userId, hostUid, dbname)
-      : await this.stopNonHaDatabase(userId, hostUid, dbname);
-
-    if (response.status === 'success') {
-      return await this.databaseInfoService.startInfo(userId, hostUid);
+    if (useHa) {
+      await this.haService.haStop(userId, hostUid, dbname);
+    } else {
+      await this.stopNonHaDatabase(userId, hostUid, dbname);
     }
 
-    throw DatabaseError.StopDatabaseFailed({ response, dbname });
+    return await this.databaseInfoService.startInfo(userId, hostUid);
   }
 
   /**
@@ -174,7 +169,7 @@ export class DatabaseLifecycleService extends BaseService {
    * @returns Latest start info (StartInfoClientResponse) on success
    * @throws DatabaseError If stop/start step fails
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async restartDatabase(
     userId: string,
     hostUid: string,
@@ -182,29 +177,15 @@ export class DatabaseLifecycleService extends BaseService {
   ): Promise<StartInfoClientResponse> {
     const useHa = await this.databaseInfoService.effectiveHaDbForDbname(userId, hostUid, dbname);
 
-    const stopResponse = useHa
-      ? await this.haService.haStop(userId, hostUid, dbname)
-      : await this.stopNonHaDatabase(userId, hostUid, dbname);
-
-    if (stopResponse.status === 'success') {
-      const startResponse = useHa
-        ? await this.haService.haStart(userId, hostUid, dbname)
-        : await this.startNonHaDatabase(userId, hostUid, dbname);
-
-      if (startResponse.status === 'success') {
-        return await this.databaseInfoService.startInfo(userId, hostUid);
-      } else {
-        throw CmsError.RequestFailed({
-          response: startResponse,
-          dbname,
-        });
-      }
+    if (useHa) {
+      await this.haService.haStop(userId, hostUid, dbname);
+      await this.haService.haStart(userId, hostUid, dbname);
     } else {
-      throw CmsError.RequestFailed({
-        response: stopResponse,
-        dbname,
-      });
+      await this.stopNonHaDatabase(userId, hostUid, dbname);
+      await this.startNonHaDatabase(userId, hostUid, dbname);
     }
+
+    return await this.databaseInfoService.startInfo(userId, hostUid);
   }
 
   /**
@@ -218,7 +199,7 @@ export class DatabaseLifecycleService extends BaseService {
    * @param databasePassword Database password (`null`/`undefined` → stored as `""`)
    * @returns Latest start info (StartInfoClientResponse) on success
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async saveDatabaseProfile(
     userId: string,
     hostUid: string,
@@ -272,7 +253,7 @@ export class DatabaseLifecycleService extends BaseService {
    * @returns DatabaseVolumeInfoClientResponse
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async getDBSpaceInfo(
     userId: string,
     hostUid: string,
@@ -299,11 +280,7 @@ export class DatabaseLifecycleService extends BaseService {
       DbSpaceInfoCmsResponse | BaseCmsResponse
     >(userId, hostUid, spaceInfoRequest);
 
-    if (response.status === 'success') {
-      return this.extractDomainData(response as DbSpaceInfoCmsResponse);
-    } else {
-      throw CmsError.RequestFailed({ response, dbname });
-    }
+    return this.extractDomainData(response as DbSpaceInfoCmsResponse);
   }
 
   /**
@@ -317,7 +294,7 @@ export class DatabaseLifecycleService extends BaseService {
    * @returns CreateDatabaseClientResponse Empty object on success
    * @throws DatabaseError If request fails
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async createDatabaseInternal(
     userId: string,
     hostUid: string,
@@ -589,7 +566,7 @@ export class DatabaseLifecycleService extends BaseService {
    * @returns StartInfoClientResponse Latest database list (start-info) on success
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async deleteDatabase(
     userId: string,
     hostUid: string,

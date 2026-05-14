@@ -15,14 +15,7 @@ import { HostError } from '@error/index';
 import { CmsError } from '@error/cms/cms-error';
 import { CreateDatabaseClientResponse, DeleteDatabaseRequest } from '@api-interfaces';
 import { DeleteDatabaseCmsResponse } from '@type/cms-response';
-import * as common from '@common';
 
-// Mock the checkCmsTokenError and checkCmsStatusError functions
-jest.mock('@common', () => ({
-  ...jest.requireActual('@common'),
-  checkCmsTokenError: jest.fn(),
-  checkCmsStatusError: jest.fn(),
-}));
 
 describe('DatabaseLifecycleService', () => {
   let service: DatabaseLifecycleService;
@@ -130,8 +123,6 @@ describe('DatabaseLifecycleService', () => {
 
     // Setup default mocks
     hostService.findHostInternal.mockResolvedValue(mockHost);
-    (common.checkCmsTokenError as jest.Mock).mockImplementation(() => {});
-    (common.checkCmsStatusError as jest.Mock).mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -211,7 +202,7 @@ describe('DatabaseLifecycleService', () => {
       expect(result).toEqual(mockStartInfoClientResponse);
     });
 
-    it('should throw DatabaseError when CMS status is fail', async () => {
+    it('should throw CmsError when CMS status is fail', async () => {
       const failedResponse = {
         __EXEC_TIME: '0 ms',
         note: 'Failed',
@@ -220,7 +211,7 @@ describe('DatabaseLifecycleService', () => {
       };
       cmsClient.postAuthenticated.mockResolvedValue(failedResponse);
 
-      await expect(service.startInfo(mockUserId, mockHostUid)).rejects.toThrow(DatabaseError);
+      await expect(service.startInfo(mockUserId, mockHostUid)).rejects.toThrow(CmsError);
     });
   });
 
@@ -338,7 +329,7 @@ describe('DatabaseLifecycleService', () => {
       );
     });
 
-    it('should throw DatabaseError when CMS status is fail', async () => {
+    it('should throw CmsError when CMS status is fail', async () => {
       const failedResponse = {
         ...mockBaseResponse,
         status: 'fail',
@@ -347,7 +338,7 @@ describe('DatabaseLifecycleService', () => {
       cmsClient.postAuthenticated.mockResolvedValue(failedResponse);
 
       await expect(service.stopDatabase(mockUserId, mockHostUid, mockDbname)).rejects.toThrow(
-        DatabaseError
+        CmsError
       );
     });
   });
@@ -575,7 +566,6 @@ describe('DatabaseLifecycleService', () => {
       const result = await service.getDBSpaceInfo(mockUserId, mockHostUid, mockDbname);
 
       expect(cmsClient.postAuthenticated).toHaveBeenCalledTimes(2);
-      expect(common.checkCmsTokenError).toHaveBeenCalled();
       expect(result).toEqual({
         dbname: 'testdb',
         pagesize: '16384',
@@ -700,15 +690,15 @@ describe('DatabaseLifecycleService', () => {
         },
         updateUser: {
           success: true,
-          data: {},
+          data: { success: true },
         },
         setAutoAddVol: {
           success: true,
-          data: {},
+          data: { success: true },
         },
         setAutoStart: {
           success: true,
-          data: {},
+          data: { success: true },
         },
       });
     });
@@ -1043,11 +1033,6 @@ describe('DatabaseLifecycleService', () => {
     });
 
     it('should throw CmsError if CMS status is fail', async () => {
-      const actualCommon = jest.requireActual<typeof import('@common')>('@common');
-      (common.checkCmsStatusError as jest.Mock).mockImplementation(
-        actualCommon.checkCmsStatusError as (...args: unknown[]) => void
-      );
-
       cmsClient.postAuthenticated.mockResolvedValue({
         __EXEC_TIME: '0 ms',
         note: 'operation failed',
