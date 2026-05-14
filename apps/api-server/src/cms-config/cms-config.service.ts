@@ -26,7 +26,6 @@ import { StatdumpCmsResponse } from '@type/cms-response/statdump-cms-response';
 import { LogContentContainer } from '@type/cms-response/view-log-cms-response';
 import { BaseCmsResponse } from '@type/cms-response/base-cms-response';
 import { BaseService, HandleCmsErrors } from '@common';
-import { ConfigError } from '@error/config/config-error';
 
 /**
  * Service for managing CMS environment configuration operations.
@@ -55,7 +54,7 @@ export class CmsConfigService extends BaseService {
    * @returns GetEnvClientResponse Environment information without CMS envelope fields
    * @throws Error if the request fails or CMS status is not success
    */
-  @HandleCmsErrors({ appErrorFallback: 'config' })
+  @HandleCmsErrors()
   async getEnv(userId: string, hostUid: string): Promise<GetEnvClientResponse> {
     const cmsRequest: BaseCmsRequest = {
       task: 'getenv',
@@ -67,13 +66,7 @@ export class CmsConfigService extends BaseService {
       cmsRequest
     );
 
-    if (response.status === 'success') {
-      return this.extractDomainData(response);
-    }
-
-    throw ConfigError.GetAllSysParamFailed('getenv', {
-      note: response.note || 'Unknown error',
-    });
+    return this.extractDomainData(response);
   }
 
   /**
@@ -86,7 +79,7 @@ export class CmsConfigService extends BaseService {
    * @returns ParamdumpClientResponse Database parameters without CMS envelope fields
    * @throws Error if the request fails or CMS status is not success
    */
-  @HandleCmsErrors({ appErrorFallback: 'config' })
+  @HandleCmsErrors()
   async getParamDump(
     userId: string,
     hostUid: string,
@@ -103,13 +96,7 @@ export class CmsConfigService extends BaseService {
       ParamdumpCmsResponse
     >(userId, hostUid, cmsRequest);
 
-    if (response.status === 'success') {
-      return this.extractDomainData(response);
-    }
-
-    throw ConfigError.GetAllSysParamFailed('paramdump', {
-      note: response.note || 'Unknown error',
-    });
+    return this.extractDomainData(response);
   }
 
   /**
@@ -122,7 +109,7 @@ export class CmsConfigService extends BaseService {
    * @returns StatdumpClientResponse Database statistics without CMS envelope fields
    * @throws Error if the request fails or CMS status is not success
    */
-  @HandleCmsErrors({ appErrorFallback: 'config' })
+  @HandleCmsErrors()
   async getStatDump(
     userId: string,
     hostUid: string,
@@ -138,13 +125,7 @@ export class CmsConfigService extends BaseService {
       StatdumpCmsResponse
     >(userId, hostUid, cmsRequest);
 
-    if (response.status === 'success') {
-      return this.extractDomainData(response);
-    }
-
-    throw ConfigError.GetAllSysParamFailed('statdump', {
-      note: response.note || 'Unknown error',
-    });
+    return this.extractDomainData(response);
   }
 
   /**
@@ -155,7 +136,7 @@ export class CmsConfigService extends BaseService {
    * @param hostUid - Host unique identifier
    * @param dbname - Database name
    */
-  @HandleCmsErrors({ appErrorFallback: 'config' })
+  @HandleCmsErrors()
   async getPlanDump(
     userId: string,
     hostUid: string,
@@ -171,15 +152,9 @@ export class CmsConfigService extends BaseService {
       PlandumpCmsResponse
     >(userId, hostUid, cmsRequest);
 
-    if (response.status === 'success') {
-      const { log } = this.extractDomainData(response) as { log: LogContentContainer[] };
-      const lines = this.flattenCmsLogLines(log);
-      return { lines, text: lines.join('\n') };
-    }
-
-    throw ConfigError.GetAllSysParamFailed('plandump', {
-      note: response.note || 'Unknown error',
-    });
+    const { log } = this.extractDomainData(response) as { log: LogContentContainer[] };
+    const lines = this.flattenCmsLogLines(log);
+    return { lines, text: lines.join('\n') };
   }
 
   /**
@@ -192,7 +167,7 @@ export class CmsConfigService extends BaseService {
    * @returns GetAllSysParamClientResponse System parameters without CMS envelope fields
    * @throws Error if the request fails or CMS status is not success
    */
-  @HandleCmsErrors({ appErrorFallback: 'config' })
+  @HandleCmsErrors()
   async getAllSystemParam(
     userId: string,
     hostUid: string,
@@ -208,11 +183,7 @@ export class CmsConfigService extends BaseService {
       GetAllSysParamCmsResponse
     >(userId, hostUid, cmsRequest);
 
-    if (response.status === 'success') {
-      return this.extractDomainData(response);
-    }
-
-    throw ConfigError.GetAllSysParamFailed(confname, { note: response.note });
+    return this.extractDomainData(response);
   }
 
   /**
@@ -226,7 +197,7 @@ export class CmsConfigService extends BaseService {
    * @returns SetSysParamClientResponse Empty object on success (CMS envelope fields removed)
    * @throws Error if the request fails or CMS status is not success
    */
-  @HandleCmsErrors({ appErrorFallback: 'config' })
+  @HandleCmsErrors()
   async setSystemParam(
     userId: string,
     hostUid: string,
@@ -257,7 +228,7 @@ export class CmsConfigService extends BaseService {
    * @param confname - Config name (e.g. "brokerconf")
    * @returns GetAddBrokerInfoClientResponse conflist, confname
    */
-  @HandleCmsErrors({ appErrorFallback: 'config' })
+  @HandleCmsErrors()
   async getAddBrokerInfo(
     userId: string,
     hostUid: string,
@@ -273,17 +244,11 @@ export class CmsConfigService extends BaseService {
       GetAddBrokerInfoCmsResponse
     >(userId, hostUid, cmsRequest);
 
-    if (response.status === 'success') {
-      const cms = response as GetAddBrokerInfoCmsResponse;
-      return {
-        conflist: cms.conflist,
-        confname: cms.confname,
-      };
-    }
-
-    throw ConfigError.GetAllSysParamFailed('getaddbrokerinfo', {
-      note: response.note || 'Unknown error',
-    });
+    const cms = response as GetAddBrokerInfoCmsResponse;
+    return {
+      conflist: cms.conflist,
+      confname: cms.confname,
+    };
   }
 
   /**
@@ -294,7 +259,7 @@ export class CmsConfigService extends BaseService {
    * @param confdata - Configuration data as array of lines (broker config content)
    * @returns SetSysParamClientResponse Empty object on success
    */
-  @HandleCmsErrors({ appErrorFallback: 'config' })
+  @HandleCmsErrors()
   async setBrokerParam(
     userId: string,
     hostUid: string,
@@ -305,16 +270,10 @@ export class CmsConfigService extends BaseService {
       confdata,
     };
 
-    const response = await this.executeCmsRequest<
+    await this.executeCmsRequest<
       BrokerSetParamCmsRequest,
       BaseCmsResponse
     >(userId, hostUid, cmsRequest);
-
-    if (response.status !== 'success') {
-      throw ConfigError.SetSysParamFailed('broker', {
-        note: response.note || 'Unknown error',
-      });
-    }
 
     return { success: true };
   }

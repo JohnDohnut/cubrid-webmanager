@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { HaService } from './ha.service';
 import { HostService } from '@host';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
-import * as common from '@common';
 
 jest.mock('@common', () => ({
   ...jest.requireActual('@common'),
@@ -42,8 +41,6 @@ describe('HaService', () => {
     }).compile();
 
     service = module.get(HaService);
-    (common.checkCmsTokenError as jest.Mock).mockImplementation(() => {});
-    (common.checkCmsStatusError as jest.Mock).mockImplementation(() => {});
   });
 
   it('should be defined', () => {

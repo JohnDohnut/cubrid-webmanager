@@ -12,11 +12,11 @@ export function isCmsStatusFailure(response: any): boolean {
     return false;
   }
 
-  if ('status' in response) {
-    return response.status === 'fail' || response.status === 'failure';
+  if (!('status' in response)) {
+    return false;
   }
 
-  return false;
+  return response.status !== 'success';
 }
 
 /**
@@ -36,16 +36,36 @@ export function isCmsStatusFailure(response: any): boolean {
  * ```
  */
 export function checkCmsStatusError(response: any, errorMessage?: string): void {
-  if (isCmsStatusFailure(response)) {
-    // Use custom error message if provided, otherwise use response.note if it's user-friendly
-    // response.note from CMS typically contains user-friendly error messages (e.g., "Invalid password")
-    const message =
-      errorMessage ||
-      (response.note ? `CMS request failed: ${response.note}` : 'CMS request failed');
-    Logger.log(message);
-    throw CmsError.RequestFailed({
-      message: message,
-      response: response,
-    });
+  if (!isCmsStatusFailure(response)) {
+    return;
   }
+
+  const noteMessage = isMeaningfulCmsNote(response.note) ? String(response.note).trim() : undefined;
+  const lineMessage = Array.isArray(response.line)
+    ? response.line.map((line: unknown) => String(line)).join('\n').trim()
+    : '';
+  const message =
+    errorMessage ||
+    noteMessage ||
+    (lineMessage !== '' ? lineMessage : undefined) ||
+    'CMS request failed';
+
+  Logger.log(message);
+  throw CmsError.RequestFailed({
+    message,
+    response,
+  });
+}
+
+function isMeaningfulCmsNote(note: unknown): boolean {
+  if (note === undefined || note === null) {
+    return false;
+  }
+
+  const value = String(note).trim();
+  if (!value) {
+    return false;
+  }
+
+  return value.toLowerCase() !== 'none';
 }

@@ -1,5 +1,5 @@
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
-import { BaseService, HandleCmsErrors, HandleHostErrors } from '@common';
+import { BaseService, HandleCmsErrors } from '@common';
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import {
@@ -29,7 +29,6 @@ export class HaService extends BaseService {
    * Get HA heartbeat list data.
    * CMS task: heartbeatlist.
    */
-  @HandleHostErrors()
   @HandleCmsErrors()
   async heartbeatList(
     userId: string,
@@ -58,7 +57,6 @@ export class HaService extends BaseService {
     };
   }
 
-  @HandleHostErrors()
   @HandleCmsErrors()
   async heartbeatlistInternal(userId: string, hostUid: string): Promise<HeartbeatListCmsResponse> {
     const cmsRequest: HeartbeatListCmsRequest = {
@@ -71,7 +69,6 @@ export class HaService extends BaseService {
   /**
    * CMS `ha_start` — `{ task, dbname }` + token; success envelope `task: 'ha_start'`.
    */
-  @HandleHostErrors()
   @HandleCmsErrors()
   async haStart(
     userId: string,
@@ -92,7 +89,6 @@ export class HaService extends BaseService {
   /**
    * CMS `ha_stop` — `{ task, dbname }` + token; success envelope `task: 'ha_stop'`.
    */
-  @HandleHostErrors()
   @HandleCmsErrors()
   async haStop(
     userId: string,
@@ -113,7 +109,6 @@ export class HaService extends BaseService {
   /**
    * CMS `ha_reload` — `{ task: 'ha_reload' }` + token; success envelope `task: 'ha_reload'`.
    */
-  @HandleHostErrors()
   @HandleCmsErrors()
   async haReload(userId: string, hostUid: string): Promise<HaReloadCmsResponse> {
     const cmsRequest: HaReloadCmsRequest = {

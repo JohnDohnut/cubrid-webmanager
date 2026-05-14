@@ -1,6 +1,7 @@
 import { HostService } from '@host';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
-import { checkCmsStatusError, checkCmsTokenError } from '@common';
+import { checkCmsStatusError } from './decorators/handle-cms-status-errors.decorator';
+import { checkCmsTokenError } from './decorators/handle-cms-token-errors.decorator';
 import { Logger } from '@nestjs/common';
 import { BaseCmsRequest } from '@type/cms-request/base-cms-request';
 import { formatAuditLog } from '@util';

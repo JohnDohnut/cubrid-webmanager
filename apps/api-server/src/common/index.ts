@@ -12,7 +12,6 @@ export { HandleCmsErrors } from './decorators/handle-cms-errors.decorator';
 export type { HandleCmsErrorsOptions } from './decorators/handle-cms-errors.decorator';
 export { HandleDatabaseErrors } from './decorators/handle-database-errors.decorator';
 export { HandleResourceMonitoringErrors } from './decorators/handle-resource-monitoring-errors.decorator';
-export { HandleBrokerErrors } from './decorators/handle-broker-errors.decorator';
 
 // Export interceptors
 export { SuccessResponseInterceptor } from './interceptors/success-response.interceptor';
