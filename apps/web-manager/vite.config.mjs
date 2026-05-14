@@ -3,41 +3,49 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const isElectronBuild = process.env.CWM_ELECTRON === '1' || process.argv.includes('--mode=electron')
+
 export default defineConfig({
+  base: isElectronBuild ? './' : '/',
   plugins: [
     react(),
     tailwindcss(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      injectRegister: 'auto',
-      includeAssets: ['cubrid-logo.png', 'pwa-192x192.png', 'pwa-512x512.png'],
-      manifest: {
-        name: 'CUBRID Web Manager',
-        short_name: 'CWM',
-        description: 'Modern Web-based Management Interface for CUBRID Database.',
-        theme_color: '#ffffff',
-        background_color: '#ffffff',
-        display: 'standalone',
-        start_url: '/',
-        scope: '/',
-        icons: [
-          {
-            src: 'pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png'
-          }
+  ].concat(
+    isElectronBuild
+      ? []
+      : [
+          VitePWA({
+            registerType: 'autoUpdate',
+            injectRegister: 'auto',
+            includeAssets: ['cubrid-logo.png', 'pwa-192x192.png', 'pwa-512x512.png'],
+            manifest: {
+              name: 'CUBRID Web Manager',
+              short_name: 'CWM',
+              description: 'Modern Web-based Management Interface for CUBRID Database.',
+              theme_color: '#ffffff',
+              background_color: '#ffffff',
+              display: 'standalone',
+              start_url: '/',
+              scope: '/',
+              icons: [
+                {
+                  src: 'pwa-192x192.png',
+                  sizes: '192x192',
+                  type: 'image/png',
+                },
+                {
+                  src: 'pwa-512x512.png',
+                  sizes: '512x512',
+                  type: 'image/png',
+                },
+              ],
+            },
+            devOptions: {
+              enabled: true,
+            },
+          }),
         ]
-      },
-      devOptions: {
-        enabled: true
-      }
-    })
-  ],
+  ),
   /** Same output as `tools/serve-web-manager.js`: root `dist/apps/web-manager` */
   build: {
     outDir: '../../dist/apps/web-manager',
@@ -49,12 +57,12 @@ export default defineConfig({
     port: 5173,
     allowedHosts: true,
     watch: {
-      usePolling: true
-    }
+      usePolling: true,
+    },
   },
   preview: {
     host: '0.0.0.0',
     port: 5173,
-    allowedHosts: true
-  }
+    allowedHosts: true,
+  },
 })
