@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import { DESKTOP_API_BASE_URL } from '../config/constants';
 import { resolveDesktopAllowedOrigin } from '../protocol/origin';
 import { getApiServerDir, getApiServerEntry, getWorkspacePaths } from '../workspace/paths';
-import { loadOrCreateDesktopSecrets } from '../workspace/secrets';
+import { loadOrCreateDesktopSecrets } from '../config/secrets';
 
 export type ApiProcessHandle = {
   child: ChildProcess;

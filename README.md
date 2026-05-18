@@ -124,7 +124,8 @@ Artifacts are written under `dist/portable/`:
 Run the generated app from that folder. Portable layout next to the app (same on macOS, Windows, Linux — not under Library/AppData):
 
 - `desktop-settings.json` — in the same folder as the `.app` (macOS) or `.exe` (Windows/Linux), not inside the bundle
-- `cwm-workspace/` — default data directory in that same folder (`data/`, `ssl/`, secrets, storage, `api.sock` on Unix)
+- `cwm-vault/secrets.json` — SEED/SALT (outside `cwm-workspace/`)
+- `cwm-workspace/` — default data directory (`data/`, `ssl/`, storage, `api.sock` on Unix)
 
 Runtime notes:
 
