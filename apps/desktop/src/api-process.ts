@@ -1,12 +1,13 @@
 import { ChildProcess, spawn } from 'child_process';
 import * as fs from 'fs';
 import { resolveDesktopAllowedOrigin } from './desktop-origin';
+import { DESKTOP_API_BASE_URL } from './desktop-constants';
 import { getApiServerEntry, getApiServerDir, getStorageDir } from './paths';
 import { loadOrCreateDesktopSecrets } from './secrets';
 
 export type ApiProcessHandle = {
   child: ChildProcess;
-  port: number;
+  socketPath: string;
   apiBaseUrl: string;
 };
 
@@ -14,14 +15,13 @@ function getNodeExecutable(): string {
   return process.execPath;
 }
 
-export async function startApiServer(port: number): Promise<ApiProcessHandle> {
+export async function startApiServer(socketPath: string): Promise<ApiProcessHandle> {
   const entry = getApiServerEntry();
   if (!fs.existsSync(entry)) {
     throw new Error(`API server entry not found: ${entry}. Run nx build api-server first.`);
   }
 
   const secrets = loadOrCreateDesktopSecrets();
-  const apiBaseUrl = `https://127.0.0.1:${port}`;
   const allowedOrigin = resolveDesktopAllowedOrigin();
   const storagePath = getStorageDir();
 
@@ -32,8 +32,7 @@ export async function startApiServer(port: number): Promise<ApiProcessHandle> {
       ELECTRON_RUN_AS_NODE: '1',
       CWM_DESKTOP: '1',
       ENVIRONMENT: 'development',
-      PORT: String(port),
-      LISTEN_HOST: '127.0.0.1',
+      LISTEN_UNIX_SOCKET: socketPath,
       SEED: secrets.seed,
       SALT: secrets.salt,
       STORAGE_PATH: storagePath,
@@ -46,7 +45,7 @@ export async function startApiServer(port: number): Promise<ApiProcessHandle> {
     console.error('[desktop] API process failed to start', error);
   });
 
-  return { child, port, apiBaseUrl };
+  return { child, socketPath, apiBaseUrl: DESKTOP_API_BASE_URL };
 }
 
 export function stopApiServer(child: ChildProcess | null): void {
