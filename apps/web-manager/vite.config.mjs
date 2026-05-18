@@ -3,9 +3,10 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
-const isElectronBuild = process.env.CWM_ELECTRON === '1' || process.argv.includes('--mode=electron')
+export default defineConfig(({ mode }) => {
+  const isElectronBuild = mode === 'electron'
 
-export default defineConfig({
+  return {
   base: isElectronBuild ? './' : '/',
   plugins: [
     react(),
@@ -65,4 +66,5 @@ export default defineConfig({
     port: 5173,
     allowedHosts: true,
   },
+  }
 })

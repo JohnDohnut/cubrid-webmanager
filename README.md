@@ -99,13 +99,13 @@ Use `npm run ssl:local-prod` to generate local production-style certificates whe
 
 ### Desktop (Electron)
 
-The desktop app loads the **built** web UI over the custom `app://` protocol, spawns the **built** API as a child process on a **dynamic loopback port**, and injects `apiBaseUrl` into the renderer through a thin preload (`window.desktopConfig`).
+The desktop app loads the **built** web UI over the custom `app://` protocol, spawns the **built** API as a child process on a **Unix domain socket** (named pipe on Windows), and injects `apiBaseUrl` into the renderer through a thin preload (`window.desktopConfig`).
 
 ```bash
 npm run dev:desktop
 ```
 
-This target builds `desktop`, `api-server`, and the Electron-specific `web-manager` build (`build-electron`, Vite `base: './'`), then runs Electron via `apps/desktop`.
+This target builds `desktop`, `api-server`, and the Electron-specific `web-manager` build (`build-electron` uses `vite build --mode=electron` for macOS/Linux/Windows), then runs Electron via `npx electron apps/desktop`.
 
 Portable folder output (unpacked app directory):
 
@@ -113,13 +113,19 @@ Portable folder output (unpacked app directory):
 npm run package:desktop
 ```
 
-Artifacts are written under `dist/portable/`. Run the generated executable from that folder; user data lives in `data/` next to the executable (`desktop-secrets.json`, `storage/`).
+Artifacts are written under `dist/portable/`:
+
+- macOS: `dist/portable/mac-arm64/CUBRID Web Manager.app` (or `mac/` / `mac-x64` depending on the build machine)
+- Windows: `dist/portable/win-unpacked/CUBRID Web Manager.exe`
+- Linux: `dist/portable/linux-unpacked/` (executable name matches `productName`)
+
+Run the generated app from that folder. User data lives next to the executable (`data/desktop-secrets.json`, `data/storage/`, `data/api.sock` on Unix).
 
 Runtime notes:
 
 - Renderer static files: `dist/apps/web-manager` in development; `resources/web-manager` when packaged
 - API entry: `dist/apps/api-server/main.js` in development; `resources/api-server/main.js` when packaged
-- API child env: `CWM_DESKTOP=1`, `LISTEN_HOST=127.0.0.1`, `STORAGE_PATH=<portable>/data/storage`, `ALLOWED_ORIGINS=app://.`
+- API child env: `CWM_DESKTOP=1`, `LISTEN_UNIX_SOCKET=<data>/api.sock`, `STORAGE_PATH=<portable>/data/storage`, `ALLOWED_ORIGINS=app://.`
 - Desktop waits for API readiness before opening the main window
 - Phase 1 does **not** include code signing, a first-run wizard, or OS keychain integration
 

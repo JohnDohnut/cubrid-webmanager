@@ -9,7 +9,7 @@
     "build-electron": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "CWM_ELECTRON=1 vite build --config vite.config.mjs",
+        "command": "vite build --config vite.config.mjs --mode=electron",
         "cwd": "apps/web-manager"
       }
     }
