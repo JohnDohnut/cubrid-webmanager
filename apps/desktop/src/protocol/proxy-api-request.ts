@@ -1,5 +1,5 @@
 import * as https from 'node:https';
-import { DESKTOP_API_BASE_URL } from './desktop-constants';
+import { DESKTOP_API_BASE_URL } from '../config/constants';
 
 export { DESKTOP_API_BASE_URL };
 

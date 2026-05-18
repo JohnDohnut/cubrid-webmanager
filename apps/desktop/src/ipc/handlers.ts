@@ -1,7 +1,6 @@
 import { dialog, ipcMain, shell } from 'electron';
 import * as fs from 'fs';
-import * as path from 'path';
-import { getApiProcess, restartApiForCurrentWorkspace } from './api-runtime';
+import { getApiProcess, restartApiForCurrentWorkspace } from '../api/api-runtime';
 import {
   clearConfiguredWorkspaceRoot,
   getDesktopSettingsPath,
@@ -9,14 +8,15 @@ import {
   markWorkspaceSetupComplete,
   needsWorkspaceSetup,
   setWorkspaceRoot,
-} from './desktop-settings';
-import { notifyWorkspaceSetupComplete } from './workspace-setup';
+} from '../config/desktop-settings';
+import { getPortableAppRoot } from '../config/portable-root';
+import { getWorkspacePaths, refreshWorkspacePaths } from '../workspace/paths';
 import {
   assertWorkspaceWritable,
   getDefaultWorkspaceRoot,
-} from './workspace-paths';
-import { getWorkspacePaths, refreshWorkspacePaths } from './paths';
-import { getMainWindow } from './window-registry';
+} from '../workspace/workspace-paths';
+import { notifyWorkspaceSetupComplete } from '../workspace/workspace-setup';
+import { getMainWindow } from '../window/window-registry';
 
 async function applyWorkspaceChange(): Promise<{ ok: true }> {
   if (getApiProcess()) {
@@ -39,7 +39,7 @@ export function registerDesktopIpcHandlers(): void {
 
   ipcMain.handle('desktop:reveal-settings-file', async () => {
     const settingsPath = getDesktopSettingsPath();
-    const portableRoot = path.dirname(settingsPath);
+    const portableRoot = getPortableAppRoot();
     if (fs.existsSync(settingsPath)) {
       shell.showItemInFolder(settingsPath);
     } else if (fs.existsSync(portableRoot)) {

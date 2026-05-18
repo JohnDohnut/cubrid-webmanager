@@ -1,6 +1,6 @@
 import * as path from 'path';
 import { app } from 'electron';
-import { getRepoRoot } from './portable-root';
+import { getRepoRoot } from '../config/portable-root';
 import {
   ensureWorkspaceDirectories,
   removeStaleUnixSocket,

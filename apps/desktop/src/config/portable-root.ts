@@ -30,7 +30,6 @@ export function getPortableAppRoot(): string {
 
   const execDir = getExecutableDir();
   if (process.platform === 'darwin') {
-    // MacOS → Contents → *.app — parent of .app is the install folder (e.g. mac-arm64/).
     return path.dirname(getAppBundlePath()!);
   }
 
@@ -58,7 +57,7 @@ export function isPathInsideAppBundle(resolvedPath: string): boolean {
 }
 
 export function getRepoRoot(): string {
-  return path.resolve(__dirname, '..', '..', '..');
+  return path.resolve(__dirname, '..', '..', '..', '..');
 }
 
 export function isPortableRuntime(): boolean {

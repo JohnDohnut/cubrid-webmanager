@@ -1,9 +1,9 @@
 import { ChildProcess, spawn } from 'child_process';
 import * as fs from 'fs';
-import { resolveDesktopAllowedOrigin } from './desktop-origin';
-import { DESKTOP_API_BASE_URL } from './desktop-constants';
-import { getApiServerEntry, getApiServerDir, getWorkspacePaths } from './paths';
-import { loadOrCreateDesktopSecrets } from './secrets';
+import { DESKTOP_API_BASE_URL } from '../config/constants';
+import { resolveDesktopAllowedOrigin } from '../protocol/origin';
+import { getApiServerDir, getApiServerEntry, getWorkspacePaths } from '../workspace/paths';
+import { loadOrCreateDesktopSecrets } from '../workspace/secrets';
 
 export type ApiProcessHandle = {
   child: ChildProcess;

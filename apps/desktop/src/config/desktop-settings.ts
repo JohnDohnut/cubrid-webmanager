@@ -31,7 +31,6 @@ function normalizeLoadedSettings(parsed: DesktopSettings): DesktopSettings {
     };
   }
 
-  // Ignore mistaken "test" workspace folders from early desktop trials.
   if (path.basename(resolved) === 'test' && resolved !== defaultWorkspace) {
     return {
       workspaceSetupComplete: parsed.workspaceSetupComplete,

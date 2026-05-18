@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { DesktopBridge, DesktopConfig } from './desktop-api';
-import { DESKTOP_API_BASE_URL } from './desktop-constants';
+import { DESKTOP_API_BASE_URL } from './config/constants';
+import type { DesktopBridge, DesktopConfig } from './ipc/bridge-types';
 
 function resolveApiBaseUrl(): string {
   const prefix = '--cwm-api-base-url=';

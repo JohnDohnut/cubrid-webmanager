@@ -1,8 +1,8 @@
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
-import { loadDesktopSettings } from './desktop-settings';
-import { getPortableAppRoot } from './portable-root';
+import { loadDesktopSettings } from '../config/desktop-settings';
+import { getPortableAppRoot } from '../config/portable-root';
 
 export type WorkspacePaths = {
   workspaceRoot: string;

@@ -1,16 +1,18 @@
 import { app, BrowserWindow } from 'electron';
-import { createAppWindow, toAppRouteUrl } from './app-window';
-import { startApiForCurrentWorkspace, stopDesktopApi } from './api-runtime';
-import { setMainWindow } from './window-registry';
-import { cleanupLegacyDesktopSettings } from './legacy-settings-cleanup';
-import { getPortableAppRoot } from './portable-root';
-import { getDesktopSettingsPath, needsWorkspaceSetup } from './desktop-settings';
-import { getDefaultWorkspaceRoot } from './workspace-paths';
-import { DESKTOP_API_BASE_URL } from './desktop-constants';
-import { getRendererDistDir, getWorkspacePaths, refreshWorkspacePaths } from './paths';
-import { registerDesktopIpcHandlers } from './ipc-handlers';
-import { registerAppProtocol, registerPrivilegedAppScheme } from './register-app-protocol';
-import { waitForWorkspaceSetupComplete, wasWorkspaceSetupCompleted } from './workspace-setup';
+import { startApiForCurrentWorkspace, stopDesktopApi } from './api/api-runtime';
+import { DESKTOP_API_BASE_URL } from './config/constants';
+import { getDesktopSettingsPath, needsWorkspaceSetup } from './config/desktop-settings';
+import { getPortableAppRoot } from './config/portable-root';
+import { registerDesktopIpcHandlers } from './ipc/handlers';
+import { registerAppProtocol, registerPrivilegedAppScheme } from './protocol/register-app-protocol';
+import { getRendererDistDir, getWorkspacePaths, refreshWorkspacePaths } from './workspace/paths';
+import { getDefaultWorkspaceRoot } from './workspace/workspace-paths';
+import {
+  waitForWorkspaceSetupComplete,
+  wasWorkspaceSetupCompleted,
+} from './workspace/workspace-setup';
+import { createAppWindow, toAppRouteUrl } from './window/app-window';
+import { setMainWindow } from './window/window-registry';
 
 registerPrivilegedAppScheme();
 
@@ -46,7 +48,6 @@ async function loadRoute(window: BrowserWindow, routePath: string): Promise<void
 
 async function bootstrap(): Promise<void> {
   registerDesktopIpcHandlers();
-  cleanupLegacyDesktopSettings();
 
   console.log('[desktop] install dir (beside .app / exe):', getPortableAppRoot());
   console.log('[desktop] settings file:', getDesktopSettingsPath());

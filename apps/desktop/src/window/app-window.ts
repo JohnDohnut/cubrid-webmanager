@@ -8,7 +8,7 @@ export function toAppRouteUrl(routePath: string): string {
 }
 
 export function createAppWindow(apiBaseUrl?: string): BrowserWindow {
-  const preloadPath = path.join(__dirname, 'preload.js');
+  const preloadPath = path.join(__dirname, '..', 'preload.js');
   const additionalArguments = apiBaseUrl ? [`--cwm-api-base-url=${apiBaseUrl}`] : [];
 
   return new BrowserWindow({

@@ -1,16 +1,12 @@
+import { getApiSocketPath, refreshWorkspacePaths } from '../workspace/paths';
+import { setAppProtocolApiSocket } from '../protocol/register-app-protocol';
 import { ApiProcessHandle, startApiServer, stopApiServer } from './api-process';
-import { getApiSocketPath, refreshWorkspacePaths } from './paths';
-import { setAppProtocolApiSocket } from './register-app-protocol';
 import { waitForApiReady } from './wait-for-api';
 
 let apiProcess: ApiProcessHandle | null = null;
 
 export function getApiProcess(): ApiProcessHandle | null {
   return apiProcess;
-}
-
-export function setApiProcess(handle: ApiProcessHandle | null): void {
-  apiProcess = handle;
 }
 
 export async function startApiForCurrentWorkspace(): Promise<ApiProcessHandle> {
