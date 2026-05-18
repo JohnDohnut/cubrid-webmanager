@@ -45,3 +45,11 @@ export function getApiServerDir(): string {
 export function getApiServerEntry(): string {
   return path.join(getApiServerDir(), 'main.js');
 }
+
+export function getApiSocketPath(): string {
+  if (process.platform === 'win32') {
+    return `\\\\.\\pipe\\cwm-webmanager-${process.pid}`;
+  }
+
+  return path.join(getDataDir(), 'api.sock');
+}

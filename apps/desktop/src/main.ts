@@ -1,8 +1,7 @@
-import { app, BrowserWindow, session } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import * as path from 'path';
 import { ApiProcessHandle, startApiServer, stopApiServer } from './api-process';
-import { reserveFreePort } from './free-port';
-import { getRendererDistDir } from './paths';
+import { getApiSocketPath, getRendererDistDir } from './paths';
 import { registerAppProtocol, registerPrivilegedAppScheme } from './register-app-protocol';
 import { waitForApiReady } from './wait-for-api';
 
@@ -18,17 +17,6 @@ function clearRendererAuthToken(window: BrowserWindow): void {
   void window.webContents
     .executeJavaScript('localStorage.removeItem("token")', true)
     .catch(() => undefined);
-}
-
-function configureLoopbackTls(): void {
-  session.defaultSession.setCertificateVerifyProc((request, callback) => {
-    if (request.hostname === '127.0.0.1' || request.hostname === 'localhost') {
-      callback(0);
-      return;
-    }
-
-    callback(-3);
-  });
 }
 
 async function createMainWindow(apiBaseUrl: string): Promise<BrowserWindow> {
@@ -58,12 +46,11 @@ async function createMainWindow(apiBaseUrl: string): Promise<BrowserWindow> {
 }
 
 async function bootstrap(): Promise<void> {
-  configureLoopbackTls();
-  registerAppProtocol(getRendererDistDir());
+  const socketPath = getApiSocketPath();
+  registerAppProtocol(getRendererDistDir(), socketPath);
 
-  const port = await reserveFreePort('127.0.0.1');
-  apiProcess = await startApiServer(port);
-  await waitForApiReady('127.0.0.1', port);
+  apiProcess = await startApiServer(socketPath);
+  await waitForApiReady(socketPath);
   await createMainWindow(apiProcess.apiBaseUrl);
 }
 

@@ -2,6 +2,7 @@ import { net, protocol } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
+import { proxyApiRequest, toApiUpstreamPath } from './proxy-api-request';
 
 export function registerPrivilegedAppScheme(): void {
   protocol.registerSchemesAsPrivileged([
@@ -17,7 +18,7 @@ export function registerPrivilegedAppScheme(): void {
   ]);
 }
 
-export function registerAppProtocol(rendererRoot: string): void {
+export function registerAppProtocol(rendererRoot: string, apiSocketPath: string): void {
   if (!fs.existsSync(rendererRoot)) {
     throw new Error(`Renderer dist not found: ${rendererRoot}. Run nx build web-manager first.`);
   }
@@ -27,6 +28,11 @@ export function registerAppProtocol(rendererRoot: string): void {
   protocol.handle('app', async (request) => {
     const url = new URL(request.url);
     const pathname = decodeURIComponent(url.pathname);
+    const upstreamPath = toApiUpstreamPath(pathname);
+    if (upstreamPath) {
+      return proxyApiRequest(request, apiSocketPath, upstreamPath);
+    }
+
     const relativePath = pathname === '/' ? 'index.html' : pathname.replace(/^\//, '');
     let filePath = path.resolve(rendererRootResolved, relativePath);
 

@@ -2,6 +2,7 @@ import { loadRuntimeEnv } from './config/load-runtime-env';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import 'module-alias/register';
+import * as fs from 'fs';
 import { getHttpsOptions } from '@util';
 import { GlobalExceptionFilter } from '@error/global-filter';
 import { ConfigService } from '@config/config.service';
@@ -54,12 +55,35 @@ async function bootstrap() {
 
   app.useGlobalFilters(new GlobalExceptionFilter());
   app.useGlobalInterceptors(new LoggingInterceptor(), new SuccessResponseInterceptor());
+  const unixSocket = configService.getListenUnixSocket();
+  if (unixSocket) {
+    removeStaleUnixSocket(unixSocket);
+    await app.listen(unixSocket);
+    console.log('\t@ server running on unix socket:', unixSocket);
+    return;
+  }
+
   if (listenHost) {
     await app.listen(port, listenHost);
     console.log('\t@ server running on', `${listenHost}:${port}`);
-  } else {
-    await app.listen(port);
-    console.log('\t@ server running port :', port);
+    return;
   }
+
+  await app.listen(port);
+  console.log('\t@ server running port :', port);
 }
 bootstrap();
+
+function removeStaleUnixSocket(socketPath: string): void {
+  if (process.platform === 'win32') {
+    return;
+  }
+
+  try {
+    fs.unlinkSync(socketPath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw error;
+    }
+  }
+}
