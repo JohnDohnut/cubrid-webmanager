@@ -4,6 +4,7 @@ electronVersion: 35.7.5
 asar: false
 directories:
   output: dist/portable
+  # CUBRID icons: icon.png (512), icon.icns (mac), icon.ico (win) — see build-resources/README
   buildResources: apps/desktop/build-resources
 files:
   - dist/apps/desktop/**/*
