@@ -1,5 +1,5 @@
-import { contextBridge } from 'electron';
-import type { DesktopConfig } from './desktop-api';
+import { contextBridge, ipcRenderer } from 'electron';
+import type { DesktopBridge, DesktopConfig } from './desktop-api';
 import { DESKTOP_API_BASE_URL } from './desktop-constants';
 
 function resolveApiBaseUrl(): string {
@@ -8,7 +8,21 @@ function resolveApiBaseUrl(): string {
   return arg ? arg.slice(prefix.length) : DESKTOP_API_BASE_URL;
 }
 
+const desktopBridge: DesktopBridge = {
+  isWorkspaceSetupRequired: () => ipcRenderer.invoke('desktop:is-workspace-setup-required'),
+  getWorkspaceInfo: () => ipcRenderer.invoke('desktop:get-workspace-info'),
+  pickWorkspaceDirectory: () => ipcRenderer.invoke('desktop:pick-workspace-directory'),
+  setWorkspaceRoot: (workspaceRoot) => ipcRenderer.invoke('desktop:set-workspace-root', workspaceRoot),
+  resetWorkspaceRoot: () => ipcRenderer.invoke('desktop:reset-workspace-root'),
+  finishWorkspaceSetup: (workspaceRoot) =>
+    ipcRenderer.invoke('desktop:finish-workspace-setup', workspaceRoot),
+  revealSettingsFile: () => ipcRenderer.invoke('desktop:reveal-settings-file'),
+};
+
 contextBridge.exposeInMainWorld('desktopConfig', {
   apiBaseUrl: resolveApiBaseUrl(),
   clearAuthOnExit: true,
+  isDesktop: true,
 } satisfies DesktopConfig);
+
+contextBridge.exposeInMainWorld('desktopBridge', desktopBridge);

@@ -23,7 +23,14 @@ extraResources:
       - "!**/*.map"
   - from: dist/apps/api-server/node_modules
     to: api-server/node_modules
+# Local portable builds: no Apple Developer signing / notarization (see README Desktop).
+forceCodeSigning: false
+
 mac:
+  notarize: false
+  gatekeeperAssess: false
+  # Skip Developer ID lookup (avoids hanging when no cert is configured).
+  identity: null
   target:
     - dir
 win:

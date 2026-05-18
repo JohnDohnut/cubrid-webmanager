@@ -1,29 +1,48 @@
-import * as fs from 'fs';
 import * as path from 'path';
 import { app } from 'electron';
+import { getRepoRoot } from './portable-root';
+import {
+  ensureWorkspaceDirectories,
+  removeStaleUnixSocket,
+  resolveWorkspacePaths,
+  type WorkspacePaths,
+} from './workspace-paths';
 
-export function getWorkspaceRoot(): string {
-  return path.resolve(__dirname, '..', '..', '..');
-}
+export { getRepoRoot };
 
-export function getPortableRoot(): string {
-  if (app.isPackaged) {
-    return path.dirname(process.execPath);
+let cachedPaths: WorkspacePaths | null = null;
+
+export function getWorkspacePaths(): WorkspacePaths {
+  if (!cachedPaths) {
+    cachedPaths = resolveWorkspacePaths();
+    ensureWorkspaceDirectories(cachedPaths);
   }
 
-  return getWorkspaceRoot();
+  return cachedPaths;
+}
+
+export function refreshWorkspacePaths(): WorkspacePaths {
+  cachedPaths = resolveWorkspacePaths();
+  ensureWorkspaceDirectories(cachedPaths);
+  return cachedPaths;
 }
 
 export function getDataDir(): string {
-  const dataDir = path.join(getPortableRoot(), 'data');
-  fs.mkdirSync(dataDir, { recursive: true });
-  return dataDir;
+  return getWorkspacePaths().dataDir;
 }
 
 export function getStorageDir(): string {
-  const storageDir = path.join(getDataDir(), 'storage');
-  fs.mkdirSync(storageDir, { recursive: true });
-  return storageDir;
+  return getWorkspacePaths().storageDir;
+}
+
+export function getSslDir(): string {
+  return getWorkspacePaths().sslDir;
+}
+
+export function getApiSocketPath(): string {
+  const paths = getWorkspacePaths();
+  removeStaleUnixSocket(paths.socketPath);
+  return paths.socketPath;
 }
 
 export function getRendererDistDir(): string {
@@ -31,7 +50,7 @@ export function getRendererDistDir(): string {
     return path.join(process.resourcesPath, 'web-manager');
   }
 
-  return path.join(getWorkspaceRoot(), 'dist/apps/web-manager');
+  return path.join(getRepoRoot(), 'dist/apps/web-manager');
 }
 
 export function getApiServerDir(): string {
@@ -39,17 +58,9 @@ export function getApiServerDir(): string {
     return path.join(process.resourcesPath, 'api-server');
   }
 
-  return path.join(getWorkspaceRoot(), 'dist/apps/api-server');
+  return path.join(getRepoRoot(), 'dist/apps/api-server');
 }
 
 export function getApiServerEntry(): string {
   return path.join(getApiServerDir(), 'main.js');
-}
-
-export function getApiSocketPath(): string {
-  if (process.platform === 'win32') {
-    return `\\\\.\\pipe\\cwm-webmanager-${process.pid}`;
-  }
-
-  return path.join(getDataDir(), 'api.sock');
 }

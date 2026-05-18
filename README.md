@@ -113,13 +113,18 @@ Portable folder output (unpacked app directory):
 npm run package:desktop
 ```
 
+Packaging can take several minutes while `api-server/node_modules` is copied into the app bundle. On macOS you may see `skipped macOS notarization` — that is expected for unsigned local builds.
+
 Artifacts are written under `dist/portable/`:
 
 - macOS: `dist/portable/mac-arm64/CUBRID Web Manager.app` (or `mac/` / `mac-x64` depending on the build machine)
 - Windows: `dist/portable/win-unpacked/CUBRID Web Manager.exe`
 - Linux: `dist/portable/linux-unpacked/` (executable name matches `productName`)
 
-Run the generated app from that folder. User data lives next to the executable (`data/desktop-secrets.json`, `data/storage/`, `data/api.sock` on Unix).
+Run the generated app from that folder. Portable layout next to the app (same on macOS, Windows, Linux — not under Library/AppData):
+
+- `desktop-settings.json` — in the same folder as the `.app` (macOS) or `.exe` (Windows/Linux), not inside the bundle
+- `cwm-workspace/` — default data directory in that same folder (`data/`, `ssl/`, secrets, storage, `api.sock` on Unix)
 
 Runtime notes:
 

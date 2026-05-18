@@ -14,10 +14,18 @@ export function getHttpsOptions(): HttpsKeyCert {
   const env = (process.env.ENVIRONMENT || '').toLowerCase();
 
   if (certPath && keyPath) {
-    return {
-      cert: fs.readFileSync(certPath),
-      key: fs.readFileSync(keyPath),
-    };
+    if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+      return {
+        cert: fs.readFileSync(certPath),
+        key: fs.readFileSync(keyPath),
+      };
+    }
+
+    if (env === 'production') {
+      throw new Error(
+        `SSL_CERT_PATH or SSL_KEY_PATH not found (cert=${certPath}, key=${keyPath}).`
+      );
+    }
   }
 
   if (env === 'production') {
@@ -37,16 +45,22 @@ export function getHttpsOptions(): HttpsKeyCert {
  * @category Utilities
  * @since 1.0.0
  */
-export function getOrCreateSSLCert(): HttpsKeyCert {
+function resolveSslDir(): string {
+  const configured = process.env.CWM_SSL_DIR?.trim();
+  if (configured) {
+    return path.resolve(configured);
+  }
+
   const isPkg = !!(process as any).pkg;
   const baseDir = isPkg ? path.dirname(process.execPath) : path.resolve(__dirname, '..', '..');
+  return path.join(baseDir, 'ssl');
+}
 
-  const sslDir = path.join(baseDir, 'ssl');
+export function getOrCreateSSLCert(): HttpsKeyCert {
+  const sslDir = resolveSslDir();
   const certPath = path.join(sslDir, 'cert.pem');
   const keyPath = path.join(sslDir, 'key.pem');
 
-  console.log('is running pack : ', isPkg);
-  console.log('\t@ baseDir : ', baseDir);
   console.log('\t@ sslDir : ', sslDir);
   console.log('\t@ certPath : ', certPath);
   console.log('\t@ keyPath : ', keyPath);

@@ -37,7 +37,7 @@ export default function LoginPage() {
       const response = await authApi.login(username, password);
       const token = response?.token;
       dispatch(loginSuccess({ token, user: { id: username } }));
-      navigate('/');
+      navigate('/home', { replace: true });
     } catch (err) {
       const msg = err.response?.data?.message || err.response?.data?.error || 'Login failed. Please check your credentials.';
       dispatch(loginFailure(msg));
@@ -249,6 +249,17 @@ export default function LoginPage() {
             New to CUBRID?{' '}
             <Link to="/register" className="font-bold text-slate-900 dark:text-amber-500 hover:underline underline-offset-4">Create Account</Link>
           </p>
+
+          {typeof window !== 'undefined' &&
+            (window.location.protocol === 'app:' ||
+              window.desktopConfig?.isDesktop ||
+              window.desktopBridge) && (
+            <p className="mt-3 text-center text-[12px] text-slate-500 dark:text-slate-400">
+              <Link to="/desktop/workspace" className="font-semibold text-slate-700 dark:text-slate-300 hover:text-amber-500">
+                Workspace settings
+              </Link>
+            </p>
+          )}
 
           {/* Legal footer */}
           <div className="mt-12 flex items-center justify-center gap-1 opacity-30 hover:opacity-60 transition-opacity">

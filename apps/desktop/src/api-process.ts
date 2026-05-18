@@ -2,7 +2,7 @@ import { ChildProcess, spawn } from 'child_process';
 import * as fs from 'fs';
 import { resolveDesktopAllowedOrigin } from './desktop-origin';
 import { DESKTOP_API_BASE_URL } from './desktop-constants';
-import { getApiServerEntry, getApiServerDir, getStorageDir } from './paths';
+import { getApiServerEntry, getApiServerDir, getWorkspacePaths } from './paths';
 import { loadOrCreateDesktopSecrets } from './secrets';
 
 export type ApiProcessHandle = {
@@ -23,7 +23,7 @@ export async function startApiServer(socketPath: string): Promise<ApiProcessHand
 
   const secrets = loadOrCreateDesktopSecrets();
   const allowedOrigin = resolveDesktopAllowedOrigin();
-  const storagePath = getStorageDir();
+  const paths = getWorkspacePaths();
 
   const child = spawn(getNodeExecutable(), [entry], {
     cwd: getApiServerDir(),
@@ -35,10 +35,11 @@ export async function startApiServer(socketPath: string): Promise<ApiProcessHand
       LISTEN_UNIX_SOCKET: socketPath,
       SEED: secrets.seed,
       SALT: secrets.salt,
-      STORAGE_PATH: storagePath,
+      STORAGE_PATH: paths.storageDir,
+      CWM_SSL_DIR: paths.sslDir,
       ALLOWED_ORIGINS: allowedOrigin,
     },
-    stdio: 'inherit',
+    stdio: ['ignore', 'inherit', 'inherit'],
   });
 
   child.on('error', (error) => {
@@ -48,10 +49,28 @@ export async function startApiServer(socketPath: string): Promise<ApiProcessHand
   return { child, socketPath, apiBaseUrl: DESKTOP_API_BASE_URL };
 }
 
-export function stopApiServer(child: ChildProcess | null): void {
-  if (!child || child.killed) {
+export function stopApiServer(child: ChildProcess | null, options?: { force?: boolean }): void {
+  if (!child || child.killed || child.pid == null) {
     return;
   }
 
-  child.kill('SIGTERM');
+  const force = options?.force ?? false;
+  const pid = child.pid;
+
+  try {
+    child.kill(force ? 'SIGKILL' : 'SIGTERM');
+  } catch {
+    // process may already be gone
+  }
+
+  if (force) {
+    return;
+  }
+
+  try {
+    process.kill(pid, 0);
+    process.kill(pid, 'SIGKILL');
+  } catch {
+    // already exited
+  }
 }
