@@ -3,7 +3,6 @@ import { CmsUserService } from './cms-user.service';
 import { HostService } from '@host';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import { CmsError } from '@error/cms/cms-error';
-import * as common from '@common';
 
 jest.mock('@common', () => ({
   ...jest.requireActual('@common'),
@@ -48,8 +47,6 @@ describe('CmsUserService', () => {
     cmsClient = module.get(CmsHttpsClientService);
 
     hostService.findHostInternal.mockResolvedValue(mockHost as any);
-    (common.checkCmsTokenError as jest.Mock).mockImplementation(() => {});
-    (common.checkCmsStatusError as jest.Mock).mockImplementation(() => {});
   });
 
   afterEach(() => {

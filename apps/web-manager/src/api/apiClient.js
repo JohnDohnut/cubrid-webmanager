@@ -1,15 +1,51 @@
 import axios from 'axios';
 
+const isDesktopRuntime = () =>
+  typeof window !== 'undefined' &&
+  (Boolean(window.desktopConfig?.apiBaseUrl) || window.location.protocol === 'app:');
+
+const resolveApiBaseUrl = () => {
+  if (typeof window === 'undefined') {
+    return import.meta.env.VITE_API_BASE_URL || 'https://localhost:8080';
+  }
+
+  const configured =
+    window.desktopConfig?.apiBaseUrl || import.meta.env.VITE_API_BASE_URL;
+  if (configured) {
+    return configured;
+  }
+
+  if (window.location.protocol === 'app:') {
+    return '/api';
+  }
+
+  // HTTPS stack / reverse proxy: same-origin /api avoids browser CORS to :8080
+  if (
+    window.location.protocol === 'https:' ||
+    window.location.protocol === 'http:'
+  ) {
+    return '/api';
+  }
+
+  return 'https://localhost:8080';
+};
+
 const apiClient = axios.create({
   // Default to same-origin API path so deployments work across arbitrary customer hostnames/IPs.
-  baseURL:
-    (typeof window !== 'undefined' && window.desktopConfig?.apiBaseUrl) ||
-    import.meta.env.VITE_API_BASE_URL ||
-    'https://localhost:8080',
+  baseURL: resolveApiBaseUrl(),
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },
+  ...(isDesktopRuntime() ? { adapter: 'fetch' } : {}),
+});
+
+apiClient.interceptors.request.use((config) => {
+  config.baseURL = resolveApiBaseUrl();
+  if (typeof window !== 'undefined' && window.location.protocol === 'app:') {
+    config.adapter = 'fetch';
+  }
+  return config;
 });
 
 export const setAuthToken = (token) => {

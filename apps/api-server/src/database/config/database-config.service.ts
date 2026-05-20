@@ -25,7 +25,6 @@ import {
   HandleDatabaseErrors,
 } from '@common';
 import { ConfigError } from '@error/config/config-error';
-import { CmsError } from '@error/cms/cms-error';
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import {
@@ -80,7 +79,7 @@ export class DatabaseConfigService extends BaseService {
    * @returns SetAutoExecQueryClientResponse Empty object on success
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async setAutoExecQuery(
     userId: string,
     hostUid: string,
@@ -112,7 +111,7 @@ export class DatabaseConfigService extends BaseService {
    * @returns GetAutoExecQueryClientResponse Auto-execution query information
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async getAutoExecQuery(
     userId: string,
     hostUid: string,
@@ -174,7 +173,7 @@ export class DatabaseConfigService extends BaseService {
    * @returns SetAutoStartResponse Configuration response on success
    * @throws ConfigError If request fails, [service] section not found, or server parameter cannot be added
    */
-  @HandleCmsErrors({ appErrorFallback: 'config' })
+  @HandleDatabaseErrors()
   async setAutoStart(
     userId: string,
     hostUid: string,
@@ -289,7 +288,7 @@ export class DatabaseConfigService extends BaseService {
    * @returns RemoveAutoStartResponse Empty object on success
    * @throws ConfigError If request fails, server parameter not found in [service] section, or dbname does not exist
    */
-  @HandleCmsErrors({ appErrorFallback: 'config' })
+  @HandleDatabaseErrors()
   async removeAutoStart(
     userId: string,
     hostUid: string,
@@ -367,7 +366,7 @@ export class DatabaseConfigService extends BaseService {
    * @returns SetAutoAddVolResponse Empty object on success
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async setAutoAddVol(
     userId: string,
     hostUid: string,
@@ -403,7 +402,7 @@ export class DatabaseConfigService extends BaseService {
    * @param dbname Database name
    * @returns GetDbSizeClientResponse dbsize (bytes as string)
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async getDbSize(
     userId: string,
     hostUid: string,
@@ -419,10 +418,6 @@ export class DatabaseConfigService extends BaseService {
       GetDbSizeCmsResponse
     >(userId, hostUid, cmsRequest);
 
-    if (response.status !== 'success') {
-      throw CmsError.RequestFailed({ response, dbname });
-    }
-
     return {
       dbsize: response.dbsize ?? '0',
     };
@@ -436,7 +431,7 @@ export class DatabaseConfigService extends BaseService {
    * @param dbname Database name
    * @returns GetAutoAddVolClientResponse volume fields only (CMS envelope omitted)
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async getAutoAddVol(
     userId: string,
     hostUid: string,
@@ -452,19 +447,15 @@ export class DatabaseConfigService extends BaseService {
       GetAutoAddVolCmsResponse
     >(userId, hostUid, cmsRequest);
 
-    if (response.status === 'success') {
-      const cms = response as GetAutoAddVolCmsResponse;
-      return {
-        data: cms.data,
-        data_ext_page: cms.data_ext_page,
-        data_warn_outofspace: cms.data_warn_outofspace,
-        index: cms.index,
-        index_ext_page: cms.index_ext_page,
-        index_warn_outofspace: cms.index_warn_outofspace,
-      };
-    }
-
-    throw CmsError.RequestFailed({ response, dbname });
+    const cms = response as GetAutoAddVolCmsResponse;
+    return {
+      data: cms.data,
+      data_ext_page: cms.data_ext_page,
+      data_warn_outofspace: cms.data_warn_outofspace,
+      index: cms.index,
+      index_ext_page: cms.index_ext_page,
+      index_warn_outofspace: cms.index_warn_outofspace,
+    };
   }
 
   /**
@@ -478,7 +469,7 @@ export class DatabaseConfigService extends BaseService {
    * @returns ClassInfoResponse Class information (system classes and user classes)
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async getClassInfo(
     userId: string,
     hostUid: string,
@@ -510,7 +501,7 @@ export class DatabaseConfigService extends BaseService {
    * @returns GetAutoExecQueryErrLogResponse Error log entries
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async getAutoExecQueryErrLog(
     userId: string,
     hostUid: string,
@@ -533,7 +524,7 @@ export class DatabaseConfigService extends BaseService {
   /**
    * Get auto-add volume log entries for a time range. CMS task: getautoaddvollog.
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async getAutoAddVolLog(
     userId: string,
     hostUid: string,

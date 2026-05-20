@@ -2,8 +2,7 @@ import { StartInfoClientResponse } from '@api-interfaces';
 import { GetCreatedbInfoClientResponse } from '@api-interfaces/response/get-createdb-info-client-response';
 import { CmsConfigService } from '@cms-config/cms-config.service';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
-import { BaseService, HandleDatabaseErrors } from '@common';
-import { CmsError } from '@error/cms/cms-error';
+import { BaseService, HandleCmsErrors } from '@common';
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import { BaseCmsRequest, BaseCmsResponse } from '@type';
@@ -38,7 +37,7 @@ export class DatabaseInfoService extends BaseService {
    * @returns StartInfoCmsResponse
    * @throws CmsError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async startInfoInternal(userId: string, hostUid: string): Promise<StartInfoCmsResponse> {
     const cmsRequest: BaseCmsRequest = {
       task: 'startinfo',
@@ -48,11 +47,7 @@ export class DatabaseInfoService extends BaseService {
       StartInfoCmsResponse | BaseCmsResponse
     >(userId, hostUid, cmsRequest);
 
-    if (response.status === 'success') {
-      return response as StartInfoCmsResponse;
-    } else {
-      throw CmsError.RequestFailed({ response });
-    }
+    return response as StartInfoCmsResponse;
   }
 
   /**
@@ -63,7 +58,7 @@ export class DatabaseInfoService extends BaseService {
    * @returns StartInfoClientResponse
    * @throws CmsError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async startInfo(userId: string, hostUid: string): Promise<StartInfoClientResponse> {
     const host = await this.hostService.findHostInternal(userId, hostUid);
     const cmsStart = await this.startInfoInternal(userId, hostUid);
@@ -74,7 +69,7 @@ export class DatabaseInfoService extends BaseService {
    * True when `dbname` is listed in `[common]` `ha_db_list` in cubrid_ha.conf (`haconf`).
    * Used by database start/stop/restart to choose `ha_*` vs `startdb`/`stopdb`.
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async effectiveHaDbForDbname(
     userId: string,
     hostUid: string,
@@ -93,7 +88,7 @@ export class DatabaseInfoService extends BaseService {
    * @returns GetCreatedbInfoClientResponse
    * @throws CmsError If request fails
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async getCreatedbInfo(userId: string, hostUid: string): Promise<GetCreatedbInfoClientResponse> {
     const envInfo = await this.cmsConfigService.getEnv(userId, hostUid);
 

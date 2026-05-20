@@ -1,14 +1,23 @@
-import { app, BrowserWindow, session } from 'electron';
-import * as path from 'path';
-import { ApiProcessHandle, startApiServer, stopApiServer } from './api-process';
-import { reserveFreePort } from './free-port';
-import { getRendererDistDir } from './paths';
-import { registerAppProtocol, registerPrivilegedAppScheme } from './register-app-protocol';
-import { waitForApiReady } from './wait-for-api';
+import { app, BrowserWindow } from 'electron';
+import { startApiForCurrentWorkspace, stopDesktopApi } from './api/api-runtime';
+import { DESKTOP_API_BASE_URL } from './config/constants';
+import { getDesktopSettingsPath, needsWorkspaceSetup } from './config/desktop-settings';
+import { getPortableAppRoot } from './config/portable-root';
+import { registerDesktopIpcHandlers } from './ipc/handlers';
+import { registerAppProtocol, registerPrivilegedAppScheme } from './protocol/register-app-protocol';
+import { getRendererDistDir, getWorkspacePaths, refreshWorkspacePaths } from './workspace/paths';
+import { getDefaultWorkspaceRoot } from './workspace/workspace-paths';
+import {
+  waitForWorkspaceSetupComplete,
+  wasWorkspaceSetupCompleted,
+} from './workspace/workspace-setup';
+import { createAppWindow, toAppRouteUrl } from './window/app-window';
+import { setMainWindow } from './window/window-registry';
 
 registerPrivilegedAppScheme();
 
-let apiProcess: ApiProcessHandle | null = null;
+let bootstrapComplete = false;
+let isQuitting = false;
 
 function clearRendererAuthToken(window: BrowserWindow): void {
   if (window.isDestroyed()) {
@@ -20,51 +29,71 @@ function clearRendererAuthToken(window: BrowserWindow): void {
     .catch(() => undefined);
 }
 
-function configureLoopbackTls(): void {
-  session.defaultSession.setCertificateVerifyProc((request, callback) => {
-    if (request.hostname === '127.0.0.1' || request.hostname === 'localhost') {
-      callback(0);
-      return;
-    }
-
-    callback(-3);
-  });
+function quitDesktopApp(): void {
+  if (isQuitting) {
+    return;
+  }
+  isQuitting = true;
+  stopDesktopApi();
+  app.quit();
 }
 
-async function createMainWindow(apiBaseUrl: string): Promise<BrowserWindow> {
-  const rendererRoot = getRendererDistDir();
-  const preloadPath = path.join(__dirname, 'preload.js');
+function requestQuit(): void {
+  quitDesktopApp();
+}
 
-  const window = new BrowserWindow({
-    width: 1280,
-    height: 800,
-    show: false,
-    webPreferences: {
-      preload: preloadPath,
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-      additionalArguments: [`--cwm-api-base-url=${apiBaseUrl}`],
-    },
-  });
-
-  window.on('close', () => {
-    clearRendererAuthToken(window);
-  });
-
-  await window.loadURL('app://./index.html');
-  window.once('ready-to-show', () => window.show());
-  return window;
+async function loadRoute(window: BrowserWindow, routePath: string): Promise<void> {
+  await window.loadURL(toAppRouteUrl(routePath));
 }
 
 async function bootstrap(): Promise<void> {
-  configureLoopbackTls();
-  registerAppProtocol(getRendererDistDir());
+  registerDesktopIpcHandlers();
 
-  const port = await reserveFreePort('127.0.0.1');
-  apiProcess = await startApiServer(port);
-  await waitForApiReady('127.0.0.1', port);
-  await createMainWindow(apiProcess.apiBaseUrl);
+  console.log('[desktop] install dir (beside .app / exe):', getPortableAppRoot());
+  console.log('[desktop] settings file:', getDesktopSettingsPath());
+  console.log('[desktop] default workspace:', getDefaultWorkspaceRoot());
+
+  const rendererRoot = getRendererDistDir();
+  registerAppProtocol(rendererRoot);
+
+  const requiresSetup = needsWorkspaceSetup();
+  const mainWindow = createAppWindow(DESKTOP_API_BASE_URL);
+  setMainWindow(mainWindow);
+
+  mainWindow.on('close', () => {
+    clearRendererAuthToken(mainWindow);
+    if (!isQuitting) {
+      setMainWindow(null);
+    }
+  });
+
+  mainWindow.on('closed', () => {
+    if (!bootstrapComplete) {
+      if (requiresSetup && !wasWorkspaceSetupCompleted()) {
+        requestQuit();
+      }
+      return;
+    }
+
+    if (BrowserWindow.getAllWindows().length === 0) {
+      requestQuit();
+    }
+  });
+
+  if (requiresSetup) {
+    await loadRoute(mainWindow, 'desktop/workspace');
+    mainWindow.show();
+    await waitForWorkspaceSetupComplete();
+    refreshWorkspacePaths();
+  } else {
+    getWorkspacePaths();
+  }
+
+  await startApiForCurrentWorkspace();
+
+  await loadRoute(mainWindow, 'login');
+  mainWindow.show();
+  bootstrapComplete = true;
 }
 
 app.whenReady().then(bootstrap).catch((error) => {
@@ -73,12 +102,16 @@ app.whenReady().then(bootstrap).catch((error) => {
 });
 
 app.on('window-all-closed', () => {
-  stopApiServer(apiProcess?.child ?? null);
-  apiProcess = null;
-  app.quit();
+  requestQuit();
 });
 
 app.on('before-quit', () => {
-  stopApiServer(apiProcess?.child ?? null);
-  apiProcess = null;
+  isQuitting = true;
+  stopDesktopApi();
 });
+
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.on(signal, () => {
+    requestQuit();
+  });
+}

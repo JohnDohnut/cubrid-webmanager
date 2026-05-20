@@ -21,6 +21,7 @@ export class ConfigService {
   public cmsForwardEnabled!: boolean;
   public authRegistrationEnabled!: boolean;
   public listenHost?: string;
+  private readonly listenUnixSocket?: string;
   private readonly cmsCaCert?: string;
 
   constructor() {
@@ -78,6 +79,12 @@ export class ConfigService {
     if (listenHost?.trim()) {
       this.listenHost = listenHost.trim();
     }
+
+    const listenUnixSocket =
+      args.LISTEN_UNIX_SOCKET ?? process.env.LISTEN_UNIX_SOCKET;
+    if (listenUnixSocket?.trim()) {
+      this.listenUnixSocket = listenUnixSocket.trim();
+    }
   }
 
   getSecretKey(): string {
@@ -102,6 +109,10 @@ export class ConfigService {
 
   getListenHost(): string | undefined {
     return this.listenHost;
+  }
+
+  getListenUnixSocket(): string | undefined {
+    return this.listenUnixSocket;
   }
 
   getCmsRejectUnauthorized(): boolean {
@@ -172,7 +183,10 @@ export class ConfigService {
 
     if (this.isProduction()) {
       if (allowedOrigins) {
-        this.allowedOrigins = allowedOrigins.split(',').map((s) => s.trim());
+        this.allowedOrigins = allowedOrigins
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
       } else {
         this.allowedOrigins = [];
       }

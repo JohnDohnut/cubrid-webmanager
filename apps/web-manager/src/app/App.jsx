@@ -52,6 +52,7 @@ import DeleteHostModal from '../features/host/components/DeleteHostModal';
 import EditHostModal from '../features/host/components/EditHostModal';
 import ServerVersionModal from '../features/host/components/ServerVersionModal';
 import LoginPage from '../features/auth/components/LoginPage';
+import DesktopWorkspaceSettingsPage from '../features/desktop/components/DesktopWorkspaceSettingsPage';
 import RegisterPage from '../features/auth/components/RegisterPage';
 import ForgotPasswordPage from '../features/auth/components/ForgotPasswordPage';
 import StatusModal from '../components/common/StatusModal';
@@ -467,10 +468,17 @@ function ProtectedRoute({ children }) {
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 }
 
+function RootRedirect() {
+  const { isAuthenticated } = useSelector((state) => state.auth, shallowEqual);
+  return <Navigate to={isAuthenticated ? '/home' : '/login'} replace />;
+}
+
 function App() {
   return (
     <Routes>
+      <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/desktop/workspace" element={<DesktopWorkspaceSettingsPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route

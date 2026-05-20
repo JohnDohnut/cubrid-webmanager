@@ -27,11 +27,8 @@ import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.servic
 import { DatabaseInfoService } from '@database/info/database-info.service';
 import {
   BaseService,
-  checkCmsStatusError,
-  checkCmsTokenError,
-  HandleDatabaseErrors,
+  HandleCmsErrors,
 } from '@common';
-import { CmsError } from '@error/cms/cms-error';
 import { DatabaseError } from '@error/database/database-error';
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
@@ -92,7 +89,7 @@ export class DatabaseManagementService extends BaseService {
    * @param request Client request (srcdbname, destdbname, destdbpath, exvolpath, logpath, overwrite, move, advanced, volume?)
    * @returns Empty object on success
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async copyDb(
     userId: string,
     hostUid: string,
@@ -115,18 +112,10 @@ export class DatabaseManagementService extends BaseService {
       }
     }
 
-    const response = await this.executeCmsRequest<
+    await this.executeCmsRequest<
       CopyDbCmsRequest,
       CopyDbCmsResponse
     >(userId, hostUid, cmsRequest);
-
-    if (response.status !== 'success') {
-      throw CmsError.RequestFailed({
-        response,
-        srcdbname: request.srcdbname,
-        destdbname: request.destdbname,
-      });
-    }
 
     return { success: true };
   }
@@ -142,7 +131,7 @@ export class DatabaseManagementService extends BaseService {
    * @returns Empty object on success
    * @throws DatabaseError If request fails or parameters are invalid
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async unloadDatabase(
     userId: string,
     hostUid: string,
@@ -208,7 +197,7 @@ export class DatabaseManagementService extends BaseService {
    * @returns UnloadInfoClientResponse Unload information without CMS envelope fields
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async getUnloadInfo(
     userId: string,
     hostUid: string
@@ -240,7 +229,7 @@ export class DatabaseManagementService extends BaseService {
    * @returns LoadDatabaseResponse Empty object on success
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async loadDatabase(
     userId: string,
     hostUid: string,
@@ -265,40 +254,11 @@ export class DatabaseManagementService extends BaseService {
       ignoreclassfile: request.ignoreclassfile,
     };
 
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const requestWithToken = { ...cmsRequest, token: host.token || '' };
-
-    const response = await this.cmsClient.postAuthenticated<
-      LoadDatabaseCmsRequest,
-      LoadDatabaseCmsResponse
-    >(url, requestWithToken);
-
-    checkCmsTokenError(response);
-    
-    try {
-      checkCmsStatusError(response);
-    } catch (error) {
-      if (error instanceof CmsError) {
-        // Join line array with newline characters
-        const lines = response.line || [];
-        const lineMessage = lines.join('\n');
-
-        // Update error message with line information
-        const updatedMessage = error.additionalData?.message
-          ? `${error.additionalData.message}\n${lineMessage}`
-          : lineMessage || 'Error occurred during database loading';
-
-        throw CmsError.RequestFailed(
-          {
-            message: updatedMessage,
-            response: response,
-          },
-          error
-        );
-      }
-      throw error;
-    }
+    await this.executeCmsRequest<LoadDatabaseCmsRequest, LoadDatabaseCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
 
     return { success: true };
   }
@@ -314,7 +274,7 @@ export class DatabaseManagementService extends BaseService {
    * @returns OptimizeDatabaseResponse Empty object on success
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async optimizeDatabase(
     userId: string,
     hostUid: string,
@@ -348,7 +308,7 @@ export class DatabaseManagementService extends BaseService {
    * @returns CheckDatabaseResponse Empty object on success
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async checkDatabase(
     userId: string,
     hostUid: string,
@@ -381,7 +341,7 @@ export class DatabaseManagementService extends BaseService {
    * @returns CompactDatabaseResponse Log output if verbose is 'y', otherwise empty object
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async compactDatabase(
     userId: string,
     hostUid: string,
@@ -420,7 +380,7 @@ export class DatabaseManagementService extends BaseService {
    * @returns StartInfoClientResponse Latest database list (start-info) on success
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async renameDatabase(
     userId: string,
     hostUid: string,
@@ -467,7 +427,7 @@ export class DatabaseManagementService extends BaseService {
    * @returns GetAddVolStatusResponse Volume status information
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async getAddVolStatus(
     userId: string,
     hostUid: string,
@@ -500,7 +460,7 @@ export class DatabaseManagementService extends BaseService {
    * @returns AddVolDbResponse Volume addition result
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async addVolDb(
     userId: string,
     hostUid: string,
@@ -539,7 +499,7 @@ export class DatabaseManagementService extends BaseService {
    * @returns LockDatabaseResponse Lock information
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async lockDatabase(
     userId: string,
     hostUid: string,
@@ -575,7 +535,7 @@ export class DatabaseManagementService extends BaseService {
    * @returns GetTransactionInfoResponse Transaction information
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async getTransactionInfo(
     userId: string,
     hostUid: string,
@@ -616,7 +576,7 @@ export class DatabaseManagementService extends BaseService {
    * @returns KillTransactionResponse Transaction information
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async killTransaction(
     userId: string,
     hostUid: string,

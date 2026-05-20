@@ -28,7 +28,7 @@
         { "target": "build-electron", "projects": "web-manager" }
       ],
       "options": {
-        "command": "electron apps/desktop",
+        "command": "npx electron apps/desktop",
         "cwd": "{workspaceRoot}"
       }
     },
@@ -41,7 +41,7 @@
         { "target": "build-electron", "projects": "web-manager" }
       ],
       "options": {
-        "command": "electron-builder --config apps/desktop/electron-builder.yml",
+        "command": "CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --config apps/desktop/electron-builder.yml --publish never",
         "cwd": "{workspaceRoot}"
       }
     }

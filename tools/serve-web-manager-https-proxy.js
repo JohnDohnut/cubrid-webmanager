@@ -19,32 +19,15 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const express = require('express');
-const { config: loadEnv } = require('dotenv');
 const { createProxyMiddleware } = require('http-proxy-middleware');
+const { loadWorkspaceEnv } = require('./load-workspace-env');
 
-function loadRuntimeEnvForProxy() {
-  const rawMode = (process.env.ENVIRONMENT || 'development').toLowerCase();
-  const isProduction = rawMode === 'production';
-  const isPkg = !!process.pkg;
-  const baseDir = isPkg ? path.dirname(process.execPath) : process.cwd();
-
-  const candidates = isProduction
-    ? [
-        '/etc/cubrid-webmanager.env',
-        path.join(baseDir, 'apps/api-server/.env'),
-        path.join(baseDir, '.env'),
-      ]
-    : [path.join(baseDir, '.env'), path.join(baseDir, 'apps/api-server/.env')];
-
-  const envFilePath = candidates.find((p) => fs.existsSync(p));
-  if (!envFilePath) {
-    console.warn(`[proxy-env] no env file found (tried: ${candidates.join(', ')})`);
-    return;
-  }
-  loadEnv({ path: envFilePath, override: false });
+const loadedEnvFile = loadWorkspaceEnv();
+if (loadedEnvFile) {
+  console.log(`[proxy-env] loaded env: ${loadedEnvFile}`);
+} else {
+  console.warn('[proxy-env] no env file found (tried apps/api-server/.env, .env, /etc/cubrid-webmanager.env)');
 }
-
-loadRuntimeEnvForProxy();
 
 const REPO_ROOT = path.join(__dirname, '..');
 const DEFAULT_BUILD_DIR = path.join(REPO_ROOT, 'dist', 'apps', 'web-manager');

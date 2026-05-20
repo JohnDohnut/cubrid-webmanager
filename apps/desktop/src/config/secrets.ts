@@ -1,36 +1,32 @@
 import * as crypto from 'crypto';
 import * as fs from 'fs';
-import * as path from 'path';
-import { getDataDir } from './paths';
+import { getSecretsFilePath, getVaultDir } from './vault-paths';
 
 type DesktopSecrets = {
   seed: string;
   salt: string;
 };
 
-const SECRETS_FILE = 'desktop-secrets.json';
-
-function secretsPath(): string {
-  return path.join(getDataDir(), SECRETS_FILE);
-}
-
 function readSecretsFile(): DesktopSecrets | null {
-  const filePath = secretsPath();
+  const filePath = getSecretsFilePath();
   if (!fs.existsSync(filePath)) {
     return null;
   }
 
   const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8')) as DesktopSecrets;
   if (!parsed.seed || !parsed.salt) {
-    throw new Error(`Invalid desktop secrets file: ${filePath}`);
+    throw new Error(`Invalid secrets file: ${filePath}`);
   }
 
   return parsed;
 }
 
 function writeSecretsFile(secrets: DesktopSecrets): void {
-  const filePath = secretsPath();
-  fs.writeFileSync(filePath, JSON.stringify(secrets, null, 2), { mode: 0o600 });
+  fs.mkdirSync(getVaultDir(), { recursive: true, mode: 0o700 });
+  fs.writeFileSync(getSecretsFilePath(), JSON.stringify(secrets, null, 2), {
+    encoding: 'utf8',
+    mode: 0o600,
+  });
 }
 
 export function loadOrCreateDesktopSecrets(): DesktopSecrets {

@@ -116,3 +116,4 @@ docs/
 local-e2e/
 playwright-report/
 test-results/
+cwm-workspace/
