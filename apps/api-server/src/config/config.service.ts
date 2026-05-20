@@ -183,7 +183,10 @@ export class ConfigService {
 
     if (this.isProduction()) {
       if (allowedOrigins) {
-        this.allowedOrigins = allowedOrigins.split(',').map((s) => s.trim());
+        this.allowedOrigins = allowedOrigins
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
       } else {
         this.allowedOrigins = [];
       }

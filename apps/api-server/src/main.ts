@@ -18,6 +18,7 @@ async function bootstrap() {
   const listenHost = configService.getListenHost();
   const allowedOrigins = configService.getAllowedOrigins();
   const desktopMode = (process.env.CWM_DESKTOP ?? '').trim() === '1';
+  const trustLocalProxy = (process.env.CWM_TRUST_LOCAL_PROXY ?? '').trim() === '1';
   console.log('[main.ts] Allowed Origins from ConfigService:', allowedOrigins);
 
   if (allowedOrigins.includes('*')) {
@@ -34,7 +35,7 @@ async function bootstrap() {
     app.enableCors({
       origin: (origin, callback) => {
         if (!origin) {
-          if (desktopMode) {
+          if (desktopMode || trustLocalProxy) {
             callback(null, true);
             return;
           }

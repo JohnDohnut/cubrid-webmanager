@@ -13,8 +13,13 @@ const { spawn } = require('child_process');
 const net = require('net');
 const path = require('path');
 const treeKill = require('tree-kill');
+const { loadWorkspaceEnv } = require('./load-workspace-env');
 
 const REPO_ROOT = path.join(__dirname, '..');
+const loadedEnvFile = loadWorkspaceEnv();
+if (loadedEnvFile) {
+  console.log(`[stack] loaded env: ${loadedEnvFile}`);
+}
 const API_START = process.env.API_START || 'dev:api-server';
 const API_WAIT_HOST = process.env.API_WAIT_HOST || '127.0.0.1';
 const API_WAIT_PORT = parseInt(process.env.API_WAIT_PORT || process.env.PORT || '8080', 10);

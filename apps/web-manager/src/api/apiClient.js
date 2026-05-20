@@ -19,6 +19,14 @@ const resolveApiBaseUrl = () => {
     return '/api';
   }
 
+  // HTTPS stack / reverse proxy: same-origin /api avoids browser CORS to :8080
+  if (
+    window.location.protocol === 'https:' ||
+    window.location.protocol === 'http:'
+  ) {
+    return '/api';
+  }
+
   return 'https://localhost:8080';
 };
 
