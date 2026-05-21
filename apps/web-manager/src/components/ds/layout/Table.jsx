@@ -7,6 +7,7 @@ export const Table = ({
   columns = [],
   data = [],
   onRowClick,
+  onRowContextMenu,
   emptyMessage = 'No data available',
   headersVisible = true,
   sortable = true,
@@ -52,7 +53,7 @@ export const Table = ({
   }
 
   return (
-    <div className={`w-full overflow-x-auto ${className} ${bordered ? 'border-b border-slate-200 dark:border-white/[0.08]' : ''}`}>
+    <div className={`w-full overflow-x-auto select-none ${className} ${bordered ? 'border-b border-slate-200 dark:border-white/[0.08]' : ''}`}>
       <table className="w-full text-left border-collapse">
 
         {/* ── Header ── */}
@@ -110,6 +111,12 @@ export const Table = ({
                   hover:bg-amber-500/4 dark:hover:bg-amber-500/5
                   ${onRowClick ? 'cursor-pointer' : ''}`}
                 onClick={() => onRowClick && onRowClick(row)}
+                onContextMenu={(e) => {
+                  if (!onRowContextMenu) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onRowContextMenu(e, row);
+                }}
               >
                 {columns.map((col, colIdx) => {
                   const isFirst = colIdx === 0;

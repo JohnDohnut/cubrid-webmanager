@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeTransactionInfoModal, openKillTransactionModal } from '../databaseSlice';
 import { databaseApi } from '../databaseApi';
-import KillTransactionModal from './KillTransactionModal';
+import { extractTransactionList } from '../transactionUtils';
+import { Input } from '../../../components/ds/forms/Input';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -27,21 +28,26 @@ export default function TransactionInfoModal() {
   const [transactions, setTransactions] = useState([]);
   const [errorMsg, setErrorMsg] = useState('');
   const [selectedTranIndex, setSelectedTranIndex] = useState(null);
+  const [dbuser, setDbuser] = useState('dba');
+  const [dbpasswd, setDbpasswd] = useState('');
 
   const fetchTransactionInfo = async () => {
     if (!selectedHostUid || !selectedDatabase) return;
-    
+    if (!dbuser.trim()) {
+      setErrorMsg('Database user (dbuser) is required for transaction diagnostics.');
+      setView(VIEW_ERROR);
+      return;
+    }
+
     setView(VIEW_LOADING);
     setErrorMsg('');
 
     try {
-      const payload = {
-        dbuser: 'dba',
-        dbpasswd: ''
-      };
-      const response = await databaseApi.getTransactionInfo(selectedHostUid, selectedDatabase, payload);
-      const tranList = response?.transactioninfo?.[0]?.transaction || [];
-      setTransactions(tranList);
+      const response = await databaseApi.getTransactionInfo(selectedHostUid, selectedDatabase, {
+        dbuser: dbuser.trim(),
+        dbpasswd: dbpasswd,
+      });
+      setTransactions(extractTransactionList(response));
       setView(VIEW_SUCCESS);
     } catch (err) {
       setErrorMsg(err.response?.data?.note || err.response?.data?.message || 'The diagnostic sequence was interrupted while fetching transaction handles.');
@@ -168,6 +174,10 @@ export default function TransactionInfoModal() {
       }
     >
       <div className="flex flex-col h-[540px] animate-in fade-in slide-in-from-bottom-4 duration-400">
+        <div className="mb-4 grid grid-cols-2 gap-3 shrink-0">
+          <Input label="DB user" value={dbuser} onChange={(e) => setDbuser(e.target.value)} icon="account_circle" size="sm" />
+          <Input type="password" label="DB password" value={dbpasswd} onChange={(e) => setDbpasswd(e.target.value)} icon="password" size="sm" placeholder="(empty allowed)" />
+        </div>
         <div className="mb-4 flex items-center justify-between bg-slate-50/80 dark:bg-black/20 border border-slate-200 dark:border-white/8 rounded-xl px-4 py-3 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20">
@@ -269,7 +279,6 @@ export default function TransactionInfoModal() {
         </div>
       </div>
       
-      <KillTransactionModal onTransactionKilled={fetchTransactionInfo} />
     </Modal>
   );
 }
