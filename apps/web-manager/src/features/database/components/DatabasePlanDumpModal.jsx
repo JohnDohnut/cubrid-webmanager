@@ -90,7 +90,7 @@ export default function DatabasePlanDumpModal() {
       isOpen={isPlanDumpModalOpen}
       onClose={handleClose}
       title="Plan Cache Dump"
-      subtitle={`Query plan cache for ${selectedDatabase}`}
+      subtitle="Display the query plan"
       icon="schema"
       maxWidth={step === 'results' ? 'max-w-[780px]' : 'max-w-[460px]'}
       footer={

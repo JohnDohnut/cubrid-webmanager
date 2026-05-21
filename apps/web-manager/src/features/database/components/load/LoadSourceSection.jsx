@@ -6,6 +6,7 @@ import { Tabs } from '../../../../components/ds/layout/Tabs';
 import { Typography } from '../../../../components/ds/foundation/Typography';
 import { Icon } from '../../../../components/ds/foundation/Icon';
 import { SectionHeader } from '../../../../components/ds/foundation/SectionHeader';
+import { CM } from '../../../../constants/cmLabels';
 
 const typeIcon = { schema: 'code', object: 'dataset', index: 'layers', trigger: 'bolt' };
 
@@ -47,13 +48,13 @@ export default function LoadSourceSection({
       )
     },
     {
-      header: 'Type',
+      header: CM.loadType,
       accessor: 'loadType',
       width: '120px',
       render: (value) => <TypeBadge value={value} />
     },
     {
-      header: 'Volume Path',
+      header: CM.path,
       accessor: 'path',
       render: (value) => (
         <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400 truncate block max-w-[260px]" title={value}>
@@ -62,7 +63,7 @@ export default function LoadSourceSection({
       )
     },
     {
-      header: 'Timestamp',
+      header: CM.date,
       accessor: 'date',
       width: '175px',
       align: 'right',
@@ -77,7 +78,7 @@ export default function LoadSourceSection({
   const tabs = [
     {
       id: 0,
-      label: 'System Registry',
+      label: CM.selectFromList,
       icon: 'inventory_2',
       content: (
         <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
@@ -120,11 +121,16 @@ export default function LoadSourceSection({
     },
     {
       id: 1,
-      label: 'Manual Paths',
+      label: CM.selectFromLocal,
       icon: 'edit_document',
       content: (
         <div className="space-y-2.5 animate-in fade-in zoom-in-95 duration-200">
-          {['schema', 'object', 'index', 'trigger'].map(type => {
+          {[
+            { type: 'schema', label: CM.loadSchema },
+            { type: 'object', label: CM.loadObject },
+            { type: 'index', label: CM.loadIndex },
+            { type: 'trigger', label: CM.loadTrigger },
+          ].map(({ type, label }) => {
             const isEnabled = formData.checkBoxes[type];
             return (
               <div
@@ -143,8 +149,8 @@ export default function LoadSourceSection({
                   />
                   <div className="flex items-center gap-1.5">
                     <Icon name={typeIcon[type]} size="11px" weight={500} className={isEnabled ? 'text-amber-500' : 'text-slate-400 dark:text-slate-500'} />
-                    <span className={`text-[10px] font-black uppercase tracking-widest transition-colors ${isEnabled ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'}`}>
-                      {type}
+                    <span className={`text-[10px] font-semibold transition-colors ${isEnabled ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'}`}>
+                      {label}
                     </span>
                   </div>
                 </div>
@@ -170,7 +176,7 @@ export default function LoadSourceSection({
 
   return (
     <div className="animate-in fade-in duration-300">
-      <SectionHeader title="Source Method" icon="upload_file" />
+      <SectionHeader title={CM.unloadedFiles} icon="upload_file" />
       <Tabs
         tabs={tabs}
         activeTab={radio}

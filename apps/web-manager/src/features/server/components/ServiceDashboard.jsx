@@ -424,7 +424,7 @@ const Component = function ServiceDashboard() {
       {isError && (
         <Modal isOpen title="Service Error" icon="error" iconVariant="danger" onClose={resetAction} maxWidth="400px">
           <ModalStatusError 
-            title="Action Aborted"
+            title="Failed"
             error={actionError}
             onRetry={resetAction}
             onCancel={resetAction}

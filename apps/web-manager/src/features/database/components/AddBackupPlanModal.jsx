@@ -161,7 +161,7 @@ export default function AddBackupPlanModal() {
       await dispatch(addBackupSchedule({ hostUid: selectedHostUid, dbname: selectedDatabase, payload })).unwrap();
       endSuccess(`Backup plan ${formData.backupId} successfully registered.`);
     } catch (err) {
-      endError(typeof err === 'string' ? err : (err.message || 'Operation aborted by system controller. Verify target path permissions.'));
+      endError(typeof err === 'string' ? err : (err.message || 'Failed to add backup plan.'));
     }
   };
 
@@ -187,7 +187,7 @@ export default function AddBackupPlanModal() {
           title="Automation Active"
           message={`The backup plan for ${selectedDatabase} is now registered and will execute as scheduled.`}
           onConfirm={handleClose}
-          confirmText="Acknowledge"
+          confirmText="OK"
         />
       </Modal>
     );

@@ -133,7 +133,7 @@ export default function CopyDatabaseModal() {
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title="Instance Duplication" icon="content_copy" onClose={handleClose} maxWidth="580px">
+      <Modal isOpen title="Copy Database" icon="content_copy" onClose={handleClose} maxWidth="580px">
         <ModalStatusLoading 
           title="Synchronizing Volumes" 
           subtitle={`The system is duplicating block storage and environment registry for ${formData.destName}.`} 
@@ -147,10 +147,10 @@ export default function CopyDatabaseModal() {
     return (
       <Modal isOpen title="Cloning Complete" icon="content_copy" iconVariant="success" onClose={handleClose} maxWidth="580px">
         <ModalStatusSuccess 
-          title="Instance Duplicated"
+          title="Copy completed"
           message={`Clone ${formData.destName} has been established and registered successfully.`}
           onConfirm={handleClose}
-          confirmText="Acknowledge"
+          confirmText="OK"
         />
       </Modal>
     );

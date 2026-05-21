@@ -179,7 +179,7 @@ export default function RestoreDatabaseModal() {
       <Modal isOpen title="Restore Successful" icon="settings_backup_restore" iconVariant="success" onClose={handleClose} maxWidth="600px">
         <ModalStatusSuccess 
           title="Restore Completed"
-          message={`Instance ${selectedDatabase} has been successfully rolled back to the selected state.`}
+          message={`Database ${selectedDatabase} was restored.`}
           onConfirm={handleClose}
           confirmText="Close"
         />

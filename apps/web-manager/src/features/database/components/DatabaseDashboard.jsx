@@ -246,7 +246,7 @@ const Component = function DatabaseDashboard({ dbname }) {
       {isActionError && (
         <Modal isOpen title="Update Failed" icon="error" iconVariant="danger" onClose={resetAction} maxWidth="400px">
           <ModalStatusError 
-            title="Action Aborted"
+            title="Failed"
             error={actionError}
             onRetry={resetAction}
             onCancel={resetAction}

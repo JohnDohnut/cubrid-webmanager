@@ -94,7 +94,7 @@ export default function CompactDatabaseModal() {
           title="Optimization Complete"
           message={`Dynamic storage optimization for ${selectedDatabase} finished successfully.`}
           onConfirm={handleClose}
-          confirmText="Acknowledge"
+          confirmText="OK"
         />
       </Modal>
     );

@@ -6,6 +6,7 @@ import { Table } from '../../../../components/ds/layout/Table';
 import { Card } from '../../../../components/ds/layout/Card';
 import { StatusBadge } from '../../../../components/ds/foundation/StatusBadge';
 import { EmptyState } from '../../../../components/ds/feedback/EmptyState';
+import { CM } from '../../../../constants/cmLabels';
 
 export default function DBLockTransactionSection({ locks, pollingProps }) {
   const dispatch = useDispatch();
@@ -60,8 +61,7 @@ export default function DBLockTransactionSection({ locks, pollingProps }) {
       title={
         <div className="flex items-center gap-2">
           <Icon name="lock" size="sm" weight={300} className="text-amber-500" />
-          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Active Transactions & Locks</span>
-          <span className="text-[10px] text-slate-400 font-normal ml-1">· Concurrency Status</span>
+          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{CM.lockAndTransaction}</span>
           {locks.length > 0 && (
             <span className="ml-1 px-1.5 py-0.5 rounded-sm bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20 text-[10px] font-bold">
               {locks.length}
@@ -80,8 +80,8 @@ export default function DBLockTransactionSection({ locks, pollingProps }) {
         emptyState={
           <EmptyState 
             icon="verified_user" 
-            title="Clean Concurrency" 
-            subtitle="No active transactions or locks are currently contending for resources."
+            title="No locks" 
+            subtitle="No lock information."
             py="py-12"
           />
         }

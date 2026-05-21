@@ -68,7 +68,7 @@ const Component = function Brokers({ hostUid, isSection = false }) {
       title={
         <div className="flex items-center gap-2">
           <Icon name="hub" size="sm" weight={300} className="text-amber-500" />
-          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Brokers Control</span>
+          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Broker Status</span>
         </div>
       }
       rightContent={(isCollapsed) => isCollapsed && activeBadge}
@@ -97,7 +97,7 @@ const Component = function Brokers({ hostUid, isSection = false }) {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[13px] font-bold text-slate-800 dark:text-slate-100 tracking-tight leading-tight">Brokers Status</span>
+              <span className="text-[13px] font-bold text-slate-800 dark:text-slate-100 tracking-tight leading-tight">Broker Status</span>
               <div className={`px-2 py-0.5 rounded-full border flex items-center gap-1.5 shrink-0 transition-all duration-300 ${preferences.brokerStatusInterval > 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10'}`}>
                 <div className={`w-1 h-1 rounded-full ${preferences.brokerStatusInterval > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
                 <span className={`text-[9px] font-bold ${preferences.brokerStatusInterval > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>

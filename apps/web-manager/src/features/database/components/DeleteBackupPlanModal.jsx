@@ -93,7 +93,7 @@ export default function DeleteBackupPlanModal() {
           title="Registry Purged"
           message="The plan has been removed from the system scheduler."
           onConfirm={handleClose}
-          confirmText="Acknowledge"
+          confirmText="OK"
         />
       </Modal>
     );

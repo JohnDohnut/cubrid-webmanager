@@ -102,7 +102,7 @@ export default function DeleteDatabaseModal() {
         })).unwrap();
         
         dispatch(fetchDatabaseStartInfo(selectedHostUid));
-        endSuccess(`Instance "${selectedDatabase}" and all associated volumes have been permanently removed.`);
+        endSuccess(`Database "${selectedDatabase}" was deleted.`);
       } else {
         throw loginRes;
       }
@@ -127,7 +127,7 @@ export default function DeleteDatabaseModal() {
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title="Security Checkpoint" icon="delete_forever" onClose={handleClose} maxWidth="440px">
+      <Modal isOpen title="DBA confirm" icon="delete_forever" onClose={handleClose} maxWidth="440px">
         <ModalStatusLoading 
           title="Erasing Data Assets" 
           subtitle={`Authorizing destruction and removing all physical volumes for ${selectedDatabase}.`}
@@ -142,10 +142,10 @@ export default function DeleteDatabaseModal() {
     return (
       <Modal isOpen title="Operation Complete" icon="delete_forever" iconVariant="success" onClose={handleClose} maxWidth="440px">
         <ModalStatusSuccess 
-          title="Instance Deleted"
+          title="Database deleted"
           message={`All volumes and associated metadata for ${selectedDatabase} have been permanently removed.`}
           onConfirm={handleClose}
-          confirmText="Acknowledge"
+          confirmText="OK"
         />
       </Modal>
     );
@@ -172,7 +172,7 @@ export default function DeleteDatabaseModal() {
     <Modal
       isOpen={isDeleteDBModalOpen}
       onClose={handleClose}
-      title={step === 1 ? 'Delete Database' : 'Security Checkpoint'}
+      title={step === 1 ? 'Delete Database' : 'DBA confirm'}
       subtitle={step === 1 ? 'Review volumes and confirm permanent removal' : 'Verify credentials to authorize destruction'}
       icon="delete_forever"
       iconVariant="danger"

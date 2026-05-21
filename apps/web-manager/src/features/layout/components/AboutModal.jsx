@@ -19,14 +19,14 @@ export default function AboutModal() {
       title="About CUBRID"
       icon="info"
       maxWidth="420px"
-      subtitle="Modern database management interface"
+      subtitle="CUBRID Web Manager"
       footer={
         <Button 
           variant="primary" 
           onClick={() => dispatch(setAboutCubrid(false))}
           className="min-w-[140px]"
         >
-          Acknowledge
+          Close
         </Button>
       }
     >

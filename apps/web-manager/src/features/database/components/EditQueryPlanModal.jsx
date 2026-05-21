@@ -207,7 +207,7 @@ export default function EditQueryPlanModal() {
           title="Schedule Registry Updated"
           message={`Changes to the query plan for ${selectedDatabase} have been committed and re-indexed.`}
           onConfirm={handleClose}
-          confirmText="Acknowledge"
+          confirmText="OK"
         />
       </Modal>
     );

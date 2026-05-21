@@ -130,7 +130,7 @@ export default function AddQueryPlanModal() {
       await dispatch(setAutoExecQuery({ hostUid: selectedHostUid, dbname: selectedDatabase, payload })).unwrap();
       endSuccess(`Plan "${formData.queryId}" has been successfully synchronized and registered with the scheduler.`);
     } catch (err) {
-      endError(typeof err === 'string' ? err : (err.message || 'Operation aborted by system controller. Verify database connectivity and user privileges.'));
+      endError(typeof err === 'string' ? err : (err.message || 'Failed to add query plan.'));
     }
   };
 
@@ -156,7 +156,7 @@ export default function AddQueryPlanModal() {
           title="Schedule Registry Active"
           message={`The automated query task for ${selectedDatabase} has been successfully committed.`}
           onConfirm={handleClose}
-          confirmText="Acknowledge"
+          confirmText="OK"
         />
       </Modal>
     );

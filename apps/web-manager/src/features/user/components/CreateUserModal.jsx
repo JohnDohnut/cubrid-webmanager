@@ -264,7 +264,7 @@ export default function CreateUserModal({ isOpen, onClose, dbname, editingUser }
           title={isEditMode ? 'User Updated' : 'User Created'}
           message={isEditMode ? `Credentials and permissions for @${editingUser} are now synchronized.` : `@${formData.name} is now active and ready for use.`}
           onConfirm={onClose}
-          confirmText="Acknowledge"
+          confirmText="OK"
         />
       </Modal>
     );

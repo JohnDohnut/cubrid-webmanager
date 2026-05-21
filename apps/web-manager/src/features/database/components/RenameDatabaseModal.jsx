@@ -99,7 +99,7 @@ export default function RenameDatabaseModal() {
           title="Rename Successful"
           message={`Database ${selectedDatabase} has been renamed to ${newDbName.trim()}.`}
           onConfirm={handleClose}
-          confirmText="Acknowledge"
+          confirmText="OK"
         />
       </Modal>
     );

@@ -218,7 +218,7 @@ export default function SetAutomationVolumeModal() {
           title="Saved Successfully"
           message={`Auto-volume policies for ${selectedDatabase} were saved successfully.`}
           onConfirm={handleClose}
-          confirmText="Acknowledge"
+          confirmText="OK"
         />
       </Modal>
     );

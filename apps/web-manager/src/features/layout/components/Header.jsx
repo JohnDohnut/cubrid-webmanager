@@ -172,7 +172,7 @@ export default function Header({ theme, toggleTheme }) {
       {isHeaderActionError && (
         <Modal isOpen title="Update Failed" icon="error" iconVariant="danger" onClose={resetAction} maxWidth="400px">
           <ModalStatusError 
-            title="Action Aborted"
+            title="Failed"
             error={headerActionError}
             onRetry={resetAction}
             onCancel={resetAction}

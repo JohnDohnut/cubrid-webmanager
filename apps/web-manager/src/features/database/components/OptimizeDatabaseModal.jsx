@@ -311,7 +311,7 @@ export default function OptimizeDatabaseModal() {
             </Typography>
           </div>
 
-          <Button variant="secondary" onClick={handleClose} className="min-w-[140px]">Acknowledge</Button>
+          <Button variant="secondary" onClick={handleClose} className="min-w-[140px]">Close</Button>
         </div>
       </Modal>
     );

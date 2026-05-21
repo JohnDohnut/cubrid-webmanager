@@ -127,7 +127,7 @@ function DashboardLayout() {
     } else if (tabId.startsWith('broker_status:')) {
       acc[tabId] = `Status: ${tabId.split(':')[2]}`;
     } else if (tabId.startsWith('brokers_status:')) {
-      acc[tabId] = 'Brokers Status';
+      acc[tabId] = 'Broker Status';
     } else if (tabId.startsWith('db_space:')) {
       acc[tabId] = `Space: ${tabId.split(':')[2]}`;
     } else if (tabId.startsWith('vol_info:')) {

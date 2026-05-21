@@ -152,7 +152,7 @@ export default function AddVolumeModal() {
           title="Storage Expanded"
           message={`A new volume "${volName}" has been successfully added to the system registry for ${selectedDatabase}.`}
           onConfirm={handleClose}
-          confirmText="Acknowledge"
+          confirmText="OK"
         />
       </Modal>
     );

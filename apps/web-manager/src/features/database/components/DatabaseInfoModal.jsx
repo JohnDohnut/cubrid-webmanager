@@ -10,6 +10,7 @@ import { Toggle } from '../../../components/ds/forms/Toggle';
 import { Typography } from '../../../components/ds/foundation/Typography';
 import { StatusBadge } from '../../../components/ds/foundation/StatusBadge';
 import { Table } from '../../../components/ds/layout/Table';
+import { CM } from '../../../constants/cmLabels';
 
 // view states
 const VIEW_FORM    = 'form';
@@ -55,7 +56,7 @@ export default function DatabaseInfoModal() {
       })).unwrap();
       setView(VIEW_SUCCESS);
     } catch (err) {
-      setErrorMsg(typeof err === 'string' ? err : (err.message || 'The diagnostic sequence was interrupted. Please verify connectivity.'));
+      setErrorMsg(typeof err === 'string' ? err : (err.message || 'Failed to get database parameters.'));
       setView(VIEW_ERROR);
     }
   };
@@ -81,7 +82,7 @@ export default function DatabaseInfoModal() {
   }));
 
   const columns = [
-    { header: 'Parameter Identifier', accessor: 'name', render: (val) => (
+    { header: 'Parameter', accessor: 'name', render: (val) => (
       <Typography variant="label" className="text-slate-900 dark:text-slate-100 font-bold tracking-tight">
         {val}
       </Typography>
@@ -97,7 +98,7 @@ export default function DatabaseInfoModal() {
   /* ─── LOADING view ─── */
   if (view === VIEW_LOADING) {
     return (
-      <Modal isOpen title="Parameter Analysis" icon="analytics" onClose={handleClose} maxWidth="500px">
+      <Modal isOpen title="Used Parameter Dump" icon="analytics" onClose={handleClose} maxWidth="500px">
         <div className="flex flex-col items-center justify-center py-14 space-y-6 animate-in fade-in duration-200">
           <div className="relative w-16 h-16">
             <div className="absolute inset-0 rounded-full border-2 border-slate-100 dark:border-white/5" />
@@ -107,9 +108,9 @@ export default function DatabaseInfoModal() {
             </div>
           </div>
           <div className="text-center space-y-1.5 px-8">
-            <Typography variant="h4" className="text-[14px] font-black text-slate-800 dark:text-white tracking-tight">Extracting Runtime Profile</Typography>
-            <Typography variant="p" className="text-[11px] text-slate-500 font-medium leading-relaxed max-w-[280px] mx-auto">
-              Retreiving used parameter values from memory for <span className="font-black text-slate-900 dark:text-white font-mono">{selectedDatabase}</span>.
+            <Typography variant="h4" className="text-[14px] font-bold text-slate-800 dark:text-white">Loading parameters</Typography>
+            <Typography variant="p" className="text-[11px] text-slate-500 max-w-[280px] mx-auto">
+              {selectedDatabase}
             </Typography>
           </div>
           <div className="w-32 h-[2px] bg-slate-100 dark:bg-white/4 rounded-full overflow-hidden">
@@ -130,29 +131,29 @@ export default function DatabaseInfoModal() {
   /* ─── ERROR view ─── */
   if (view === VIEW_ERROR) {
     return (
-      <Modal isOpen title="Analysis Failed" icon="analytics" iconVariant="danger" onClose={handleClose} maxWidth="500px">
+      <Modal isOpen title="Used Parameter Dump" icon="analytics" iconVariant="danger" onClose={handleClose} maxWidth="500px">
         <div className="flex flex-col items-center justify-center py-10 gap-6 text-center animate-in fade-in duration-200">
           <div className="relative w-14 h-14 bg-rose-500 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(244,63,94,0.3)]">
             <Icon name="error" size="md" weight={300} className="text-white" />
           </div>
           <div className="space-y-2 px-6">
-            <Typography variant="h4" className="text-[15px] font-black text-slate-900 dark:text-white tracking-tight">Action Interrupted</Typography>
-            <Typography variant="p" className="text-[11.5px] text-slate-500 font-medium leading-relaxed">
-              System could not finalize the parameter dump for <span className="font-black text-slate-900 dark:text-white font-mono">{selectedDatabase}</span>.
+            <Typography variant="h4" className="text-[15px] font-bold text-slate-900 dark:text-white">Failed</Typography>
+            <Typography variant="p" className="text-[11.5px] text-slate-500">
+              Could not get parameters for {selectedDatabase}.
             </Typography>
           </div>
           <div className="w-full max-w-[420px] bg-rose-500/5 border border-rose-500/15 rounded-xl px-4 py-3 text-left">
             <div className="flex items-center gap-2 mb-1.5">
               <Icon name="terminal" size="xs" weight={300} className="text-rose-400" />
-              <span className="text-[9px] font-black uppercase tracking-widest text-rose-400">Diagnostic Trace</span>
+              <span className="text-[9px] font-semibold uppercase tracking-wide text-rose-400">Message</span>
             </div>
             <Typography variant="caption" className="text-rose-400/80 font-mono leading-relaxed break-words">
               {errorMsg}
             </Typography>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="secondary" onClick={handleClose}>Dismiss</Button>
-            <Button variant="primary" icon="refresh" onClick={() => { setView(VIEW_FORM); setErrorMsg(''); }}>Retry Analysis</Button>
+            <Button variant="secondary" onClick={handleClose}>Close</Button>
+            <Button variant="primary" icon="refresh" onClick={() => { setView(VIEW_FORM); setErrorMsg(''); }}>Retry</Button>
           </div>
         </div>
       </Modal>
@@ -166,13 +167,13 @@ export default function DatabaseInfoModal() {
       <Modal
         isOpen={isDatabaseInfoModalOpen}
         onClose={handleClose}
-        title="Parameter Dump Results"
+        title="Used Parameter Dump"
         icon="analytics"
         maxWidth="900px"
         footer={
           <div className="flex justify-end gap-3 w-full">
-            <Button variant="outline" onClick={() => setView(VIEW_FORM)}>Adjust Settings</Button>
-            <Button variant="primary" onClick={handleClose} icon="check_circle">Dismiss</Button>
+            <Button variant="outline" onClick={() => setView(VIEW_FORM)}>{CM.cancel}</Button>
+            <Button variant="primary" onClick={handleClose} icon="check_circle">{CM.close}</Button>
           </div>
         }
       >
@@ -183,7 +184,7 @@ export default function DatabaseInfoModal() {
                 <Icon name="bar_chart" size="sm" weight={300} />
               </div>
               <Typography variant="label" className="text-slate-400 uppercase tracking-widest font-bold text-[10px]">
-                Analysis Profile: <Typography variant="span" className="text-amber-500 ml-1 font-mono">{selectedDatabase}</Typography>
+                {CM.databaseName}: <Typography variant="span" className="text-amber-500 ml-1 font-mono">{selectedDatabase}</Typography>
               </Typography>
             </div>
             <div className="flex items-center gap-2">
@@ -212,13 +213,13 @@ export default function DatabaseInfoModal() {
       isOpen={isDatabaseInfoModalOpen}
       onClose={handleClose}
       title="Used Parameter Dump"
-      subtitle="Analyze used parameter values currently active in memory"
+      subtitle="Check out the parameter values"
       icon="database"
       maxWidth="500px"
       footer={
         <div className="flex justify-end gap-3 w-full">
-          <Button variant="ghost" onClick={handleClose}>Discard</Button>
-          <Button variant="primary" onClick={handleRunDump} icon="analytics">Run Analysis</Button>
+          <Button variant="ghost" onClick={handleClose}>Cancel</Button>
+          <Button variant="primary" onClick={handleRunDump} icon="analytics">OK</Button>
         </div>
       }
     >
@@ -229,7 +230,7 @@ export default function DatabaseInfoModal() {
               <Icon name="database" size="md" weight={300} className="text-amber-500" />
             </div>
             <div className="min-w-0 flex-1">
-              <Typography variant="caption" className="font-black uppercase tracking-widest text-amber-600/70 dark:text-amber-400/60 mb-0.5">Target Workspace</Typography>
+              <Typography variant="caption" className="font-semibold uppercase tracking-wide text-amber-600/70 dark:text-amber-400/60 mb-0.5">{CM.databaseName}</Typography>
               <Typography variant="h4" className="text-[14px] font-black text-amber-700 dark:text-amber-400 font-mono truncate">{selectedDatabase}</Typography>
             </div>
             <StatusBadge label="Environment Ready" variant="emerald" pulse={true} className="rounded-full" />

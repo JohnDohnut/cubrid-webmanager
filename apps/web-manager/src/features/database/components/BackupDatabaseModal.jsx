@@ -140,7 +140,7 @@ export default function BackupDatabaseModal() {
           title="Snapshot Secured"
           message={`A complete backup of ${selectedDatabase} has been written to: ${formData.backupDir}.`}
           onConfirm={handleClose}
-          confirmText="Acknowledge"
+          confirmText="OK"
         />
       </Modal>
     );
