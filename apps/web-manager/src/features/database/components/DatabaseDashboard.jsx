@@ -124,8 +124,6 @@ const Component = function DatabaseDashboard({ dbname }) {
   }];
   
   const mappedBrokers = brokersCAS.map(c => ({ broker: c.broker, id: c.id, pid: c.pid, qps: c.qps, lqs: c.lqs, status: c.status, lastConn: c.lastConn, dbname: c.dbname }));
-  const mappedLocks = (data.locks || []).map((l, i) => ({ index: l.index || i + 1, user: l.uid || '-', host: l.host || '-', pid: l.pid || '-', obj: l.object || '-', mode: l.granted_mode || '-' }));
-
   const handleExport = () => {
     const headers = ['Section', 'Key', 'Value'];
     const rows = [
@@ -229,7 +227,7 @@ const Component = function DatabaseDashboard({ dbname }) {
               onViewSlowQueryLog={(row) => setLogModal({ isOpen: true, brokerName: row.broker, casId: row.id, type: 'slow' })}
               onRestartCAS={handleRestartCAS}
             />
-            <DBLockTransactionSection locks={mappedLocks} pollingProps={pollingProps} />
+            <DBLockTransactionSection locks={data.locks || []} pollingProps={pollingProps} />
           </div>
         )}
       </div>

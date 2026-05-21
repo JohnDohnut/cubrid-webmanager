@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { databaseApi } from './databaseApi';
 import { brokerApi } from '../broker/brokerApi';
+import { buildDashboardLockRows } from './lockMappers';
 
 export const fetchDatabaseVolumes = createAsyncThunk(
   'database/fetchDatabaseVolumes',
@@ -65,7 +66,7 @@ export const fetchDashboardLocks = createAsyncThunk(
   async ({ hostUid, dbname }, { rejectWithValue }) => {
     try {
       const response = await databaseApi.getLockInfo(hostUid, dbname);
-      return { dbname, locks: response.locks || [] };
+      return { dbname, locks: buildDashboardLockRows(response) };
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || 'Failed to fetch locks');
     }
@@ -129,28 +130,42 @@ export const fetchDashboardData = createAsyncThunk(
   'database/fetchDashboardData',
   async ({ hostUid, dbname }, { rejectWithValue, dispatch }) => {
     if (!hostUid || !dbname) return rejectWithValue('Missing hostUid or dbname');
-    try {
-      const [vol, lock, perf, cas, space] = await Promise.all([
-        dispatch(fetchDashboardVolumes({ hostUid, dbname })).unwrap(),
-        dispatch(fetchDashboardLocks({ hostUid, dbname })).unwrap(),
-        dispatch(fetchDashboardPerformance({ hostUid, dbname })).unwrap(),
-        dispatch(fetchDashboardCAS({ hostUid, dbname })).unwrap(),
-        dispatch(fetchDatabaseSpaceInfo({ hostUid, dbname })).unwrap()
-      ]);
-      return { 
-        dbname, 
-        volumes: vol.volumes, 
-        locks: lock.locks, 
-        performance: perf.performance, 
-        brokersCAS: cas.brokersCAS,
-        spaceInfo: space.data?.fileinfo || [],
-        volumeSummary: space.data?.dbinfo || [],
-        pagesize: vol.pagesize,
-        logpagesize: vol.logpagesize
-      };
-    } catch (err) {
-      return rejectWithValue(err || `Failed to fetch dashboard data for ${dbname}`);
+
+    const settled = await Promise.allSettled([
+      dispatch(fetchDashboardVolumes({ hostUid, dbname })).unwrap(),
+      dispatch(fetchDashboardLocks({ hostUid, dbname })).unwrap(),
+      dispatch(fetchDashboardPerformance({ hostUid, dbname })).unwrap(),
+      dispatch(fetchDashboardCAS({ hostUid, dbname })).unwrap(),
+      dispatch(fetchDatabaseSpaceInfo({ hostUid, dbname })).unwrap(),
+    ]);
+
+    const [volR, lockR, perfR, casR, spaceR] = settled;
+
+    if (volR.status === 'rejected' && spaceR.status === 'rejected') {
+      return rejectWithValue(volR.reason || `Failed to fetch dashboard data for ${dbname}`);
     }
+
+    if (lockR.status === 'rejected') {
+      console.warn(`[dashboard] lock fetch failed for ${dbname}:`, lockR.reason);
+    }
+
+    const vol = volR.status === 'fulfilled' ? volR.value : { volumes: [], pagesize: undefined, logpagesize: undefined };
+    const lock = lockR.status === 'fulfilled' ? lockR.value : { locks: [] };
+    const perf = perfR.status === 'fulfilled' ? perfR.value : { performance: {} };
+    const cas = casR.status === 'fulfilled' ? casR.value : { brokersCAS: [] };
+    const space = spaceR.status === 'fulfilled' ? spaceR.value : { data: {} };
+
+    return {
+      dbname,
+      volumes: vol.volumes,
+      locks: lock.locks,
+      performance: perf.performance,
+      brokersCAS: cas.brokersCAS,
+      spaceInfo: space.data?.fileinfo || [],
+      volumeSummary: space.data?.dbinfo || [],
+      pagesize: vol.pagesize,
+      logpagesize: vol.logpagesize,
+    };
   }
 );
 
@@ -190,6 +205,18 @@ const databaseMonitoringSlice = createSlice({
           summary: data.dbinfo || [],
           files: data.fileinfo || []
         };
+      })
+      .addCase(fetchDashboardLocks.fulfilled, (state, action) => {
+        const { dbname, locks } = action.payload;
+        const existing = state.dashboardData[dbname] || {
+          volumes: [],
+          spaceInfo: [],
+          locks: [],
+          performance: {},
+          brokersCAS: [],
+          volumeSummary: [],
+        };
+        state.dashboardData[dbname] = { ...existing, locks };
       })
       .addCase(fetchDashboardData.fulfilled, (state, action) => {
         const { dbname, volumes, locks, performance, brokersCAS, spaceInfo, volumeSummary, pagesize, logpagesize } = action.payload;

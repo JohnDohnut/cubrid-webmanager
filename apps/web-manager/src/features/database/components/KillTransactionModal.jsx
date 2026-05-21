@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeKillTransactionModal } from '../databaseSlice';
 import { databaseApi } from '../databaseApi';
+import { buildKillParameter } from '../transactionUtils';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -58,12 +59,13 @@ export default function KillTransactionModal({ onTransactionKilled }) {
     startAction();
 
     try {
-      const idx = killTransactionData.tranindex?.match(/\d+/)?.[0] || '';
-      const payload = {
-        dbname: selectedDatabase,
-        type: killType,
-        parameter: idx
-      };
+      const parameter = buildKillParameter(killType, killTransactionData);
+      if (killType !== 'd' && !parameter) {
+        endError('Could not resolve kill parameter for the selected transaction.');
+        return;
+      }
+
+      const payload = { type: killType, parameter };
 
       await databaseApi.killTransaction(selectedHostUid, selectedDatabase, payload);
       
