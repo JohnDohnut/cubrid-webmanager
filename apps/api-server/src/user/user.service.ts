@@ -1,21 +1,21 @@
-import { Injectable } from '@nestjs/common';
-import { UserRepositoryService } from '@repository';
-import { PasswordService } from '@security';
-import { UserError } from '@error/user/user-error';
-import { passwordValidityChecker, omitPassword } from '@util';
-import { HandleUserErrors } from '@common';
-import {
-  User,
-  UpdateUserDto,
-  UserPreference,
-  UserPreferenceDto,
-} from '@type/index';
 import {
   ChangePasswordRequest,
   DeleteUserRequest,
   UpdateUserInfoRequest,
   UserResponse,
 } from '@api-interfaces';
+import { HandleUserErrors } from '@common';
+import { UserError } from '@error/user/user-error';
+import { Injectable } from '@nestjs/common';
+import { UserRepositoryService } from '@repository';
+import { PasswordService } from '@security';
+import {
+  UpdateUserDto,
+  User,
+  UserPreference,
+  UserPreferenceDto,
+} from '@type/index';
+import { passwordValidityChecker } from '@util';
 
 /**
  * Service for managing user-related operations.
@@ -71,24 +71,60 @@ export class UserService {
   }
 
   /**
-   * Retrieves user data excluding the password field.
+   * Retrieves user data excluding sensitive information.
    *
-   * Loads user information from the repository and removes the password field
-   * for security purposes before returning the data.
+   * Loads user information from the repository and removes:
+   * - User password
+   * - Host passwords and tokens in host_list
+   * - Database passwords in dbProfiles within each host
    *
    * @param {string} userId - The unique identifier of the user
-   * @returns {Promise<UserResponse>} User data without password
+   * @returns {Promise<UserResponse>} User data without sensitive information
    * @throws {UserError} When user is not found
    * @example
    * ```typescript
    * const userData = await userService.getUserData("user123");
    * console.log(userData.department); // "IT"
    * // userData.password is undefined
+   * // userData.host_list[uid].password is undefined
+   * // userData.host_list[uid].token is undefined
+   * // userData.host_list[uid].dbProfiles[dbname].password is undefined
    * ```
    */
   @HandleUserErrors()
   async getUserData(userId: string): Promise<UserResponse> {
-    return omitPassword(await this.repository.loadUserById(userId));
+    const user = await this.repository.loadUserById(userId);
+    
+    // Remove user password and uuid to match UserResponse type
+    const { password, uuid, ...userResponse } = user;
+    
+    // Process host_list: remove password, token, and dbProfiles passwords
+    const sanitizedHostList: Record<string, any> = {};
+    for (const [hostUid, hostInfo] of Object.entries(userResponse.host_list)) {
+      const { password, token, dbProfiles, ...hostWithoutSensitive } = hostInfo;
+      
+      // Process dbProfiles: remove passwords from each DB profile
+      const sanitizedDbProfiles: Record<string, any> = {};
+      if (dbProfiles) {
+        for (const [dbname, dbInfo] of Object.entries(dbProfiles)) {
+          const { password: dbPassword, ...dbWithoutPassword } = dbInfo;
+          sanitizedDbProfiles[dbname] = dbWithoutPassword;
+        }
+      }
+      
+      sanitizedHostList[hostUid] = {
+        ...hostWithoutSensitive,
+        dbProfiles: sanitizedDbProfiles,
+      };
+    }
+    
+    // Return with sanitized host_list, ensuring uuid is not included
+    const result: UserResponse = {
+      ...userResponse,
+      host_list: sanitizedHostList,
+    };
+    
+    return result;
   }
 
   /**

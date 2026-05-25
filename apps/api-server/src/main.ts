@@ -1,17 +1,24 @@
+import { loadRuntimeEnv } from './config/load-runtime-env';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import 'module-alias/register';
-import { getOrCreateSSLCert } from '@util/ssl-util';
+import * as fs from 'fs';
+import { getHttpsOptions } from '@util';
 import { GlobalExceptionFilter } from '@error/global-filter';
 import { ConfigService } from '@config/config.service';
 import { SuccessResponseInterceptor, LoggingInterceptor } from '@common'; // Updated import
 
 async function bootstrap() {
-  const httpsOptions = getOrCreateSSLCert();
+  loadRuntimeEnv();
+  const httpsOptions = getHttpsOptions();
   const app = await NestFactory.create(AppModule, { httpsOptions });
+  app.getHttpAdapter().getInstance().set('trust proxy', true);
   const configService = app.get(ConfigService);
   const port: string = configService.getPort();
+  const listenHost = configService.getListenHost();
   const allowedOrigins = configService.getAllowedOrigins();
+  const desktopMode = (process.env.CWM_DESKTOP ?? '').trim() === '1';
+  const trustLocalProxy = (process.env.CWM_TRUST_LOCAL_PROXY ?? '').trim() === '1';
   console.log('[main.ts] Allowed Origins from ConfigService:', allowedOrigins);
 
   if (allowedOrigins.includes('*')) {
@@ -23,23 +30,18 @@ async function bootstrap() {
       credentials: true,
     });
   } else {
-    // Allow all origins starting with localhost
     const whitelist = [...allowedOrigins];
     console.log('[main.ts] Production CORS whitelist:', whitelist);
     app.enableCors({
       origin: (origin, callback) => {
-        console.log('[main.ts] Received Origin header:', origin);
-        // Allow if origin is not present (same-origin requests, etc.)
         if (!origin) {
-          callback(null, true);
+          if (desktopMode || trustLocalProxy) {
+            callback(null, true);
+            return;
+          }
+          callback(new Error('Not allowed by CORS'));
           return;
         }
-        // Allow all origins starting with localhost
-        if (origin.startsWith('http://localhost:') || origin.startsWith('https://localhost:')) {
-          callback(null, true);
-          return;
-        }
-        // Allow origins in whitelist
         if (whitelist.includes(origin)) {
           callback(null, true);
           return;
@@ -54,7 +56,35 @@ async function bootstrap() {
 
   app.useGlobalFilters(new GlobalExceptionFilter());
   app.useGlobalInterceptors(new LoggingInterceptor(), new SuccessResponseInterceptor());
+  const unixSocket = configService.getListenUnixSocket();
+  if (unixSocket) {
+    removeStaleUnixSocket(unixSocket);
+    await app.listen(unixSocket);
+    console.log('\t@ server running on unix socket:', unixSocket);
+    return;
+  }
+
+  if (listenHost) {
+    await app.listen(port, listenHost);
+    console.log('\t@ server running on', `${listenHost}:${port}`);
+    return;
+  }
+
   await app.listen(port);
   console.log('\t@ server running port :', port);
 }
 bootstrap();
+
+function removeStaleUnixSocket(socketPath: string): void {
+  if (process.platform === 'win32') {
+    return;
+  }
+
+  try {
+    fs.unlinkSync(socketPath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw error;
+    }
+  }
+}

@@ -1,14 +1,19 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
-import {
-  HostInfo,
-  CheckFileCmsRequest,
-  LoginCmsRequest,
-  LoginCmsResponse,
-  User,
-} from '@type/index';
+import { CmsConfigService } from '@cms-config/cms-config.service';
+import { HaService } from '@ha';
+import { checkCmsStatusError } from '@common';
+import { HostInfo, LoginCmsRequest, LoginCmsResponse, User } from '@type/index';
 import { UserRepositoryService } from '@repository';
 import { HostError } from '@error/index';
+import { CmsError } from '@error/cms/cms-error';
+import type { CmsHostLoginClientResponse } from '@api-interfaces';
+import { CMS_CONFNAME_CUBRID } from '@database/database.constants';
+import {
+  flattenHanodelist,
+  isHostHaModeOnFromCubridConf,
+  resolveCurrentNodeRole,
+} from '@util';
 
 /**
  * Service for handling authentication with the CMS (Central Management System).
@@ -22,7 +27,9 @@ import { HostError } from '@error/index';
 export class CmsAuthService {
   constructor(
     private readonly client: CmsHttpsClientService,
-    private readonly repository: UserRepositoryService
+    private readonly repository: UserRepositoryService,
+    private readonly cmsConfigService: CmsConfigService,
+    private readonly haService: HaService
   ) {}
 
   /**
@@ -32,10 +39,10 @@ export class CmsAuthService {
    *
    * @param userId - The ID of the user performing the login.
    * @param uid - The unique identifier of the host to log in to.
-   * @returns A Promise that resolves with the authentication token received from the CMS.
+   * @returns HA-aware login payload (`isHA` false has no extra fields; true includes node role and peers).
    * @throws HostError.NoSuchHost if the specified host is not found for the user.
    */
-  public async login(userId: string, uid: string) {
+  public async login(userId: string, uid: string): Promise<CmsHostLoginClientResponse> {
     const user = await this.repository.loadUserById(userId);
     Logger.log(uid);
     const host: HostInfo = user.host_list[uid];
@@ -50,18 +57,50 @@ export class CmsAuthService {
       port: host.port.toString(),
       id: host.id,
       password: host.password,
-      clientver: '11.4',
+      clientver: '11.4', // Request-shaped only; arbitrary string, no CMS behavior impact
     };
 
     const response = await this.client.postPublic<LoginCmsRequest, LoginCmsResponse>(url, request);
 
-    host.token = response.token;
+    checkCmsStatusError(response, 'CMS login failed');
+    if (!response.token) {
+      throw CmsError.RequestFailed({
+        message: 'CMS login did not return a token',
+        response,
+      });
+    }
+
+    const token = response.token;
     await this.repository.atomicUpdateUser(userId, async (user: User) => {
-      user.host_list[uid] = host;
+      const persisted = user.host_list[uid];
+      if (!persisted) {
+        throw HostError.NoSuchHost({ uid });
+      }
+      persisted.token = token;
+      persisted.initialLogin = false;
       return user;
     });
 
-    return response.token;
+    return this.buildHaLoginPayload(userId, uid);
+  }
+
+  private async buildHaLoginPayload(userId: string, uid: string): Promise<CmsHostLoginClientResponse> {
+    const conf = await this.cmsConfigService.getAllSystemParam(userId, uid, CMS_CONFNAME_CUBRID);
+    if (!isHostHaModeOnFromCubridConf(conf)) {
+      return { success: true, isHA: false };
+    }
+
+    const hb = await this.haService.heartbeatlistInternal(userId, uid);
+    const haNodes = flattenHanodelist(hb.hanodelist);
+    const currentNodeType =
+      resolveCurrentNodeRole(hb.currentnode, hb.currentnodestate, haNodes) || 'unknown';
+
+    return {
+      success: true,
+      isHA: true,
+      currentNodeType,
+      haNodes,
+    };
   }
 
   /**
@@ -81,13 +120,21 @@ export class CmsAuthService {
       port: host.port.toString(),
       id: host.id,
       password: host.password,
-      clientver: '13.23',
+      clientver: '13.23', // Same as login: request placeholder, no behavioral effect
     };
 
     const response = await this.client.postPublic<LoginCmsRequest, LoginCmsResponse>(
       url,
       requestData
     );
+
+    checkCmsStatusError(response, 'CMS login failed');
+    if (!response.token) {
+      throw CmsError.RequestFailed({
+        message: 'CMS login did not return a token',
+        response,
+      });
+    }
 
     return response.token;
   }

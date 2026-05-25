@@ -1,17 +1,5 @@
 import { AppError } from '@error/app-error';
-
-/**
- * Enumeration of CMS error codes.
- *
- * @category Errors
- * @since 1.0.0
- */
-export enum CmsErrorCode {
-  REQUEST_FAILED = 'REQUEST_FAILED',
-  NO_RESPONSE = 'NO_RESPONSE',
-  INVALID_TOKEN = 'INVALID_TOKEN',
-  UNKNOWN = 'UNKNOWN',
-}
+import { CmsErrorCode } from './cms-error-code';
 
 /**
  * Represents a CMS-specific error.

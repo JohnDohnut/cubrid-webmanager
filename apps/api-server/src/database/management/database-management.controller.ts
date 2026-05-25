@@ -6,6 +6,8 @@ import {
   CheckDatabaseResponse,
   CompactDatabaseRequest,
   CompactDatabaseResponse,
+  CopyDbRequest,
+  CmsSuccessClientResponse,
   GetAddVolStatusResponse,
   LoadDatabaseRequest,
   LoadDatabaseResponse,
@@ -18,7 +20,7 @@ import {
   OptimizeDatabaseRequest,
   OptimizeDatabaseResponse,
   RenameDatabaseRequest,
-  RenameDatabaseResponse,
+  StartInfoClientResponse,
   UnloadDatabaseRequest,
   UnloadInfoClientResponse,
 } from '@api-interfaces';
@@ -41,6 +43,40 @@ export class DatabaseManagementController {
   private readonly logger = new Logger(DatabaseManagementController.name);
 
   constructor(private readonly managementService: DatabaseManagementService) {}
+
+  /**
+   * Copy a database. CMS task: copydb.
+   * volume is only sent when advanced is "on".
+   *
+   * @route POST /:hostUid/database/copy
+   */
+  @Post('copy')
+  async copyDb(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Body() body: CopyDbRequest
+  ): Promise<CmsSuccessClientResponse> {
+    const userId = req.user.sub;
+    validateRequiredFields(
+      body,
+      [
+        'srcdbname',
+        'destdbname',
+        'destdbpath',
+        'exvolpath',
+        'logpath',
+        'overwrite',
+        'move',
+        'advanced',
+      ],
+      'database/copy',
+      this.logger
+    );
+    this.logger.log(
+      `Copying database: ${body.srcdbname} -> ${body.destdbname} on host: ${hostUid}`
+    );
+    return await this.managementService.copyDb(userId, hostUid, body);
+  }
 
   /**
    * Unload a database.
@@ -72,7 +108,7 @@ export class DatabaseManagementController {
       this.logger
     );
 
-    Logger.log(`Unloading database: ${dbname} on host: ${hostUid}`, 'DatabaseManagementController');
+    this.logger.log(`Unloading database: ${dbname} on host: ${hostUid}`);
     return await this.managementService.unloadDatabase(userId, hostUid, dbname, body);
   }
 
@@ -94,7 +130,7 @@ export class DatabaseManagementController {
   ): Promise<UnloadInfoClientResponse> {
     const userId = req.user.sub;
 
-    Logger.log(`Getting unload info for host: ${hostUid}`, 'DatabaseManagementController');
+    this.logger.log(`Getting unload info for host: ${hostUid}`);
     return await this.managementService.getUnloadInfo(userId, hostUid);
   }
 
@@ -141,7 +177,7 @@ export class DatabaseManagementController {
       this.logger
     );
 
-    Logger.log(`Loading database: ${dbname} on host: ${hostUid}`, 'DatabaseManagementController');
+    this.logger.log(`Loading database: ${dbname} on host: ${hostUid}`);
     return await this.managementService.loadDatabase(userId, hostUid, dbname, body);
   }
 
@@ -168,7 +204,7 @@ export class DatabaseManagementController {
   ): Promise<OptimizeDatabaseResponse> {
     const userId = req.user.sub;
 
-    Logger.log(`Optimizing database: ${dbname} on host: ${hostUid}`, 'DatabaseManagementController');
+    this.logger.log(`Optimizing database: ${dbname} on host: ${hostUid}`);
     return await this.managementService.optimizeDatabase(userId, hostUid, dbname, body);
   }
 
@@ -197,7 +233,7 @@ export class DatabaseManagementController {
 
     validateRequiredFields(body, ['repairdb'], 'database/check', this.logger);
 
-    Logger.log(`Checking database: ${dbname} on host: ${hostUid}`, 'DatabaseManagementController');
+    this.logger.log(`Checking database: ${dbname} on host: ${hostUid}`);
     return await this.managementService.checkDatabase(userId, hostUid, dbname, body);
   }
 
@@ -226,7 +262,7 @@ export class DatabaseManagementController {
 
     validateRequiredFields(body, ['verbose'], 'database/compact', this.logger);
 
-    Logger.log(`Compacting database: ${dbname} on host: ${hostUid}`, 'DatabaseManagementController');
+    this.logger.log(`Compacting database: ${dbname} on host: ${hostUid}`);
     return await this.managementService.compactDatabase(userId, hostUid, dbname, body);
   }
 
@@ -239,7 +275,7 @@ export class DatabaseManagementController {
    * @param hostUid Host unique identifier from path parameter
    * @param dbname Current database name from path parameter
    * @param body Request body containing rename configuration
-   * @returns RenameDatabaseResponse Empty object on success
+   * @returns StartInfoClientResponse Latest database list (start-info) on success
    * @example
    * // POST /host-uid/database/rename/rename_test
    * // Body: { "rename": "renamed_db", "exvolpath": "none", "advanced": "on", "volume": [{ "/old/path": "/new/path" }], "forcedel": "n" }
@@ -250,7 +286,7 @@ export class DatabaseManagementController {
     @Param('hostUid') hostUid: string,
     @Param('dbname') dbname: string,
     @Body() body: RenameDatabaseRequest
-  ): Promise<RenameDatabaseResponse> {
+  ): Promise<StartInfoClientResponse> {
     const userId = req.user.sub;
 
     validateRequiredFields(
@@ -268,7 +304,7 @@ export class DatabaseManagementController {
       });
     }
 
-    Logger.log(`Renaming database: ${dbname} to ${body.rename} on host: ${hostUid}`, 'DatabaseManagementController');
+    this.logger.log(`Renaming database: ${dbname} to ${body.rename} on host: ${hostUid}`);
     return await this.managementService.renameDatabase(userId, hostUid, dbname, body);
   }
 
@@ -292,9 +328,8 @@ export class DatabaseManagementController {
   ): Promise<GetAddVolStatusResponse> {
     const userId = req.user.sub;
 
-    Logger.log(
-      `Getting add vol status for database: ${dbname} on host: ${hostUid}`,
-      'DatabaseManagementController'
+    this.logger.log(
+      `Getting add vol status for database: ${dbname} on host: ${hostUid}`
     );
     return await this.managementService.getAddVolStatus(userId, hostUid, dbname);
   }
@@ -329,9 +364,8 @@ export class DatabaseManagementController {
       this.logger
     );
 
-    Logger.log(
-      `Adding volume to database: ${dbname} on host: ${hostUid}`,
-      'DatabaseManagementController'
+    this.logger.log(
+      `Adding volume to database: ${dbname} on host: ${hostUid}`
     );
     return await this.managementService.addVolDb(userId, hostUid, dbname, body);
   }
@@ -359,9 +393,8 @@ export class DatabaseManagementController {
   ): Promise<LockDatabaseResponse> {
     const userId = req.user.sub;
 
-    Logger.log(
-      `Getting lock information for database: ${dbname} on host: ${hostUid}`,
-      'DatabaseManagementController'
+    this.logger.log(
+      `Getting lock information for database: ${dbname} on host: ${hostUid}`
     );
     return await this.managementService.lockDatabase(userId, hostUid, dbname, body);
   }
@@ -391,9 +424,8 @@ export class DatabaseManagementController {
 
     validateRequiredFields(body, ['dbuser', 'dbpasswd'], 'database/transaction-info', this.logger);
 
-    Logger.log(
-      `Getting transaction information for database: ${dbname} on host: ${hostUid}`,
-      'DatabaseManagementController'
+    this.logger.log(
+      `Getting transaction information for database: ${dbname} on host: ${hostUid}`
     );
     return await this.managementService.getTransactionInfo(userId, hostUid, dbname, body);
   }
@@ -437,9 +469,8 @@ export class DatabaseManagementController {
       );
     }
 
-    Logger.log(
-      `Killing transaction for database: ${dbname} on host: ${hostUid}`,
-      'DatabaseManagementController'
+    this.logger.log(
+      `Killing transaction for database: ${dbname} on host: ${hostUid}`
     );
     return await this.managementService.killTransaction(userId, hostUid, dbname, body);
   }

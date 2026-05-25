@@ -7,6 +7,6 @@ import { HostInfo } from '@type/host-info';
  * @category Requests
  * @since 1.0.0
  */
-export type UpdateHostClientRequest = Omit<HostInfo, 'uid' | 'token'> & {
+export type UpdateHostClientRequest = Partial<Omit<HostInfo, 'uid' | 'token' | 'initialLogin'>> & {
   hostUid: string;
 };

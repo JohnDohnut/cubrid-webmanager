@@ -5,6 +5,8 @@ import {
   CheckDatabaseResponse,
   CompactDatabaseRequest,
   CompactDatabaseResponse,
+  CopyDbRequest,
+  CmsSuccessClientResponse,
   GetAddVolStatusResponse,
   LoadDatabaseRequest,
   LoadDatabaseResponse,
@@ -17,25 +19,24 @@ import {
   OptimizeDatabaseRequest,
   OptimizeDatabaseResponse,
   RenameDatabaseRequest,
-  RenameDatabaseResponse,
+  StartInfoClientResponse,
   UnloadDatabaseRequest,
   UnloadInfoClientResponse,
 } from '@api-interfaces';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
+import { DatabaseInfoService } from '@database/info/database-info.service';
 import {
-  checkCmsStatusError,
-  checkCmsTokenError,
-  HandleCmsStatusErrors,
-  HandleDatabaseErrors,
+  BaseService,
+  HandleCmsErrors,
 } from '@common';
-import { CmsError } from '@error/cms/cms-error';
 import { DatabaseError } from '@error/database/database-error';
 import { HostService } from '@host';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import {
   AddVolDbCmsRequest,
   CheckDatabaseCmsRequest,
   CompactDatabaseCmsRequest,
+  CopyDbCmsRequest,
   GetAddVolStatusCmsRequest,
   LoadDatabaseCmsRequest,
   LockDatabaseCmsRequest,
@@ -50,6 +51,7 @@ import {
   AddVolDbCmsResponse,
   CheckDatabaseCmsResponse,
   CompactDatabaseCmsResponse,
+  CopyDbCmsResponse,
   GetAddVolStatusCmsResponse,
   LoadDatabaseCmsResponse,
   LockDatabaseCmsResponse,
@@ -69,13 +71,54 @@ import {
  * @since 1.0.0
  */
 @Injectable()
-export class DatabaseManagementService {
-  private readonly logger = new Logger(DatabaseManagementService.name);
-
+export class DatabaseManagementService extends BaseService {
   constructor(
-    private readonly hostService: HostService,
-    private readonly cmsClient: CmsHttpsClientService
-  ) {}
+    hostService: HostService,
+    cmsClient: CmsHttpsClientService,
+    private readonly databaseInfoService: DatabaseInfoService
+  ) {
+    super(hostService, cmsClient);
+  }
+
+  /**
+   * Copy a database (CMS task: copydb).
+   * volume is only included when advanced is "on" (or "y").
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param request Client request (srcdbname, destdbname, destdbpath, exvolpath, logpath, overwrite, move, advanced, volume?)
+   * @returns Empty object on success
+   */
+  @HandleCmsErrors()
+  async copyDb(
+    userId: string,
+    hostUid: string,
+    request: CopyDbRequest
+  ): Promise<CmsSuccessClientResponse> {
+    const cmsRequest: CopyDbCmsRequest = {
+      task: 'copydb',
+      srcdbname: request.srcdbname,
+      destdbname: request.destdbname,
+      destdbpath: request.destdbpath,
+      exvolpath: request.exvolpath,
+      logpath: request.logpath,
+      overwrite: request.overwrite,
+      move: request.move,
+      advanced: request.advanced,
+    };
+    if (request.advanced === 'on' || request.advanced === 'y') {
+      if (request.volume && request.volume.length > 0) {
+        cmsRequest.volume = request.volume;
+      }
+    }
+
+    await this.executeCmsRequest<
+      CopyDbCmsRequest,
+      CopyDbCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    return { success: true };
+  }
 
   /**
    * Unload a database.
@@ -88,17 +131,13 @@ export class DatabaseManagementService {
    * @returns Empty object on success
    * @throws DatabaseError If request fails or parameters are invalid
    */
-  @HandleDatabaseErrors()
-  @HandleCmsStatusErrors()
+  @HandleCmsErrors()
   async unloadDatabase(
     userId: string,
     hostUid: string,
     dbname: string,
     request: UnloadDatabaseRequest
   ): Promise<{}> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
     // Determine target based on isSchemaIncluded and isDataIncluded
     let target: 'schema' | 'object' | 'both';
 
@@ -121,7 +160,6 @@ export class DatabaseManagementService {
     // Build CMS request from client request
     const cmsRequest: UnloadDatabaseCmsRequest = {
       task: 'unloaddb',
-      token: host.token || '',
       dbname: dbname,
       targetdir: request.targetdir,
       target: target,
@@ -142,13 +180,10 @@ export class DatabaseManagementService {
       lofile: request.lofile,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    const response = await this.executeCmsRequest<
       UnloadDatabaseCmsRequest,
       UnloadDatabaseCmsResponse
-    >(url, cmsRequest);
-
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
+    >(userId, hostUid, cmsRequest);
 
     return response.result;
   }
@@ -162,28 +197,21 @@ export class DatabaseManagementService {
    * @returns UnloadInfoClientResponse Unload information without CMS envelope fields
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async getUnloadInfo(
     userId: string,
     hostUid: string
   ): Promise<UnloadInfoClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
     const request: UnloadInfoCmsRequest = {
       task: 'unloadinfo',
-      token: host.token || '',
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    const response = await this.executeCmsRequest<
       UnloadInfoCmsRequest,
       UnloadInfoCmsResponse
-    >(url, request);
+    >(userId, hostUid, request);
 
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
-
-    const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
+    const dataOnly = this.extractDomainData(response);
 
     return {
       database: dataOnly.database || [],
@@ -201,21 +229,16 @@ export class DatabaseManagementService {
    * @returns LoadDatabaseResponse Empty object on success
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
-  @HandleCmsStatusErrors()
+  @HandleCmsErrors()
   async loadDatabase(
     userId: string,
     hostUid: string,
     dbname: string,
     request: LoadDatabaseRequest
   ): Promise<LoadDatabaseResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
     // Build CMS request from client request
     const cmsRequest: LoadDatabaseCmsRequest = {
       task: 'loaddb',
-      token: host.token || '',
       dbname: dbname,
       checkoption: request.checkoption,
       period: request.period,
@@ -231,39 +254,13 @@ export class DatabaseManagementService {
       ignoreclassfile: request.ignoreclassfile,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
-      LoadDatabaseCmsRequest,
-      LoadDatabaseCmsResponse
-    >(url, cmsRequest);
+    await this.executeCmsRequest<LoadDatabaseCmsRequest, LoadDatabaseCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
 
-    checkCmsTokenError(response);
-    
-    try {
-      checkCmsStatusError(response);
-    } catch (error) {
-      if (error instanceof CmsError) {
-        // Join line array with newline characters
-        const lines = response.line || [];
-        const lineMessage = lines.join('\n');
-
-        // Update error message with line information
-        const updatedMessage = error.additionalData?.message
-          ? `${error.additionalData.message}\n${lineMessage}`
-          : lineMessage || 'Error occurred during database loading';
-
-        throw CmsError.RequestFailed(
-          {
-            message: updatedMessage,
-            response: response,
-          },
-          error
-        );
-      }
-      throw error;
-    }
-
-    // Success: return empty object
-    return {};
+    return { success: true };
   }
 
   /**
@@ -277,35 +274,27 @@ export class DatabaseManagementService {
    * @returns OptimizeDatabaseResponse Empty object on success
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
-  @HandleCmsStatusErrors()
+  @HandleCmsErrors()
   async optimizeDatabase(
     userId: string,
     hostUid: string,
     dbname: string,
     request: OptimizeDatabaseRequest
   ): Promise<OptimizeDatabaseResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
     // Build CMS request from client request
     const cmsRequest: OptimizeDatabaseCmsRequest = {
       task: 'optimizedb',
-      token: host.token || '',
       dbname: dbname,
       ...(request.class && { class: request.class }),
     };
 
-    const response = await this.cmsClient.postAuthenticated<
-      OptimizeDatabaseCmsRequest,
-      OptimizeDatabaseCmsResponse
-    >(url, cmsRequest);
+    await this.executeCmsRequest<OptimizeDatabaseCmsRequest, OptimizeDatabaseCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
 
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
-
-    // Success: return empty object
-    return {};
+    return { success: true };
   }
 
   /**
@@ -319,34 +308,26 @@ export class DatabaseManagementService {
    * @returns CheckDatabaseResponse Empty object on success
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
-  @HandleCmsStatusErrors()
+  @HandleCmsErrors()
   async checkDatabase(
     userId: string,
     hostUid: string,
     dbname: string,
     request: CheckDatabaseRequest
   ): Promise<CheckDatabaseResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
     const cmsRequest: CheckDatabaseCmsRequest = {
       task: 'checkdb',
-      token: host.token || '',
       dbname: dbname,
       repairdb: request.repairdb,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
-      CheckDatabaseCmsRequest,
-      CheckDatabaseCmsResponse
-    >(url, cmsRequest);
+    await this.executeCmsRequest<CheckDatabaseCmsRequest, CheckDatabaseCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
 
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
-
-    // Success: return empty object
-    return {};
+    return { success: true };
   }
 
   /**
@@ -360,68 +341,55 @@ export class DatabaseManagementService {
    * @returns CompactDatabaseResponse Log output if verbose is 'y', otherwise empty object
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
-  @HandleCmsStatusErrors()
+  @HandleCmsErrors()
   async compactDatabase(
     userId: string,
     hostUid: string,
     dbname: string,
     request: CompactDatabaseRequest
   ): Promise<CompactDatabaseResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
     const cmsRequest: CompactDatabaseCmsRequest = {
       task: 'compactdb',
-      token: host.token || '',
       dbname: dbname,
       verbose: request.verbose,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    const response = await this.executeCmsRequest<
       CompactDatabaseCmsRequest,
       CompactDatabaseCmsResponse
-    >(url, cmsRequest);
+    >(userId, hostUid, cmsRequest);
 
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
-
-    // Return log if present, otherwise return empty object
     if (response.log) {
       return {
+        success: true,
         log: response.log,
       };
     }
 
-    return {};
+    return { success: true };
   }
 
   /**
    * Rename a database.
-   * Returns empty object on success.
+   * Returns start-info (db list) on success.
    *
    * @param userId User ID from JWT
    * @param hostUid Host UID
    * @param dbname Current database name
    * @param request Client request containing rename configuration
-   * @returns RenameDatabaseResponse Empty object on success
+   * @returns StartInfoClientResponse Latest database list (start-info) on success
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
-  @HandleCmsStatusErrors()
+  @HandleCmsErrors()
   async renameDatabase(
     userId: string,
     hostUid: string,
     dbname: string,
     request: RenameDatabaseRequest
-  ): Promise<RenameDatabaseResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
+  ): Promise<StartInfoClientResponse> {
     // Build CMS request from client request
     const cmsRequest: RenameDatabaseCmsRequest = {
       task: 'renamedb',
-      token: host.token || '',
       dbname: dbname,
       rename: request.rename,
       exvolpath: request.exvolpath,
@@ -440,16 +408,13 @@ export class DatabaseManagementService {
       cmsRequest.volume = [volumeMapping];
     }
 
-    const response = await this.cmsClient.postAuthenticated<
+    await this.executeCmsRequest<
       RenameDatabaseCmsRequest,
       RenameDatabaseCmsResponse
-    >(url, cmsRequest);
+    >(userId, hostUid, cmsRequest);
 
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
-
-    // Success: return empty object
-    return {};
+    // Return latest db list (start-info)
+    return await this.databaseInfoService.startInfo(userId, hostUid);
   }
 
   /**
@@ -462,28 +427,21 @@ export class DatabaseManagementService {
    * @returns GetAddVolStatusResponse Volume status information
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
-  @HandleCmsStatusErrors()
+  @HandleCmsErrors()
   async getAddVolStatus(
     userId: string,
     hostUid: string,
     dbname: string
   ): Promise<GetAddVolStatusResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const request: GetAddVolStatusCmsRequest = {
+    const cmsRequest: GetAddVolStatusCmsRequest = {
       task: 'getaddvolstatus',
-      token: host.token || '',
       dbname: dbname,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    const response = await this.executeCmsRequest<
       GetAddVolStatusCmsRequest,
       GetAddVolStatusCmsResponse
-    >(url, request);
-
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
+    >(userId, hostUid, cmsRequest);
 
     return {
       freespace: response.freespace,
@@ -502,19 +460,15 @@ export class DatabaseManagementService {
    * @returns AddVolDbResponse Volume addition result
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
-  @HandleCmsStatusErrors()
+  @HandleCmsErrors()
   async addVolDb(
     userId: string,
     hostUid: string,
     dbname: string,
     request: AddVolDbRequest
   ): Promise<AddVolDbResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
     const cmsRequest: AddVolDbCmsRequest = {
       task: 'addvoldb',
-      token: host.token || '',
       dbname: dbname,
       volname: request.volname,
       purpose: request.purpose,
@@ -523,13 +477,10 @@ export class DatabaseManagementService {
       size_need_mb: request.size_need_mb,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    const response = await this.executeCmsRequest<
       AddVolDbCmsRequest,
       AddVolDbCmsResponse
-    >(url, cmsRequest);
-
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
+    >(userId, hostUid, cmsRequest);
 
     return {
       dbname: response.dbname,
@@ -548,30 +499,24 @@ export class DatabaseManagementService {
    * @returns LockDatabaseResponse Lock information
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
-  @HandleCmsStatusErrors()
+  @HandleCmsErrors()
   async lockDatabase(
     userId: string,
     hostUid: string,
     dbname: string,
-    request: LockDatabaseRequest
+    _request: LockDatabaseRequest
   ): Promise<LockDatabaseResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
     const cmsRequest: LockDatabaseCmsRequest = {
       task: 'lockdb',
-      token: host.token || '',
       dbname: dbname,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    this.logger.debug(`Getting lock information for database: ${dbname}`);
+
+    const response = await this.executeCmsRequest<
       LockDatabaseCmsRequest,
       LockDatabaseCmsResponse
-    >(url, cmsRequest);
-
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
+    >(userId, hostUid, cmsRequest);
 
     // Return lockinfo only (CMS envelope removed)
     return {
@@ -590,36 +535,30 @@ export class DatabaseManagementService {
    * @returns GetTransactionInfoResponse Transaction information
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
-  @HandleCmsStatusErrors()
+  @HandleCmsErrors()
   async getTransactionInfo(
     userId: string,
     hostUid: string,
     dbname: string,
     request: GetTransactionInfoRequest
   ): Promise<GetTransactionInfoResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
     const cmsRequest: GetTransactionInfoCmsRequest = {
       task: 'gettransactioninfo',
-      token: host.token || '',
       dbname: dbname,
       dbuser: request.dbuser,
       dbpasswd: request.dbpasswd,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    this.logger.debug(
+      `Getting transaction information for database: ${dbname}, user: ${request.dbuser}`
+    );
+
+    const response = await this.executeCmsRequest<
       GetTransactionInfoCmsRequest,
       GetTransactionInfoCmsResponse
-    >(url, cmsRequest);
+    >(userId, hostUid, cmsRequest);
 
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
-
-    const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
-
-    return dataOnly;
+    return this.extractDomainData(response);
   }
 
   /**
@@ -637,44 +576,48 @@ export class DatabaseManagementService {
    * @returns KillTransactionResponse Transaction information
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
-  @HandleCmsStatusErrors()
+  @HandleCmsErrors()
   async killTransaction(
     userId: string,
     hostUid: string,
     dbname: string,
     request: KillTransactionRequest
   ): Promise<KillTransactionResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
     // Validate parameter requirement based on type
     if (request.type !== 'd' && !request.parameter) {
+      const typeDescriptions: Record<string, string> = {
+        i: 'transaction index',
+        p: 'process name',
+        h: 'host name',
+      };
       throw DatabaseError.InvalidParameter(
-        `Parameter is required for type '${request.type}'`,
-        { type: request.type, parameter: request.parameter }
+        `Parameter is required for type '${request.type}' (${typeDescriptions[request.type] || 'unknown type'})`,
+        {
+          type: request.type,
+          parameter: request.parameter,
+          dbname: dbname,
+          message: `Missing required parameter for kill transaction type '${request.type}'. Expected: ${typeDescriptions[request.type] || 'parameter'}`,
+        }
       );
     }
 
     // Build CMS request from client request
     const cmsRequest: KillTransactionCmsRequest = {
       task: 'killtransaction',
-      token: host.token || '',
       dbname: dbname,
       type: request.type,
       ...(request.type !== 'd' && request.parameter && { parameter: request.parameter }),
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    this.logger.debug(
+      `Killing transaction for database: ${dbname} on host: ${hostUid} with type: ${request.type} and parameter: ${request.parameter}`
+    );
+
+    const response = await this.executeCmsRequest<
       KillTransactionCmsRequest,
       KillTransactionCmsResponse
-    >(url, cmsRequest);
+    >(userId, hostUid, cmsRequest);
 
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
-
-    const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
-
-    return dataOnly;
+    return this.extractDomainData(response);
   }
 }

@@ -1,10 +1,13 @@
-import { Injectable, Request } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@config/config.service';
 import { PasswordService } from '@security';
 import { User, UserDTO } from '@type/index';
 import { UserRepositoryService } from '@repository';
+import { AuthError } from '@error/auth/auth-error';
 import { UserError } from '@error/user/user-error';
 import { HandleAuthErrors } from '@common';
+import { passwordValidityChecker } from '@util';
 
 /**
  * Service for handling authentication operations.
@@ -21,7 +24,8 @@ export class AuthService {
   constructor(
     private readonly usersRepo: UserRepositoryService,
     private readonly jwt: JwtService,
-    private readonly password: PasswordService
+    private readonly password: PasswordService,
+    private readonly configService: ConfigService
   ) {}
   /**
    * Authenticates a user and generates a JWT token.
@@ -79,6 +83,14 @@ export class AuthService {
    */
   @HandleAuthErrors()
   async register(dto: UserDTO): Promise<void> {
+    if (!this.configService.isAuthRegistrationEnabled()) {
+      throw AuthError.PermissionDenied({ reason: 'AUTH_REGISTRATION_DISABLED' });
+    }
+
+    if (!passwordValidityChecker(dto.password)) {
+      throw UserError.BadNewPassword({ userId: dto.id });
+    }
+
     await this.usersRepo.createUser(dto);
   }
 }

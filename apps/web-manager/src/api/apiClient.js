@@ -1,0 +1,199 @@
+import axios from 'axios';
+
+const isDesktopRuntime = () =>
+  typeof window !== 'undefined' &&
+  (Boolean(window.desktopConfig?.apiBaseUrl) || window.location.protocol === 'app:');
+
+const resolveApiBaseUrl = () => {
+  if (typeof window === 'undefined') {
+    return import.meta.env.VITE_API_BASE_URL || 'https://localhost:8080';
+  }
+
+  const configured =
+    window.desktopConfig?.apiBaseUrl || import.meta.env.VITE_API_BASE_URL;
+  if (configured) {
+    return configured;
+  }
+
+  if (window.location.protocol === 'app:') {
+    return '/api';
+  }
+
+  // HTTPS stack / reverse proxy: same-origin /api avoids browser CORS to :8080
+  if (
+    window.location.protocol === 'https:' ||
+    window.location.protocol === 'http:'
+  ) {
+    return '/api';
+  }
+
+  return 'https://localhost:8080';
+};
+
+const apiClient = axios.create({
+  // Default to same-origin API path so deployments work across arbitrary customer hostnames/IPs.
+  baseURL: resolveApiBaseUrl(),
+  timeout: 15000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  ...(isDesktopRuntime() ? { adapter: 'fetch' } : {}),
+});
+
+apiClient.interceptors.request.use((config) => {
+  config.baseURL = resolveApiBaseUrl();
+  if (typeof window !== 'undefined' && window.location.protocol === 'app:') {
+    config.adapter = 'fetch';
+  }
+  return config;
+});
+
+export const setAuthToken = (token) => {
+  if (token) {
+    apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  } else {
+    delete apiClient.defaults.headers.common['Authorization'];
+  }
+};
+
+// Initialize token from localStorage on app load
+const initialToken = localStorage.getItem('token');
+if (initialToken) {
+  setAuthToken(initialToken);
+}
+
+// Map to track active host re-authentication promises
+const refreshingHosts = new Map();
+let isHandlingSystemSessionExpiry = false;
+
+async function handleSystemSessionExpired() {
+  if (isHandlingSystemSessionExpiry) {
+    return;
+  }
+
+  const path = window.location.pathname;
+  if (path === '/login' || path === '/register') {
+    return;
+  }
+
+  isHandlingSystemSessionExpiry = true;
+  try {
+    localStorage.removeItem('token');
+    const { store } = await import('../app/store');
+    const { logout } = await import('../features/auth/authSlice');
+    store.dispatch(logout());
+  } finally {
+    isHandlingSystemSessionExpiry = false;
+  }
+}
+
+// Helper to determine if a URL belongs to a specific host
+const getHostUidFromUrl = (url) => {
+  if (!url) return null;
+  // URLs usually follow pattern /UID/endpoint
+  const cleanUrl = url.replace(/^\//, '');
+  const segments = cleanUrl.split('/');
+  let hostUid = segments[0];
+
+  // If URL is /host/UID/..., the UID is the second segment
+  if (hostUid === 'host' && segments[1]) {
+    hostUid = segments[1];
+  }
+
+  // Simple heuristic: host UIDs are usually long strings (UUID-like) or specific identifiers
+  return (hostUid && hostUid.length > 15) ? hostUid : null;
+};
+
+// Response interceptor
+apiClient.interceptors.response.use(
+  (response) => {
+    // Standard unwrap logic: if backend returned { data: ..., note: ... }, extract data
+    // If data is false or null, we still return the full response object to avoid falsy unwrap bugs
+    // or we check strictly for property existence.
+    const rawData = response.data;
+    if (rawData && typeof rawData === 'object' && Object.prototype.hasOwnProperty.call(rawData, 'data')) {
+      if (rawData.data === false || rawData.data === null || rawData.data === 0) {
+        // If data is explicitly false/null, return the whole object so callers like hostSlice 
+        // can check response.data === false reliably.
+        return rawData;
+      }
+      const payload = rawData.data;
+      if (payload && typeof payload === 'object') {
+        // Attach note/status to payload so callers have access for display messages
+        // while maintaining legacy unwrap behavior for payload extraction.
+        if (rawData.note) payload.note = rawData.note;
+        if (rawData.status) payload.status = rawData.status;
+      }
+      return payload;
+    }
+    return rawData;
+  },
+  async (error) => {
+    const originalRequest = error.config;
+    const apiData = error.response?.data;
+    const statusCode = error.response?.status;
+
+    // Handle 401 Unauthorized
+    if (statusCode === 401 && !originalRequest._retry) {
+      const hostUid = getHostUidFromUrl(originalRequest.url);
+      const isLoginRequest = originalRequest.url?.includes('/cms-auth/login');
+
+      if (hostUid) {
+        // SCENARIO: Host-level 401
+
+        if (isLoginRequest) {
+          return Promise.reject(error);
+        }
+
+        // Standard host request failed with 401 -> Attempt re-authentication
+        console.warn(`Host session for ${hostUid} expired. Initiating revocation and re-login...`);
+
+        try {
+          const { store } = await import('../app/store');
+          const { revokeHostLogin, loginToHost } = await import('../features/host/hostSlice');
+
+          // 1. "it should revoke host login"
+          store.dispatch(revokeHostLogin(hostUid));
+
+          // 2. "wait for result"
+          if (!refreshingHosts.has(hostUid)) {
+            const refreshPromise = store.dispatch(loginToHost(hostUid)).unwrap();
+            refreshingHosts.set(hostUid, refreshPromise);
+          }
+
+          await refreshingHosts.get(hostUid);
+          refreshingHosts.delete(hostUid);
+
+          // 3. "proceed those request again"
+          originalRequest._retry = true;
+          // Ensure we use current headers (though token shouldn't have changed)
+          return apiClient(originalRequest);
+        } catch (refreshError) {
+          refreshingHosts.delete(hostUid);
+
+          // Note: If refreshError was a 401, it was already handled by the isLoginRequest check above 
+          // for the secondary request generated by store.dispatch(loginToHost).
+
+          // "if revoke host login failed (but not 401). just show error page of host login"
+          // This is already accomplished as loginToHost.rejected updates the hostAuthErrors state,
+          // which the Sidebar UI uses to show the "Connection Failed" / "Try Again" overlay.
+          return Promise.reject(error);
+        }
+      } else {
+        console.warn('Authentication expired. Redirecting to system login...');
+        await handleSystemSessionExpired();
+        return Promise.reject(error);
+      }
+    }
+
+    // Standardize error messaging for components
+    if (apiData) {
+      // Prioritize 'note' for detailed CMS-level error messages as requested
+      apiData.message = apiData.note || apiData.data?.title || apiData.message || 'An unexpected error occurred';
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+export default apiClient;

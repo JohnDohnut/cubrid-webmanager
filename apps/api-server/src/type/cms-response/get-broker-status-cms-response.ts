@@ -25,10 +25,22 @@ export type ApplicationServerInfo = {
 };
 
 /**
+ * Job queue entry in broker status response (`getbrokerstatus`).
+ */
+export type BrokerJobInfo = {
+  job_id: string;
+  job_priority: string;
+  job_ip: string;
+  job_time: string;
+  job_request: string;
+};
+
+/**
  * CMS response for broker status request.
  */
 export type GetBrokerStatusCmsResponse = BaseCmsResponse & {
   asinfo: ApplicationServerInfo[];
+  jobinfo: BrokerJobInfo[];
   bname: string;
   time: string;
 };

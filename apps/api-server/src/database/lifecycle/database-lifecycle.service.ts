@@ -4,38 +4,41 @@ import {
   CreateDatabaseWithConfigRequest,
   CreateDatabaseWithConfigResponse,
   DatabaseVolumeInfoClientResponse,
+  DeleteDatabaseRequest,
   StartInfoClientResponse,
 } from '@api-interfaces';
 import { GetCreatedbInfoClientResponse } from '@api-interfaces/response/get-createdb-info-client-response';
 import { CmsConfigService } from '@cms-config/cms-config.service';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
-import {
-  checkCmsStatusError,
-  checkCmsTokenError,
-  HandleDatabaseErrors,
-} from '@common';
+import { BaseService, HandleCmsErrors } from '@common';
+import { ConfigError } from '@error/config/config-error';
+import { ConfigErrorCode } from '@error/config/config-error-code';
 import { DatabaseError } from '@error/database/database-error';
 import { HostError } from '@error/index';
 import { ValidationError } from '@error/validation/validation-error';
 import { FileService } from '@file/file.service';
+import { HaService } from '@ha';
 import { HostService } from '@host';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { UserRepositoryService } from '@repository';
-import { BaseCmsRequest, BaseCmsResponse } from '@type';
+import { BaseCmsResponse } from '@type';
+import { DatabaseInfoService } from '../info/database-info.service';
 import { DatabaseUserService } from '../user/database-user.service';
 import { DatabaseConfigService } from '../config/database-config.service';
+import { CMS_CONFNAME_CUBRID } from '@database/database.constants';
 import {
   CreateDatabaseCmsRequest,
+  DeleteDatabaseCmsRequest,
   DbSpaceInfoCmsRequest,
   StartDatabaseCmsRequest,
   StopDatabaseCmsRequest,
 } from '@type/cms-request';
 import {
   CreateDatabaseCmsResponse,
+  DeleteDatabaseCmsResponse,
   DbSpaceInfoCmsResponse,
-  StartInfoCmsResponse,
 } from '@type/cms-response';
-import { convertExvolArrayToCmsFormat } from '@util';
+import { convertExvolArrayToCmsFormat, isHostHaModeOnFromCubridConf } from '@util';
 
 /**
  * Service for managing database lifecycle operations.
@@ -45,159 +48,120 @@ import { convertExvolArrayToCmsFormat } from '@util';
  * @since 1.0.0
  */
 @Injectable()
-export class DatabaseLifecycleService {
-  private readonly logger = new Logger(DatabaseLifecycleService.name);
-
+export class DatabaseLifecycleService extends BaseService {
   constructor(
-    private readonly hostService: HostService,
-    private readonly cmsClient: CmsHttpsClientService,
+    protected readonly hostService: HostService,
+    protected readonly cmsClient: CmsHttpsClientService,
     private readonly repository: UserRepositoryService,
     private readonly cmsConfigService: CmsConfigService,
     private readonly fileService: FileService,
     private readonly databaseUserService: DatabaseUserService,
-    private readonly databaseConfigService: DatabaseConfigService
-  ) {}
-
-  /**
-   * Get start information for databases on a host (internal use).
-   * Returns raw CMS response without transformation.
-   *
-   * @internal
-   * @param userId User ID from JWT
-   * @param hostUid Host UID
-   * @returns StartInfoCmsResponse
-   * @throws DatabaseError If request fails or CMS status is fail
-   */
-  @HandleDatabaseErrors()
-  async startInfoInternal(userId: string, hostUid: string): Promise<StartInfoCmsResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const data: BaseCmsRequest = {
-      task: 'startinfo',
-      token: host.token || '',
-    };
-    const response = await this.cmsClient.postAuthenticated<
-      BaseCmsRequest,
-      StartInfoCmsResponse | BaseCmsResponse
-    >(url, data);
-
-    checkCmsTokenError(response);
-
-    if (response.status === 'success') {
-      return response as StartInfoCmsResponse;
-    } else {
-      throw DatabaseError.GetStartInfoFailed({ response });
-    }
+    private readonly databaseConfigService: DatabaseConfigService,
+    private readonly databaseInfoService: DatabaseInfoService,
+    private readonly haService: HaService
+  ) {
+    super(hostService, cmsClient);
   }
 
-  /**
-   * Get start information for databases on a host.
-   * Returns domain-only data (CMS envelope removed).
-   *
-   * @param userId User ID from JWT
-   * @param hostUid Host UID
-   * @returns StartInfoClientResponse
-   * @throws DatabaseError If request fails or CMS status is fail
-   */
-  @HandleDatabaseErrors()
+  /** Delegates to DatabaseInfoService. */
   async startInfo(userId: string, hostUid: string): Promise<StartInfoClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const response = await this.startInfoInternal(userId, hostUid);
-    const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
-    const dbProfiles = host.dbProfiles || {};
-    const dbs = dataOnly.dblist?.[0]?.dbs || [];
-    const activeList = dataOnly.activelist?.[0]?.active || [];
+    return this.databaseInfoService.startInfo(userId, hostUid);
+  }
 
-    const clientResponse: StartInfoClientResponse = {
-      activelist: { active: activeList },
-      dblist: {
-        dbs: dbs.map((db) => ({
-          ...db,
-          isProfileExists: !!dbProfiles[db.dbname],
-        })),
-      },
-    };
-
-    return clientResponse;
+  /** Delegates to DatabaseInfoService. */
+  async getCreatedbInfo(userId: string, hostUid: string): Promise<GetCreatedbInfoClientResponse> {
+    return this.databaseInfoService.getCreatedbInfo(userId, hostUid);
   }
 
   /**
-   * Start a database on a host.
+   * Non-HA path: CMS `startdb`.
+   */
+  private async startNonHaDatabase(
+    userId: string,
+    hostUid: string,
+    dbname: string
+  ): Promise<BaseCmsResponse> {
+    return this.executeCmsRequest<StartDatabaseCmsRequest & { task: 'startdb' }, BaseCmsResponse>(
+      userId,
+      hostUid,
+      { task: 'startdb', dbname }
+    );
+  }
+
+  /**
+   * Non-HA path: CMS `stopdb`.
+   */
+  private async stopNonHaDatabase(
+    userId: string,
+    hostUid: string,
+    dbname: string
+  ): Promise<BaseCmsResponse> {
+    return this.executeCmsRequest<StopDatabaseCmsRequest & { task: 'stopdb' }, BaseCmsResponse>(
+      userId,
+      hostUid,
+      { task: 'stopdb', dbname }
+    );
+  }
+
+  /**
+   * Start a database on a host. Uses `ha_start` when server-side HA detection says this DB is HA.
+   * Rule: this DB must appear in `[common]` `ha_db_list` in cubrid_ha.conf (`haconf`).
+   * Otherwise uses `startdb`.
    *
    * @param userId User ID from JWT
    * @param hostUid Host UID
    * @param dbname Database name to start
    * @returns Latest start info (StartInfoClientResponse) on success
-   * @throws DatabaseError If CMS status is fail
+   * @throws CmsError If CMS status is not success (including `ha_start`)
    */
-  @HandleDatabaseErrors()
+
+  @HandleCmsErrors()
   async startDatabase(
     userId: string,
     hostUid: string,
     dbname: string
   ): Promise<StartInfoClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const data: StartDatabaseCmsRequest = {
-      task: 'startdb',
-      token: host.token || '',
-      dbname: dbname,
-    };
-
-    const response = await this.cmsClient.postAuthenticated<
-      StartDatabaseCmsRequest,
-      BaseCmsResponse
-    >(url, data);
-
-    checkCmsTokenError(response);
-
-    if (response.status === 'success') {
-      return await this.startInfo(userId, hostUid);
+    const useHa = await this.databaseInfoService.effectiveHaDbForDbname(userId, hostUid, dbname);
+    if (useHa) {
+      await this.haService.haStart(userId, hostUid, dbname);
+    } else {
+      await this.startNonHaDatabase(userId, hostUid, dbname);
     }
 
-    throw DatabaseError.StartDatabaseFailed({ response, dbname });
+    return await this.databaseInfoService.startInfo(userId, hostUid);
   }
 
   /**
-   * Stop a database on a host.
+   * Stop a database on a host. Uses `ha_stop` when server-side HA detection says this DB is HA.
+   * Rule: this DB must appear in `[common]` `ha_db_list` in cubrid_ha.conf (`haconf`).
+   * Otherwise uses `stopdb`.
    *
    * @param userId User ID from JWT
    * @param hostUid Host UID
    * @param dbname Database name to stop
    * @returns Latest start info (StartInfoClientResponse) on success
-   * @throws DatabaseError If CMS status is fail
+   * @throws DatabaseError If CMS status is fail (including `ha_stop` path)
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async stopDatabase(
     userId: string,
     hostUid: string,
     dbname: string
   ): Promise<StartInfoClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const data: StopDatabaseCmsRequest = {
-      task: 'stopdb',
-      token: host.token || '',
-      dbname: dbname,
-    };
-
-    const response = await this.cmsClient.postAuthenticated<
-      StopDatabaseCmsRequest,
-      BaseCmsResponse
-    >(url, data);
-
-    checkCmsTokenError(response);
-
-    if (response.status === 'success') {
-      return await this.startInfo(userId, hostUid);
+    const useHa = await this.databaseInfoService.effectiveHaDbForDbname(userId, hostUid, dbname);
+    if (useHa) {
+      await this.haService.haStop(userId, hostUid, dbname);
+    } else {
+      await this.stopNonHaDatabase(userId, hostUid, dbname);
     }
 
-    throw DatabaseError.StopDatabaseFailed({ response, dbname });
+    return await this.databaseInfoService.startInfo(userId, hostUid);
   }
 
   /**
    * Restart a database (stop then start).
+   * For both steps, HA selection follows the same rule as start/stop:
+   * DB name must be listed in `[common]` `ha_db_list` in cubrid_ha.conf (`haconf`).
    *
    * @param userId User ID from JWT
    * @param hostUid Host UID
@@ -205,85 +169,56 @@ export class DatabaseLifecycleService {
    * @returns Latest start info (StartInfoClientResponse) on success
    * @throws DatabaseError If stop/start step fails
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async restartDatabase(
     userId: string,
     hostUid: string,
     dbname: string
   ): Promise<StartInfoClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
+    const useHa = await this.databaseInfoService.effectiveHaDbForDbname(userId, hostUid, dbname);
 
-    const stopRequest: StopDatabaseCmsRequest = {
-      task: 'stopdb',
-      token: host.token || '',
-      dbname: dbname,
-    };
-
-    const stopResponse = await this.cmsClient.postAuthenticated<
-      StopDatabaseCmsRequest,
-      BaseCmsResponse
-    >(url, stopRequest);
-
-    checkCmsTokenError(stopResponse);
-
-    if (stopResponse.status === 'success') {
-      const startRequest: StartDatabaseCmsRequest = {
-        task: 'startdb',
-        token: host.token || '',
-        dbname: dbname,
-      };
-
-      const startResponse = await this.cmsClient.postAuthenticated<
-        StartDatabaseCmsRequest,
-        BaseCmsResponse
-      >(url, startRequest);
-
-      checkCmsTokenError(startResponse);
-
-      if (startResponse.status === 'success') {
-        return await this.startInfo(userId, hostUid);
-      } else {
-        throw DatabaseError.StartDatabaseFailed({
-          response: startResponse,
-          dbname,
-        });
-      }
+    if (useHa) {
+      await this.haService.haStop(userId, hostUid, dbname);
+      await this.haService.haStart(userId, hostUid, dbname);
     } else {
-      throw DatabaseError.StopDatabaseFailed({
-        response: stopResponse,
-        dbname,
-      });
+      await this.stopNonHaDatabase(userId, hostUid, dbname);
+      await this.startNonHaDatabase(userId, hostUid, dbname);
     }
+
+    return await this.databaseInfoService.startInfo(userId, hostUid);
   }
 
   /**
-   * Save a database profile for a host.
+   * Create or update a stored database profile for a host (id/password used by Web Manager).
+   * If a profile for `dbname` already exists, it is overwritten.
    *
    * @param userId User ID from JWT
    * @param hostUid Host UID
    * @param dbname Database name
    * @param databaseId Database user ID
-   * @param databasePassword Database password
+   * @param databasePassword Database password (`null`/`undefined` → stored as `""`)
    * @returns Latest start info (StartInfoClientResponse) on success
-   * @throws DatabaseError If profile already exists or save fails
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async saveDatabaseProfile(
     userId: string,
     hostUid: string,
     dbname: string,
     databaseId: string,
-    databasePassword: string
+    databasePassword: string | null | undefined
   ): Promise<StartInfoClientResponse> {
-    if (dbname == null || databaseId == null || databasePassword == null) {
+    const missing = (v: string | null | undefined) =>
+      v == null || (typeof v === 'string' && v.trim() === '');
+
+    const passwordToStore = databasePassword == null ? '' : databasePassword;
+
+    if (missing(dbname) || missing(databaseId)) {
       const missingFields = [
-        dbname == null && 'dbname',
-        databaseId == null && 'id',
-        databasePassword == null && 'password',
+        missing(dbname) && 'dbname',
+        missing(databaseId) && 'id',
       ].filter(Boolean) as string[];
 
-      throw ValidationError.MissingDBCredentials(dbname || 'unknown', missingFields);
+      throw ValidationError.MissingDBCredentials(dbname?.trim() || 'unknown', missingFields);
     }
 
     await this.repository.atomicUpdateUser(userId, async (user) => {
@@ -296,23 +231,16 @@ export class DatabaseLifecycleService {
         host.dbProfiles = {};
       }
 
-      if (host.dbProfiles[dbname]) {
-        throw DatabaseError.DuplicatedDatabaseProfile({
-          dbname,
-          hostUid,
-        });
-      }
-
       host.dbProfiles[dbname] = {
         dbname,
         id: databaseId,
-        password: databasePassword,
+        password: passwordToStore,
       };
 
       return user;
     });
 
-    return await this.startInfo(userId, hostUid);
+    return await this.databaseInfoService.startInfo(userId, hostUid);
   }
 
   /**
@@ -325,24 +253,13 @@ export class DatabaseLifecycleService {
    * @returns DatabaseVolumeInfoClientResponse
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async getDBSpaceInfo(
     userId: string,
     hostUid: string,
     dbname: string
   ): Promise<DatabaseVolumeInfoClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-
-    const startInfoRequest: BaseCmsRequest = {
-      task: 'startinfo',
-      token: host.token || '',
-    };
-
-    const startInfo = await this.cmsClient.postAuthenticated<
-      BaseCmsRequest,
-      StartInfoCmsResponse | BaseCmsResponse
-    >(url, startInfoRequest);
+    const startInfo = await this.databaseInfoService.startInfoInternal(userId, hostUid);
 
     if ('dblist' in startInfo && 'activelist' in startInfo) {
       const dbExists = startInfo.dblist.some((el) => el.dbs.some((db) => db.dbname === dbname));
@@ -351,48 +268,19 @@ export class DatabaseLifecycleService {
         throw DatabaseError.NoSuchDatabase({ dbname, hostUid });
       }
     } else {
-      checkCmsTokenError(startInfo);
       throw DatabaseError.InternalError();
     }
 
     const spaceInfoRequest: DbSpaceInfoCmsRequest = {
       task: 'dbspaceinfo',
-      token: host.token || '',
       dbname: dbname,
     };
-    const response = await this.cmsClient.postAuthenticated<
+    const response = await this.executeCmsRequest<
       DbSpaceInfoCmsRequest,
       DbSpaceInfoCmsResponse | BaseCmsResponse
-    >(url, spaceInfoRequest);
+    >(userId, hostUid, spaceInfoRequest);
 
-    checkCmsTokenError(response);
-
-    if (response.status === 'success') {
-      const { __EXEC_TIME, note, status, task, ...dataOnly } = response as DbSpaceInfoCmsResponse;
-      return dataOnly;
-    } else {
-      throw DatabaseError.GetDBSpaceInfoFailed({ response, dbname });
-    }
-  }
-
-  /**
-   * Get default information for creating a database.
-   * Returns default database directory path and related information.
-   *
-   * @param userId User ID from JWT
-   * @param hostUid Host UID
-   * @returns GetCreatedbInfoClientResponse Default database creation information
-   * @throws DatabaseError If request fails
-   */
-  @HandleDatabaseErrors()
-  async getCreatedbInfo(userId: string, hostUid: string): Promise<GetCreatedbInfoClientResponse> {
-    const envInfo = await this.cmsConfigService.getEnv(userId, hostUid);
-
-    return {
-      defaultDbDirectory: envInfo.CUBRID_DATABASES || '',
-      cubridVersion: envInfo.CUBRIDVER,
-      cubridPath: envInfo.CUBRID,
-    };
+    return this.extractDomainData(response as DbSpaceInfoCmsResponse);
   }
 
   /**
@@ -406,14 +294,29 @@ export class DatabaseLifecycleService {
    * @returns CreateDatabaseClientResponse Empty object on success
    * @throws DatabaseError If request fails
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async createDatabaseInternal(
     userId: string,
     hostUid: string,
     request: CreateDatabaseClientRequest
   ): Promise<CreateDatabaseClientResponse> {
     const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
+
+    const cubridConf = await this.cmsConfigService.getAllSystemParam(
+      userId,
+      hostUid,
+      CMS_CONFNAME_CUBRID
+    );
+    if (isHostHaModeOnFromCubridConf(cubridConf)) {
+      throw DatabaseError.InvalidParameter(
+        'Cannot create databases on hosts configured for HA.',
+        {
+          hostUid,
+          dbname: request.dbname,
+          reason: 'HA_HOST_CREATE_DB_BLOCKED',
+        }
+      );
+    }
 
     // Collect files to check before parsing exvol
     const filesToCheck: string[] = [];
@@ -446,15 +349,37 @@ export class DatabaseLifecycleService {
     // Convert exvol from client format to CMS format
     const cmsExvol = request.exvol ? convertExvolArrayToCmsFormat(request.exvol) : [];
 
+    // CUBRID CMS `logsize` expects "pages", but the client request treats `logsize` as "MB".
+    // So convert MB -> pages using `logpagesize` (bytes) before sending to CMS.
+    const logsizeMb = Number(request.logsize);
+    const logpagesizeBytes = Number(request.logpagesize);
+    if (!Number.isFinite(logsizeMb) || logsizeMb <= 0) {
+      throw DatabaseError.InvalidVolumeSize('Log size must be a positive number in MB', {
+        logsize: request.logsize,
+      });
+    }
+    if (!Number.isFinite(logpagesizeBytes) || logpagesizeBytes <= 0) {
+      throw DatabaseError.InvalidVolumeSize('Log page size must be a positive number in bytes', {
+        logpagesize: request.logpagesize,
+      });
+    }
+    const logsizeInPages = Math.floor((logsizeMb * 1024 * 1024) / logpagesizeBytes);
+    if (logsizeInPages <= 0) {
+      throw DatabaseError.InvalidVolumeSize('Log size is too small after MB->pages conversion', {
+        logsizeMb: request.logsize,
+        logpagesizeBytes: request.logpagesize,
+        logsizeInPages,
+      });
+    }
+
     // Build CMS request from client request
     // Convert numeric values to strings as CMS expects string format
     const cmsRequest: CreateDatabaseCmsRequest = {
       task: 'createdb',
-      token: host.token || '',
       dbname: request.dbname,
       numpage: String(request.numpage),
       pagesize: String(request.pagesize),
-      logsize: String(request.logsize),
+      logsize: String(logsizeInPages),
       logpagesize: String(request.logpagesize),
       genvolpath: request.genvolpath,
       logvolpath: request.logvolpath,
@@ -463,15 +388,13 @@ export class DatabaseLifecycleService {
       overwrite_config_file: request.overwrite_config_file,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
-      CreateDatabaseCmsRequest,
-      CreateDatabaseCmsResponse
-    >(url, cmsRequest);
+    this.logger.log(JSON.stringify(await this.executeCmsRequest<CreateDatabaseCmsRequest, CreateDatabaseCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    )));
 
-    checkCmsTokenError(response);
-    checkCmsStatusError(response);
-
-    return {};
+    return { success: true };
   }
 
   /**
@@ -490,50 +413,45 @@ export class DatabaseLifecycleService {
     hostUid: string,
     request: CreateDatabaseWithConfigRequest
   ): Promise<CreateDatabaseWithConfigResponse> {
-    const { updateUser, setAutoAddVol, setAutoStart, ...createDbRequest } = request;
+    const { username, updateUser, setAutoAddVol, setAutoStart, ...createDbRequest } = request;
 
     const response: CreateDatabaseWithConfigResponse = {
       createDatabase: { success: false },
     };
 
     // 1. Create database
-    try {
-      const createDatabaseResult = await this.createDatabaseInternal(
-        userId,
-        hostUid,
-        createDbRequest
-      );
-      response.createDatabase = {
-        success: true,
-        data: createDatabaseResult,
-      };
+    // IMPORTANT: if `createdb` fails, we should stop immediately and not proceed with the remaining steps.
+    // We let the original domain error bubble up so the API returns a real FAIL response (HTTP error + note).
+    const createDatabaseResult = await this.createDatabaseInternal(
+      userId,
+      hostUid,
+      createDbRequest
+    );
 
-      // 1-1. Start database after successful creation
-      try {
-        const startInfo = await this.startDatabase(userId, hostUid, createDbRequest.dbname);
-        response.startDatabase = {
-          success: true,
-          data: startInfo,
-        };
-      } catch (error: any) {
-        this.logger.error(`Failed to start database: ${error.message}`, error.stack);
-        response.startDatabase = {
-          success: false,
-          error: {
-            message: error.message || 'Failed to start database',
-            code: error.code || error.name,
-            details: error.details,
-          },
-        };
-      }
-    } catch (error: any) {
-      this.logger.error(`Failed to create database: ${error.message}`, error.stack);
-      response.createDatabase = {
+    response.createDatabase = {
+      success: true,
+      data: createDatabaseResult,
+    };
+
+    // 1-1. Start database after successful creation
+    try {
+      const startInfo = await this.startDatabase(userId, hostUid, createDbRequest.dbname);
+      response.startDatabase = {
+        success: true,
+        data: startInfo,
+      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      const errorCode = (error as any)?.code || (error instanceof Error ? error.name : 'UNKNOWN');
+      const errorDetails = (error as any)?.details;
+      this.logger.error(`Failed to start database: ${errorMessage}`, errorStack);
+      response.startDatabase = {
         success: false,
         error: {
-          message: error.message || 'Failed to create database',
-          code: error.code || error.name,
-          details: error.details,
+          message: errorMessage || 'Failed to start database',
+          code: errorCode,
+          details: errorDetails,
         },
       };
     }
@@ -542,13 +460,13 @@ export class DatabaseLifecycleService {
     if (updateUser) {
       try {
         // Use top-level dbname and username (default to "dba" if not provided)
-        const username = request.username || 'dba';
+        const usernameToUse = username || 'dba';
         // For createDatabase, we only update password, so use empty groups and authorization
         const updateUserResult = await this.databaseUserService.updateUser(
           userId,
           hostUid,
           createDbRequest.dbname,
-          username,
+          usernameToUse,
           updateUser.userpass,
           { group: [] },
           []
@@ -557,14 +475,18 @@ export class DatabaseLifecycleService {
           success: true,
           data: updateUserResult,
         };
-      } catch (error: any) {
-        this.logger.error(`Failed to update user: ${error.message}`, error.stack);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        const errorCode = (error as any)?.code || (error instanceof Error ? error.name : 'UNKNOWN');
+        const errorDetails = (error as any)?.details;
+        this.logger.error(`Failed to update user: ${errorMessage}`, errorStack);
         response.updateUser = {
           success: false,
           error: {
-            message: error.message || 'Failed to update user',
-            code: error.code || error.name,
-            details: error.details,
+            message: errorMessage || 'Failed to update user',
+            code: errorCode,
+            details: errorDetails,
           },
         };
       }
@@ -583,14 +505,18 @@ export class DatabaseLifecycleService {
           success: true,
           data: setAutoAddVolResult,
         };
-      } catch (error: any) {
-        this.logger.error(`Failed to set auto-add volume: ${error.message}`, error.stack);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        const errorCode = (error as any)?.code || (error instanceof Error ? error.name : 'UNKNOWN');
+        const errorDetails = (error as any)?.details;
+        this.logger.error(`Failed to set auto-add volume: ${errorMessage}`, errorStack);
         response.setAutoAddVol = {
           success: false,
           error: {
-            message: error.message || 'Failed to set auto-add volume',
-            code: error.code || error.name,
-            details: error.details,
+            message: errorMessage || 'Failed to set auto-add volume',
+            code: errorCode,
+            details: errorDetails,
           },
         };
       }
@@ -601,26 +527,115 @@ export class DatabaseLifecycleService {
       try {
         // Use top-level dbname and automatically use "cubridconf" as confname
         const setAutoStartResult = await this.databaseConfigService.setAutoStart(userId, hostUid, {
-          confname: 'cubridconf',
+          confname: CMS_CONFNAME_CUBRID,
           dbname: createDbRequest.dbname,
         });
         response.setAutoStart = {
           success: true,
           data: setAutoStartResult,
         };
-      } catch (error: any) {
-        this.logger.error(`Failed to set auto-start: ${error.message}`, error.stack);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        const errorCode = (error as any)?.code || (error instanceof Error ? error.name : 'UNKNOWN');
+        const errorDetails = (error as any)?.details;
+        this.logger.error(`Failed to set auto-start: ${errorMessage}`, errorStack);
         response.setAutoStart = {
           success: false,
           error: {
-            message: error.message || 'Failed to set auto-start',
-            code: error.code || error.name,
-            details: error.details,
+            message: errorMessage || 'Failed to set auto-start',
+            code: errorCode,
+            details: errorDetails,
           },
         };
       }
     }
 
     return response;
+  }
+
+  /**
+   * Delete a database.
+   * Also removes the database name from the server parameter in cubridconf if it exists.
+   * Returns start-info (db list) on success.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param dbname Database name
+   * @param request Client request containing delbackup option
+   * @returns StartInfoClientResponse Latest database list (start-info) on success
+   * @throws DatabaseError If request fails or CMS status is fail
+   */
+  @HandleCmsErrors()
+  async deleteDatabase(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    request: DeleteDatabaseRequest
+  ): Promise<StartInfoClientResponse> {
+    const cubridConf = await this.cmsConfigService.getAllSystemParam(
+      userId,
+      hostUid,
+      CMS_CONFNAME_CUBRID
+    );
+    if (isHostHaModeOnFromCubridConf(cubridConf)) {
+      throw DatabaseError.InvalidParameter(
+        'Cannot delete databases on hosts configured for HA.',
+        {
+          hostUid,
+          dbname,
+          reason: 'HA_HOST_DELETE_DB_BLOCKED',
+        }
+      );
+    }
+
+    const cmsRequest: DeleteDatabaseCmsRequest = {
+      task: 'deletedb',
+      dbname: dbname,
+      delbackup: request.delbackup,
+    };
+
+    this.logger.debug(`Deleting database: ${dbname} on host: ${hostUid}`);
+
+    await this.executeCmsRequest<DeleteDatabaseCmsRequest, DeleteDatabaseCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
+
+    // Remove dbname from server parameter in cubridconf if it exists
+    try {
+      await this.databaseConfigService.removeAutoStart(userId, hostUid, {
+        confname: CMS_CONFNAME_CUBRID,
+        dbname: dbname,
+      });
+      this.logger.debug(
+        `Successfully removed database name ${dbname} from server parameter in cubridconf`
+      );
+    } catch (error: unknown) {
+      // Ignore DbnameNotFound error (dbname may not exist in server parameter)
+      // Log other errors but don't fail the delete operation
+      if (error instanceof ConfigError && error.code === ConfigErrorCode.DBNAME_NOT_FOUND) {
+        this.logger.debug(
+          `Database name ${dbname} not found in server parameter, skipping removal (this is expected if auto-start was not configured)`
+        );
+      } else {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        const errorCode = error instanceof ConfigError ? error.code : 'UNKNOWN';
+        this.logger.warn(
+          `Failed to remove dbname from server parameter during database deletion: ${errorMessage}`,
+          {
+            dbname,
+            hostUid,
+            errorCode,
+            stack: errorStack,
+          }
+        );
+      }
+    }
+
+    // Return latest db list (start-info)
+    return await this.databaseInfoService.startInfo(userId, hostUid);
   }
 }

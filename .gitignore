@@ -4,6 +4,7 @@ node_modules/
 
 # Build outputs
 dist/
+dev-dist/
 out-tsc/
 *.tsbuildinfo
 
@@ -112,3 +113,7 @@ Desktop.ini
 *.swp
 *.swo
 docs/
+local-e2e/
+playwright-report/
+test-results/
+cwm-workspace/

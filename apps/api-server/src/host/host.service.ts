@@ -2,9 +2,7 @@ import { HandleHostErrors } from '@common';
 import { HostError } from '@error/index';
 import { Injectable, Logger } from '@nestjs/common';
 import { UserRepositoryService } from '@repository';
-import { EncryptionService } from '@security';
 import {
-  HashMap,
   SafeHostList,
   HostInfo,
   User,
@@ -15,7 +13,7 @@ import {
   GetHostsResponse,
   HostResponse,
 } from '@api-interfaces';
-import { omitPassword, omitPasswordArray, omitPasswordHashMap, omitHashMap } from '@util';
+import { omitHashMap } from '@util';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -53,7 +51,12 @@ export class HostService {
   async getHostList(userId: string): Promise<GetHostsResponse> {
     this.logger.log(`Getting host list for user: ${userId}`);
     const user: User = await this.repository.loadUserById(userId);
-    const hosts = user.host_list;
+    const hosts = Object.fromEntries(
+      Object.entries(user.host_list).map(([uid, host]) => [
+        uid,
+        { ...host, initialLogin: host.initialLogin ?? true },
+      ])
+    );
     const hostCount = Object.keys(hosts).length;
     this.logger.log(`Found ${hostCount} hosts for user: ${userId}`);
 
@@ -90,20 +93,29 @@ export class HostService {
       `Adding host for user: ${userId}, address: ${hostInfo.address}, port: ${hostInfo.port}, id: ${hostInfo.id}`
     );
     const updatedUser = await this.repository.atomicUpdateUser(userId, async (user: User) => {
-      if (Object.keys(user.host_list).length >= 50) {
+      if (Object.keys(user.host_list).length >= 400) {
         this.logger.warn(
           `Host limit exceeded for user: ${userId}, current count: ${Object.keys(user.host_list).length}`
         );
         throw HostError.ExceedMaxHosts({
-          'current host count': 50,
+          'current host count': 400,
+        });
+      }
+
+      const alias = typeof hostInfo.alias === 'string' ? hostInfo.alias.trim() : '';
+      if (!alias) {
+        throw HostError.InvalidFormat({
+          field: 'alias',
+          reason: 'MISSING_OR_BLANK_ALIAS',
         });
       }
 
       const duplicate = Object.values(user.host_list).find(
         (host) =>
-          host.address === hostInfo.address &&
-          host.port === hostInfo.port &&
-          host.id === hostInfo.id
+          (host.address === hostInfo.address &&
+            host.port === hostInfo.port &&
+            host.id === hostInfo.id) ||
+          this.hasSameDefinedAlias(host.alias, hostInfo.alias)
       );
 
       if (duplicate) {
@@ -118,6 +130,8 @@ export class HostService {
       const newHost: HostInfo = {
         uid: uuidv4(),
         ...hostInfo,
+        alias,
+        initialLogin: true,
         dbProfiles: {},
       };
 
@@ -187,12 +201,25 @@ export class HostService {
 
       const existingHost = user.host_list[hostUid];
 
+      let proposedAlias = existingHost.alias;
+      if (hostInfo.alias !== undefined) {
+        const trimmed = String(hostInfo.alias).trim();
+        if (!trimmed) {
+          throw HostError.InvalidFormat({
+            field: 'alias',
+            reason: 'BLANK_ALIAS_NOT_ALLOWED',
+          });
+        }
+        proposedAlias = trimmed;
+      }
+
       const duplicate = Object.values(user.host_list).find(
         (host) =>
-          host.address === hostInfo.address &&
-          host.port === hostInfo.port &&
-          host.id === hostInfo.id &&
-          host.uid != hostUid
+          host.uid !== hostUid &&
+          ((host.address === hostInfo.address &&
+            host.port === hostInfo.port &&
+            host.id === hostInfo.id) ||
+            this.hasSameDefinedAlias(host.alias, proposedAlias))
       );
       if (duplicate) {
         this.logger.warn(
@@ -209,7 +236,8 @@ export class HostService {
         address: hostInfo.address ?? existingHost.address,
         port: hostInfo.port ?? existingHost.port,
         password: hostInfo.password ?? existingHost.password,
-        alias: hostInfo.alias ?? existingHost.alias,
+        initialLogin: existingHost.initialLogin ?? true,
+        alias: proposedAlias,
         token: hostInfo.token ?? existingHost.token,
         dbProfiles: hostInfo.dbProfiles ?? existingHost.dbProfiles ?? {},
       };
@@ -245,7 +273,7 @@ export class HostService {
       throw HostError.NoSuchHost({ hostUid });
     }
 
-    return host;
+    return { ...host, initialLogin: host.initialLogin ?? true };
   }
 
   /**
@@ -268,6 +296,7 @@ export class HostService {
     }
 
     const { password, token, dbProfiles, ...hostResponse } = host;
+    hostResponse.initialLogin = host.initialLogin ?? true;
     return hostResponse as HostResponse;
   }
 
@@ -293,5 +322,15 @@ export class HostService {
       return user;
     });
     return omitHashMap(updatedUser.host_list, ['password', 'token', 'dbProfiles']) as SafeHostList;
+  }
+
+  /**
+   * True only when both aliases are non-empty after trim and equal.
+   * Skips match when either side is missing so undefined/blank pairs are not treated as duplicates.
+   */
+  private hasSameDefinedAlias(a: string | undefined, b: string | undefined): boolean {
+    const left = a?.trim() ?? '';
+    const right = b?.trim() ?? '';
+    return left !== '' && right !== '' && left === right;
   }
 }
