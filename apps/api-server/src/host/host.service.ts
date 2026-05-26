@@ -12,6 +12,7 @@ import {
   createGroupWithHost,
   createEmptyGroup,
   deleteGroup,
+  ensureHostGroupsWritable,
   findDuplicateHost,
   findHostRef,
   getHost,
@@ -50,6 +51,7 @@ export class HostService {
     );
 
     const updatedUser = await this.repository.atomicUpdateUser(userId, async (user: User) => {
+      const groups = ensureHostGroupsWritable(user);
       if (countAllHosts(user) >= 400) {
         throw HostError.ExceedMaxHosts({ 'current host count': 400 });
       }
@@ -77,7 +79,7 @@ export class HostService {
 
       const { groupId } = hostInfo;
       if (groupId) {
-        if (!user.host_groups[groupId]) {
+        if (!groups[groupId]) {
           throw HostError.InvalidFormat({ field: 'groupId', reason: 'GROUP_NOT_FOUND' });
         }
         addHostToGroup(user, groupId, newHost);

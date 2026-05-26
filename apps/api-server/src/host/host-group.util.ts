@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { omitHashMap } from '@util';
+import { HashMap } from '@type/collections';
 import { HostGroupInfo, HostInfo, User } from '@type/index';
 import { SafeHostList, SafeHostGroupsMap, SafeHostGroupInfo } from '@type/collections';
 
@@ -9,9 +10,28 @@ export type HostRef = {
   host: HostInfo;
 };
 
+/** Read path: missing host_groups on deserialized JSON. */
+export function readHostGroups(user: Pick<User, 'host_groups'>): HashMap<HostGroupInfo> {
+  return user.host_groups ?? {};
+}
+
+/** Read path: missing hosts on a group record. */
+export function readGroupHosts(group: Pick<HostGroupInfo, 'hosts'>): HashMap<HostInfo> {
+  return group.hosts ?? {};
+}
+
+/** Write path: ensure host_groups exists before in-place mutation (persisted on save). */
+export function ensureHostGroupsWritable(user: User): HashMap<HostGroupInfo> {
+  return (user.host_groups ??= {});
+}
+
+function ensureGroupHostsWritable(group: HostGroupInfo): HashMap<HostInfo> {
+  return (group.hosts ??= {});
+}
+
 export function findHostRef(user: User, hostUid: string): HostRef | null {
-  for (const [groupId, group] of Object.entries(user.host_groups)) {
-    const host = group.hosts[hostUid];
+  for (const [groupId, group] of Object.entries(readHostGroups(user))) {
+    const host = readGroupHosts(group)[hostUid];
     if (host) {
       return { groupId, group, host };
     }
@@ -24,15 +44,15 @@ export function getHost(user: User, hostUid: string): HostInfo | null {
 }
 
 export function countAllHosts(user: User): number {
-  return Object.values(user.host_groups).reduce(
-    (n, g) => n + Object.keys(g.hosts).length,
+  return Object.values(readHostGroups(user)).reduce(
+    (n, g) => n + Object.keys(readGroupHosts(g)).length,
     0
   );
 }
 
 export function forEachHost(user: User, fn: (ref: HostRef) => void): void {
-  for (const [groupId, group] of Object.entries(user.host_groups)) {
-    for (const host of Object.values(group.hosts)) {
+  for (const [groupId, group] of Object.entries(readHostGroups(user))) {
+    for (const host of Object.values(readGroupHosts(group))) {
       fn({ groupId, group, host });
     }
   }
@@ -66,12 +86,12 @@ function hasSameDefinedAlias(a: string | undefined, b: string | undefined): bool
 
 export function sanitizeHostGroups(user: User): SafeHostGroupsMap {
   const out: SafeHostGroupsMap = {};
-  for (const [groupId, group] of Object.entries(user.host_groups)) {
+  for (const [groupId, group] of Object.entries(readHostGroups(user))) {
     out[groupId] = {
       name: group.name,
       defaultHostUid: group.defaultHostUid,
       createdAt: group.createdAt,
-      hosts: omitHashMap(group.hosts, ['password', 'token', 'dbProfiles']) as SafeHostList,
+      hosts: omitHashMap(readGroupHosts(group), ['password', 'token', 'dbProfiles']) as SafeHostList,
     };
   }
   return out;
@@ -83,7 +103,7 @@ export function createGroupWithHost(
   opts?: { name?: string }
 ): string {
   const groupId = uuidv4();
-  user.host_groups[groupId] = {
+  ensureHostGroupsWritable(user)[groupId] = {
     name: (opts?.name ?? host.alias ?? host.id ?? 'Host').trim() || 'Host',
     defaultHostUid: host.uid,
     createdAt: new Date().toISOString(),
@@ -95,7 +115,7 @@ export function createGroupWithHost(
 export function createEmptyGroup(user: User, name: string): string {
   const groupId = uuidv4();
   const trimmed = (name ?? '').trim();
-  user.host_groups[groupId] = {
+  ensureHostGroupsWritable(user)[groupId] = {
     name: trimmed || 'Group',
     createdAt: new Date().toISOString(),
     hosts: {},
@@ -104,8 +124,9 @@ export function createEmptyGroup(user: User, name: string): string {
 }
 
 export function deleteGroup(user: User, groupId: string): boolean {
-  if (!user.host_groups[groupId]) return false;
-  delete user.host_groups[groupId];
+  const groups = readHostGroups(user);
+  if (!groups[groupId]) return false;
+  delete ensureHostGroupsWritable(user)[groupId];
   return true;
 }
 
@@ -114,7 +135,7 @@ export function updateGroup(
   groupId: string,
   patch: { name?: string; defaultHostUid?: string | null }
 ): boolean {
-  const group = user.host_groups[groupId];
+  const group = readHostGroups(user)[groupId];
   if (!group) return false;
 
   if (patch.name !== undefined) {
@@ -127,7 +148,7 @@ export function updateGroup(
 
   if (patch.defaultHostUid !== undefined) {
     const next = patch.defaultHostUid ?? undefined;
-    if (next && !group.hosts[next]) {
+    if (next && !readGroupHosts(group)[next]) {
       throw new Error('DEFAULT_HOST_NOT_IN_GROUP');
     }
     group.defaultHostUid = next;
@@ -137,11 +158,11 @@ export function updateGroup(
 }
 
 export function addHostToGroup(user: User, groupId: string, host: HostInfo): void {
-  const group = user.host_groups[groupId];
+  const group = readHostGroups(user)[groupId];
   if (!group) {
     throw new Error(`Host group not found: ${groupId}`);
   }
-  group.hosts[host.uid] = host;
+  ensureGroupHostsWritable(group)[host.uid] = host;
   if (!group.defaultHostUid) {
     group.defaultHostUid = host.uid;
   }
@@ -150,13 +171,14 @@ export function addHostToGroup(user: User, groupId: string, host: HostInfo): voi
 export function removeHostFromUser(user: User, hostUid: string): boolean {
   const ref = findHostRef(user, hostUid);
   if (!ref) return false;
-  delete ref.group.hosts[hostUid];
+  const hosts = ensureGroupHostsWritable(ref.group);
+  delete hosts[hostUid];
   if (ref.group.defaultHostUid === hostUid) {
-    const remaining = Object.values(ref.group.hosts);
+    const remaining = Object.values(hosts);
     ref.group.defaultHostUid = remaining[0]?.uid;
   }
-  if (Object.keys(ref.group.hosts).length === 0) {
-    delete user.host_groups[ref.groupId];
+  if (Object.keys(hosts).length === 0) {
+    delete ensureHostGroupsWritable(user)[ref.groupId];
   }
   return true;
 }
