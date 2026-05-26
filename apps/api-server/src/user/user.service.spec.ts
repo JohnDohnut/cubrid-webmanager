@@ -21,11 +21,7 @@ describe('UserService', () => {
     id: 'testuser',
     password: 'hashed-password',
     department: 'IT',
-<<<<<<< HEAD
     host_groups: {},
-=======
-    host_list: {},
->>>>>>> origin/develop
     ha_mon_list: {},
     resource_mon_list: {},
     user_preference: {
