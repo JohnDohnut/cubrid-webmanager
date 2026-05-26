@@ -474,5 +474,4 @@ export class DatabaseManagementController {
     );
     return await this.managementService.killTransaction(userId, hostUid, dbname, body);
   }
-
 }

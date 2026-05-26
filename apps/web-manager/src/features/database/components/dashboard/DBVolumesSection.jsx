@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useDispatch } from 'react-redux';
 import { fetchDashboardVolumes } from '../../databaseSlice';
 import { Icon } from '../../../../components/ds/foundation/Icon';
@@ -7,8 +7,10 @@ import { Typography } from '../../../../components/ds/foundation/Typography';
 import { Card } from '../../../../components/ds/layout/Card';
 import { ProgressBar } from '../../../../components/ds/foundation/ProgressBar';
 import { StatusBadge } from '../../../../components/ds/foundation/StatusBadge';
+import { useCM } from '../../../../constants/useCM';
 
 export default function DBVolumesSection({ volumes, pollingProps }) {
+  const CM = useCM();
   const dispatch = useDispatch();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { hostUid, dbname, isTabActive, autoRefresh, refreshInterval } = pollingProps;
@@ -43,9 +45,9 @@ export default function DBVolumesSection({ volumes, pollingProps }) {
     return parseInt(cleaned) || 0;
   };
 
-  const columns = [
+  const columns = useMemo(() => [
     {
-      header: 'Volume',
+      header: CM.volumeLabel,
       accessor: 'name',
       render: (val) => {
         const name = val.split(/[/\\]/).pop() || val;
@@ -58,7 +60,7 @@ export default function DBVolumesSection({ volumes, pollingProps }) {
       }
     },
     {
-      header: 'Type',
+      header: CM.type,
       accessor: 'type',
       render: (val) => {
         const t = (val || '').toUpperCase();
@@ -71,9 +73,9 @@ export default function DBVolumesSection({ volumes, pollingProps }) {
         return <StatusBadge label={val} variant={variant} />;
       }
     },
-    { header: 'Purpose', accessor: 'purpose', render: (val) => <span className="font-mono text-[12px] text-slate-400">{val}</span> },
+    { header: CM.purpose, accessor: 'purpose', render: (val) => <span className="font-mono text-[12px] text-slate-400">{val}</span> },
     {
-      header: 'Space Usage',
+      header: CM.spaceUsage,
       accessor: 'free',
       render: (val, row) => {
         const rawFree = cleanInt(val);
@@ -94,9 +96,9 @@ export default function DBVolumesSection({ volumes, pollingProps }) {
         );
       }
     },
-    { header: 'Modified', accessor: 'date', render: (val) => <span className="font-mono text-[11px] text-slate-400">{val}</span> },
+    { header: CM.modifiedLabel, accessor: 'date', render: (val) => <span className="font-mono text-[11px] text-slate-400">{val}</span> },
     {
-      header: 'Path',
+      header: CM.pathLabel,
       accessor: 'path',
       render: (val) => (
         <div className="flex items-center gap-1.5 min-w-0">
@@ -105,14 +107,14 @@ export default function DBVolumesSection({ volumes, pollingProps }) {
         </div>
       )
     },
-  ];
+  ], [CM]);
 
   return (
     <Card
       title={
         <div className="flex items-center gap-2">
           <Icon name="storage" size="sm" weight={300} className="text-amber-500" />
-          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Storage Volumes</span>
+          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{CM.storageVolumes}</span>
         </div>
       }
       bodyClassName="p-0"

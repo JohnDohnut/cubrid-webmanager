@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { fetchAutoVolumeLog, closeAutoVolumeLogModal } from '../databaseSlice';
+import { useCM } from '../../../constants/useCM';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -11,6 +12,7 @@ import { Typography } from '../../../components/ds/foundation/Typography';
 import { StatusBadge } from '../../../components/ds/foundation/StatusBadge';
 
 export default function AutoVolumeLogModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isAutoVolumeLogModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
@@ -150,7 +152,7 @@ export default function AutoVolumeLogModal() {
     <Modal
       isOpen={isAutoVolumeLogModalOpen}
       onClose={() => dispatch(closeAutoVolumeLogModal())}
-      title="Auto Volume Log"
+      title={CM.autoVolumeLog}
       subtitle={selectedDatabase ? `Audit history for: ${selectedDatabase}` : 'Global automation history'}
       icon="history_edu"
       iconVariant="warning"

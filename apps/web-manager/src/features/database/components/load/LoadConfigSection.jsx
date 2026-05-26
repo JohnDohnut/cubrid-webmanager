@@ -1,8 +1,9 @@
 import { Input } from '../../../../components/ds/forms/Input';
 import { SectionHeader } from '../../../../components/ds/foundation/SectionHeader';
-import { CM } from '../../../../constants/cmLabels';
+import { useCM } from '../../../../constants/useCM';
 
 export default function LoadConfigSection({ formData, handleInputChange }) {
+  const CM = useCM();
   return (
     <div className="space-y-4">
       <SectionHeader title={CM.grpDbInfo} icon="account_circle" />

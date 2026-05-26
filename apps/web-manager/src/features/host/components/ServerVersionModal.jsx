@@ -6,8 +6,10 @@ import { Modal } from '../../../components/ds/layout/Modal';
 import { Button } from '../../../components/ds/foundation/Button';
 import { Typography } from '../../../components/ds/foundation/Typography';
 import { SectionHeader } from '../../../components/ds/foundation/SectionHeader';
+import { useCM } from '../../../constants/useCM';
 
 export default function ServerVersionModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isServerVersionModalOpen, serverVersionHostUid, hosts } = useSelector((state) => state.host, shallowEqual);
   const [envData, setEnvData] = useState(null);
@@ -37,18 +39,18 @@ export default function ServerVersionModal() {
     <Modal
       isOpen={isServerVersionModalOpen}
       onClose={() => dispatch(closeServerVersionModal())}
-      title="Server Version"
+      title={CM.serverVersion}
       icon="info"
       loading={loading}
       maxWidth="420px"
-      subtitle={`Host: ${currentHost?.alias || currentHost?.id}`}
+      subtitle={CM.serverColon(currentHost?.alias || currentHost?.id)}
       footer={
         <Button 
           variant="primary" 
           onClick={() => dispatch(closeServerVersionModal())}
           className="min-w-[140px]"
         >
-          Close
+          {CM.close}
         </Button>
       }
     >
@@ -59,20 +61,20 @@ export default function ServerVersionModal() {
 
         <div className="w-full space-y-5">
           <div className="flex flex-col items-center text-center w-full">
-            <SectionHeader title="Cubrid Version" icon="verified" className="justify-center" />
+            <SectionHeader title={CM.cubridVersion} icon="verified" className="justify-center" />
             <Typography variant="p" className="font-mono text-slate-700 dark:text-slate-200 leading-relaxed text-[13px]">
               {envData?.CUBRIDVER || 'Loading...'}
             </Typography>
           </div>
 
           <div className="w-full">
-            <SectionHeader title="Environment Details" icon="settings_suggest" />
+            <SectionHeader title={CM.environmentDetails} icon="settings_suggest" />
             <div className="space-y-0.5 pt-2">
               {[
-                { label: 'OS Platform', value: envData?.osinfo },
-                { label: 'Broker Version', value: envData?.BROKERVER },
-                { label: 'Install Path', value: envData?.CUBRID, isPath: true },
-                { label: 'Databases Path', value: envData?.CUBRID_DATABASES, isPath: true }
+                { label: CM.osPlatform, value: envData?.osinfo },
+                { label: CM.broker, value: envData?.BROKERVER },
+                { label: CM.installPath, value: envData?.CUBRID, isPath: true },
+                { label: CM.databases, value: envData?.CUBRID_DATABASES, isPath: true }
               ].map((item, idx) => (
                 <div key={idx} className="flex justify-between items-center py-1.5 border-b border-slate-50 dark:border-white/5 last:border-0">
                   <Typography variant="caption" className="text-slate-400 font-medium">{item.label}</Typography>

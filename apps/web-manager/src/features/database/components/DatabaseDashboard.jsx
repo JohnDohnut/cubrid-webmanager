@@ -16,8 +16,10 @@ import { useActionState } from '../../../infrastructure/hooks/useActionState';
 import { RefreshingOverlay } from '../../../components/ds/feedback/RefreshingOverlay';
 import { Modal } from '../../../components/ds/layout/Modal';
 import { ModalStatusError } from '../../../components/ds/feedback/ActionStatus';
+import { useCM } from '../../../constants/useCM';
 
 const Component = function DatabaseDashboard({ dbname }) {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { selectedHostUid, hosts } = useSelector((state) => state.host, shallowEqual);
   const { dashboardData, dashboardLoading } = useSelector((state) => state.databaseMonitoring, shallowEqual);
@@ -45,7 +47,7 @@ const Component = function DatabaseDashboard({ dbname }) {
   });
 
   const handleRestartCAS = async (row) => {
-    if (window.confirm(`Are you sure you want to restart CAS ID: ${row.id} on broker: ${row.broker}?`)) {
+    if (window.confirm(CM.restartCasConfirm(row.id, row.broker))) {
       startAction();
       try {
         // We'll need to find the correct thunk for this, usually restartCAS or similar.
@@ -124,8 +126,6 @@ const Component = function DatabaseDashboard({ dbname }) {
   }];
   
   const mappedBrokers = brokersCAS.map(c => ({ broker: c.broker, id: c.id, pid: c.pid, qps: c.qps, lqs: c.lqs, status: c.status, lastConn: c.lastConn, dbname: c.dbname }));
-  const mappedLocks = (data.locks || []).map((l, i) => ({ index: l.index || i + 1, user: l.uid || '-', host: l.host || '-', pid: l.pid || '-', obj: l.object || '-', mode: l.granted_mode || '-' }));
-
   const handleExport = () => {
     const headers = ['Section', 'Key', 'Value'];
     const rows = [
@@ -159,11 +159,11 @@ const Component = function DatabaseDashboard({ dbname }) {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <Typography variant="h1" className="text-[13px] font-bold text-slate-800 dark:text-slate-100 tracking-tight leading-tight">Database Dashboard</Typography>
+              <Typography variant="h1" className="text-[13px] font-bold text-slate-800 dark:text-slate-100 tracking-tight leading-tight">{CM.databaseDashboard}</Typography>
               <div className={`px-2 py-0.5 rounded-full border flex items-center gap-1.5 shrink-0 transition-all duration-300 ${preferences.dashboardInterval > 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10'}`}>
                 <div className={`w-1 h-1 rounded-full ${preferences.dashboardInterval > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
                 <span className={`text-[9px] font-bold ${preferences.dashboardInterval > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
-                  {preferences.dashboardInterval > 0 ? 'Live' : 'Paused'}
+                  {preferences.dashboardInterval > 0 ? CM.live : CM.paused}
                 </span>
               </div>
             </div>
@@ -176,7 +176,7 @@ const Component = function DatabaseDashboard({ dbname }) {
 
         <div className="flex items-center gap-1.5">
           <Typography variant="label" className="text-[10px] text-slate-400 font-mono tracking-tight hidden lg:block mr-2">
-            Synced {lastRefreshed.toLocaleTimeString('en-US', { hour12: true })}
+            {CM.syncedAt(lastRefreshed.toLocaleTimeString())}
           </Typography>
 
           <button
@@ -186,7 +186,7 @@ const Component = function DatabaseDashboard({ dbname }) {
               ${(isLoading || isManualRefreshing)
                 ? 'bg-slate-100 dark:bg-white/5 text-slate-300 dark:text-slate-600 border-slate-200 dark:border-white/5 cursor-not-allowed opacity-50'
                 : 'bg-slate-50 dark:bg-white/[0.03] border-slate-200 dark:border-white/10 text-slate-400 hover:text-amber-600 dark:hover:text-amber-500 hover:border-amber-500/50 hover:bg-white dark:hover:bg-white/5 shadow-xs'}`}
-            title="Refresh database status"
+            title={CM.refreshDatabaseStatus}
           >
             <Icon name="refresh" size="18px" className={(isLoading || isManualRefreshing) ? 'animate-spin' : ''} />
           </button>
@@ -198,7 +198,7 @@ const Component = function DatabaseDashboard({ dbname }) {
           <button
             onClick={handleExport}
             className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all active:scale-[0.98] bg-slate-50 dark:bg-white/[0.03] border-slate-200 dark:border-white/10 text-slate-400 hover:text-amber-600 dark:hover:text-amber-500 hover:border-amber-500/50 hover:bg-white dark:hover:bg-white/5 shadow-xs`}
-            title="Export metrics as CSV"
+            title={CM.exportMetricsCsv}
           >
             <Icon name="ios_share" size="18px" weight={300} />
           </button>
@@ -208,13 +208,13 @@ const Component = function DatabaseDashboard({ dbname }) {
 
 
       <div className="flex-1 overflow-y-auto p-6 space-y-4 relative">
-        <RefreshingOverlay show={isActionLoading} title="Restarting CAS" subtitle="Resetting broker application server process" />
+        <RefreshingOverlay show={isActionLoading} title={CM.restartingCas} subtitle={CM.resettingCasProcess} />
         
         {isLoading && (!data.volumes || data.volumes.length === 0) ? (
           <div className="flex items-center justify-center h-64">
             <div className="flex flex-col items-center gap-3">
               <div className="h-8 w-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-              <Typography variant="label" className="text-[11px] text-slate-400 uppercase tracking-widest">Loading Dashboard…</Typography>
+              <Typography variant="label" className="text-[11px] text-slate-400 uppercase tracking-widest">{CM.loadingDashboard}</Typography>
             </div>
           </div>
         ) : (
@@ -229,7 +229,7 @@ const Component = function DatabaseDashboard({ dbname }) {
               onViewSlowQueryLog={(row) => setLogModal({ isOpen: true, brokerName: row.broker, casId: row.id, type: 'slow' })}
               onRestartCAS={handleRestartCAS}
             />
-            <DBLockTransactionSection locks={mappedLocks} pollingProps={pollingProps} />
+            <DBLockTransactionSection locks={data.locks || []} pollingProps={pollingProps} />
           </div>
         )}
       </div>
@@ -244,13 +244,13 @@ const Component = function DatabaseDashboard({ dbname }) {
       />
 
       {isActionError && (
-        <Modal isOpen title="Update Failed" icon="error" iconVariant="danger" onClose={resetAction} maxWidth="400px">
+        <Modal isOpen title={CM.updateFailed} icon="error" iconVariant="danger" onClose={resetAction} maxWidth="400px">
           <ModalStatusError 
-            title="Failed"
+            title={CM.failure}
             error={actionError}
             onRetry={resetAction}
             onCancel={resetAction}
-            retryText="Dismiss"
+            retryText={CM.dismiss}
           />
         </Modal>
       )}

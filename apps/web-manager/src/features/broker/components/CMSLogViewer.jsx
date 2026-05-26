@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useSelector, useDispatch , shallowEqual } from 'react-redux';
 import { fetchCMSLogs } from '../brokerSlice';
+import { useCM } from '../../../constants/useCM';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { StatusBadge } from '../../../components/ds/foundation/StatusBadge';
 
 function CMSLogViewer({ hostUid, type }) {
+  const CM = useCM();
   const dispatch = useDispatch();
   const [currentPage, setCurrentPage] = useState(1);
   const [showAll, setShowAll] = useState(false);
@@ -72,7 +74,7 @@ function CMSLogViewer({ hostUid, type }) {
               setTimeout(() => setCopying(false), 2000);
             }}
             disabled={paginatedLogs.length === 0}
-            title="Copy visible entries to clipboard"
+            title={CM.copyVisibleEntries}
             className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-all active:scale-[0.98] disabled:opacity-30 
               ${copying
                 ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30 !w-auto !px-3 font-bold !gap-1.5 text-[10px]'
@@ -86,7 +88,7 @@ function CMSLogViewer({ hostUid, type }) {
           <button
             onClick={handleRefresh}
             disabled={loading}
-            title="Refresh"
+            title={CM.refresh}
             className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-all active:scale-[0.98]
               ${loading
                 ? 'bg-slate-100 dark:bg-white/5 text-slate-300 dark:text-slate-600 border-slate-200 dark:border-white/5 cursor-not-allowed opacity-50'
@@ -199,7 +201,7 @@ function CMSLogViewer({ hostUid, type }) {
              <span>Showing: {startIndex + 1} - {Math.min(startIndex + pageSize, totalEntries)}</span>
           )}
         </div>
-        <StatusBadge label="Connected" variant="emerald" className="border-none bg-transparent" />
+        <StatusBadge label={CM.connected} variant="emerald" className="border-none bg-transparent" />
       </div>
     </div>
   );

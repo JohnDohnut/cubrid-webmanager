@@ -9,7 +9,7 @@ import { Button } from '../../../components/ds/foundation/Button';
 import { Input } from '../../../components/ds/forms/Input';
 import { Toggle } from '../../../components/ds/forms/Toggle';
 import { Typography } from '../../../components/ds/foundation/Typography';
-import { CM } from '../../../constants/cmLabels';
+import { useCM } from '../../../constants/useCM';
 
 import { useActionState } from '../../../infrastructure/hooks/useActionState';
 import {
@@ -19,6 +19,7 @@ import {
 } from '../../../components/ds/feedback/ActionStatus';
 
 export default function LoginDatabaseModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isLoginDatabaseModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);

@@ -2,7 +2,7 @@ import { Toggle } from '../../../../components/ds/forms/Toggle';
 import { Input } from '../../../../components/ds/forms/Input';
 import { Typography } from '../../../../components/ds/foundation/Typography';
 import { SectionHeader } from '../../../../components/ds/foundation/SectionHeader';
-import { CM } from '../../../../constants/cmLabels';
+import { useCM } from '../../../../constants/useCM';
 
 function OptionRow({ label, checked, onChange }) {
   return (
@@ -19,6 +19,7 @@ function OptionRow({ label, checked, onChange }) {
 }
 
 export default function LoadOptionsSection({ formData, handleCheckBoxChange, handleValueChange }) {
+  const CM = useCM();
   const switches = [
     { id: 'checkoption', label: CM.checkSyntaxAndLoad },
     { id: 'nolog', label: 'No log' },

@@ -1728,5 +1728,4 @@ describe('DatabaseManagementService', () => {
       ).rejects.toThrow(CmsError);
     });
   });
-
 });

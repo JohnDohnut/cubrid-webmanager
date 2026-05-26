@@ -14,8 +14,11 @@ import { Modal } from '../../../components/ds/layout/Modal';
 import { ModalStatusError } from '../../../components/ds/feedback/ActionStatus';
 import AboutModal from './AboutModal';
 import HeaderMenu from './HeaderMenu';
+import LanguageToggle from './LanguageToggle';
+import { useCM } from '../../../constants/useCM';
 
 export default function Header({ theme, toggleTheme }) {
+  const CM = useCM();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const dispatch = useDispatch();
   const { user, isAuthenticated, loading: authLoading, error: authError } = useSelector((state) => state.auth, shallowEqual);
@@ -44,11 +47,11 @@ export default function Header({ theme, toggleTheme }) {
     error: headerActionError
   } = useActionState();
 
-  const [loadingTitle, setLoadingTitle] = useState('Applying Changes...');
+  const [loadingTitle, setLoadingTitle] = useState(CM.applyingChanges);
 
   const handleStart = async () => {
     if (selectedDatabase && !activeDatabases.includes(selectedDatabase)) {
-      setLoadingTitle(`Starting database: ${selectedDatabase}`);
+      setLoadingTitle(CM.startingDatabase(selectedDatabase));
       startAction();
       try {
         await dispatch(startDatabase({ hostUid: selectedHostUid, dbname: selectedDatabase })).unwrap();
@@ -60,7 +63,7 @@ export default function Header({ theme, toggleTheme }) {
     } else if (selectedBroker) {
       const broker = brokers.find(b => b.name === selectedBroker);
       if (broker && broker.state !== 'ON') {
-        setLoadingTitle(`Starting broker: ${selectedBroker}`);
+        setLoadingTitle(CM.startingBroker(selectedBroker));
         startAction();
         try {
           await dispatch(startBroker({ hostUid: selectedHostUid, brokerName: selectedBroker })).unwrap();
@@ -100,7 +103,7 @@ export default function Header({ theme, toggleTheme }) {
             {/* Quick action: Start */}
             <button
               className={`${btnBase} px-3 gap-2 bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 hover:border-amber-500/30 font-bold text-[11px] uppercase tracking-wider relative overflow-hidden`}
-              title="Start selected database / broker"
+              title={CM.startSelectedDbBroker}
               onClick={handleStart}
               disabled={headerActionLoading}
             >
@@ -109,17 +112,21 @@ export default function Header({ theme, toggleTheme }) {
               ) : (
                  <Icon name="play_arrow" size="18px" weight={400} className="text-amber-500" />
               )}
-              Start
+              {CM.startLabel}
             </button>
           </div>
 
           {/* ── Right: theme toggle + user + logout ── */}
           <div className="flex items-center gap-2">
+            <LanguageToggle />
+
+            <div className="w-px h-5 bg-slate-200 dark:bg-white/8 mx-1" />
+
             {/* Theme toggle */}
             <button
               className={iconBtn}
               onClick={toggleTheme}
-              title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+              title={theme === 'light' ? CM.switchToDarkMode : CM.switchToLightMode}
             >
               <Icon name={theme === 'light' ? 'dark_mode' : 'light_mode'} size="18px" weight={300} />
             </button>
@@ -158,7 +165,7 @@ export default function Header({ theme, toggleTheme }) {
             <button
               className={`${btnBase} w-8 bg-rose-500/5 border-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white hover:border-rose-500`}
               onClick={handleLogout}
-              title="Logout"
+              title={CM.logout}
             >
               <Icon name="logout" size="18px" weight={300} />
             </button>
@@ -170,13 +177,13 @@ export default function Header({ theme, toggleTheme }) {
       <AboutModal />
 
       {isHeaderActionError && (
-        <Modal isOpen title="Update Failed" icon="error" iconVariant="danger" onClose={resetAction} maxWidth="400px">
+        <Modal isOpen title={CM.updateFailed} icon="error" iconVariant="danger" onClose={resetAction} maxWidth="400px">
           <ModalStatusError 
-            title="Failed"
+            title={CM.failure}
             error={headerActionError}
             onRetry={resetAction}
             onCancel={resetAction}
-            retryText="Dismiss"
+            retryText={CM.dismiss}
           />
         </Modal>
       )}

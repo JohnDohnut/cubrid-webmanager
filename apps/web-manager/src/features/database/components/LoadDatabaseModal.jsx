@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeLoadDatabaseModal } from '../databaseSlice';
 import { databaseApi } from '../databaseApi';
-import { CM } from '../../../constants/cmLabels';
+import { useCM } from '../../../constants/useCM';
 
 import LoadConfigSection from './load/LoadConfigSection';
 import LoadSourceSection from './load/LoadSourceSection';
@@ -19,6 +19,7 @@ import {
 } from '../../../components/ds/feedback/ActionStatus';
 
 export default function LoadDatabaseModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isLoadDatabaseModalOpen: isLoadDBModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);

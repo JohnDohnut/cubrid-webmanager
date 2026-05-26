@@ -3,7 +3,7 @@ import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeKillTransactionModal } from '../databaseSlice';
 import { databaseApi } from '../databaseApi';
 import { buildKillParameter } from '../transactionUtils';
-import { CM } from '../../../constants/cmLabels';
+import { useCM } from '../../../constants/useCM';
 
 import { Modal } from '../../../components/ds/layout/Modal';
 import { Button } from '../../../components/ds/foundation/Button';
@@ -14,6 +14,7 @@ import { useActionState } from '../../../infrastructure/hooks/useActionState';
 import { ModalStatusLoading, ModalStatusSuccess, ModalStatusError } from '../../../components/ds/feedback/ActionStatus';
 
 export default function KillTransactionModal({ onTransactionKilled }) {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isKillTransactionModalOpen, killTransactionData } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
@@ -49,7 +50,7 @@ export default function KillTransactionModal({ onTransactionKilled }) {
     try {
       const parameter = buildKillParameter(killType, killTransactionData);
       if (killType !== 'd' && !parameter) {
-        endError('Could not determine kill parameter.');
+        endError('Could not resolve kill parameter for the selected transaction.');
         return;
       }
 
@@ -141,7 +142,7 @@ export default function KillTransactionModal({ onTransactionKilled }) {
           <Typography variant="caption" className="text-slate-500 ml-1">{CM.killType}</Typography>
           <Select
             value={killType}
-            onChange={(val) => setKillType(val)}
+            onChange={(e) => setKillType(e.target.value)}
             options={[
               { value: 'i', label: CM.killSelectedOnly },
               { value: 'h', label: CM.killSameHost },

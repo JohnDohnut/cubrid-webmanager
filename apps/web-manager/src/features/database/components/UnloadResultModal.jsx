@@ -1,10 +1,11 @@
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeUnloadResultModal } from '../databaseSlice';
-import { CM } from '../../../constants/cmLabels';
+import { useCM } from '../../../constants/useCM';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 
 export default function UnloadResultModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isUnloadResultModalOpen, unloadResultData } = useSelector((state) => state.databaseUI, shallowEqual);
 

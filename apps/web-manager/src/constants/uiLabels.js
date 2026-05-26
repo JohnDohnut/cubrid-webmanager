@@ -1,11 +1,12 @@
-import { CM } from './cmLabels';
+import { CM as CM_EN } from './cmLabels';
+import { useCM } from './useCM';
 
-/** @deprecated Prefer CM from cmLabels.js */
+/** @deprecated Prefer useCM() for locale-aware labels */
 export const UI = {
-  close: CM.close,
-  ok: CM.ok,
-  cancel: CM.cancel,
-  refresh: CM.refresh,
+  close: CM_EN.close,
+  ok: CM_EN.ok,
+  cancel: CM_EN.cancel,
+  refresh: CM_EN.refresh,
   retry: 'Retry',
   save: 'Save',
   delete: 'Delete',
@@ -13,4 +14,4 @@ export const UI = {
   no: 'No',
 };
 
-export { CM };
+export { CM_EN as CM, useCM };

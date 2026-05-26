@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeEditQueryPlanModal, setAutoExecQuery, fetchQueryPlan } from '../databaseSlice';
 import Editor from '@monaco-editor/react';
+import { useCM } from '../../../constants/useCM';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -27,6 +28,7 @@ const VIEW_SUCCESS = 'success';
 const VIEW_ERROR   = 'error';
 
 export default function EditQueryPlanModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isEditQueryPlanModalOpen, selectedQueryPlanId } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
@@ -190,7 +192,7 @@ export default function EditQueryPlanModal() {
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title="Updating Schedule" icon="edit" onClose={handleClose} maxWidth="720px">
+      <Modal isOpen title={CM.editQueryPlan} icon="edit" onClose={handleClose} maxWidth="720px">
         <ModalStatusLoading 
           title="Syncing Changes" 
           subtitle="Committing the new automation sequence to the task controller."
@@ -202,7 +204,7 @@ export default function EditQueryPlanModal() {
   /* ─── SUCCESS view ─── */
   if (isSuccess) {
     return (
-      <Modal isOpen title="Update Successful" icon="verified" iconVariant="success" onClose={handleClose} maxWidth="700px">
+      <Modal isOpen title={CM.updateSuccessful} icon="verified" iconVariant="success" onClose={handleClose} maxWidth="700px">
         <ModalStatusSuccess 
           title="Schedule Registry Updated"
           message={`Changes to the query plan for ${selectedDatabase} have been committed and re-indexed.`}
@@ -234,14 +236,14 @@ export default function EditQueryPlanModal() {
     <Modal
       isOpen={isEditQueryPlanModalOpen}
       onClose={handleClose}
-      title="Edit Query Plan"
+      title={CM.editQueryPlan}
       subtitle={`Modify automated SQL execution for ${selectedDatabase}`}
       icon="edit"
       maxWidth="max-w-[720px]"
       footer={
         <div className="flex justify-end gap-3 w-full">
-          <Button variant="ghost" onClick={handleClose}>Discard</Button>
-          <Button variant="primary" onClick={handleSave} icon="save" className="min-w-[140px]">Save Changes</Button>
+          <Button variant="ghost" onClick={handleClose}>{CM.discard}</Button>
+          <Button variant="primary" onClick={handleSave} icon="save" className="min-w-[140px]">{CM.saveChanges}</Button>
         </div>
       }
     >
@@ -281,7 +283,7 @@ export default function EditQueryPlanModal() {
 
         {/* Schedule */}
         <div className="space-y-4">
-           <SectionHeader title="Execution Schedule" icon="schedule" />
+           <SectionHeader title={CM.executionSchedule} icon="schedule" />
           <div className="grid grid-cols-2 gap-4">
             <Select 
               label="Recurrence Frequency"

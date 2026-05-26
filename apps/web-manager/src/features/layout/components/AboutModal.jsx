@@ -5,8 +5,10 @@ import { Modal } from '../../../components/ds/layout/Modal';
 import { Typography } from '../../../components/ds/foundation/Typography';
 import { Button } from '../../../components/ds/foundation/Button';
 import { SectionHeader } from '../../../components/ds/foundation/SectionHeader';
+import { useCM } from '../../../constants/useCM';
 
 export default function AboutModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isAboutCubridOpen } = useSelector((state) => state.appBar, shallowEqual);
 
@@ -16,17 +18,17 @@ export default function AboutModal() {
     <Modal
       isOpen={isAboutCubridOpen}
       onClose={() => dispatch(setAboutCubrid(false))}
-      title="About CUBRID"
+      title={CM.aboutCubrid}
       icon="info"
       maxWidth="420px"
-      subtitle="CUBRID Web Manager"
+      subtitle={CM.cubridWebManager}
       footer={
         <Button 
           variant="primary" 
           onClick={() => dispatch(setAboutCubrid(false))}
           className="min-w-[140px]"
         >
-          Close
+          {CM.close}
         </Button>
       }
     >
@@ -39,7 +41,7 @@ export default function AboutModal() {
         <div className="w-full space-y-5">
           {/* Main Info */}
           <div className="flex flex-col items-center text-center w-full">
-            <SectionHeader title="CUBRID Web Manager" icon="verified" className="justify-center" />
+            <SectionHeader title={CM.cubridWebManager} icon="verified" className="justify-center" />
             <Typography variant="p" className="text-slate-500 dark:text-slate-400 text-[13px] mt-1">
               Engineered with precision for the modern web stack.
             </Typography>
@@ -47,13 +49,13 @@ export default function AboutModal() {
 
           {/* Details Section */}
           <div className="w-full">
-            <SectionHeader title="System Details" icon="settings_suggest" />
+            <SectionHeader title={CM.systemDetails} icon="settings_suggest" />
             <div className="space-y-0.5 pt-2">
               {[
-                { label: 'Core Version', value: '12.4.0-STABLE' },
+                { label: CM.coreVersion, value: '12.4.0-STABLE' },
                 { label: 'Web Bridge', value: 'v1.1.2-ALPHA' },
                 { label: 'Stack', value: 'React · NestJS · Nx' },
-                { label: 'Status', value: 'Certified Stable', isStatus: true }
+                { label: CM.status, value: CM.certifiedStable, isStatus: true }
               ].map((item, idx) => (
                 <div key={idx} className="flex justify-between items-center py-2 border-b border-slate-50 dark:border-white/5 last:border-0">
                   <Typography variant="caption" className="text-slate-400 font-medium">{item.label}</Typography>

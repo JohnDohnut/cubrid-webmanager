@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeCheckDatabaseModal } from '../databaseSlice';
 import { databaseApi } from '../databaseApi';
-import { CM } from '../../../constants/cmLabels';
+import { useCM } from '../../../constants/useCM';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -17,6 +17,7 @@ import {
 } from '../../../components/ds/feedback/ActionStatus';
 
 export default function CheckDatabaseModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isCheckDatabaseModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);

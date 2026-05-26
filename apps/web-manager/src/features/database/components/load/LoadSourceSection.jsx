@@ -6,7 +6,7 @@ import { Tabs } from '../../../../components/ds/layout/Tabs';
 import { Typography } from '../../../../components/ds/foundation/Typography';
 import { Icon } from '../../../../components/ds/foundation/Icon';
 import { SectionHeader } from '../../../../components/ds/foundation/SectionHeader';
-import { CM } from '../../../../constants/cmLabels';
+import { useCM } from '../../../../constants/useCM';
 
 const typeIcon = { schema: 'code', object: 'dataset', index: 'layers', trigger: 'bolt' };
 
@@ -33,6 +33,7 @@ export default function LoadSourceSection({
   handleCheckBoxChange,
   handleUnloadPathChange
 }) {
+  const CM = useCM();
   const columns = [
     {
       header: '',

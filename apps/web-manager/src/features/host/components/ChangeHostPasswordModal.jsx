@@ -6,8 +6,10 @@ import { Button } from '../../../components/ds/foundation/Button';
 import { Input } from '../../../components/ds/forms/Input';
 import { Typography } from '../../../components/ds/foundation/Typography';
 import { Icon } from '../../../components/ds/foundation/Icon';
+import { useCM } from '../../../constants/useCM';
 
 export default function ChangeHostPasswordModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isChangePasswordModalOpen, changePasswordHostUid, hosts, loading, error: apiError } = useSelector((state) => state.host, shallowEqual);
 
@@ -42,9 +44,9 @@ export default function ChangeHostPasswordModal() {
 
   const validate = () => {
     const errs = {};
-    if (!formData.password) errs.password = 'New passcode is required';
+    if (!formData.password) errs.password = CM.passwordRequired;
     if (formData.password !== formData.confirmPassword) {
-      errs.confirmPassword = 'Passwords do not match';
+      errs.confirmPassword = CM.passwordsDoNotMatch;
     }
     return errs;
   };
@@ -97,7 +99,7 @@ export default function ChangeHostPasswordModal() {
     <Modal
       isOpen={isChangePasswordModalOpen}
       onClose={handleClose}
-      title={isSuccess ? "Success" : "Change Manager Passcode"}
+      title={isSuccess ? CM.success : CM.changeManagerPasscode}
       icon={isSuccess ? "check_circle" : "lock"}
       loading={loading}
       maxWidth="max-w-[440px]"
@@ -108,7 +110,7 @@ export default function ChangeHostPasswordModal() {
             onClick={handleClose}
             className="w-full"
           >
-            Close
+            {CM.close}
           </Button>
         ) : (
           <>
@@ -117,7 +119,7 @@ export default function ChangeHostPasswordModal() {
               onClick={handleClose}
               disabled={loading}
             >
-              Discard
+              {CM.discard}
             </Button>
             <Button 
               variant="primary" 
@@ -170,7 +172,7 @@ export default function ChangeHostPasswordModal() {
 
             <div className="space-y-4">
               <Input
-                label="New Passcode"
+                label={CM.newPasscode}
                 type="password"
                 name="password"
                 value={formData.password}
@@ -182,7 +184,7 @@ export default function ChangeHostPasswordModal() {
                 autoFocus
               />
               <Input
-                label="Verify New Passcode"
+                label={CM.verifyNewPasscode}
                 type="password"
                 name="confirmPassword"
                 value={formData.confirmPassword}
