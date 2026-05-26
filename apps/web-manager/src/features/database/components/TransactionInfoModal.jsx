@@ -4,6 +4,7 @@ import { closeTransactionInfoModal, openKillTransactionModal } from '../database
 import { databaseApi } from '../databaseApi';
 import { extractTransactionList } from '../transactionUtils';
 import { Input } from '../../../components/ds/forms/Input';
+import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
 import { Button } from '../../../components/ds/foundation/Button';
 import { Typography } from '../../../components/ds/foundation/Typography';
@@ -31,7 +32,7 @@ export default function TransactionInfoModal() {
   const fetchTransactionInfo = async () => {
     if (!selectedHostUid || !selectedDatabase) return;
     if (!dbuser.trim()) {
-      setErrorMsg('The user name is not valid.');
+      setErrorMsg('Database user (dbuser) is required for transaction diagnostics.');
       setView(VIEW_ERROR);
       return;
     }
@@ -115,13 +116,25 @@ export default function TransactionInfoModal() {
         </div>
       }
     >
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <Input label={CM.userName} value={dbuser} onChange={(e) => setDbuser(e.target.value)} size="sm" />
-          <Input type="password" label={CM.password} value={dbpasswd} onChange={(e) => setDbpasswd(e.target.value)} size="sm" />
+      <div className="flex flex-col h-[540px] animate-in fade-in slide-in-from-bottom-4 duration-400">
+        <div className="mb-4 grid grid-cols-2 gap-3 shrink-0">
+          <Input label={CM.userName} value={dbuser} onChange={(e) => setDbuser(e.target.value)} icon="account_circle" size="sm" />
+          <Input type="password" label={CM.password} value={dbpasswd} onChange={(e) => setDbpasswd(e.target.value)} icon="password" size="sm" placeholder="(empty allowed)" />
+        </div>
+        <div className="mb-4 flex items-center justify-between bg-slate-50/80 dark:bg-black/20 border border-slate-200 dark:border-white/8 rounded-xl px-4 py-3 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20">
+              <Icon name="sensors" size="sm" weight={300} />
+            </div>
+            <div className="min-w-0">
+              <Typography variant="label" className="text-slate-400 uppercase tracking-widest font-bold text-[10px] block leading-none">
+                {CM.activeTransactionsOf} <span className="text-emerald-500 ml-1">{transactions.length}</span>
+              </Typography>
+            </div>
+          </div>
         </div>
 
-        <div className="rounded-lg border border-slate-200 dark:border-white/10 overflow-hidden max-h-[480px] overflow-y-auto">
+        <div className="rounded-lg border border-slate-200 dark:border-white/10 overflow-hidden flex-1 overflow-y-auto min-h-0">
           {transactions.length === 0 ? (
             <EmptyState icon="info" title={CM.transactionInformation} subtitle={CM.activeTransactionsOf} py="py-12" />
           ) : (

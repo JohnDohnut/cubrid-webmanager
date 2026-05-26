@@ -49,7 +49,7 @@ export default function KillTransactionModal({ onTransactionKilled }) {
     try {
       const parameter = buildKillParameter(killType, killTransactionData);
       if (killType !== 'd' && !parameter) {
-        endError('Could not determine kill parameter.');
+        endError('Could not resolve kill parameter for the selected transaction.');
         return;
       }
 

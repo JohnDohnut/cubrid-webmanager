@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Logger, Param, Post, Query, Request } from '@nestjs/common';
+import { Body, Controller, Get, Logger, Param, Post, Query, Request } from '@nestjs/common';
 import {
   SetAutoExecQueryClientRequest,
   SetAutoExecQueryClientResponse,
@@ -123,23 +123,26 @@ export class DatabaseConfigController {
   /**
    * Disable auto-start for a database.
    * Removes database name from the server parameter in configuration file.
+   * Uses POST so request bodies are reliably delivered (Electron fetch, proxies).
    *
-   * @route DELETE /:hostUid/database/auto-start
+   * @route POST /:hostUid/database/auto-start/remove
    * @param req Express request (contains authenticated user)
    * @param hostUid Host unique identifier from path parameter
    * @param body Request body containing confname and dbname
    * @returns RemoveAutoStartResponse Empty object on success
    * @example
-   * // DELETE /host-uid/database/auto-start
+   * // POST /host-uid/database/auto-start/remove
    * // Body: { "confname": "cubridconf", "dbname": "testdb" }
    */
-  @Delete('auto-start/remove')
+  @Post('auto-start/remove')
   async removeAutoStart(
     @Request() req,
     @Param('hostUid') hostUid: string,
     @Body() body: RemoveAutoStartRequest
   ): Promise<RemoveAutoStartResponse> {
     const userId = req.user.sub;
+
+    validateRequiredFields(body, ['dbname'], 'database/auto-start/remove', this.logger);
 
     this.logger.log(
       `Disabling auto-start for database: ${body.dbname} on host: ${hostUid}`

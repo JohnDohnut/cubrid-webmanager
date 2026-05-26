@@ -74,6 +74,7 @@ import { ModalStatusError } from '../../../components/ds/feedback/ActionStatus';
 import { Modal } from '../../../components/ds/layout/Modal';
 import { Button } from '../../../components/ds/foundation/Button';
 import { StatusBadge } from '../../../components/ds/foundation/StatusBadge';
+import { CM } from '../../../constants/cmLabels';
 
 // Internal Sidebar Components
 import SidebarHeader from '../sidebar/components/SidebarHeader';
@@ -323,10 +324,8 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
       }
     };
     document.addEventListener('mousedown', handleOutsideAction, true);
-    document.addEventListener('contextmenu', handleOutsideAction, true);
     return () => {
       document.removeEventListener('mousedown', handleOutsideAction, true);
-      document.removeEventListener('contextmenu', handleOutsideAction, true);
     };
   }, [closeAllContextMenus]);
 
@@ -714,8 +713,8 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           </SubMenu>
 
           <SubMenu icon="info" label="Database Info" width="w-52">
-            <MenuItem icon="lock_open" label="Lock Information..." onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openLockInformationModal()); setDbContextMenu(null); }} />
-            <MenuItem icon="swap_horiz" label="Transaction Info..." onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openTransactionInfoModal()); setDbContextMenu(null); }} />
+            <MenuItem icon="lock_open" label={`${CM.lockingInformation}...`} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openLockInformationModal()); setDbContextMenu(null); }} />
+            <MenuItem icon="swap_horiz" label={`${CM.transactionInformation}...`} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openTransactionInfoModal()); setDbContextMenu(null); }} />
             <MenuItem 
               icon="data_object" 
               label="Param Dump..." 

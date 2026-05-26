@@ -127,7 +127,10 @@ const databaseUISlice = createSlice({
       state.isKillTransactionModalOpen = true; 
       state.killTransactionData = action.payload;
     },
-    closeKillTransactionModal: (state) => { state.isKillTransactionModalOpen = false; },
+    closeKillTransactionModal: (state) => {
+      state.isKillTransactionModalOpen = false;
+      state.killTransactionData = null;
+    },
     
     openDeleteDatabaseModal: (state, action) => { 
       state.isDeleteDatabaseModalOpen = true; 
