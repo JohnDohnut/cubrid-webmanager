@@ -61,7 +61,11 @@ export default function AddHostModal({ isOpen, onClose }) {
       setErrors(errs);
       return;
     }
-    const payload = { ...formData, port: Number(formData.port) };
+    const payload = {
+      ...formData,
+      port: Number(formData.port),
+      ...(initialHostData?.groupId ? { groupId: initialHostData.groupId } : {}),
+    };
     try {
       await dispatch(addHost(payload)).unwrap();
       if (initialHostData) {

@@ -44,6 +44,18 @@ describe('DatabaseLifecycleService', () => {
   const mockHostUid = 'host-uid-1';
   const mockDbname = 'testdb';
 
+  const mockGroupId = 'group-host-uid-1';
+  const hostInGroups = (host: typeof mockHost, groupId = mockGroupId) => ({
+    host_groups: {
+      [groupId]: {
+        name: host.alias || host.id,
+        hosts: { [host.uid]: host },
+      },
+    },
+  });
+  const getMockHostFromUser = (user: { host_groups?: Record<string, { hosts: Record<string, typeof mockHost> }> }) =>
+    user.host_groups?.[mockGroupId]?.hosts[mockHostUid];
+
   beforeEach(async () => {
     const mockHostService = {
       findHostInternal: jest.fn(),
@@ -441,9 +453,7 @@ describe('DatabaseLifecycleService', () => {
     it('should successfully save database profile', async () => {
       const mockUser = {
         id: mockUserId,
-        host_list: {
-          [mockHostUid]: mockHost,
-        },
+        ...hostInGroups(mockHost),
       };
 
       repository.atomicUpdateUser.mockImplementation(async (userId, callback) => {
@@ -475,9 +485,7 @@ describe('DatabaseLifecycleService', () => {
     it('should save empty password when password is omitted or null', async () => {
       const mockUser = {
         id: mockUserId,
-        host_list: {
-          [mockHostUid]: { ...mockHost, dbProfiles: {} },
-        },
+        ...hostInGroups({ ...mockHost, dbProfiles: {} }),
       };
 
       repository.atomicUpdateUser.mockImplementation(async (userId, callback) => {
@@ -485,10 +493,10 @@ describe('DatabaseLifecycleService', () => {
       });
 
       await service.saveDatabaseProfile(mockUserId, mockHostUid, mockDbname, 'dba', '');
-      expect(mockUser.host_list[mockHostUid].dbProfiles[mockDbname].password).toBe('');
+      expect(getMockHostFromUser(mockUser)!.dbProfiles[mockDbname].password).toBe('');
 
       await service.saveDatabaseProfile(mockUserId, mockHostUid, mockDbname, 'dba', null as any);
-      expect(mockUser.host_list[mockHostUid].dbProfiles[mockDbname].password).toBe('');
+      expect(getMockHostFromUser(mockUser)!.dbProfiles[mockDbname].password).toBe('');
     });
 
     it('should overwrite existing database profile', async () => {
@@ -498,9 +506,7 @@ describe('DatabaseLifecycleService', () => {
       };
       const mockUser = {
         id: mockUserId,
-        host_list: {
-          [mockHostUid]: hostWithProfile,
-        },
+        ...hostInGroups(hostWithProfile),
       };
 
       repository.atomicUpdateUser.mockImplementation(async (userId, callback) => {
@@ -509,7 +515,7 @@ describe('DatabaseLifecycleService', () => {
 
       await service.saveDatabaseProfile(mockUserId, mockHostUid, mockDbname, 'dba', 'newpass');
 
-      expect(mockUser.host_list[mockHostUid].dbProfiles[mockDbname]).toEqual({
+      expect(getMockHostFromUser(mockUser)!.dbProfiles[mockDbname]).toEqual({
         dbname: mockDbname,
         id: 'dba',
         password: 'newpass',
@@ -520,7 +526,7 @@ describe('DatabaseLifecycleService', () => {
     it('should throw HostError when host is not found', async () => {
       const mockUser = {
         id: mockUserId,
-        host_list: {},
+        host_groups: {},
       };
 
       repository.atomicUpdateUser.mockImplementation(async (userId, callback) => {

@@ -4,6 +4,15 @@ export const hostApi = {
   getHosts: () => {
     return apiClient.get('/host');
   },
+  createGroup: (payload) => {
+    return apiClient.post('/host/group', payload);
+  },
+  updateGroup: (groupId, payload) => {
+    return apiClient.put(`/host/group/${groupId}`, payload);
+  },
+  deleteGroup: (groupId) => {
+    return apiClient.delete(`/host/group/${groupId}`);
+  },
   addHost: (payload) => {
     return apiClient.post('/host', payload);
   },
@@ -39,5 +48,8 @@ export const hostApi = {
   },
   deleteCmsUser: (hostUid, targetid) => {
     return apiClient.delete(`/${hostUid}/cms-user/${targetid}`);
+  },
+  markGroupHa: (hostUid, groupName) => {
+    return apiClient.post(`/host/${hostUid}/mark-ha`, groupName ? { groupName } : {});
   },
 };

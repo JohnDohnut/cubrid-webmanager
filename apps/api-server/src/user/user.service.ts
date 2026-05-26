@@ -6,6 +6,7 @@ import {
 } from '@api-interfaces';
 import { HandleUserErrors } from '@common';
 import { UserError } from '@error/user/user-error';
+import { normalizeUserHostStorage } from '@host/host-group.util';
 import { Injectable } from '@nestjs/common';
 import { UserRepositoryService } from '@repository';
 import { PasswordService } from '@security';
@@ -75,7 +76,7 @@ export class UserService {
    *
    * Loads user information from the repository and removes:
    * - User password
-   * - Host passwords and tokens in host_list
+   * - Host passwords and tokens in host_groups
    * - Database passwords in dbProfiles within each host
    *
    * @param {string} userId - The unique identifier of the user
@@ -96,34 +97,39 @@ export class UserService {
     const user = await this.repository.loadUserById(userId);
     
     // Remove user password and uuid to match UserResponse type
+    normalizeUserHostStorage(user);
     const { password, uuid, ...userResponse } = user;
-    
-    // Process host_list: remove password, token, and dbProfiles passwords
-    const sanitizedHostList: Record<string, any> = {};
-    for (const [hostUid, hostInfo] of Object.entries(userResponse.host_list)) {
-      const { password, token, dbProfiles, ...hostWithoutSensitive } = hostInfo;
-      
-      // Process dbProfiles: remove passwords from each DB profile
-      const sanitizedDbProfiles: Record<string, any> = {};
-      if (dbProfiles) {
-        for (const [dbname, dbInfo] of Object.entries(dbProfiles)) {
-          const { password: dbPassword, ...dbWithoutPassword } = dbInfo;
-          sanitizedDbProfiles[dbname] = dbWithoutPassword;
+
+    const sanitizedGroups: Record<string, any> = {};
+    for (const [groupId, group] of Object.entries(userResponse.host_groups ?? {})) {
+      const sanitizedHosts: Record<string, any> = {};
+      for (const [hostUid, hostInfo] of Object.entries(group.hosts ?? {})) {
+        const { password: _p, token, dbProfiles, ...hostWithoutSensitive } = hostInfo;
+        const sanitizedDbProfiles: Record<string, any> = {};
+        if (dbProfiles) {
+          for (const [dbname, dbInfo] of Object.entries(dbProfiles)) {
+            const { password: dbPassword, ...dbWithoutPassword } = dbInfo;
+            sanitizedDbProfiles[dbname] = dbWithoutPassword;
+          }
         }
+        sanitizedHosts[hostUid] = {
+          ...hostWithoutSensitive,
+          dbProfiles: sanitizedDbProfiles,
+        };
       }
-      
-      sanitizedHostList[hostUid] = {
-        ...hostWithoutSensitive,
-        dbProfiles: sanitizedDbProfiles,
+      sanitizedGroups[groupId] = {
+        name: group.name,
+        defaultHostUid: group.defaultHostUid,
+        createdAt: group.createdAt,
+        hosts: sanitizedHosts,
       };
     }
-    
-    // Return with sanitized host_list, ensuring uuid is not included
+
     const result: UserResponse = {
       ...userResponse,
-      host_list: sanitizedHostList,
+      host_groups: sanitizedGroups,
     };
-    
+
     return result;
   }
 

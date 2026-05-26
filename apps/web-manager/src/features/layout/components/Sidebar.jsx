@@ -5,6 +5,7 @@ import {
   fetchHosts,
   setSelectedHost,
   loginToHost,
+  markGroupHa,
   openDeleteHostModal,
   openEditHostModal,
   openChangePasswordModal,
@@ -77,7 +78,7 @@ import { StatusBadge } from '../../../components/ds/foundation/StatusBadge';
 
 // Internal Sidebar Components
 import SidebarHeader from '../sidebar/components/SidebarHeader';
-import ServerListItem from '../sidebar/components/ServerListItem';
+import HostGroupTree from '../sidebar/components/HostGroupTree';
 import TreeTabHeader from '../sidebar/components/TreeTabHeader';
 import DatabaseTree from '../sidebar/components/DatabaseTree';
 import BrokerTree from '../sidebar/components/BrokerTree';
@@ -91,12 +92,16 @@ import DeleteQueryPlanModal from '../../database/components/DeleteQueryPlanModal
 import AutoVolumeLogModal from '../../database/components/AutoVolumeLogModal';
 import CMSUserManagementModal from '../../host/components/CMSUserManagementModal';
 import EditCMSUserModal from '../../host/components/EditCMSUserModal';
+import { findGroupIdForHost } from '../../host/hostGroupUtils';
+import { store } from '../../../app/store';
+import { openDeleteGroupModal, openRenameGroupModal } from '../../host/hostSlice';
 
 export default function Sidebar({ isCollapsed, onAddHost }) {
   const sidebarRef = useRef(null);
   const hostSectionRef = useRef(null);
   const [activeTab, setActiveTab] = useState('db');
   const [contextMenu, setContextMenu] = useState(null);
+  const [groupContextMenu, setGroupContextMenu] = useState(null);
   const [dbContextMenu, setDbContextMenu] = useState(null);
   const [brokerContextMenu, setBrokerContextMenu] = useState(null);
   const [usersContextMenu, setUsersContextMenu] = useState(null);
@@ -125,7 +130,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
 
   const [loadingText, setLoadingText] = useState('Updating Resources...');
 
-  const { hosts, selectedHostUid, loading: hostsLoading, authorizedHosts, isLoggingIntoHost, hostAuthErrors, haInfo, lastAddedHostUid } = useSelector((state) => state.host, shallowEqual);
+  const { hosts, hostGroups, selectedHostUid, selectedGroupUid, loading: hostsLoading, authorizedHosts, isLoggingIntoHost, hostAuthErrors, haInfo, lastAddedHostUid } = useSelector((state) => state.host, shallowEqual);
   const { databases, activeDatabases, loggedInDatabases } = useSelector((state) => state.database, shallowEqual);
   const { brokers } = useSelector((state) => state.broker, shallowEqual);
 
@@ -135,6 +140,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
 
   const closeAllContextMenus = useCallback(() => {
     setContextMenu(null);
+    setGroupContextMenu(null);
     setDbContextMenu(null);
     setBrokerContextMenu(null);
     setUsersContextMenu(null);
@@ -156,16 +162,23 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
     
     dispatch(loginToHost(uid))
       .unwrap()
-      .then((response) => {
-        // Rule #1: Automatically open tab if login is successful
+      .then(async (response) => {
         dispatch(setActiveMainTab('host:' + uid));
         dispatch(fetchDatabaseStartInfo(uid));
         dispatch(fetchBrokerList(uid));
         dispatch(fetchHostEnv(uid));
 
-        // Rule #2: Suggest adding peer nodes if HA is detected
-        // Constraint: Only popup if this was the 'first create' (just added)
         const isNewlyAdded = lastAddedHostUid === uid;
+
+        if (response.isHA) {
+          const host = hosts.find(h => h.uid === uid);
+          const baseName = (host?.alias || host?.id || 'HA Cluster')
+            .replace(/\s*\(master\)/i, '')
+            .replace(/\s*\(slave\)/i, '')
+            .replace(/\s*\(replica\)/i, '')
+            .trim();
+          await dispatch(markGroupHa({ hostUid: uid, groupName: baseName })).unwrap().catch(() => {});
+        }
 
         if (response.isHA && response.haNodes?.length > 0 && isNewlyAdded) {
           const undiscovered = response.haNodes.filter(node => {
@@ -173,29 +186,26 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
               const hAddr = h.address.toLowerCase();
               const nIp = (node.ip || '').toLowerCase();
               const nHost = (node.hostname || '').toLowerCase();
-              
-              // Direct match
               if (hAddr === nIp || hAddr === nHost) return true;
-              
-              // Loopback match
               const isLoopback = (addr) => addr === 'localhost' || addr === '127.0.0.1';
               if (isLoopback(hAddr) && (isLoopback(nIp) || isLoopback(nHost))) return true;
-              
               return false;
             });
             return !isSelf;
           });
           if (undiscovered.length > 0) {
-            dispatch(setSuggestedHaNodes(undiscovered));
+            const freshGroups = store.getState().host.hostGroups;
+            dispatch(setSuggestedHaNodes({
+              nodes: undiscovered,
+              groupId: findGroupIdForHost(freshGroups, uid),
+            }));
           }
         }
 
-        // Always clear the 'newly added' flag after the first login attempt (successful or not)
         if (isNewlyAdded) {
           dispatch(clearLastAddedHostUid());
         }
 
-        // Rule #3: Ensure master has its tag so it matches slaves/replicas in the sidebar
         const host = hosts.find(h => h.uid === uid);
         if (host && response.currentNodeType === 'master' && !host.alias?.toLowerCase().includes('(master)')) {
           const newAlias = `${host.alias || host.id} (master)`;
@@ -220,6 +230,19 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
     e.preventDefault();
     closeAllContextMenus();
     setContextMenu({ mouseX: e.clientX, mouseY: e.clientY, server: serverName, hostUid, alias });
+  };
+
+  const handleGroupContextMenu = (e, groupId, groupName) => {
+    e.preventDefault();
+    e.stopPropagation();
+    closeAllContextMenus();
+    setGroupContextMenu({ mouseX: e.clientX, mouseY: e.clientY, groupId, groupName });
+  };
+
+  const handleHostRootContextMenu = (e) => {
+    e.preventDefault();
+    closeAllContextMenus();
+    setGroupContextMenu({ mouseX: e.clientX, mouseY: e.clientY, groupId: null, groupName: 'Server List' });
   };
 
   const handleDbContextMenu = (e, dbName, isActive) => {
@@ -323,10 +346,8 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
       }
     };
     document.addEventListener('mousedown', handleOutsideAction, true);
-    document.addEventListener('contextmenu', handleOutsideAction, true);
     return () => {
       document.removeEventListener('mousedown', handleOutsideAction, true);
-      document.removeEventListener('contextmenu', handleOutsideAction, true);
     };
   }, [closeAllContextMenus]);
 
@@ -419,6 +440,16 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                     <span className="text-[10px] font-semibold tracking-wide">Add</span>
                   </button>
                 )}
+                {!isServerListCollapsed && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); dispatch(openCreateGroupModal()); }}
+                    className="flex items-center gap-1 h-6 px-2 rounded-sm border border-slate-200 dark:border-white/10 bg-white dark:bg-white/4 text-slate-400 hover:text-amber-500 hover:border-amber-400/50 hover:bg-amber-500/5 dark:hover:bg-amber-500/10 transition-all active:scale-95 shadow-xs"
+                    title="New Group"
+                  >
+                    <Icon name="create_new_folder" size="12px" weight={400} />
+                    <span className="text-[10px] font-semibold tracking-wide">New Group</span>
+                  </button>
+                )}
               </div>
 
 
@@ -428,6 +459,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
               ref={hostSectionRef}
               className={`flex-1 overflow-y-auto py-1 bg-slate-50/50 dark:bg-black/20 transition-opacity duration-200 ${isServerListCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
               id="host-section"
+              onContextMenu={handleHostRootContextMenu}
             >
               {!isServerListCollapsed && (
                 hostsLoading ? (
@@ -448,16 +480,15 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                     </div>
                   </button>
                 ) : (
-                  hosts.map((host) => (
-                    <ServerListItem
-                      key={host.uid}
-                      host={host}
-                      isSelected={selectedHostUid === host.uid}
-                      isAuthorized={authorizedHosts.includes(host.uid)}
-                      haInfo={haInfo[host.uid]}
-                      onContextMenu={handleContextMenu}
-                    />
-                  ))
+                  <HostGroupTree
+                    hostGroups={hostGroups}
+                    selectedGroupUid={selectedGroupUid}
+                    selectedHostUid={selectedHostUid}
+                    authorizedHosts={authorizedHosts}
+                    haInfo={haInfo}
+                    onContextMenu={handleContextMenu}
+                    onGroupContextMenu={handleGroupContextMenu}
+                  />
                 )
               )}
             </div>
@@ -643,6 +674,54 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
         </ContextMenuWrapper>
       )}
 
+      {groupContextMenu && (
+        <ContextMenuWrapper x={groupContextMenu.mouseX} y={groupContextMenu.mouseY} onClose={() => setGroupContextMenu(null)}>
+          <div className="px-3 py-2 border-b border-slate-100 dark:border-white/5 mb-1 flex items-center justify-between">
+            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">
+              Group: {groupContextMenu.groupName}
+            </Typography>
+            <Icon name="folder" size="xs" className="opacity-30" weight={300} />
+          </div>
+          <MenuItem
+            icon="create_new_folder"
+            label="New Group"
+            onClick={() => {
+              dispatch(openCreateGroupModal());
+              setGroupContextMenu(null);
+            }}
+          />
+          {groupContextMenu.groupId && (
+            <>
+            <MenuItem
+            icon="add_link"
+            label="Add Node"
+            onClick={() => {
+              dispatch(openAddHostModal({ groupId: groupContextMenu.groupId, alias: '', address: '', port: '8001', id: 'admin', password: '' }));
+              setGroupContextMenu(null);
+            }}
+          />
+          <MenuItem
+            icon="edit"
+            label="Rename Group"
+            onClick={() => {
+              dispatch(openRenameGroupModal({ groupId: groupContextMenu.groupId, name: groupContextMenu.groupName }));
+              setGroupContextMenu(null);
+            }}
+          />
+          <MenuDivider />
+          <MenuItem
+            icon="delete"
+            label="Delete Group"
+            onClick={() => {
+              dispatch(openDeleteGroupModal({ groupId: groupContextMenu.groupId, name: groupContextMenu.groupName }));
+              setGroupContextMenu(null);
+            }}
+          />
+            </>
+          )}
+        </ContextMenuWrapper>
+      )}
+
       {dbContextMenu && (
         <ContextMenuWrapper x={dbContextMenu.mouseX} y={dbContextMenu.mouseY} onClose={() => setDbContextMenu(null)}>
           <div className="px-3 py-2 border-b border-slate-100 dark:border-white/5 mb-1 flex items-center justify-between">
@@ -699,8 +778,8 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           )}
           <MenuDivider />
           <SubMenu icon="settings" label="Manage Database">
-            <MenuItem icon="upload" label="Unload Database..." onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openUnloadDatabaseModal(dbContextMenu.db)); setDbContextMenu(null); }} />
-            <MenuItem icon="download" label="Load Database..." onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openLoadDatabaseModal(dbContextMenu.db)); setDbContextMenu(null); }} />
+            <MenuItem icon="upload" label="Database Unload" onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openUnloadDatabaseModal(dbContextMenu.db)); setDbContextMenu(null); }} />
+            <MenuItem icon="download" label="Database Load" onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openLoadDatabaseModal(dbContextMenu.db)); setDbContextMenu(null); }} />
             <MenuItem icon="check_circle" label="Check Database" onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openCheckDatabaseModal()); setDbContextMenu(null); }} />
             <MenuItem icon="compress" label="Compact Database" onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openCompactDatabaseModal()); setDbContextMenu(null); }} />
             <MenuItem icon="auto_fix_high" label="Optimize Database" onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openOptimizeDatabaseModal()); setDbContextMenu(null); }} />
@@ -714,11 +793,12 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           </SubMenu>
 
           <SubMenu icon="info" label="Database Info" width="w-52">
-            <MenuItem icon="lock_open" label="Lock Information..." onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openLockInformationModal()); setDbContextMenu(null); }} />
-            <MenuItem icon="swap_horiz" label="Transaction Info..." onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openTransactionInfoModal()); setDbContextMenu(null); }} />
+            <MenuItem icon="lock_open" label="Lock Information" onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openLockInformationModal()); setDbContextMenu(null); }} />
+            <MenuItem icon="swap_horiz" label="Transaction Info" onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openTransactionInfoModal()); setDbContextMenu(null); }} />
+            <MenuItem icon="cancel" label="Kill Transaction" onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openTransactionInfoModal()); setDbContextMenu(null); }} />
             <MenuItem 
               icon="data_object" 
-              label="Param Dump..." 
+              label="Param Dump" 
               onClick={() => { 
                 dispatch(setSelectedDatabase(dbContextMenu.db)); 
                 dispatch(openDatabaseInfoModal()); 
@@ -727,7 +807,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
             />
             <MenuItem 
               icon="schema" 
-              label="Plan Dump..." 
+              label="Plan Dump" 
               onClick={() => { 
                 dispatch(setSelectedDatabase(dbContextMenu.db)); 
                 dispatch(openPlanDumpModal()); 

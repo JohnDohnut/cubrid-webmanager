@@ -8,6 +8,7 @@ import { HostError } from '@error/index';
 import { HandleCmsErrors } from '@common';
 import { CmsError } from '@error/cms/cms-error';
 import { checkCmsTokenError, checkCmsStatusError } from '@common';
+import { getHost, normalizeUserHostStorage } from '@host/host-group.util';
 
 /**
  * Service for file operations.
@@ -43,7 +44,8 @@ export class FileService {
     request: CheckFileClientRequest
   ): Promise<CheckFileCmsResponse> {
     const user = await this.userRepository.loadUserById(userId);
-    const host: HostInfo = user.host_list[hostUid];
+    normalizeUserHostStorage(user);
+    const host: HostInfo | null = getHost(user, hostUid);
 
     if (!host) {
       throw HostError.NoSuchHost({ hostUid });

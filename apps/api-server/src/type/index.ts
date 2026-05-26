@@ -1,6 +1,7 @@
 // Core types
 export * from './user';
 export * from './host-info';
+export * from './host-group-info';
 export * from './db-info';
 export * from './collections';
 export * from './user-preferencs';

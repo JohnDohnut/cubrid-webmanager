@@ -21,7 +21,7 @@ const HA_ROLE_CONFIG = {
   },
 };
 
-export default function ServerListItem({ host, isSelected, isAuthorized, haInfo, onContextMenu }) {
+export default function ServerListItem({ host, isSelected, isAuthorized, haInfo, onContextMenu, compact = false }) {
   const dispatch = useDispatch();
 
   const getInferredHaInfo = () => {
@@ -47,16 +47,24 @@ export default function ServerListItem({ host, isSelected, isAuthorized, haInfo,
   return (
     <div
       title={`${host.address}:${host.port}`}
-      className={`relative flex items-center gap-2.5 pl-3 pr-2 py-1.5 cursor-pointer select-none transition-all duration-150 group
+      className={`relative flex items-center gap-2.5 py-1.5 cursor-pointer select-none transition-all duration-150 group
+        ${compact ? 'pl-6 pr-2' : 'pl-3 pr-2'}
         ${isSelected
           ? 'bg-amber-500/8 dark:bg-amber-500/10'
           : 'hover:bg-slate-100/80 dark:hover:bg-white/[0.04]'
         }`}
-      onClick={() => dispatch(setSelectedHost(host.uid))}
+      onClick={() => {
+        dispatch(setSelectedHost(host.uid));
+      }}
       onDoubleClick={() => {
         if (isAuthorized) dispatch(setActiveMainTab('host:' + host.uid));
       }}
-      onContextMenu={(e) => onContextMenu(e, host.alias || host.id, host.uid, host.alias || host.id)}
+      onContextMenu={(e) => {
+        // Prevent bubbling to group TreeNode context menu
+        e.preventDefault();
+        e.stopPropagation();
+        onContextMenu(e, host.alias || host.id, host.uid, host.alias || host.id);
+      }}
     >
       {/* Selected accent bar */}
       <div

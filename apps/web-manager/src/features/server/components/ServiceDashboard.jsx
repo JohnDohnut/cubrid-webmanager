@@ -17,6 +17,7 @@ import { InfoBanner } from '../../../components/ds/foundation/InfoBanner';
 import { useActionState } from '../../../infrastructure/hooks/useActionState';
 import { Modal } from '../../../components/ds/layout/Modal';
 import { ModalStatusError } from '../../../components/ds/feedback/ActionStatus';
+import { orderedGroupEntries, resolveDefaultHostUid } from '../../host/hostGroupUtils';
 
 const MetricBar = ({ pct }) => (
   <div className="w-full h-1 bg-slate-100 dark:bg-white/6 overflow-hidden mt-1 rounded-full">
@@ -28,10 +29,11 @@ import { ConfirmDialog } from '../../../components/ds/layout/ConfirmDialog';
 
 const Component = function ServiceDashboard() {
   const dispatch = useDispatch();
-  const { hosts, authorizedHosts, haInfo } = useSelector((state) => state.host, shallowEqual);
+  const { hosts, hostGroups, authorizedHosts, haInfo } = useSelector((state) => state.host, shallowEqual);
   const { summaries } = useSelector((state) => state.globalMonitoring, shallowEqual);
   const { preferences } = useSelector((state) => state.user, shallowEqual);
   const { refreshCounter, activeMainTab } = useSelector((state) => state.layout, shallowEqual);
+  const [collapsedGroups, setCollapsedGroups] = useState(() => new Set());
   const { isManualRefreshing, lastRefreshed, handleRefresh: refreshAll } = usePollingRefresh({
     hostUid: 'global',
     tabId: 'service_dashboard',
@@ -44,7 +46,21 @@ const Component = function ServiceDashboard() {
     }
   });
 
-  const handleRowDoubleClick = (row) => {
+  const toggleGroupCollapsed = (groupId) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  };
+
+  const handleRowClick = (row) => {
+    if (!row) return;
+    if (row._type === 'group') {
+      toggleGroupCollapsed(row.groupId);
+      return;
+    }
     const hostUid = row.uid;
     dispatch(setSelectedHost(hostUid));
     dispatch(setActiveMainTab(`host:${hostUid}`));
@@ -85,6 +101,53 @@ const Component = function ServiceDashboard() {
   };
 
   const closeConfirm = () => setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+
+  // Group tree rows: group header row + host rows (keeps group ordering stable).
+  const { tableRows, hostMetaByUid } = React.useMemo(() => {
+    const metaByUid = {};
+    const rows = [];
+
+    const orderedGroups = orderedGroupEntries(hostGroups);
+    for (const [groupId, group] of orderedGroups) {
+      const groupHostsMap = group?.hosts || {};
+      const groupHostUids = Object.keys(groupHostsMap);
+      const defaultUid = resolveDefaultHostUid(group);
+      const groupName = group?.name || 'Group';
+      const isCollapsed = collapsedGroups.has(groupId);
+
+      rows.push({
+        _type: 'group',
+        id: `group:${groupId}`,
+        groupId,
+        groupName,
+        hostCount: groupHostUids.length,
+        defaultHostUid: defaultUid,
+        isCollapsed,
+      });
+
+      if (isCollapsed) continue;
+      if (groupHostUids.length === 0) continue;
+
+      const firstUid =
+        (defaultUid && groupHostsMap?.[defaultUid] && defaultUid) ? defaultUid : groupHostUids[0];
+      const restUids = groupHostUids.filter((uid) => uid !== firstUid);
+      const groupOrderedUids = [firstUid, ...restUids];
+
+      groupOrderedUids.forEach((uid, idx) => {
+        const host = groupHostsMap[uid];
+        if (!host) return;
+        metaByUid[uid] = {
+          groupId,
+          groupName,
+          isFirstInGroup: idx === 0,
+          isLastInGroup: idx === groupOrderedUids.length - 1,
+        };
+        rows.push({ _type: 'host', ...host });
+      });
+    }
+
+    return { tableRows: rows, hostMetaByUid: metaByUid };
+  }, [hostGroups, collapsedGroups]);
 
   const handleStartService = (e, row) => {
     e.stopPropagation();
@@ -142,7 +205,47 @@ const Component = function ServiceDashboard() {
       header: 'GROUP/HOST',
       accessor: 'alias',
       render: (val, row) => {
+        if (row._type === 'group') {
+          return (
+            <div className="flex items-center gap-2 py-1">
+              <button
+                type="button"
+                className="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-amber-500 hover:bg-amber-500/5 transition-colors"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleGroupCollapsed(row.groupId);
+                }}
+                title={row.isCollapsed ? 'Expand group' : 'Collapse group'}
+              >
+                <Icon
+                  name="chevron_right"
+                  size="16px"
+                  className={`transition-transform duration-200 ${row.isCollapsed ? '' : 'rotate-90'}`}
+                />
+              </button>
+              <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-white/4 border border-slate-200 dark:border-white/8 flex items-center justify-center">
+                <Icon name="folder" size="16px" className="text-slate-400 dark:text-slate-500" />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[13px] font-black text-slate-800 dark:text-slate-100 truncate">
+                    {row.groupName}
+                  </span>
+                  <span className="inline-flex items-center px-1.5 h-[14px] rounded-[3px] border border-slate-200 dark:border-white/10 bg-white dark:bg-white/3 text-[9px] font-black tracking-wide leading-none shrink-0 text-slate-500 dark:text-slate-400 uppercase">
+                    {row.hostCount} nodes
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 truncate mt-0.5">
+                  {row.defaultHostUid ? `default: ${row.defaultHostUid}` : 'no default node'}
+                </span>
+              </div>
+            </div>
+          );
+        }
+
         const isConnected = authorizedHosts.includes(row.uid);
+        const meta = hostMetaByUid[row.uid] || {};
         
         const getInferredHaInfo = () => {
           const info = haInfo[row.uid];
@@ -165,6 +268,8 @@ const Component = function ServiceDashboard() {
 
         return (
           <div className="flex items-center gap-3 py-0.5">
+            {/* Indent under group chevron button */}
+            <div className="w-6 h-6 shrink-0" />
             {/* Server icon box with connection status */}
             <div className="relative shrink-0">
               <div className={`w-9 h-9 rounded-lg flex items-center justify-center border transition-all duration-200 ${
@@ -190,9 +295,21 @@ const Component = function ServiceDashboard() {
             {/* Name + role + address */}
             <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
+                {!meta?.isFirstInGroup ? (
+                  <span className="text-[11px] font-black text-amber-500/70 leading-none">
+                    ↳
+                  </span>
+                ) : (
+                  <span className="hidden" />
+                )}
                 <span className={`text-[13px] font-bold leading-tight truncate ${
                   isConnected ? 'text-slate-800 dark:text-slate-100' : 'text-slate-600 dark:text-slate-400'
                 }`}>{displayName}</span>
+                {meta?.isFirstInGroup && meta?.groupName ? (
+                  <span className="inline-flex items-center px-1.5 h-[14px] rounded-[3px] border border-amber-500/20 bg-amber-500/6 text-[9px] font-black tracking-wide leading-none shrink-0 text-amber-600 dark:text-amber-400 uppercase">
+                    {meta.groupName}
+                  </span>
+                ) : null}
                 {roleConfig && (
                   <span className={`inline-flex items-center px-1.5 h-[14px] rounded-[3px] border text-[8px] font-black tracking-wide leading-none shrink-0 ${roleConfig.className}`}>
                     {roleConfig.label}
@@ -214,6 +331,7 @@ const Component = function ServiceDashboard() {
       header: 'PERMANENT', 
       accessor: 'permFree',
       render: (_, row) => {
+        if (row._type === 'group') return <span className="text-slate-300">—</span>;
         const isConnected = authorizedHosts.includes(row.uid);
         const v = isConnected ? summaries[row.uid]?.permFree : undefined;
         if (v === undefined || v === -1) return <span className="text-slate-300">—</span>;
@@ -224,6 +342,7 @@ const Component = function ServiceDashboard() {
       header: 'PERMANENTTEMP', 
       accessor: 'permTempFree',
       render: (_, row) => {
+        if (row._type === 'group') return <span className="text-slate-300">—</span>;
         const isConnected = authorizedHosts.includes(row.uid);
         const v = isConnected ? summaries[row.uid]?.permTempFree : undefined;
         if (v === undefined || v === -1) return <span className="text-slate-300">—</span>;
@@ -234,6 +353,7 @@ const Component = function ServiceDashboard() {
       header: 'TEMPTEMP', 
       accessor: 'tempTempFree',
       render: (_, row) => {
+        if (row._type === 'group') return <span className="text-slate-300">—</span>;
         const isConnected = authorizedHosts.includes(row.uid);
         const v = isConnected ? summaries[row.uid]?.tempTempFree : undefined;
         if (v === undefined || v === -1) return <span className="text-slate-300">—</span>;
@@ -244,6 +364,7 @@ const Component = function ServiceDashboard() {
       header: 'TPS', 
       accessor: 'tps',
       render: (_, row) => {
+        if (row._type === 'group') return <span className="text-slate-300">—</span>;
         const isConnected = authorizedHosts.includes(row.uid);
         const v = isConnected ? summaries[row.uid]?.tps : undefined;
         if (v === undefined) return <span className="text-slate-300">—</span>;
@@ -254,6 +375,7 @@ const Component = function ServiceDashboard() {
       header: 'QPS', 
       accessor: 'qps',
       render: (_, row) => {
+        if (row._type === 'group') return <span className="text-slate-300">—</span>;
         const isConnected = authorizedHosts.includes(row.uid);
         const v = isConnected ? summaries[row.uid]?.qps : undefined;
         if (v === undefined) return <span className="text-slate-300">—</span>;
@@ -264,6 +386,7 @@ const Component = function ServiceDashboard() {
       header: 'MEMORY', 
       accessor: 'memory',
       render: (_, row) => {
+        if (row._type === 'group') return <span className="text-slate-300">—</span>;
         const isConnected = authorizedHosts.includes(row.uid);
         const s = isConnected ? summaries[row.uid] : undefined;
         if (!s) return <span className="text-slate-300">—</span>;
@@ -279,6 +402,7 @@ const Component = function ServiceDashboard() {
       header: 'CPU', 
       accessor: 'cpu',
       render: (_, row) => {
+        if (row._type === 'group') return <span className="text-slate-300">—</span>;
         const isConnected = authorizedHosts.includes(row.uid);
         const s = isConnected ? summaries[row.uid] : undefined;
         if (!s) return <span className="text-slate-300">—</span>;
@@ -294,6 +418,7 @@ const Component = function ServiceDashboard() {
       header: 'DB STATUS', 
       accessor: 'dbStatus',
       render: (_, row) => {
+        if (row._type === 'group') return <span className="text-slate-300">—</span>;
         const isConnected = authorizedHosts.includes(row.uid);
         const s = isConnected ? summaries[row.uid] : undefined;
         if (!s) return <span className="text-slate-300">—</span>;
@@ -309,6 +434,7 @@ const Component = function ServiceDashboard() {
       header: 'ACTIONS', 
       accessor: 'actions',
       render: (_, row) => {
+        if (row._type === 'group') return null;
         const isConnected = authorizedHosts.includes(row.uid);
         if (!isConnected) return null;
         return (
@@ -331,7 +457,7 @@ const Component = function ServiceDashboard() {
         );
       }
     },
-  ], [authorizedHosts, summaries]);
+  ], [authorizedHosts, summaries, haInfo, hostMetaByUid]);
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white dark:bg-background-dark overflow-hidden font-sans">
@@ -397,10 +523,11 @@ const Component = function ServiceDashboard() {
         <Card noPadding className="overflow-hidden border-slate-200 dark:border-white/10 shadow-sm rounded-xl bg-white dark:bg-white/1">
           <Table 
             columns={columns} 
-            data={hosts} 
-            onRowDoubleClick={handleRowDoubleClick}
+            data={tableRows} 
+            onRowClick={handleRowClick}
             className="border-none text-[12px]" 
             hoverable
+            sortable={false}
           />
         </Card>
         
@@ -424,7 +551,7 @@ const Component = function ServiceDashboard() {
       {isError && (
         <Modal isOpen title="Service Error" icon="error" iconVariant="danger" onClose={resetAction} maxWidth="400px">
           <ModalStatusError 
-            title="Failed"
+            title="Action Aborted"
             error={actionError}
             onRetry={resetAction}
             onCancel={resetAction}
