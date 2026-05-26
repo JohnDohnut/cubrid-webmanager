@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { setSelectedGroup, openAddHostModal } from '../../../host/hostSlice';
-import { orderedGroupEntries } from '../../../host/hostGroupUtils';
+import { orderedGroupEntries, sortHostUidsByHaRole } from '../../../host/hostGroupUtils';
 import ServerListItem from './ServerListItem';
 import { Icon } from '../../../../components/ds/foundation/Icon';
 import { TreeNode } from '../../../../components/domain/tree/TreeNode';
@@ -34,7 +34,8 @@ export default function HostGroupTree({
   return (
     <div className="py-1">
       {orderedGroupEntries(hostGroups).map(([groupId, group]) => {
-        const hostUids = Object.keys(group.hosts || {});
+        const hostsMap = group.hosts || {};
+        const hostUids = sortHostUidsByHaRole(Object.keys(hostsMap), hostsMap, haInfo);
         const isExpanded = expandedGroups.has(groupId);
         const isGroupSelected = selectedGroupUid === groupId;
 
@@ -57,7 +58,7 @@ export default function HostGroupTree({
               }}
             >
               {hostUids.map((uid) => {
-                const host = group.hosts[uid];
+                const host = hostsMap[uid];
                 return (
                   <div key={uid} className="pl-2">
                     <ServerListItem

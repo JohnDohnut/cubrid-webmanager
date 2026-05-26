@@ -17,7 +17,11 @@ import { InfoBanner } from '../../../components/ds/foundation/InfoBanner';
 import { useActionState } from '../../../infrastructure/hooks/useActionState';
 import { Modal } from '../../../components/ds/layout/Modal';
 import { ModalStatusError } from '../../../components/ds/feedback/ActionStatus';
-import { orderedGroupEntries, resolveDefaultHostUid } from '../../host/hostGroupUtils';
+import {
+  orderedGroupEntries,
+  resolveDefaultHostUid,
+  sortHostUidsByHaRole,
+} from '../../host/hostGroupUtils';
 
 const MetricBar = ({ pct }) => (
   <div className="w-full h-1 bg-slate-100 dark:bg-white/6 overflow-hidden mt-1 rounded-full">
@@ -115,10 +119,7 @@ const Component = function ServiceDashboard() {
       if (isCollapsed) continue;
       if (groupHostUids.length === 0) continue;
 
-      const firstUid =
-        (defaultUid && groupHostsMap?.[defaultUid] && defaultUid) ? defaultUid : groupHostUids[0];
-      const restUids = groupHostUids.filter((uid) => uid !== firstUid);
-      const groupOrderedUids = [firstUid, ...restUids];
+      const groupOrderedUids = sortHostUidsByHaRole(groupHostUids, groupHostsMap, haInfo);
 
       groupOrderedUids.forEach((uid, idx) => {
         const host = groupHostsMap[uid];
@@ -134,7 +135,7 @@ const Component = function ServiceDashboard() {
     }
 
     return { tableRows: rows, hostMetaByUid: metaByUid };
-  }, [hostGroups, collapsedGroups]);
+  }, [hostGroups, collapsedGroups, haInfo]);
 
   const handleStartService = (e, row) => {
     e.stopPropagation();

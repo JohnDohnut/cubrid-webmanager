@@ -36,3 +36,35 @@ export function orderedGroupEntries(hostGroups) {
     (a.name || '').localeCompare(b.name || '')
   );
 }
+
+const HA_ROLE_SORT_ORDER = { master: 0, slave: 1, replica: 2 };
+
+/** HA role from Redux haInfo or alias suffix (master)/(slave)/(replica). */
+export function inferHaNodeType(host, haInfoEntry) {
+  const fromStore = haInfoEntry?.isHA ? haInfoEntry.currentNodeType : null;
+  if (fromStore && HA_ROLE_SORT_ORDER[fromStore] !== undefined) return fromStore;
+
+  const alias = (host?.alias || '').toLowerCase();
+  if (alias.includes('(master)')) return 'master';
+  if (alias.includes('(slave)')) return 'slave';
+  if (alias.includes('(replica)')) return 'replica';
+  return null;
+}
+
+/** Sort host UIDs within a group: master → slave → replica → unknown (then alias). */
+export function sortHostUidsByHaRole(hostUids, hostsByUid, haInfoByUid = {}) {
+  const roleRank = (uid) => {
+    const role = inferHaNodeType(hostsByUid?.[uid], haInfoByUid[uid]);
+    return role != null && HA_ROLE_SORT_ORDER[role] !== undefined
+      ? HA_ROLE_SORT_ORDER[role]
+      : 99;
+  };
+  const label = (uid) =>
+    (hostsByUid?.[uid]?.alias || hostsByUid?.[uid]?.id || uid).toLowerCase();
+
+  return [...hostUids].sort((a, b) => {
+    const byRole = roleRank(a) - roleRank(b);
+    if (byRole !== 0) return byRole;
+    return label(a).localeCompare(label(b));
+  });
+}
