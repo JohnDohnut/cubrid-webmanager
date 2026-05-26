@@ -171,13 +171,9 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
         const isNewlyAdded = lastAddedHostUid === uid;
 
         if (response.isHA) {
-          const host = hosts.find(h => h.uid === uid);
-          const baseName = (host?.alias || host?.id || 'HA Cluster')
-            .replace(/\s*\(master\)/i, '')
-            .replace(/\s*\(slave\)/i, '')
-            .replace(/\s*\(replica\)/i, '')
-            .trim();
-          await dispatch(markGroupHa({ hostUid: uid, groupName: baseName })).unwrap().catch(() => {});
+          // Group name should not auto-change based on which node was selected.
+          // Group rename is handled explicitly via group CRUD.
+          await dispatch(markGroupHa({ hostUid: uid })).unwrap().catch(() => {});
         }
 
         if (response.isHA && response.haNodes?.length > 0 && isNewlyAdded) {
