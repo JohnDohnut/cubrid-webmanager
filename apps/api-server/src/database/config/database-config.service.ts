@@ -22,7 +22,6 @@ import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.servic
 import {
   BaseService,
   HandleCmsErrors,
-  HandleDatabaseErrors,
 } from '@common';
 import { ConfigError } from '@error/config/config-error';
 import { HostService } from '@host';
@@ -173,7 +172,7 @@ export class DatabaseConfigService extends BaseService {
    * @returns SetAutoStartResponse Configuration response on success
    * @throws ConfigError If request fails, [service] section not found, or server parameter cannot be added
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async setAutoStart(
     userId: string,
     hostUid: string,
@@ -288,7 +287,7 @@ export class DatabaseConfigService extends BaseService {
    * @returns RemoveAutoStartResponse Empty object on success
    * @throws ConfigError If request fails, server parameter not found in [service] section, or dbname does not exist
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async removeAutoStart(
     userId: string,
     hostUid: string,
