@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeAddQueryPlanModal, setAutoExecQuery } from '../databaseSlice';
 import Editor from '@monaco-editor/react';
+import { useCM } from '../../../constants/useCM';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -29,6 +30,7 @@ const VIEW_ERROR   = 'error';
 
 
 export default function AddQueryPlanModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isAddQueryPlanModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
@@ -130,7 +132,7 @@ export default function AddQueryPlanModal() {
       await dispatch(setAutoExecQuery({ hostUid: selectedHostUid, dbname: selectedDatabase, payload })).unwrap();
       endSuccess(`Plan "${formData.queryId}" has been successfully synchronized and registered with the scheduler.`);
     } catch (err) {
-      endError(typeof err === 'string' ? err : (err.message || 'Operation aborted by system controller. Verify database connectivity and user privileges.'));
+      endError(typeof err === 'string' ? err : (err.message || 'Failed to add query plan.'));
     }
   };
 
@@ -156,7 +158,7 @@ export default function AddQueryPlanModal() {
           title="Schedule Registry Active"
           message={`The automated query task for ${selectedDatabase} has been successfully committed.`}
           onConfirm={handleClose}
-          confirmText="Acknowledge"
+          confirmText="OK"
         />
       </Modal>
     );
@@ -183,13 +185,13 @@ export default function AddQueryPlanModal() {
     <Modal
       isOpen={isAddQueryPlanModalOpen}
       onClose={handleClose}
-      title="Add Query Plan"
+      title={CM.addQueryPlan}
       subtitle={`Schedule automated SQL execution for ${selectedDatabase}`}
       icon="bolt"
       maxWidth="max-w-[720px]"
       footer={
         <div className="flex justify-end gap-3 w-full">
-          <Button variant="ghost" onClick={handleClose}>Discard</Button>
+          <Button variant="ghost" onClick={handleClose}>{CM.discard}</Button>
           <Button 
             variant="primary"
             onClick={handleSave} 
@@ -259,7 +261,7 @@ export default function AddQueryPlanModal() {
 
           {/* Schedule Configuration */}
           <div className="space-y-4">
-            <SectionHeader title="Execution Schedule" icon="schedule" />
+            <SectionHeader title={CM.executionSchedule} icon="schedule" />
             <div className="grid grid-cols-2 gap-4">
               <Select 
                 label="Recurrence Frequency"

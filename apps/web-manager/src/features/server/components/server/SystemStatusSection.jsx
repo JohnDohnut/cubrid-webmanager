@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { fetchMonitoringData, clearMonitoring } from '../../monitoringSlice';
 import { Card } from '../../../../components/ds/layout/Card';
@@ -8,6 +8,7 @@ import { Button } from '../../../../components/ds/foundation/Button';
 import { Spinner } from '../../../../components/ds/foundation/Spinner';
 import { Typography } from '../../../../components/ds/foundation/Typography';
 import { InfoBanner } from '../../../../components/ds/foundation/InfoBanner';
+import { useCM } from '../../../../constants/useCM';
 
 const getStatusColor = (p) => {
   if (p > 85) return 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]';
@@ -22,6 +23,7 @@ const MetricBar = ({ pct }) => (
 );
 
 export default function SystemStatusSection({ hostUid, isTabActive = true }) {
+  const CM = useCM();
   const dispatch = useDispatch();
   const hostData = useSelector((state) => state.monitoring.hostsData[hostUid] || {});
   const { currentStatus = {}, averages = {}, history = [], loading = false, error = null } = hostData;
@@ -91,9 +93,9 @@ export default function SystemStatusSection({ hostUid, isTabActive = true }) {
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
   };
 
-  const rows = [
+  const rows = useMemo(() => [
     {
-      id: 'now', time: 'Now',
+      id: 'now', time: CM.nowLabel,
       memory: currentStatus?.memTotal ? { 
         display: `${formatBytes(currentStatus.memUsed)} / ${formatBytes(currentStatus.memTotal)} (${(currentStatus.memory || 0).toFixed(1)}%)`, 
         pct: currentStatus.memory 
@@ -104,7 +106,7 @@ export default function SystemStatusSection({ hostUid, isTabActive = true }) {
       qps: (currentStatus?.qps || 0).toFixed(2),
     },
     {
-      id: 'avg', time: '5 min Avg',
+      id: 'avg', time: CM.fiveMinAvg,
       memory: currentStatus?.memTotal ? { 
         display: `${formatBytes(currentStatus.memTotal * (averages?.memory || 0) / 100)} / ${formatBytes(currentStatus.memTotal)} (${(averages?.memory || 0).toFixed(1)}%)`,
         pct: averages?.memory || 0 
@@ -114,12 +116,12 @@ export default function SystemStatusSection({ hostUid, isTabActive = true }) {
       tps: (averages?.tps || 0).toFixed(2),
       qps: (averages?.qps || 0).toFixed(2),
     }
-  ];
+  ], [CM, currentStatus, averages, history]);
 
-  const columns = [
-    { header: 'Period', accessor: 'time', render: (val) => <span className="font-semibold text-[12px] text-slate-600 dark:text-slate-300">{val}</span> },
+  const columns = useMemo(() => [
+    { header: CM.period, accessor: 'time', render: (val) => <span className="font-semibold text-[12px] text-slate-600 dark:text-slate-300">{val}</span> },
     {
-      header: 'Memory',
+      header: CM.memory,
       accessor: 'memory',
       render: (val) => val ? (
         <div className="min-w-[150px]">
@@ -128,9 +130,9 @@ export default function SystemStatusSection({ hostUid, isTabActive = true }) {
         </div>
       ) : <span className="text-slate-300">—</span>
     },
-    { header: 'Disk', accessor: 'disk', render: (val) => <span className="font-mono text-[12px] text-slate-500">{val}</span> },
+    { header: CM.disk, accessor: 'disk', render: (val) => <span className="font-mono text-[12px] text-slate-500">{val}</span> },
     {
-      header: 'CPU',
+      header: CM.cpu,
       accessor: 'cpu',
       render: (val) => val ? (
         <div className="min-w-[100px]">
@@ -140,7 +142,7 @@ export default function SystemStatusSection({ hostUid, isTabActive = true }) {
       ) : <span className="text-slate-300">—</span>
     },
     { 
-      header: 'TPS', 
+      header: CM.tps, 
       accessor: 'tps', 
       render: (val) => {
         const v = parseFloat(val);
@@ -149,7 +151,7 @@ export default function SystemStatusSection({ hostUid, isTabActive = true }) {
       }
     },
     { 
-      header: 'QPS', 
+      header: CM.qps, 
       accessor: 'qps', 
       render: (val) => {
         const v = parseFloat(val);
@@ -157,7 +159,7 @@ export default function SystemStatusSection({ hostUid, isTabActive = true }) {
         return <span className={`font-mono text-[12px] ${color} font-semibold transition-colors duration-500`}>{val}</span>;
       }
     },
-  ];
+  ], [CM]);
 
   return (
     <Card
@@ -165,7 +167,7 @@ export default function SystemStatusSection({ hostUid, isTabActive = true }) {
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-2">
             <Icon name="bar_chart" size="sm" weight={300} className="text-amber-500" />
-            <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">System Status</span>
+            <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{CM.systemStatus}</span>
             {isHA && (
               <div className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-tight flex items-center gap-1 ${
                 hostHaInfo.currentNodeType === 'master' 
@@ -186,7 +188,7 @@ export default function SystemStatusSection({ hostUid, isTabActive = true }) {
               </div>
             )}
             <span className="text-[10px] text-slate-400 font-normal ml-1">
-              {isStopped ? '· Paused' : '· Live'}
+              {isStopped ? `· ${CM.paused}` : `· ${CM.live}`}
             </span>
           </div>
           {isStopped && (
@@ -195,7 +197,7 @@ export default function SystemStatusSection({ hostUid, isTabActive = true }) {
               className="px-2 py-0.5 rounded-sm bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-[10px] font-bold text-amber-500 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors flex items-center gap-1"
             >
               <Icon name="refresh" size="12px" />
-              Resume
+              {CM.resume}
             </button>
           )}
         </div>
@@ -205,7 +207,7 @@ export default function SystemStatusSection({ hostUid, isTabActive = true }) {
       onToggle={(collapsed) => setIsExpanded(!collapsed)}
     >
       {error && (
-        <InfoBanner variant="danger" title="System Status Error" icon="error" className="m-4">
+        <InfoBanner variant="danger" title={CM.systemStatusError} icon="error" className="m-4">
           {typeof error === 'object' ? (error.message || error.note || JSON.stringify(error)) : error}
         </InfoBanner>
       )}
@@ -217,9 +219,9 @@ export default function SystemStatusSection({ hostUid, isTabActive = true }) {
               <Icon name="hub" className="text-amber-500" size="sm" />
             </div>
             <div>
-              <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">HA Cluster Status</p>
+              <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">{CM.haClusterStatus}</p>
               <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-                {hostData.haHeartbeat.hanodelist?.[0]?.node?.length || 0} nodes active in cluster
+                {CM.nodesActiveInCluster(hostData.haHeartbeat.hanodelist?.[0]?.node?.length || 0)}
               </p>
             </div>
           </div>

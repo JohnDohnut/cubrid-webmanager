@@ -17,6 +17,7 @@ import {
   ModalStatusError 
 } from '../../../components/ds/feedback/ActionStatus';
 import { StatusBadge } from '../../../components/ds/foundation/StatusBadge';
+import { useCM } from '../../../constants/useCM';
 
 // view states
 const VIEW_FORM    = 'form';
@@ -68,6 +69,7 @@ const SectionLabel = ({ children, count }) => (
 
 /* ── main component ─────────────────────────────────────────── */
 export default function RestoreDatabaseModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isRestoreDatabaseModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
@@ -163,10 +165,10 @@ export default function RestoreDatabaseModal() {
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title="Restoring Database" icon="settings_backup_restore" onClose={handleClose} maxWidth="600px" iconVariant="danger">
+      <Modal isOpen title={CM.restoringDatabase} icon="settings_backup_restore" onClose={handleClose} maxWidth="600px" iconVariant="danger">
         <ModalStatusLoading 
-          title="Reconstructing Instance" 
-          subtitle={`Applying snapshot volumes to ${selectedDatabase}. This may take several minutes.`}
+          title={CM.reconstructingInstance} 
+          subtitle={selectedDatabase}
           variant="danger"
         />
       </Modal>
@@ -176,12 +178,12 @@ export default function RestoreDatabaseModal() {
   /* ─── SUCCESS view ─── */
   if (isSuccess) {
     return (
-      <Modal isOpen title="Restore Successful" icon="settings_backup_restore" iconVariant="success" onClose={handleClose} maxWidth="600px">
+      <Modal isOpen title={CM.restoreSuccessful} icon="settings_backup_restore" iconVariant="success" onClose={handleClose} maxWidth="600px">
         <ModalStatusSuccess 
-          title="Restore Completed"
-          message={`Instance ${selectedDatabase} has been successfully rolled back to the selected state.`}
+          title={CM.restoreCompleted}
+          message={`Database ${selectedDatabase} was restored.`}
           onConfirm={handleClose}
-          confirmText="Close"
+          confirmText={CM.close}
         />
       </Modal>
     );
@@ -190,14 +192,14 @@ export default function RestoreDatabaseModal() {
   /* ─── ERROR view ─── */
   if (isError) {
     return (
-      <Modal isOpen title="Recovery Failed" icon="restore" iconVariant="danger" onClose={resetAction} maxWidth="900px">
+      <Modal isOpen title={CM.recoveryFailed} icon="restore" iconVariant="danger" onClose={resetAction} maxWidth="900px">
         <ModalStatusError 
-          title="Transaction Dropped"
+          title={CM.transactionDropped}
           error={actionError}
           onRetry={handleRestore}
           onCancel={resetAction}
-          retryText="Retry Recovery"
-          cancelText="Dismiss"
+          retryText={CM.retryRecovery}
+          cancelText={CM.dismiss}
         />
       </Modal>
     );
@@ -208,18 +210,18 @@ export default function RestoreDatabaseModal() {
     <Modal
       isOpen={isRestoreDatabaseModalOpen}
       onClose={handleClose}
-      title="Restore Database"
-      subtitle="Roll back instance to a historical snapshot"
+      title={CM.restoreDatabase}
+      subtitle={CM.restoreSubtitle}
       icon="settings_backup_restore"
       maxWidth="680px"
       footer={
         <div className="flex items-center justify-between w-full gap-3">
           <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium">
             <Icon name="info" size="12px" weight={300} />
-            <span>Database must be stopped before restoration</span>
+            <span>{CM.databaseMustBeStopped}</span>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="secondary" onClick={handleClose}>Discard</Button>
+            <Button variant="secondary" onClick={handleClose}>{CM.discard}</Button>
             <Button
               variant="primary"
               onClick={handleRestore}
@@ -227,7 +229,7 @@ export default function RestoreDatabaseModal() {
               disabled={!formData.selectedBackup}
               className="px-6 min-w-[150px]"
             >
-              Execute Restore
+              {CM.executeRestore}
             </Button>
           </div>
         </div>
@@ -245,11 +247,11 @@ export default function RestoreDatabaseModal() {
                 <Icon name="database" size="md" weight={300} className="text-rose-400" />
               </div>
               <div>
-                <p className="text-[9px] font-black uppercase tracking-widest text-rose-500/70 dark:text-rose-400/60 mb-0.5">Target Instance</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-rose-500/70 dark:text-rose-400/60 mb-0.5">{CM.targetInstance}</p>
                 <p className="text-[15px] font-bold font-mono text-rose-700 dark:text-rose-400 leading-none">{selectedDatabase}</p>
               </div>
             </div>
-            <StatusBadge label="Destructive Action" variant="rose" icon="warning" pulse={true} className="rounded-full" />
+            <StatusBadge label={CM.destructiveAction} variant="rose" icon="warning" pulse={true} className="rounded-full" />
           </div>
 
           {/* Available level summary */}
@@ -270,7 +272,7 @@ export default function RestoreDatabaseModal() {
         {/* ── Snapshot catalog ── */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <SectionLabel count={allBackups.length}>Snapshot Catalog</SectionLabel>
+            <SectionLabel count={allBackups.length}>{CM.snapshotCatalog}</SectionLabel>
             {/* level filter pills */}
             {allBackups.length > 0 && (
               <div className="flex gap-1">
@@ -298,7 +300,7 @@ export default function RestoreDatabaseModal() {
           {isLoadingBackups ? (
             <div className="flex flex-col items-center justify-center py-14 gap-3 bg-slate-50/50 dark:bg-white/2 border border-dashed border-slate-200 dark:border-white/10 rounded-xl">
               <Spinner size="sm" />
-              <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black">Scanning catalog…</p>
+              <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black">{CM.scanningCatalog}</p>
             </div>
           ) : backups.length === 0 ? (
             <EmptyState
@@ -380,7 +382,7 @@ export default function RestoreDatabaseModal() {
 
         {/* ── Restore options ── */}
         <div>
-          <SectionLabel>Restore Options</SectionLabel>
+          <SectionLabel>{CM.restoreOptions}</SectionLabel>
           <div className="grid grid-cols-2 gap-3">
 
             {/* Partial recovery toggle */}
@@ -404,7 +406,7 @@ export default function RestoreDatabaseModal() {
                 <p className={`text-[12px] font-bold transition-colors ${formData.isPartial ? 'text-slate-800 dark:text-white' : 'text-slate-600 dark:text-slate-400'}`}>
                   Log Catch-up
                 </p>
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-tight">Apply intermediate archive logs</p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-tight">{CM.applyIntermediateLogs}</p>
               </div>
               <div onClick={(e) => e.stopPropagation()}>
                 <Toggle checked={formData.isPartial} onChange={() => handleInputChange('isPartial', !formData.isPartial)} />
@@ -413,14 +415,14 @@ export default function RestoreDatabaseModal() {
 
             {/* Recovery path override */}
             <div className="space-y-1.5">
-              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 px-0.5">Path Override</p>
+              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 px-0.5">{CM.pathOverride}</p>
               <Input
                 placeholder="Default: original location"
                 value={formData.recoveryPath}
                 onChange={(e) => handleInputChange('recoveryPath', e.target.value)}
                 icon="drive_file_move"
               />
-              <p className="text-[9px] text-slate-400 dark:text-slate-500 italic px-0.5">Leave blank to restore in-place</p>
+              <p className="text-[9px] text-slate-400 dark:text-slate-500 italic px-0.5">{CM.restoreInPlaceHint}</p>
             </div>
           </div>
         </div>

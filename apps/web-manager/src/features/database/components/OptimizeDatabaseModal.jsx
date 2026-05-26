@@ -13,6 +13,7 @@ import { Spinner } from '../../../components/ds/foundation/Spinner';
 import { SectionHeader } from '../../../components/ds/foundation/SectionHeader';
 import { InfoBanner } from '../../../components/ds/foundation/InfoBanner';
 import { EmptyState } from '../../../components/ds/feedback/EmptyState';
+import { useCM } from '../../../constants/useCM';
 
 // view states
 const VIEW_FORM    = 'form';
@@ -24,6 +25,7 @@ const VIEW_ERROR   = 'error';
  * Custom Dropdown for Class Selection
  */
 const ClassSelect = ({ value, userClasses, onChange, disabled, isLoading }) => {
+  const CM = useCM();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef(null);
@@ -143,7 +145,7 @@ const ClassSelect = ({ value, userClasses, onChange, disabled, isLoading }) => {
               <div className="py-8">
                 <EmptyState
                   icon="search_off"
-                  title="No Matches"
+                  title={CM.noMatches}
                   subtitle={`No tables matching "${search}" were found.`}
                 />
               </div>
@@ -184,6 +186,7 @@ const ClassSelect = ({ value, userClasses, onChange, disabled, isLoading }) => {
 };
 
 export default function OptimizeDatabaseModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isOptimizeDatabaseModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase, activeDatabases } = useSelector((state) => state.database, shallowEqual);
@@ -259,7 +262,7 @@ export default function OptimizeDatabaseModal() {
   /* ─── LOADING view ─── */
   if (view === VIEW_LOADING) {
     return (
-      <Modal isOpen title="Executing Heuristics" icon="auto_fix_high" onClose={handleClose} maxWidth="460px">
+      <Modal isOpen title={CM.executingHeuristics} icon="auto_fix_high" onClose={handleClose} maxWidth="460px">
         <div className="flex flex-col items-center justify-center py-12 space-y-6 animate-in fade-in duration-200">
           <div className="relative w-16 h-16">
             <div className="absolute inset-0 rounded-full border-2 border-slate-100 dark:border-white/5" />
@@ -293,7 +296,7 @@ export default function OptimizeDatabaseModal() {
   /* ─── SUCCESS view ─── */
   if (view === VIEW_SUCCESS) {
     return (
-      <Modal isOpen title="Optimization Complete" icon="auto_fix_high" iconVariant="success" onClose={handleClose} maxWidth="460px">
+      <Modal isOpen title={CM.optimizationComplete} icon="auto_fix_high" iconVariant="success" onClose={handleClose} maxWidth="460px">
         <div className="flex flex-col items-center justify-center py-12 gap-7 text-center animate-in fade-in duration-200">
           <div className="relative">
             <div className="absolute inset-0 bg-emerald-500/10 rounded-full animate-ping" style={{ animationDuration: '2s' }} />
@@ -311,7 +314,7 @@ export default function OptimizeDatabaseModal() {
             </Typography>
           </div>
 
-          <Button variant="secondary" onClick={handleClose} className="min-w-[140px]">Acknowledge</Button>
+          <Button variant="secondary" onClick={handleClose} className="min-w-[140px]">{CM.close}</Button>
         </div>
       </Modal>
     );
@@ -320,7 +323,7 @@ export default function OptimizeDatabaseModal() {
   /* ─── ERROR view ─── */
   if (view === VIEW_ERROR) {
     return (
-      <Modal isOpen title="Execution Interrupted" icon="auto_fix_high" iconVariant="danger" onClose={handleClose} maxWidth="460px">
+      <Modal isOpen title={CM.executionInterrupted} icon="auto_fix_high" iconVariant="danger" onClose={handleClose} maxWidth="460px">
         <div className="flex flex-col items-center justify-center py-10 gap-6 text-center animate-in fade-in duration-200">
           <div className="relative">
             <div className="absolute inset-0 bg-rose-500/10 rounded-full animate-ping" style={{ animationDuration: '2s' }} />
@@ -349,9 +352,9 @@ export default function OptimizeDatabaseModal() {
           </div>
 
           <div className="flex items-center gap-3">
-            <Button variant="secondary" onClick={handleClose}>Dismiss</Button>
+            <Button variant="secondary" onClick={handleClose}>{CM.dismiss}</Button>
             <Button variant="primary" icon="refresh" onClick={() => { setView(VIEW_FORM); setErrorMsg(''); }}>
-              Retry Task
+              {CM.retryExecution}
             </Button>
           </div>
         </div>
@@ -364,14 +367,14 @@ export default function OptimizeDatabaseModal() {
     <Modal
       isOpen={isOptimizeDatabaseModalOpen}
       onClose={handleClose}
-      title="Performance Tuning"
-      subtitle="Optimize query execution plans"
+      title={CM.performanceTuning}
+      subtitle={CM.performanceTuningSubtitle}
       icon="auto_fix_high"
       maxWidth="460px"
       footer={
         <div className="flex justify-end gap-3 w-full">
           <Button variant="ghost" onClick={handleClose}>
-            Discard
+            {CM.discard}
           </Button>
           <Button 
             variant="primary" 
@@ -380,14 +383,14 @@ export default function OptimizeDatabaseModal() {
             disabled={isLoadingClasses}
             className="min-w-[140px]"
           >
-            Execute Tuning
+            {CM.executeOptimization}
           </Button>
         </div>
       }
     >
       <div className="space-y-6">
         <div className="px-1.5">
-          <SectionHeader title="Target Instance" icon="database" />
+          <SectionHeader title={CM.targetInstanceSection} icon="database" />
           <Input 
             value={selectedDatabase}
             disabled
@@ -397,13 +400,13 @@ export default function OptimizeDatabaseModal() {
         </div>
 
         <div className="space-y-5">
-          <InfoBanner title="Optimizer Intel" icon="insights">
+          <InfoBanner title={CM.optimizerIntel} icon="insights">
             Regenerating statistics allows the query optimizer to choose the most efficient execution paths for complex JOIN and SELECT operations.
           </InfoBanner>
 
           <div className="space-y-2 px-1.5">
             <SectionHeader 
-              title="Optimization Scope" 
+              title={CM.optimizationScope} 
               icon="tune" 
               badge={isLoadingClasses ? 'Traversing' : `${totalTables.toLocaleString()} objects`}
             />

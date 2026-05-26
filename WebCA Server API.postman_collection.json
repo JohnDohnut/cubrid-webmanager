@@ -1019,14 +1019,14 @@
 								"auto-start"
 							]
 						},
-						"description": "Enable auto-start for a database. Adds database name to the server parameter in configuration file. Returns empty object on success.\n\n**URI:**\n```\nPOST /:hostUid/database/auto-start\n```\n**Example:**\n```\nPOST /host-uid-1/database/auto-start\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n\n**Request Body:**\n```json\n{\n  \"confname\": \"cubridconf\",\n  \"dbname\": \"testdb\"\n}\n```\n\n**Success Response (200 OK):**\n```json\n{}\n```\n\n**Error Response (400 Bad Request):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Database name already exists in server parameter\",\n  \"error\": \"Bad Request\"\n}\n```\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Server parameter not found in configuration file\",\n  \"error\": \"Not Found\"\n}\n```"
+						"description": "Enable auto-start for a database. Adds database name to the server parameter in cubridconf configuration file. The `confname` field in the request body is ignored - the system always uses 'cubridconf' as the configuration file name.\n\n**URI:**\n```\nPOST /:hostUid/database/auto-start\n```\n**Example:**\n```\nPOST /host-uid-1/database/auto-start\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n\n**Request Body:**\n```json\n{\n  \"confname\": \"cubridconf\",\n  \"dbname\": \"testdb\"\n}\n```\n\n**Request Body Field Descriptions:**\n- `confname` - **Ignored**: This field is accepted but ignored. The system always uses 'cubridconf' as the configuration file name.\n- `dbname` - **Required**: Database name to enable auto-start\n\n**Behavior:**\n1. The system always uses 'cubridconf' configuration file (the `confname` field is ignored).\n2. If the `server` parameter exists in the `[service]` section:\n   - If the database name already exists in the server parameter, the request succeeds without modification and returns the current configuration.\n   - If the database name does not exist, it is added to the server parameter.\n3. If the `server` parameter does not exist in the `[service]` section:\n   - The system searches for the `[service]` section (case-sensitive, lowercase).\n   - If the `[service]` section exists, the `server` parameter is added to that section with the database name.\n   - If the `[service]` section does not exist, an error is returned.\n\n**Success Response (200 OK) - When database name is added or already exists:**\n```json\n{}\n```\n\n**Success Response (200 OK) - When database name already exists (returns current configuration):**\n```json\n{\n  \"conflist\": [\n    {\n      \"confname\": \"cubridconf\",\n      \"confdata\": [\n        \"# Configuration file\",\n        \"[service]\",\n        \"server=demodb,testdb\",\n        \"...\"\n      ]\n    }\n  ]\n}\n```\n\n**Error Response (400 Bad Request - Missing dbname):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Missing required fields: dbname\",\n  \"error\": \"Bad Request\"\n}\n```\n\n**Error Response (404 Not Found - [service] section not found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"[service] section not found in configuration file\",\n  \"error\": \"Not Found\"\n}\n```\n\n**Error Response (500 Internal Server Error):**\n```json\n{\n  \"statusCode\": 500,\n  \"message\": \"Failed to set auto-start\",\n  \"error\": \"Internal Server Error\"\n}\n```"
 					},
 					"response": []
 				},
 				{
 					"name": "Remove Auto Start",
 					"request": {
-						"method": "DELETE",
+						"method": "POST",
 						"header": [
 							{
 								"key": "Content-Type",
@@ -1043,17 +1043,18 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/{{hostUid}}/database/auto-start",
+							"raw": "{{base_url}}/{{hostUid}}/database/auto-start/remove",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"{{hostUid}}",
 								"database",
-								"auto-start"
+								"auto-start",
+								"remove"
 							]
 						},
-						"description": "Disable auto-start for a database. Removes database name from the server parameter in configuration file. Returns empty object on success.\n\n**URI:**\n```\nDELETE /:hostUid/database/auto-start\n```\n**Example:**\n```\nDELETE /host-uid-1/database/auto-start\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n\n**Request Body:**\n```json\n{\n  \"confname\": \"cubridconf\",\n  \"dbname\": \"testdb\"\n}\n```\n\n**Success Response (200 OK):**\n```json\n{}\n```\n\n**Error Response (400 Bad Request):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Database name not found in server parameter\",\n  \"error\": \"Bad Request\"\n}\n```\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Server parameter not found in configuration file\",\n  \"error\": \"Not Found\"\n}\n```"
+						"description": "Disable auto-start for a database. Removes database name from the server parameter in configuration file. Returns empty object on success.\n\n**URI:**\n```\nPOST /:hostUid/database/auto-start/remove\n```\n**Example:**\n```\nPOST /host-uid-1/database/auto-start/remove\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n\n**Request Body:**\n```json\n{\n  \"confname\": \"cubridconf\",\n  \"dbname\": \"testdb\"\n}\n```\n\n**Success Response (200 OK):**\n```json\n{}\n```\n\n**Error Response (400 Bad Request):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Database name not found in server parameter\",\n  \"error\": \"Bad Request\"\n}\n```\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Server parameter not found in configuration file\",\n  \"error\": \"Not Found\"\n}\n```"
 					},
 					"response": []
 				},

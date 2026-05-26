@@ -4,11 +4,13 @@ import { Table } from '../../../../components/ds/layout/Table';
 import { Icon } from '../../../../components/ds/foundation/Icon';
 import { Typography } from '../../../../components/ds/foundation/Typography';
 import { StatusBadge } from '../../../../components/ds/foundation/StatusBadge';
+import { useCM } from '../../../../constants/useCM';
 
 export default function DatabaseListSection({ dbListDisplay, handleAutoStartToggle }) {
+  const CM = useCM();
   const columns = [
     {
-      header: 'Database',
+      header: CM.database,
       accessor: 'db',
       render: (val) => (
         <div className="flex items-center gap-2">
@@ -18,7 +20,7 @@ export default function DatabaseListSection({ dbListDisplay, handleAutoStartTogg
       )
     },
     {
-      header: 'Auto Startup',
+      header: CM.autoStartup,
       accessor: 'autoStart',
       className: 'text-center',
       render: (val, row) => (
@@ -41,13 +43,13 @@ export default function DatabaseListSection({ dbListDisplay, handleAutoStartTogg
       )
     },
     {
-      header: 'Status',
+      header: CM.status,
       accessor: 'status',
       render: (val) => (
         <StatusBadge 
           label={val} 
-          variant={val === 'On' ? 'emerald' : 'rose'} 
-          pulse={val === 'On'} 
+          variant={val === CM.statusOn ? 'emerald' : 'rose'} 
+          pulse={val === CM.statusOn} 
         />
       )
     },
@@ -58,7 +60,7 @@ export default function DatabaseListSection({ dbListDisplay, handleAutoStartTogg
       title={
         <div className="flex items-center gap-2">
           <Icon name="database" size="sm" weight={300} className="text-amber-500" />
-          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Databases</span>
+          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{CM.databases}</span>
           <span className="text-[10px] text-slate-400 font-normal ml-1">({dbListDisplay.length})</span>
         </div>
       }

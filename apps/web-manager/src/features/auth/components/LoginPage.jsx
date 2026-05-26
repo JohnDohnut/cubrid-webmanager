@@ -7,8 +7,10 @@ import { Icon } from '../../../components/ds/foundation/Icon';
 import { Toggle } from '../../../components/ds/forms/Toggle';
 import { Input } from '../../../components/ds/forms/Input';
 import { InfoBanner } from '../../../components/ds/foundation/InfoBanner';
+import { useCM } from '../../../constants/useCM';
 
 export default function LoginPage() {
+  const CM = useCM();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -21,8 +23,8 @@ export default function LoginPage() {
 
   const validate = () => {
     const errs = {};
-    if (!username.trim()) errs.username = 'Username is required';
-    if (!password) errs.password = 'Password is required';
+    if (!username.trim()) errs.username = CM.usernameRequired;
+    if (!password) errs.password = CM.passwordRequired;
     return errs;
   };
 
@@ -174,15 +176,15 @@ export default function LoginPage() {
               <div className="w-1.5 h-5 bg-amber-500 rounded-full" />
               <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 font-mono">Authentication</span>
             </div>
-            <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none mb-2">Sign In</h2>
-            <p className="text-[13px] text-slate-500 dark:text-slate-400">Access your database management console.</p>
+            <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none mb-2">{CM.signIn}</h2>
+            <p className="text-[13px] text-slate-500 dark:text-slate-400">{CM.authorizeAccess}</p>
           </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
 
             <Input
-              label="Username"
+              label={CM.username}
               icon="account_circle"
               placeholder="Enter username"
               value={username}
@@ -192,7 +194,7 @@ export default function LoginPage() {
             />
 
             <Input
-              label="Password"
+              label={CM.password}
               labelExtra={<Link to="/forgot-password" title="Recover your password" className="text-amber-500 hover:text-amber-400 transition-colors">Forgot?</Link>}
               icon="lock"
               type={showPassword ? 'text' : 'password'}
@@ -214,7 +216,7 @@ export default function LoginPage() {
 
             {/* Remember me */}
             <Toggle
-              label="Remember this device"
+              label={CM.rememberDevice}
               checked={remember}
               onChange={setRemember}
               className="py-1"

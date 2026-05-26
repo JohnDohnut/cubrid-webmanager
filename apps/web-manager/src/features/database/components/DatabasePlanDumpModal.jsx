@@ -3,6 +3,7 @@ import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closePlanDumpModal, fetchDatabasePlanDump, resetPlanDumpState } from '../databaseSlice';
 import LoadingOverlay from '../../../components/common/LoadingOverlay';
 import ErrorOverlay from '../../../components/common/ErrorOverlay';
+import { useCM } from '../../../constants/useCM';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -14,6 +15,7 @@ import { SectionHeader } from '../../../components/ds/foundation/SectionHeader';
 import { EmptyState } from '../../../components/ds/feedback/EmptyState';
 
 export default function DatabasePlanDumpModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isPlanDumpModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
@@ -89,8 +91,8 @@ export default function DatabasePlanDumpModal() {
     <Modal
       isOpen={isPlanDumpModalOpen}
       onClose={handleClose}
-      title="Plan Cache Dump"
-      subtitle={`Query plan cache for ${selectedDatabase}`}
+      title={CM.planCacheDumpTitle}
+      subtitle={CM.displayQueryPlan}
       icon="schema"
       maxWidth={step === 'results' ? 'max-w-[780px]' : 'max-w-[460px]'}
       footer={
@@ -117,8 +119,8 @@ export default function DatabasePlanDumpModal() {
       <div className={`relative ${planDumpLoading || planDumpError ? 'min-h-[340px]' : ''}`}>
         <LoadingOverlay
           isVisible={planDumpLoading}
-          title="Dumping Plan Cache"
-          subtitle="Reading XASL plan cache from server..."
+          title={CM.dumpingPlanCache}
+          subtitle={CM.dumpingPlanCacheSubtitle}
         />
         <ErrorOverlay
           isVisible={!!planDumpError}
@@ -162,7 +164,7 @@ export default function DatabasePlanDumpModal() {
 
             {/* Focused Options */}
             <div className="space-y-4">
-              <SectionHeader title="Configuration" icon="tune" />
+              <SectionHeader title={CM.configuration} icon="tune" />
               <div 
                 className={`p-4 rounded-2xl border transition-all cursor-pointer select-none group
                   ${planDrop 
@@ -266,8 +268,8 @@ export default function DatabasePlanDumpModal() {
               ) : (
                 <EmptyState
                   icon="topic"
-                  title="No Plan Data"
-                  subtitle="Run the dump to view query plan cache entries."
+                  title={CM.noPlanData}
+                  subtitle={CM.runDumpHint}
                   py="py-12"
                 />
               )}

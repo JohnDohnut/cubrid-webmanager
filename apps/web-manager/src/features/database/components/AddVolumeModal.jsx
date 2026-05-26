@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeAddVolumeModal, addVolume } from '../databaseSlice';
 import { databaseApi } from '../databaseApi';
+import { useCM } from '../../../constants/useCM';
 
 import { Button } from '../../../components/ds/foundation/Button';
 import { Input } from '../../../components/ds/forms/Input';
@@ -58,6 +59,7 @@ const SIZE_PRESETS = [
 ];
 
 export default function AddVolumeModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isAddVolumeModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
@@ -135,9 +137,9 @@ export default function AddVolumeModal() {
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title="Volume Allocation" icon="add_box" onClose={handleClose} maxWidth="720px">
+      <Modal isOpen title={CM.volumeAllocation} icon="add_box" onClose={handleClose} maxWidth="720px">
         <ModalStatusLoading 
-          title="Scaling Foundation" 
+          title={CM.scalingFoundation} 
           subtitle={`The system is creating and formatting a new ${purpose} volume for ${selectedDatabase}.`} 
         />
       </Modal>
@@ -147,12 +149,12 @@ export default function AddVolumeModal() {
   /* ─── SUCCESS view ─── */
   if (isSuccess) {
     return (
-      <Modal isOpen title="Allocation Successful" icon="add_box" iconVariant="success" onClose={handleClose} maxWidth="720px">
+      <Modal isOpen title={CM.allocationSuccessful} icon="add_box" iconVariant="success" onClose={handleClose} maxWidth="720px">
         <ModalStatusSuccess 
-          title="Storage Expanded"
+          title={CM.storageExpanded}
           message={`A new volume "${volName}" has been successfully added to the system registry for ${selectedDatabase}.`}
           onConfirm={handleClose}
-          confirmText="Acknowledge"
+          confirmText="OK"
         />
       </Modal>
     );
@@ -161,9 +163,9 @@ export default function AddVolumeModal() {
   /* ─── ERROR view ─── */
   if (isError) {
     return (
-      <Modal isOpen title="Allocation Interrupted" icon="add_box" iconVariant="danger" onClose={resetAction} maxWidth="720px">
+      <Modal isOpen title={CM.allocationInterrupted} icon="add_box" iconVariant="danger" onClose={resetAction} maxWidth="720px">
         <ModalStatusError 
-          title="Scaling Failed"
+          title={CM.scalingFailed}
           error={error}
           onRetry={handleAdd}
           onCancel={resetAction}
@@ -179,7 +181,7 @@ export default function AddVolumeModal() {
     <Modal
       isOpen={isAddVolumeModalOpen}
       onClose={handleClose}
-      title="Provision Storage Volume"
+      title={CM.provisionVolume}
       subtitle={`Extend disk capacity for ${selectedDatabase}`}
       icon="add_to_drive"
       maxWidth="560px"
@@ -190,7 +192,7 @@ export default function AddVolumeModal() {
             <span>Active Instance Required</span>
           </div>
           <div className="flex gap-3">
-            <Button variant="ghost" onClick={handleClose}>Discard</Button>
+            <Button variant="ghost" onClick={handleClose}>{CM.discard}</Button>
             <Button
               variant="primary"
               onClick={handleAdd}
@@ -243,7 +245,7 @@ export default function AddVolumeModal() {
 
         {/* Purpose Selector */}
         <div className="space-y-4">
-           <SectionHeader title="Storage Optimization" icon="architecture" />
+           <SectionHeader title={CM.storageOptimization} icon="architecture" />
           <div className="grid grid-cols-2 gap-2.5">
             {PURPOSE_OPTIONS.map((opt) => {
               const isActive = purpose === opt.value;
@@ -280,7 +282,7 @@ export default function AddVolumeModal() {
 
         {/* Allocation Size */}
         <div className="space-y-5">
-           <SectionHeader title="Allocation Strategy" icon="straighten" />
+           <SectionHeader title={CM.allocationStrategy} icon="straighten" />
 
           <div className="flex flex-wrap gap-1.5 px-0.5">
             {SIZE_PRESETS.map((preset) => (
@@ -347,7 +349,7 @@ export default function AddVolumeModal() {
 
         {/* Volume Identification */}
         <div className="space-y-4">
-           <SectionHeader title="Instance Registry" icon="label" />
+           <SectionHeader title={CM.instanceRegistry} icon="label" />
           <div className="grid grid-cols-1 gap-4">
             <Input label="Volume Identifier" value={volName} onChange={(e) => setVolName(e.target.value)} placeholder="e.g. DATA_VOL_PROD_1 (optional)" icon="badge" size="sm" />
             <Input label="Environment Path" value={path} onChange={(e) => setPath(e.target.value)} placeholder="/var/lib/cubrid/volumes" icon="folder_zip" size="sm" className="font-mono!" />
@@ -355,7 +357,7 @@ export default function AddVolumeModal() {
         </div>
 
         {/* Guidance Disclaimer */}
-        <InfoBanner title="Privileged Operation" icon="shield_lock">
+        <InfoBanner title={CM.privilegedOperation} icon="shield_lock">
           Ensure target mount points have <span className="font-bold non-italic text-amber-500">write permissions</span> for the engine service account. Configuration updates persist instantly.
         </InfoBanner>
 

@@ -8,8 +8,10 @@ import { Card } from '../../../components/ds/layout/Card';
 import { Table } from '../../../components/ds/layout/Table';
 import { InfoBanner } from '../../../components/ds/foundation/InfoBanner';
 import { StatusBadge } from '../../../components/ds/foundation/StatusBadge';
+import { useCM } from '../../../constants/useCM';
 
 const Component = function BrokerStatus({ hostUid, brokerName }) {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { detailedStatus } = useSelector((state) => state.broker, shallowEqual);
   const { preferences } = useSelector((state) => state.user, shallowEqual);
@@ -28,7 +30,7 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
       <div className="flex-1 flex items-center justify-center p-8 bg-white dark:bg-bk-main h-full">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
-          <span className="text-[12px] text-slate-400 font-medium">Loading broker status…</span>
+          <span className="text-[12px] text-slate-400 font-medium">{CM.loadingBrokerStatus}</span>
         </div>
       </div>
     );
@@ -39,7 +41,7 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
     return (
       <div className="flex-1 flex items-center justify-center p-8 bg-white dark:bg-bk-main h-full">
         <div className="max-w-sm w-full">
-          <InfoBanner variant="danger" title="Failed to load status" icon="error_outline">
+          <InfoBanner variant="danger" title={CM.failedToLoadStatus} icon="error_outline">
             {status.error}
           </InfoBanner>
         </div>
@@ -58,9 +60,9 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
     { header: 'QPS', accessor: 'as_num_query', width: '60px', render: (v) => <span className="font-mono">{v}</span> },
     { header: 'TPS', accessor: 'as_num_tran', width: '60px', render: (v) => <span className="font-mono">{v}</span> },
     { header: 'Port', accessor: 'as_port', width: '80px', render: (v) => <span className="font-mono">{v}</span> },
-    { header: 'Memory', accessor: 'as_psize', width: '100px', render: (v) => <span className="font-mono">{(parseInt(v) / 1024).toFixed(1)} KB</span> },
+    { header: CM.memory, accessor: 'as_psize', width: '100px', render: (v) => <span className="font-mono">{(parseInt(v) / 1024).toFixed(1)} KB</span> },
     { 
-      header: 'Status', 
+      header: CM.status, 
       accessor: 'as_status', 
       width: '100px', 
       render: (v) => {
@@ -68,30 +70,30 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
         return <StatusBadge label={v || 'IDLE'} variant={isActive ? 'emerald' : 'slate'} pulse={isActive} />;
       }
     },
-    { header: 'Database', accessor: 'as_dbname', render: (v) => <span className="text-amber-600/80 dark:text-amber-500/70 font-mono">{v || '—'}</span> },
-    { header: 'Last Access', accessor: 'as_last_access_time', render: (v) => <span className="text-slate-400 dark:text-slate-600 text-[11px]">{v}</span> },
-    { header: 'Client IP', accessor: 'as_client_ip', render: (v) => <span className="font-mono">{v || '—'}</span> },
+    { header: CM.database, accessor: 'as_dbname', render: (v) => <span className="text-amber-600/80 dark:text-amber-500/70 font-mono">{v || '—'}</span> },
+    { header: CM.lastAccess, accessor: 'as_last_access_time', render: (v) => <span className="text-slate-400 dark:text-slate-600 text-[11px]">{v}</span> },
+    { header: CM.clientIp, accessor: 'as_client_ip', render: (v) => <span className="font-mono">{v || '—'}</span> },
   ];
 
   const jobColumns = [
-    { header: 'Job ID', accessor: 'job_id', width: '100px', render: (v) => <span className="font-mono">{v}</span> },
-    { header: 'Priority', accessor: 'job_priority', width: '100px', render: (v) => <span className="font-mono">{v}</span> },
-    { header: 'IP Address', accessor: 'job_ip', render: (v) => <span className="font-mono text-amber-600/80 dark:text-amber-500/70">{v}</span> },
-    { header: 'Elapsed', accessor: 'job_time', width: '100px', render: (v) => <span className="font-mono text-rose-500">{v}s</span> },
-    { header: 'Request', accessor: 'job_request', render: (v) => <div className="max-w-xs truncate text-slate-500 dark:text-slate-500 font-mono">{v}</div> },
+    { header: CM.jobId, accessor: 'job_id', width: '100px', render: (v) => <span className="font-mono">{v}</span> },
+    { header: CM.priority, accessor: 'job_priority', width: '100px', render: (v) => <span className="font-mono">{v}</span> },
+    { header: CM.address, accessor: 'job_ip', render: (v) => <span className="font-mono text-amber-600/80 dark:text-amber-500/70">{v}</span> },
+    { header: CM.elapsed, accessor: 'job_time', width: '100px', render: (v) => <span className="font-mono text-rose-500">{v}s</span> },
+    { header: CM.request, accessor: 'job_request', render: (v) => <div className="max-w-xs truncate text-slate-500 dark:text-slate-500 font-mono">{v}</div> },
   ];
 
   const asActiveBadge = (
     <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full animate-in fade-in transition duration-300">
       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-      {asInfo.length} active
+      {CM.activeCount(asInfo.length)}
     </span>
   );
 
   const jobQueuedBadge = (
     <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-amber-600 dark:text-amber-400 px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded-full animate-in fade-in transition duration-300">
       <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-      {jobInfo.length} queued
+      {CM.queuedCount(jobInfo.length)}
     </span>
   );
 
@@ -110,20 +112,20 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
               <div className={`px-2 py-0.5 rounded-full border flex items-center gap-1.5 shrink-0 transition-all duration-300 ${preferences.brokerStatusInterval > 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10'}`}>
                 <div className={`w-1 h-1 rounded-full ${preferences.brokerStatusInterval > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
                 <span className={`text-[9px] font-bold ${preferences.brokerStatusInterval > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
-                  {preferences.brokerStatusInterval > 0 ? 'Live' : 'Paused'}
+                  {preferences.brokerStatusInterval > 0 ? CM.live : CM.paused}
                 </span>
               </div>
             </div>
             <div className="flex items-center gap-1.5 mt-0.5">
               <div className="w-1.5 h-1.5 rounded-full bg-amber-500/60" />
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">Broker Status</span>
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">{CM.brokerStatus}</span>
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] text-slate-400 font-mono tracking-tight hidden lg:block mr-2">
-            Synced {lastRefreshed.toLocaleTimeString('en-US', { hour12: true })}
+            {CM.syncedAt(lastRefreshed.toLocaleTimeString())}
           </span>
 
           <button
@@ -133,7 +135,7 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
               ${(status.loading || isManualRefreshing)
                 ? 'bg-slate-100 dark:bg-white/5 text-slate-300 dark:text-slate-600 border-slate-200 dark:border-white/5 cursor-not-allowed opacity-50'
                 : 'bg-slate-50 dark:bg-white/[0.03] border-slate-200 dark:border-white/10 text-slate-400 hover:text-amber-600 dark:hover:text-amber-500 hover:border-amber-500/50 hover:bg-white dark:hover:bg-white/5 shadow-xs'}`}
-            title="Refresh broker status"
+            title={CM.refreshBrokerStatus}
           >
             <Icon name="refresh" size="18px" className={(status.loading || isManualRefreshing) ? 'animate-spin' : ''} />
           </button>

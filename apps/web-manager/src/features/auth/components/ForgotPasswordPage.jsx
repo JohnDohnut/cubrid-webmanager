@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom';
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Input } from '../../../components/ds/forms/Input';
 import { InfoBanner } from '../../../components/ds/foundation/InfoBanner';
+import { useCM } from '../../../constants/useCM';
 
 export default function ForgotPasswordPage() {
+  const CM = useCM();
   const [email, setEmail]       = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading]   = useState(false);
@@ -68,7 +70,7 @@ export default function ForgotPasswordPage() {
             <div className="mb-10">
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-6 h-px bg-rose-500/60" />
-                <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-rose-500/80 font-mono">Account Recovery</span>
+                <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-rose-500/80 font-mono">{CM.accountRecovery}</span>
               </div>
               <h1 className="text-5xl font-black text-white leading-[1.08] tracking-tighter mb-5">
                 Reset your<br />
@@ -177,7 +179,7 @@ export default function ForgotPasswordPage() {
               {/* Back to login */}
               <p className="mt-7 text-center text-[12px] text-slate-500 dark:text-slate-400">
                 Remember your password?{' '}
-                <Link to="/login" className="font-bold text-slate-900 dark:text-amber-500 hover:underline underline-offset-4">Sign In</Link>
+                <Link to="/login" className="font-bold text-slate-900 dark:text-amber-500 hover:underline underline-offset-4">{CM.signIn}</Link>
               </p>
             </>
           ) : (

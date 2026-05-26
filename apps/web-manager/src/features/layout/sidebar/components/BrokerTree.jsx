@@ -5,8 +5,10 @@ import { TreeNode } from '../../../../components/domain/tree/TreeNode';
 import { Skeleton } from '../../../../components/ds/layout/Skeleton';
 import { Typography } from '../../../../components/ds/foundation/Typography';
 import { Icon } from '../../../../components/ds/foundation/Icon';
+import { useCM } from '../../../../constants/useCM';
 
 export default function BrokerTree({ hostUid, onContextMenu, onSqlLogContextMenu }) {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { brokers, loading, logsByBroker, selectedBroker, selectedBrokerSubItem, logsLoading } = useSelector((state) => state.broker, shallowEqual);
 
@@ -35,7 +37,7 @@ export default function BrokerTree({ hostUid, onContextMenu, onSqlLogContextMenu
           <Icon name="hub" size="md" className="text-slate-400" weight={100} />
         </div>
         <Typography variant="caption" className="text-slate-500 font-black uppercase tracking-widest text-[10px]">
-          No brokers found
+          {CM.noMatches}
         </Typography>
       </div>
     );
@@ -70,7 +72,7 @@ export default function BrokerTree({ hostUid, onContextMenu, onSqlLogContextMenu
             onContextMenu={(e) => onContextMenu(e, broker.name, broker.state)}
           >
             <TreeNode
-              label="SQL Log"
+              label={CM.sqlLog}
               icon="history_edu"
               level={2}
               isActive={isBrokerSelected && selectedBrokerSubItem === 'SQL Log'}

@@ -68,7 +68,7 @@ export default function DropUserModal() {
           title="Identity Purged"
           message={`The account @${dropUserData.userName} has been completely removed from the registry.`}
           onConfirm={handleClose}
-          confirmText="Acknowledge"
+          confirmText="OK"
         />
       </Modal>
     );

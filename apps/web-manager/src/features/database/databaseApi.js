@@ -34,20 +34,20 @@ export const databaseApi = {
     apiClient.post(`/${hostUid}/database/optimize/${encodeURIComponent(dbname)}`, payload),
 
   getLockInfo: (hostUid, dbname) =>
-    apiClient.post(`/${hostUid}/database/lock/${dbname}`),
+    apiClient.post(`/${hostUid}/database/lock/${encodeURIComponent(dbname)}`, {}),
 
   getTransactionInfo: (hostUid, dbname, payload) =>
-    apiClient.post(`/${hostUid}/database/transaction-info/${dbname}`, payload),
+    apiClient.post(`/${hostUid}/database/transaction-info/${encodeURIComponent(dbname)}`, payload),
 
   killTransaction: (hostUid, dbname, payload) =>
-    apiClient.post(`/${hostUid}/database/kill-transaction/${dbname}`, payload),
+    apiClient.post(`/${hostUid}/database/kill-transaction/${encodeURIComponent(dbname)}`, payload),
 
   setAutoStart: (hostUid, payload) => {
     return apiClient.post(`/${hostUid}/database/auto-start/set`, payload);
   },
 
   removeAutoStart: (hostUid, payload) => {
-    return apiClient.delete(`/${hostUid}/database/auto-start/remove`, { data: payload });
+    return apiClient.post(`/${hostUid}/database/auto-start/remove`, payload);
   },
 
   deleteDatabase: (hostUid, dbname, payload) => {
