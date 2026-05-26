@@ -1,6 +1,35 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { getStoredLocale, LOCALE_STORAGE_KEY } from '../../constants/useCM';
+import { getStoredLocale, setStoredLocale } from '../../constants/useCM';
 import { userApi } from './userApi';
+
+export const DEFAULT_PREFERENCES = {
+  dashboardInterval: 0,
+  brokerStatusInterval: 0,
+  uiLocale: 'en',
+};
+
+/** Preserve interval defaults and locale when server/partial payloads omit fields. */
+function mergePreferencesState(current, patch) {
+  const merged = {
+    ...DEFAULT_PREFERENCES,
+    ...current,
+    ...patch,
+  };
+  if (patch.dashboardInterval == null) {
+    merged.dashboardInterval =
+      current.dashboardInterval ?? DEFAULT_PREFERENCES.dashboardInterval;
+  }
+  if (patch.brokerStatusInterval == null) {
+    merged.brokerStatusInterval =
+      current.brokerStatusInterval ?? DEFAULT_PREFERENCES.brokerStatusInterval;
+  }
+  if (patch.uiLocale === 'ko' || patch.uiLocale === 'en') {
+    merged.uiLocale = patch.uiLocale;
+  } else {
+    merged.uiLocale = current.uiLocale ?? getStoredLocale();
+  }
+  return merged;
+}
 
 export const fetchPreferences = createAsyncThunk(
   'user/fetchPreferences',
@@ -94,8 +123,7 @@ const initialState = {
     timezone: 'UTC+7',
   },
   preferences: {
-    dashboardInterval: 0,
-    brokerStatusInterval: 0,
+    ...DEFAULT_PREFERENCES,
     uiLocale: getStoredLocale(),
   },
   databaseUsers: {}, // { [dbname]: [] }
@@ -155,9 +183,7 @@ const userSlice = createSlice({
     setUiLocale: (state, action) => {
       const locale = action.payload === 'ko' ? 'ko' : 'en';
       state.preferences.uiLocale = locale;
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(LOCALE_STORAGE_KEY, locale);
-      }
+      setStoredLocale(locale);
     },
   },
   extraReducers: (builder) => {
@@ -167,10 +193,10 @@ const userSlice = createSlice({
       })
       .addCase(fetchPreferences.fulfilled, (state, action) => {
         state.preferencesLoading = false;
-        state.preferences = {
-          ...action.payload,
-          uiLocale: action.payload?.uiLocale === 'ko' ? 'ko' : getStoredLocale(),
-        };
+        state.preferences = mergePreferencesState(
+          state.preferences,
+          action.payload ?? {}
+        );
       })
       .addCase(fetchPreferences.rejected, (state, action) => {
         state.preferencesLoading = false;
@@ -181,13 +207,10 @@ const userSlice = createSlice({
       })
       .addCase(updatePreferences.fulfilled, (state, action) => {
         state.preferencesLoading = false;
-        state.preferences = {
-          ...action.payload,
-          uiLocale:
-            action.payload?.uiLocale === 'ko'
-              ? 'ko'
-              : state.preferences.uiLocale ?? getStoredLocale(),
-        };
+        state.preferences = mergePreferencesState(
+          state.preferences,
+          action.payload ?? {}
+        );
       })
       .addCase(updatePreferences.rejected, (state, action) => {
         state.preferencesLoading = false;

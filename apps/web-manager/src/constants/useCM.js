@@ -13,8 +13,22 @@ const PACKS = {
 /** @returns {'en'|'ko'} */
 export function getStoredLocale() {
   if (typeof window === 'undefined') return 'en';
-  const v = localStorage.getItem(LOCALE_STORAGE_KEY);
-  return v === 'ko' ? 'ko' : 'en';
+  try {
+    const v = localStorage.getItem(LOCALE_STORAGE_KEY);
+    return v === 'ko' ? 'ko' : 'en';
+  } catch {
+    return 'en';
+  }
+}
+
+/** @param {'en'|'ko'} locale */
+export function setStoredLocale(locale) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(LOCALE_STORAGE_KEY, locale === 'ko' ? 'ko' : 'en');
+  } catch {
+    // Storage may be blocked (private mode, embedded WebView policy, etc.)
+  }
 }
 
 /** @param {'en'|'ko'} locale */

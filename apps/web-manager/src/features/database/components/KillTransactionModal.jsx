@@ -142,7 +142,7 @@ export default function KillTransactionModal({ onTransactionKilled }) {
           <Typography variant="caption" className="text-slate-500 ml-1">{CM.killType}</Typography>
           <Select
             value={killType}
-            onChange={(val) => setKillType(val)}
+            onChange={(e) => setKillType(e.target.value)}
             options={[
               { value: 'i', label: CM.killSelectedOnly },
               { value: 'h', label: CM.killSameHost },
