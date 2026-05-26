@@ -17,7 +17,7 @@ export function ensureHostGroups(user: User): Record<string, HostGroupInfo> {
 }
 
 export function findHostRef(user: User, hostUid: string): HostRef | null {
-  for (const [groupId, group] of Object.entries(ensureHostGroups(user))) {
+  for (const [groupId, group] of Object.entries(user.host_groups ?? {})) {
     const host = group.hosts?.[hostUid];
     if (host) {
       return { groupId, group, host };
@@ -31,14 +31,14 @@ export function getHost(user: User, hostUid: string): HostInfo | null {
 }
 
 export function countAllHosts(user: User): number {
-  return Object.values(ensureHostGroups(user)).reduce(
+  return Object.values(user.host_groups ?? {}).reduce(
     (n, g) => n + Object.keys(g.hosts ?? {}).length,
     0
   );
 }
 
 export function forEachHost(user: User, fn: (ref: HostRef) => void): void {
-  for (const [groupId, group] of Object.entries(ensureHostGroups(user))) {
+  for (const [groupId, group] of Object.entries(user.host_groups ?? {})) {
     for (const host of Object.values(group.hosts ?? {})) {
       fn({ groupId, group, host });
     }
@@ -73,7 +73,7 @@ function hasSameDefinedAlias(a: string | undefined, b: string | undefined): bool
 
 export function sanitizeHostGroups(user: User): SafeHostGroupsMap {
   const out: SafeHostGroupsMap = {};
-  for (const [groupId, group] of Object.entries(ensureHostGroups(user))) {
+  for (const [groupId, group] of Object.entries(user.host_groups ?? {})) {
     out[groupId] = {
       name: group.name,
       defaultHostUid: group.defaultHostUid,

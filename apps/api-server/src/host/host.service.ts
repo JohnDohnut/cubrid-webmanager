@@ -41,9 +41,11 @@ export class HostService {
   async getHostList(userId: string): Promise<GetHostsResponse> {
     this.logger.log(`Getting host list for user: ${userId}`);
     const user = await this.repository.loadUserById(userId);
-    this.prepareUser(user);
-    this.logger.log(`Found ${countAllHosts(user)} hosts in ${Object.keys(user.host_groups).length} groups`);
-    return this.toResponse(user);
+    const hostGroups = sanitizeHostGroups(user);
+    this.logger.log(
+      `Found ${countAllHosts(user)} hosts in ${Object.keys(hostGroups).length} groups`
+    );
+    return { host_groups: hostGroups };
   }
 
   @HandleHostErrors()
