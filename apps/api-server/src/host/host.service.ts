@@ -14,8 +14,8 @@ import {
   deleteGroup,
   findDuplicateHost,
   findHostRef,
+  ensureHostGroups,
   getHost,
-  normalizeUserHostStorage,
   removeHostFromUser,
   sanitizeHostGroups,
   updateGroup,
@@ -30,7 +30,7 @@ export class HostService {
   constructor(private readonly repository: UserRepositoryService) {}
 
   private prepareUser(user: User): void {
-    normalizeUserHostStorage(user);
+    ensureHostGroups(user);
   }
 
   private toResponse(user: User): GetHostsResponse {

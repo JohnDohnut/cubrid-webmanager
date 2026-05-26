@@ -94,7 +94,7 @@ import CMSUserManagementModal from '../../host/components/CMSUserManagementModal
 import EditCMSUserModal from '../../host/components/EditCMSUserModal';
 import { findGroupIdForHost } from '../../host/hostGroupUtils';
 import { store } from '../../../app/store';
-import { openDeleteGroupModal, openRenameGroupModal } from '../../host/hostSlice';
+import { openCreateGroupModal, openDeleteGroupModal, openRenameGroupModal } from '../../host/hostSlice';
 
 export default function Sidebar({ isCollapsed, onAddHost }) {
   const sidebarRef = useRef(null);

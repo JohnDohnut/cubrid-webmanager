@@ -6,9 +6,36 @@ import { fetchDatabaseStartInfo } from '../database/databaseSlice';
 import { fetchBrokerList } from '../broker/brokerSlice';
 import { flattenHostsFromGroups, findGroupIdForHost } from './hostGroupUtils';
 
+function purgeHostClientState(state, hostUid) {
+  state.authorizedHosts = state.authorizedHosts.filter((uid) => uid !== hostUid);
+  delete state.haInfo[hostUid];
+  delete state.hostEnvs[hostUid];
+  delete state.hostAuthErrors[hostUid];
+}
+
+function syncHaInfoStorage(state) {
+  try {
+    localStorage.setItem('cubrid_ha_info', JSON.stringify(state.haInfo));
+  } catch {
+    // Storage may be blocked
+  }
+}
+
 function applyHostGroupsResponse(state, hostGroups) {
   state.hostGroups = hostGroups || {};
   state.hosts = flattenHostsFromGroups(state.hostGroups);
+  const validUids = new Set(state.hosts.map((h) => h.uid));
+  state.authorizedHosts = state.authorizedHosts.filter((uid) => validUids.has(uid));
+  for (const uid of Object.keys(state.haInfo)) {
+    if (!validUids.has(uid)) delete state.haInfo[uid];
+  }
+  for (const uid of Object.keys(state.hostEnvs)) {
+    if (!validUids.has(uid)) delete state.hostEnvs[uid];
+  }
+  for (const uid of Object.keys(state.hostAuthErrors)) {
+    if (!validUids.has(uid)) delete state.hostAuthErrors[uid];
+  }
+  syncHaInfoStorage(state);
 }
 
 // Async thunk to fetch hosts from API
@@ -101,10 +128,12 @@ export const updateHostGroup = createAsyncThunk(
 
 export const deleteHostGroup = createAsyncThunk(
   'host/deleteHostGroup',
-  async (groupId, { rejectWithValue }) => {
+  async (groupId, { rejectWithValue, getState }) => {
     try {
+      const group = getState().host.hostGroups[groupId];
+      const removedHostUids = Object.keys(group?.hosts || {});
       const response = await hostApi.deleteGroup(groupId);
-      return { groupId, hostGroups: response.host_groups || {} };
+      return { groupId, hostGroups: response.host_groups || {}, removedHostUids };
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.response?.data?.error || 'Failed to delete group');
     }
@@ -357,7 +386,11 @@ const hostSlice = createSlice({
     setSelectedGroup: (state, action) => {
       const { groupId, hostUid } = action.payload;
       state.selectedGroupUid = groupId;
-      if (hostUid) state.selectedHostUid = hostUid;
+      if (hostUid) {
+        state.selectedHostUid = hostUid;
+      } else {
+        state.selectedHostUid = null;
+      }
     },
     setServiceProgressMessage: (state, action) => {
       state.serviceProgressMessage = action.payload;
@@ -550,13 +583,10 @@ const hostSlice = createSlice({
           state.selectedHostUid = null;
           state.selectedGroupUid = null;
         }
-        state.authorizedHosts = state.authorizedHosts.filter(uid => uid !== hostUid);
+        purgeHostClientState(state, hostUid);
+        syncHaInfoStorage(state);
         state.isDeleteHostModalOpen = false;
         state.hostToDeleteUid = null;
-        delete state.haInfo[hostUid];
-        delete state.hostEnvs[hostUid];
-        delete state.hostAuthErrors[hostUid];
-        localStorage.setItem('cubrid_ha_info', JSON.stringify(state.haInfo));
       })
       .addCase(deleteHost.rejected, (state, action) => {
         state.loading = false;
@@ -652,11 +682,17 @@ const hostSlice = createSlice({
       })
       .addCase(deleteHostGroup.fulfilled, (state, action) => {
         state.loading = false;
-        applyHostGroupsResponse(state, action.payload.hostGroups);
-        if (state.selectedGroupUid === action.payload.groupId) {
-          state.selectedGroupUid = null;
+        const { groupId, hostGroups, removedHostUids = [] } = action.payload;
+        applyHostGroupsResponse(state, hostGroups);
+        const removedSet = new Set(removedHostUids);
+        if (removedSet.has(state.selectedHostUid)) {
           state.selectedHostUid = null;
         }
+        if (state.selectedGroupUid === groupId || !state.hostGroups[state.selectedGroupUid]) {
+          state.selectedGroupUid = null;
+        }
+        removedHostUids.forEach((uid) => purgeHostClientState(state, uid));
+        syncHaInfoStorage(state);
         state.isDeleteGroupModalOpen = false;
         state.groupToEditId = null;
         state.groupToEditName = null;

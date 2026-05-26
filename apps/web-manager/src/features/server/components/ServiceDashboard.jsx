@@ -117,7 +117,7 @@ const Component = function ServiceDashboard() {
 
       rows.push({
         _type: 'group',
-        id: `group:${groupId}`,
+        rowKey: `group:${groupId}`,
         groupId,
         groupName,
         hostCount: groupHostUids.length,
@@ -142,7 +142,7 @@ const Component = function ServiceDashboard() {
           isFirstInGroup: idx === 0,
           isLastInGroup: idx === groupOrderedUids.length - 1,
         };
-        rows.push({ _type: 'host', ...host });
+        rows.push({ _type: 'host', rowKey: `host:${uid}`, ...host });
       });
     }
 
@@ -531,8 +531,8 @@ const Component = function ServiceDashboard() {
           />
         </Card>
         
-        {authorizedHosts.length === 0 && (
-          <InfoBanner variant="warning" title="Sensors Offline" icon="dns" className="animate-pulse">
+        {hosts.length > 0 && authorizedHosts.length === 0 && (
+          <InfoBanner variant="warning" title="Sensors Offline" icon="dns">
             Connect to a host server from the navigator to activate global resource monitoring.
           </InfoBanner>
         )}

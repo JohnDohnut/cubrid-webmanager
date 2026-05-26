@@ -35,7 +35,7 @@ export default function HostGroupTree({
     <div className="py-1">
       {orderedGroupEntries(hostGroups).map(([groupId, group]) => {
         const hostUids = Object.keys(group.hosts || {});
-        const isExpanded = expandedGroups.has(groupId) || selectedGroupUid === groupId;
+        const isExpanded = expandedGroups.has(groupId);
         const isGroupSelected = selectedGroupUid === groupId;
 
         return (
@@ -45,7 +45,7 @@ export default function HostGroupTree({
               label={group.name}
               icon="folder"
               level={0}
-              isActive={isGroupSelected && !selectedHostUid}
+              isActive={isGroupSelected}
               hasChildren={hostUids.length > 0}
               isExpanded={isExpanded}
               open={isExpanded}

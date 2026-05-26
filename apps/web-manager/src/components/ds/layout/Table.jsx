@@ -102,9 +102,15 @@ export const Table = ({
         <tbody className="divide-y divide-slate-100 dark:divide-white/4">
           {sortedData.map((row, rowIdx) => {
             const isEven = rowIdx % 2 === 0;
+            const rowKey =
+              row.rowKey ??
+              (row._type === 'host' ? row.uid : null) ??
+              row.uid ??
+              row.id ??
+              rowIdx;
             return (
               <tr
-                key={row.id || rowIdx}
+                key={rowKey}
                 className={`group transition-colors duration-100
                   ${zebra && isEven ? 'bg-slate-50/60 dark:bg-white/[0.012]' : ''}
                   hover:bg-amber-500/4 dark:hover:bg-amber-500/5

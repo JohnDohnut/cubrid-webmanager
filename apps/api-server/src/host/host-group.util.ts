@@ -9,34 +9,11 @@ export type HostRef = {
   host: HostInfo;
 };
 
-type LegacyUser = User & { host_list?: Record<string, HostInfo> };
-
 export function ensureHostGroups(user: User): Record<string, HostGroupInfo> {
   if (!user.host_groups) {
     user.host_groups = {};
   }
   return user.host_groups;
-}
-
-/** One-time lift of flat host_list into nested host_groups (dev / old records). */
-export function normalizeUserHostStorage(user: User): void {
-  const legacy = (user as LegacyUser).host_list;
-  if (legacy && Object.keys(legacy).length > 0) {
-    user.host_groups = {};
-    for (const host of Object.values(legacy)) {
-      const groupId = uuidv4();
-      user.host_groups[groupId] = {
-        name: (host.alias || host.id || 'Host').trim() || 'Host',
-        defaultHostUid: host.uid,
-        createdAt: new Date().toISOString(),
-        hosts: { [host.uid]: host },
-      };
-    }
-    delete (user as LegacyUser).host_list;
-    return;
-  }
-  ensureHostGroups(user);
-  delete (user as LegacyUser).host_list;
 }
 
 export function findHostRef(user: User, hostUid: string): HostRef | null {

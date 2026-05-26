@@ -15,7 +15,7 @@ import { ConfigError } from '@error/config/config-error';
 import { ConfigErrorCode } from '@error/config/config-error-code';
 import { DatabaseError } from '@error/database/database-error';
 import { HostError } from '@error/index';
-import { getHost, normalizeUserHostStorage } from '@host/host-group.util';
+import { ensureHostGroups, getHost } from '@host/host-group.util';
 import { ValidationError } from '@error/validation/validation-error';
 import { FileService } from '@file/file.service';
 import { HaService } from '@ha';
@@ -223,7 +223,7 @@ export class DatabaseLifecycleService extends BaseService {
     }
 
     await this.repository.atomicUpdateUser(userId, async (user) => {
-      normalizeUserHostStorage(user);
+      ensureHostGroups(user);
       const host = getHost(user, hostUid);
       if (!host) {
         throw HostError.NoSuchHost({ hostUid });

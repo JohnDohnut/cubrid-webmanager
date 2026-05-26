@@ -6,7 +6,7 @@ import {
 } from '@api-interfaces';
 import { HandleUserErrors } from '@common';
 import { UserError } from '@error/user/user-error';
-import { normalizeUserHostStorage } from '@host/host-group.util';
+import { ensureHostGroups } from '@host/host-group.util';
 import { Injectable } from '@nestjs/common';
 import { UserRepositoryService } from '@repository';
 import { PasswordService } from '@security';
@@ -87,9 +87,9 @@ export class UserService {
    * const userData = await userService.getUserData("user123");
    * console.log(userData.department); // "IT"
    * // userData.password is undefined
-   * // userData.host_list[uid].password is undefined
-   * // userData.host_list[uid].token is undefined
-   * // userData.host_list[uid].dbProfiles[dbname].password is undefined
+   * // host_groups[*].hosts[uid].password is undefined in the API response
+   * // host_groups[*].hosts[uid].token is undefined in the API response
+   * // host_groups[*].hosts[uid].dbProfiles[dbname].password is undefined in the API response
    * ```
    */
   @HandleUserErrors()
@@ -97,7 +97,7 @@ export class UserService {
     const user = await this.repository.loadUserById(userId);
     
     // Remove user password and uuid to match UserResponse type
-    normalizeUserHostStorage(user);
+    ensureHostGroups(user);
     const { password, uuid, ...userResponse } = user;
 
     const sanitizedGroups: Record<string, any> = {};
