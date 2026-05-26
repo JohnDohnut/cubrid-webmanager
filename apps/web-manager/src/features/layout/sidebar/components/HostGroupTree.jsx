@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { setSelectedGroup, openAddHostModal } from '../../../host/hostSlice';
-import { orderedGroupEntries, resolveDefaultHostUid } from '../../../host/hostGroupUtils';
+import { orderedGroupEntries } from '../../../host/hostGroupUtils';
 import ServerListItem from './ServerListItem';
 import { Icon } from '../../../../components/ds/foundation/Icon';
 import { TreeNode } from '../../../../components/domain/tree/TreeNode';
@@ -27,8 +27,8 @@ export default function HostGroupTree({
     });
   };
 
-  const handleGroupSelect = (groupId, group) => {
-    dispatch(setSelectedGroup({ groupId, hostUid: resolveDefaultHostUid(group) }));
+  const handleGroupSelect = (groupId) => {
+    dispatch(setSelectedGroup({ groupId }));
   };
 
   return (
@@ -50,7 +50,7 @@ export default function HostGroupTree({
               isExpanded={isExpanded}
               open={isExpanded}
               onToggle={() => toggleGroup(groupId)}
-              onSelect={() => handleGroupSelect(groupId, group)}
+              onSelect={() => handleGroupSelect(groupId)}
               onDoubleClick={() => toggleGroup(groupId)}
               onContextMenu={(e) => {
                 if (onGroupContextMenu) onGroupContextMenu(e, groupId, group.name);

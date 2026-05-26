@@ -39,6 +39,8 @@ export const TreeNode = React.memo(({
 
   const handleSelect = (e) => {
     e.stopPropagation();
+    // Chevron click only expands/collapses; do not run selection (e.g. avoid opening a default host).
+    if (e.target.closest?.('[data-tree-chevron]')) return;
     if (onSelect) onSelect();
   };
 
@@ -125,15 +127,17 @@ export const TreeNode = React.memo(({
       >
         {isActive && <ActiveBar />}
 
-        {/* Chevron */}
-        <Icon
-          name="chevron_right"
-          size="14px"
-          weight={400}
-          className={`shrink-0 transition-transform duration-150 ${isOpen ? 'rotate-90' : ''} ${
-            isActive ? 'text-amber-500' : 'text-slate-400 dark:text-slate-600'
-          }`}
-        />
+        {/* Chevron — expand/collapse only */}
+        <span data-tree-chevron className="shrink-0 flex items-center">
+          <Icon
+            name="chevron_right"
+            size="14px"
+            weight={400}
+            className={`transition-transform duration-150 ${isOpen ? 'rotate-90' : ''} ${
+              isActive ? 'text-amber-500' : 'text-slate-400 dark:text-slate-600'
+            }`}
+          />
+        </span>
 
         {/* Node icon */}
         <Icon
