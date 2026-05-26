@@ -4,8 +4,10 @@ import { authApi } from '../authApi';
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Input } from '../../../components/ds/forms/Input';
 import { InfoBanner } from '../../../components/ds/foundation/InfoBanner';
+import { useCM } from '../../../constants/useCM';
 
 export default function RegisterPage() {
+  const CM = useCM();
   const [username, setUsername]             = useState('');
   const [password, setPassword]             = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -22,12 +24,12 @@ export default function RegisterPage() {
 
   const validate = () => {
     const errs = {};
-    if (!username.trim()) errs.username = 'Username is required';
-    else if (username.length < 3) errs.username = 'At least 3 characters';
-    if (!password) errs.password = 'Password is required';
+    if (!username.trim()) errs.username = CM.usernameRequired;
+    else if (username.length < 3) errs.username = CM.minChars3;
+    if (!password) errs.password = CM.passwordRequired;
     else if (password.length < 6) errs.password = 'At least 6 characters';
     if (!confirmPassword) errs.confirmPassword = 'Please confirm your password';
-    else if (password !== confirmPassword) errs.confirmPassword = 'Passwords do not match';
+    else if (password !== confirmPassword) errs.confirmPassword = CM.passwordsDoNotMatch;
     return errs;
   };
 
@@ -108,7 +110,7 @@ export default function RegisterPage() {
               <div className="w-7 h-7 rounded-lg bg-white/4 border border-white/[0.07] flex items-center justify-center group-hover:bg-white/10 transition-colors">
                 <Icon name="arrow_back" size="14px" weight={300} className="text-slate-500 group-hover:text-white" />
               </div>
-              <span className="text-[11px] font-bold uppercase tracking-[0.2em]">Back to Login</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.2em]">{CM.backToLogin}</span>
             </Link>
 
             {/* Brand */}
@@ -179,7 +181,7 @@ export default function RegisterPage() {
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-3">
               <div className="w-1.5 h-5 bg-emerald-500 rounded-full" />
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 font-mono">Create Account</span>
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 font-mono">{CM.createAccount}</span>
             </div>
             <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none mb-2">Register</h2>
             <p className="text-[13px] text-slate-500 dark:text-slate-400">Create your administrative account to start managing data.</p>
@@ -270,7 +272,7 @@ export default function RegisterPage() {
                 <div className="w-5 h-5 border-2 border-white/20 dark:border-black/20 border-t-white dark:border-t-black rounded-full animate-spin" />
               ) : (
                 <>
-                  <span className="tracking-wide">Create Account</span>
+                  <span className="tracking-wide">{CM.createAccount}</span>
                   <Icon name="person_add" size="sm" weight={300} className="group-hover:translate-x-0.5 transition-transform" />
                 </>
               )}
@@ -280,7 +282,7 @@ export default function RegisterPage() {
           {/* Already have account */}
           <p className="mt-7 text-center text-[12px] text-slate-500 dark:text-slate-400">
             Already have an account?{' '}
-            <Link to="/login" className="font-bold text-slate-900 dark:text-amber-500 hover:underline underline-offset-4">Sign In</Link>
+            <Link to="/login" className="font-bold text-slate-900 dark:text-amber-500 hover:underline underline-offset-4">{CM.signIn}</Link>
           </p>
 
           {/* Terms */}

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch , shallowEqual } from 'react-redux';
 import { fetchLogContent } from '../brokerSlice';
 import { Icon } from '../../../components/ds/foundation/Icon';
+import { useCM } from '../../../constants/useCM';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const MODES = [
@@ -153,6 +154,7 @@ function extractTopSQL(ls) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 function LogViewer({ hostUid, path }) {
+  const CM = useCM();
   const dispatch = useDispatch();
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode]       = useState('raw');
@@ -246,7 +248,7 @@ ${data.map(d => `<Row ss:AutoFitHeight="1"><Cell><Data ss:Type="String">${d.id}<
           <button
             onClick={() => handleExcel(top)}
             disabled={top.length === 0}
-            title="Download as Excel"
+            title={CM.downloadExcel}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-bold transition-all active:scale-[0.98]
               ${top.length === 0
                 ? 'bg-slate-50 dark:bg-white/5 text-slate-300 dark:text-slate-600 border-slate-200 dark:border-white/5 cursor-not-allowed opacity-50'
@@ -263,7 +265,7 @@ ${data.map(d => `<Row ss:AutoFitHeight="1"><Cell><Data ss:Type="String">${d.id}<
           <button
             onClick={handleCopy}
             disabled={lines.length === 0}
-            title="Copy to clipboard"
+            title={CM.copyToClipboard}
             className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-all active:scale-[0.98] disabled:opacity-30 
               ${copying
                 ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30 !w-auto !px-3 font-bold !gap-1.5 text-[10px]'
@@ -277,7 +279,7 @@ ${data.map(d => `<Row ss:AutoFitHeight="1"><Cell><Data ss:Type="String">${d.id}<
           <button
             onClick={() => dispatch(fetchLogContent({ hostUid, path, start: String(startLine), end: String(endLine) }))}
             disabled={loading}
-            title="Refresh"
+            title={CM.refresh}
             className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-all active:scale-[0.98]
               ${loading
                 ? 'bg-slate-100 dark:bg-white/5 text-slate-300 dark:text-slate-600 border-slate-200 dark:border-white/5 cursor-not-allowed opacity-50'
@@ -369,7 +371,7 @@ ${data.map(d => `<Row ss:AutoFitHeight="1"><Cell><Data ss:Type="String">${d.id}<
                     <button
                       onClick={() => navigator.clipboard.writeText(s)}
                       className="p-1 text-slate-400 hover:text-amber-500 rounded transition-colors"
-                      title="Copy statement"
+                      title={CM.copyStatement}
                     >
                       <Icon name="content_copy" size="sm" weight={300} />
                     </button>

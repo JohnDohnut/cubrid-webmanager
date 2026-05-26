@@ -1,8 +1,10 @@
 import React from 'react';
 import { Typography } from '../../../../components/ds/foundation/Typography';
 import { Icon } from '../../../../components/ds/foundation/Icon';
+import { useCM } from '../../../../constants/useCM';
 
 export default function SidebarEmptyState() {
+  const CM = useCM();
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-6 text-center relative overflow-hidden animate-in fade-in duration-500 select-none">
 
@@ -38,12 +40,12 @@ export default function SidebarEmptyState() {
         <div className="space-y-1.5 max-w-[240px]">
 
           <Typography variant="h6" className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-[0.2em] leading-none whitespace-nowrap">
-            No Host Selected
+            {CM.noHostSelectedTitle}
           </Typography>
 
 
           <Typography variant="p" className="text-[11px] leading-relaxed text-slate-400 dark:text-slate-600 font-medium">
-            Select a server from the list above to begin monitoring.
+            {CM.selectServerFromList}
           </Typography>
         </div>
 
@@ -51,7 +53,7 @@ export default function SidebarEmptyState() {
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-white/4 border border-slate-200 dark:border-white/6">
           <Icon name="arrow_upward" size="12px" weight={400} className="text-slate-400" />
           <Typography variant="span" className="text-[10px] text-slate-400 font-semibold tracking-wide">
-            Server list above
+            {CM.serverListAbove}
           </Typography>
         </div>
 

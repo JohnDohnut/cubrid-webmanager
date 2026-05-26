@@ -5,8 +5,10 @@ import { Modal } from '../../../components/ds/layout/Modal';
 import { Button } from '../../../components/ds/foundation/Button';
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { SectionHeader } from '../../../components/ds/foundation/SectionHeader';
+import { useCM } from '../../../constants/useCM';
 
 export default function SuggestedHaNodesModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { suggestedHaNodes, hosts, isDiscoveryModalOpen } = useSelector((state) => state.host, shallowEqual);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -50,13 +52,13 @@ export default function SuggestedHaNodesModal() {
     <Modal
       isOpen={isDiscoveryModalOpen && filteredNodes.length > 0}
       onClose={() => dispatch(clearSuggestedHaNodes())}
-      title="HA Peers Discovered"
+      title={CM.haPeersDiscovered}
       icon="hub"
       maxWidth="max-w-[450px]"
       footer={
         <>
           <Button variant="secondary" onClick={() => dispatch(clearSuggestedHaNodes())}>
-            Discard All
+            {CM.discard}
           </Button>
           <Button 
             variant="primary" 
@@ -64,7 +66,7 @@ export default function SuggestedHaNodesModal() {
             icon="add_link"
             className="min-w-[140px]"
           >
-            Configure & Add
+            {CM.add}
           </Button>
         </>
       }
@@ -77,7 +79,7 @@ export default function SuggestedHaNodesModal() {
           </p>
         </div>
 
-        <SectionHeader title="Peer Nodes" icon="checklist" />
+        <SectionHeader title={CM.peerNodes} icon="checklist" />
         <div className="space-y-2 max-h-[300px] overflow-y-auto px-1 custom-scrollbar">
           {filteredNodes.map((node, i) => (
             <div 

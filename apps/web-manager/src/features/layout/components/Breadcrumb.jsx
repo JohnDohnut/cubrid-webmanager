@@ -4,6 +4,7 @@ import { MenuItem, MenuDivider } from '../../../components/common/DropdownMenu';
 import { ConfirmDialog } from '../../../components/ds/layout/ConfirmDialog';
 import ContextMenuWrapper from '../../../components/common/ContextMenuWrapper';
 import TabItem from './TabItem';
+import { useCM } from '../../../constants/useCM';
 
 export default function Breadcrumb({ 
   activeTab, 
@@ -14,6 +15,7 @@ export default function Breadcrumb({
   onCloseAll, 
   labels = {} 
 }) {
+  const CM = useCM();
   const [contextMenu, setContextMenu] = useState(null);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, onConfirm: null, title: '', message: '' });
   const { dirtyTabs } = useSelector((state) => state.layout, shallowEqual);
@@ -125,7 +127,7 @@ export default function Breadcrumb({
         >
           <MenuItem 
             icon="close" 
-            label="Close Tab" 
+            label={CM.closeTab} 
             onClick={() => {
               handleCloseTab(contextMenu.tabId);
               setContextMenu(null);
@@ -133,7 +135,7 @@ export default function Breadcrumb({
           />
           <MenuItem 
             icon="close_fullscreen" 
-            label="Close Other Tabs" 
+            label={CM.closeOtherTabs} 
             onClick={() => {
               handleCloseOthers(contextMenu.tabId);
               setContextMenu(null);
@@ -141,7 +143,7 @@ export default function Breadcrumb({
           />
           <MenuItem 
             icon="tab_close" 
-            label="Close All Tabs" 
+            label={CM.closeAllTabs} 
             onClick={() => {
               handleCloseAll();
               setContextMenu(null);
@@ -150,7 +152,7 @@ export default function Breadcrumb({
           <MenuDivider />
           <MenuItem 
             icon="refresh" 
-            label="Reload Tab" 
+            label={CM.reloadTab} 
             onClick={() => setContextMenu(null)}
           />
         </ContextMenuWrapper>
@@ -162,7 +164,7 @@ export default function Breadcrumb({
         message={confirmModal.message}
         onConfirm={confirmModal.onConfirm}
         onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
-        confirmText="Discard Changes"
+        confirmText={CM.discard}
         type="warning"
       />
     </div>

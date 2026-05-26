@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { 
   closeCreateDatabaseModal, 
@@ -23,6 +23,7 @@ import {
   ModalStatusSuccess, 
   ModalStatusError 
 } from '../../../components/ds/feedback/ActionStatus';
+import { useCM } from '../../../constants/useCM';
 
 // view states
 const VIEW_FORM    = 'form';
@@ -31,16 +32,15 @@ const VIEW_SUCCESS = 'success';
 const VIEW_ERROR   = 'error';
 
 const PAGE_SIZES = [4096, 8192, 16384, 32768];
-const LOCALES = [
+const BASE_LOCALES = [
   { value: 'en_US.iso88591', label: 'en_US.iso88591 — English, Western European' },
   { value: 'en_US.utf8', label: 'en_US.utf8 — English, Universal' },
   { value: 'ko_KR.euckr', label: 'ko_KR.euckr — Korean, Legacy' },
   { value: 'ko_KR.utf8', label: 'ko_KR.utf8 — Korean, Universal' },
-  { value: 'user_defined', label: 'User Defined' }
 ];
-const VOLUME_TYPES = [
-  { value: 'data', label: 'Data' },
-  { value: 'temp', label: 'Temp' }
+const VOLUME_TYPE_KEYS = [
+  { value: 'data', key: 'volumeTypeData' },
+  { value: 'temp', key: 'volumeTypeTemp' },
 ];
 
 const renameVolumesSequentially = (volumes, dbName) => {
@@ -78,14 +78,6 @@ const INITIAL_FORM_DATA = {
   confirmPassword: ''
 };
 
-const STEPS = [
-  { id: 1, label: 'General', icon: 'settings' },
-  { id: 2, label: 'Volumes', icon: 'storage' },
-  { id: 3, label: 'Automation', icon: 'auto_mode' },
-  { id: 4, label: 'Access', icon: 'lock' },
-  { id: 5, label: 'Review', icon: 'fact_check' },
-];
-
 function SummaryRow({ label, value, accent }) {
   return (
     <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-white/4 last:border-0">
@@ -104,6 +96,25 @@ const typeBadge = (t) => {
 
 /* ── main component ─────────────────────────────────────────── */
 export default function CreateDatabaseModal() {
+  const CM = useCM();
+  const locales = useMemo(
+    () => [...BASE_LOCALES, { value: 'user_defined', label: CM.userDefined }],
+    [CM]
+  );
+  const volumeTypes = useMemo(
+    () => VOLUME_TYPE_KEYS.map(({ value, key }) => ({ value, label: CM[key] })),
+    [CM]
+  );
+  const steps = useMemo(
+    () => [
+      { id: 1, label: CM.wizardGeneral, icon: 'settings' },
+      { id: 2, label: CM.wizardAdditionalVol, icon: 'storage' },
+      { id: 3, label: CM.wizardAutoVol, icon: 'auto_mode' },
+      { id: 4, label: CM.wizardSetDbaPass, icon: 'lock' },
+      { id: 5, label: CM.wizardDbInfo, icon: 'fact_check' },
+    ],
+    [CM]
+  );
   const dispatch = useDispatch();
   const { isCreateDatabaseModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
@@ -283,10 +294,10 @@ export default function CreateDatabaseModal() {
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title="Initializing Instance" icon="add_circle" onClose={handleClose} maxWidth="600px">
+      <Modal isOpen title={CM.createDatabase} icon="add_circle" onClose={handleClose} maxWidth="600px">
         <ModalStatusLoading 
-          title="Creating Database Structure" 
-          subtitle={`Allocating volume space and initializing the system catalog for ${formData.dbName}.`} 
+          title={CM.createDatabase} 
+          subtitle={formData.dbName} 
         />
       </Modal>
     );
@@ -295,12 +306,12 @@ export default function CreateDatabaseModal() {
   /* ─── SUCCESS view ─── */
   if (isSuccess) {
     return (
-      <Modal isOpen title="Database Created" icon="add_circle" iconVariant="success" onClose={handleClose} maxWidth="600px">
+      <Modal isOpen title={CM.createDatabase} icon="add_circle" iconVariant="success" onClose={handleClose} maxWidth="600px">
         <ModalStatusSuccess 
-          title="Initialization Complete"
-          message={`Instance ${formData.dbName} is now active and ready for data ingest.`}
+          title={CM.success}
+          message={CM.createDbJobComplete(CM.createDatabase)}
           onConfirm={handleClose}
-          confirmText="Acknowledge"
+          confirmText={CM.ok}
         />
       </Modal>
     );
@@ -309,14 +320,13 @@ export default function CreateDatabaseModal() {
   /* ─── ERROR view ─── */
   if (isError) {
     return (
-      <Modal isOpen title="Creation Failed" icon="add_circle" iconVariant="danger" onClose={resetAction} maxWidth="600px">
+      <Modal isOpen title={CM.createDatabase} icon="add_circle" iconVariant="danger" onClose={resetAction} maxWidth="600px">
         <ModalStatusError 
-          title="Action Interrupted"
+          title={CM.failure}
           error={error}
           onRetry={handleFinish}
           onCancel={resetAction}
-          retryText="Retry Setup"
-          cancelText="Dismiss"
+          cancelText={CM.close}
         />
       </Modal>
     );
@@ -327,14 +337,14 @@ export default function CreateDatabaseModal() {
     <Modal
       isOpen={isCreateDatabaseModalOpen}
       onClose={handleClose}
-      title="Create Database"
-      subtitle={`Step ${step} of 5 — ${STEPS[step - 1].label}`}
+      title={CM.createDatabase}
+      subtitle={CM.createDatabaseMsg}
       icon="add_circle"
       maxWidth="780px"
       footer={
         <div className="flex w-full items-center justify-between">
           <div className="flex items-center gap-1.5">
-            {STEPS.map(s => (
+            {steps.map(s => (
               <div
                 key={s.id}
                 className={`rounded-full transition-all duration-300 ${
@@ -347,10 +357,10 @@ export default function CreateDatabaseModal() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="ghost" onClick={handleClose}>Discard</Button>
+            <Button variant="ghost" onClick={handleClose}>{CM.cancel}</Button>
             {step > 1 && (
               <Button variant="outline" onClick={handleBack}>
-                Back
+                {CM.back}
               </Button>
             )}
             {step < 5 ? (
@@ -362,11 +372,11 @@ export default function CreateDatabaseModal() {
                 iconPosition="right"
                 className="min-w-[140px]"
               >
-                Continue
+                {CM.next}
               </Button>
             ) : (
               <Button variant="primary" onClick={handleFinish} icon="done_all" className="min-w-[140px]">
-                Create database
+                {CM.finish}
               </Button>
             )}
           </div>
@@ -376,7 +386,7 @@ export default function CreateDatabaseModal() {
       <div className="space-y-0">
         {/* Step Track */}
         <div className="flex items-center gap-0 mb-5 px-1">
-          {STEPS.map((s, idx) => (
+          {steps.map((s, idx) => (
             <React.Fragment key={s.id}>
               <div className="flex items-center gap-2 shrink-0">
                 <div className={`w-6 h-6 rounded-xl flex items-center justify-center border text-[10px] font-black transition-all duration-300 ${
@@ -397,7 +407,7 @@ export default function CreateDatabaseModal() {
                   'text-slate-300 dark:text-slate-600'
                 }`}>{s.label}</span>
               </div>
-              {idx < STEPS.length - 1 && (
+              {idx < steps.length - 1 && (
                 <div className={`flex-1 mx-3 h-px transition-all duration-500 ${step > idx + 1 ? 'bg-amber-500/30' : 'bg-slate-100 dark:bg-white/6'}`} />
               )}
             </React.Fragment>
@@ -408,17 +418,17 @@ export default function CreateDatabaseModal() {
         {step === 1 && (
           <div className="space-y-5 animate-in fade-in duration-200">
             <div className="bg-white dark:bg-white/2 border border-slate-100 dark:border-white/5 rounded-2xl p-4">
-            <SectionHeader title="Basic Configuration" icon="settings" className="mb-4" />
+            <SectionHeader title={CM.wizardGeneral} icon="settings" className="mb-4" />
               <div className="grid grid-cols-2 gap-4">
                 <Input
-                  label="Database name"
+                  label={CM.databaseName}
                   value={formData.dbName}
                   onChange={(e) => handleInputChange('dbName', e.target.value)}
                   placeholder="e.g. production_db"
                   icon="database"
                 />
                 <Select
-                  label="Page size"
+                  label={CM.pageSize}
                   value={formData.pageSize}
                   onChange={(e) => handleInputChange('pageSize', parseInt(e.target.value))}
                   options={PAGE_SIZES.map(s => ({ value: s, label: `${s / 1024} KB` }))}
@@ -427,17 +437,17 @@ export default function CreateDatabaseModal() {
             </div>
 
             <div className="bg-white dark:bg-white/2 border border-slate-100 dark:border-white/5 rounded-2xl p-4">
-            <SectionHeader title="Locale & Encoding" icon="language" className="mb-4" />
+            <SectionHeader title={CM.localeCharset} icon="language" className="mb-4" />
               <Select
-                label="Region locale"
+                label={CM.regionLocale}
                 value={formData.locale}
                 onChange={(e) => handleInputChange('locale', e.target.value)}
-                options={LOCALES}
+                options={locales}
               />
               {formData.locale === 'user_defined' && (
                 <div className="mt-3 animate-in fade-in slide-in-from-top-1 duration-200">
                   <Input
-                    label="Custom locale"
+                    label={CM.userDefined}
                     value={formData.userDefinedLocale}
                     onChange={(e) => handleInputChange('userDefinedLocale', e.target.value)}
                     placeholder="e.g. de_DE.utf8"
@@ -447,7 +457,7 @@ export default function CreateDatabaseModal() {
             </div>
 
             <div className="bg-white dark:bg-white/2 border border-slate-100 dark:border-white/5 rounded-2xl p-4">
-            <SectionHeader title="Volume Mapping" icon="folder_open" className="mb-4" />
+            <SectionHeader title={CM.genericVolInfo} icon="folder_open" className="mb-4" />
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-3 p-4 bg-slate-50/50 dark:bg-white/3 border border-slate-200 dark:border-white/5 rounded-2xl">
                   <div className="flex items-center justify-between">
@@ -457,8 +467,8 @@ export default function CreateDatabaseModal() {
                     </span>
                     <span className="text-[9px] font-black uppercase bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded-sm border border-amber-500/20">System</span>
                   </div>
-                  <Input label="Storage Path" value={formData.genericVolPath} disabled size="sm" />
-                  <Input label="Volume Size (MB)" type="number" value={formData.genericVolSize} onChange={(e) => handleInputChange('genericVolSize', Number(e.target.value))} size="sm" />
+                  <Input label={CM.genericVolPath} value={formData.genericVolPath} disabled size="sm" />
+                  <Input label={CM.volumeSize} type="number" value={formData.genericVolSize} onChange={(e) => handleInputChange('genericVolSize', Number(e.target.value))} size="sm" />
                 </div>
 
                 <div className="space-y-3 p-4 bg-slate-50/50 dark:bg-white/3 border border-slate-200 dark:border-white/5 rounded-2xl">
@@ -469,10 +479,10 @@ export default function CreateDatabaseModal() {
                     </span>
                     <span className="text-[9px] font-black uppercase bg-rose-500/10 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 rounded-sm border border-rose-500/20">Critical</span>
                   </div>
-                  <Input label="Log Path" value={formData.logVolPath} disabled size="sm" />
+                  <Input label={CM.logVolPath} value={formData.logVolPath} disabled size="sm" />
                   <div className="grid grid-cols-2 gap-2">
-                    <Input label="Size (MB)" type="number" value={formData.logVolSize} onChange={(e) => handleInputChange('logVolSize', Number(e.target.value))} size="sm" />
-                    <Select label="Page Size" value={formData.logPageSize} onChange={(e) => handleInputChange('logPageSize', parseInt(e.target.value))} options={PAGE_SIZES.map(s => ({ value: s, label: `${s / 1024}K` }))} size="sm" />
+                    <Input label={CM.volumeSize} type="number" value={formData.logVolSize} onChange={(e) => handleInputChange('logVolSize', Number(e.target.value))} size="sm" />
+                    <Select label={CM.logPageSize} value={formData.logPageSize} onChange={(e) => handleInputChange('logPageSize', parseInt(e.target.value))} options={PAGE_SIZES.map(s => ({ value: s, label: `${s / 1024}K` }))} size="sm" />
                   </div>
                 </div>
               </div>
@@ -504,7 +514,7 @@ export default function CreateDatabaseModal() {
           <div className="animate-in fade-in duration-200 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <Typography variant="h4" className="text-[14px] font-black text-slate-800 dark:text-white tracking-tight">Additional Volumes</Typography>
+                <Typography variant="h4" className="text-[14px] font-bold text-slate-800 dark:text-white">{CM.wizardAdditionalVol}</Typography>
                 <Typography variant="p" className="text-[11px] text-slate-500 font-medium">Optionally add extra data or temporary volumes to the database.</Typography>
               </div>
               <Button
@@ -512,13 +522,13 @@ export default function CreateDatabaseModal() {
                 onClick={addVolume}
                 icon="add_box"
               >
-                Add Volume
+                {CM.addVolume}
               </Button>
             </div>
 
             <div className="border border-slate-100 dark:border-white/8 rounded-2xl overflow-hidden bg-white dark:bg-white/1">
               <div className="grid grid-cols-[1fr_130px_110px_1.8fr_36px] bg-slate-50 dark:bg-white/3 border-b border-slate-100 dark:border-white/8 pl-4 pr-1 py-2.5">
-                {['Identifier', 'Segment', 'Size MB', 'Absolute Path', ''].map((h, i) => (
+                {[CM.identifier, CM.segment, CM.sizeMb, CM.absolutePath, ''].map((h, i) => (
                   <span key={i} className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{h}</span>
                 ))}
               </div>
@@ -531,7 +541,7 @@ export default function CreateDatabaseModal() {
                     </div>
                     <div>
                       <p className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">No additional volumes</p>
-                      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Click "Add Volume" to provision extra storage segments.</p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{CM.clickAddVolumeHint}</p>
                     </div>
                   </div>
                 ) : (
@@ -541,7 +551,7 @@ export default function CreateDatabaseModal() {
                         <Input value={vol.name} onChange={(e) => handleVolumeChange(idx, 'name', e.target.value)} size="sm" className="font-mono text-[11px]" />
                       </div>
                       <div className="pr-3">
-                        <Select value={vol.type} onChange={(e) => handleVolumeChange(idx, 'type', e.target.value)} options={VOLUME_TYPES} size="sm" />
+                        <Select value={vol.type} onChange={(e) => handleVolumeChange(idx, 'type', e.target.value)} options={volumeTypes} size="sm" />
                       </div>
                       <div className="pr-3">
                         <Input type="number" value={vol.size} onChange={(e) => handleVolumeChange(idx, 'size', Number(e.target.value))} size="sm" />
@@ -658,7 +668,7 @@ export default function CreateDatabaseModal() {
                 <Icon name="admin_panel_settings" size="lg" weight={300} />
               </div>
               <div className="space-y-1">
-                <Typography variant="h4" className="text-[16px] font-black text-slate-800 dark:text-white tracking-tight">DBA Password</Typography>
+                <Typography variant="h4" className="text-[16px] font-bold text-slate-800 dark:text-white">{CM.wizardSetDbaPass}</Typography>
                 <Typography variant="p" className="text-[11px] text-slate-500 font-medium">Set a password for the <span className="font-bold text-amber-500">dba</span> administrator account. Leave blank for no password.</Typography>
               </div>
             </div>
@@ -666,20 +676,20 @@ export default function CreateDatabaseModal() {
             <div className="space-y-4">
               <Input
                 type="password"
-                label="Password"
+                label={CM.password}
                 value={formData.dbaPassword}
                 onChange={(e) => handleInputChange('dbaPassword', e.target.value)}
-                placeholder="Leave blank for no password"
+                placeholder={CM.leaveBlankNoPassword}
                 icon="key"
               />
               <Input
                 type="password"
-                label="Confirm password"
+                label={CM.passwordConfirm}
                 value={formData.confirmPassword}
                 onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                placeholder="Repeat password"
+                placeholder={CM.repeatPassword}
                 icon="verified_user"
-                error={(formData.confirmPassword && formData.dbaPassword !== formData.confirmPassword) ? "Passwords do not match" : ""}
+                error={(formData.confirmPassword && formData.dbaPassword !== formData.confirmPassword) ? CM.passwordsDoNotMatch : ""}
               />
             </div>
           </div>
@@ -688,27 +698,27 @@ export default function CreateDatabaseModal() {
         {/* STEP 5: Commisioning Review */}
         {step === 5 && (
           <div className="animate-in fade-in duration-200 space-y-5">
-            <InfoBanner title="Ready to create">
+            <InfoBanner title={CM.wizardDbInfo}>
               Review your configuration below before creating the database. Once confirmed, the process cannot be undone.
             </InfoBanner>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 bg-white dark:bg-white/2 border border-slate-200 dark:border-white/8 rounded-2xl">
-                <SectionHeader title="Configuration" icon="tune" className="mb-4" />
+                <SectionHeader title={CM.configuration} icon="tune" className="mb-4" />
                 <div className="space-y-0.5 mt-1">
-                  <SummaryRow label="Database name" value={formData.dbName} accent />
-                  <SummaryRow label="Page size" value={`${formData.pageSize / 1024} KB`} />
-                  <SummaryRow label="Locale" value={formData.locale === 'user_defined' ? formData.userDefinedLocale : formData.locale.split('.')[0]} />
-                  <SummaryRow label="Auto-start" value={formData.autoStart ? 'Yes' : 'No'} />
+                  <SummaryRow label={CM.databaseName} value={formData.dbName} accent />
+                  <SummaryRow label={CM.pageSize} value={`${formData.pageSize / 1024} KB`} />
+                  <SummaryRow label={CM.localeCharset} value={formData.locale === 'user_defined' ? formData.userDefinedLocale : formData.locale.split('.')[0]} />
+                  <SummaryRow label={CM.autoStart} value={formData.autoStart ? CM.yes : CM.no} />
                 </div>
               </div>
 
               <div className="p-4 bg-white dark:bg-white/2 border border-slate-200 dark:border-white/8 rounded-2xl">
                 <SectionHeader title="Storage" icon="hard_drive" className="mb-4" />
                 <div className="space-y-0.5 mt-1">
-                  <SummaryRow label="Total volumes" value={`${formData.volumes.length + 2}`} />
-                  <SummaryRow label="Generic volume" value={`${formData.genericVolSize} MB`} />
-                  <SummaryRow label="Log volume" value={`${formData.logVolSize} MB`} />
+                  <SummaryRow label={CM.totalVolumes} value={`${formData.volumes.length + 2}`} />
+                  <SummaryRow label={CM.genericVolume} value={`${formData.genericVolSize} MB`} />
+                  <SummaryRow label={CM.logVolume} value={`${formData.logVolSize} MB`} />
                   <div className="flex items-center justify-between pt-3 mt-1.5 border-t border-slate-100 dark:border-white/4">
                     <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Total</span>
                     <span className="text-[16px] font-black font-mono text-emerald-500 tracking-tight">{totalStorage} MB</span>
@@ -718,7 +728,7 @@ export default function CreateDatabaseModal() {
             </div>
 
             <div className="p-4 bg-white dark:bg-white/2 border border-slate-200 dark:border-white/8 rounded-2xl">
-              <SectionHeader title="Auto-expansion" icon="auto_mode" className="mb-3" />
+              <SectionHeader title={CM.wizardAutoVol} icon="auto_mode" className="mb-3" />
               <div className={`rounded-xl border transition-all ${
                 formData.autoAddVol.data === 'ON'
                   ? 'bg-amber-500/[0.03] border-amber-500/15'
@@ -752,7 +762,7 @@ export default function CreateDatabaseModal() {
 
             <div className="border border-slate-100 dark:border-white/8 rounded-2xl overflow-hidden shadow-xs">
               <div className="px-4 py-2.5 bg-slate-50/50 dark:bg-white/3 border-b border-slate-100 dark:border-white/8">
-                <SectionHeader title="Segment Manifest" icon="storage" className="mb-4" />
+                <SectionHeader title={CM.wizardAdditionalVol} icon="storage" className="mb-4" />
               </div>
               <div className="divide-y divide-slate-100 dark:divide-white/4 max-h-[160px] overflow-y-auto custom-scrollbar">
                 {[

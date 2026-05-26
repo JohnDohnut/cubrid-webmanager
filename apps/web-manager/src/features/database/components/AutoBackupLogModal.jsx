@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeAutoBackupLogModal, fetchAutoBackupLog } from '../databaseSlice';
+import { useCM } from '../../../constants/useCM';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -11,6 +12,7 @@ import { Typography } from '../../../components/ds/foundation/Typography';
 import { StatusBadge } from '../../../components/ds/foundation/StatusBadge';
 
 export default function AutoBackupLogModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isAutoBackupLogModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
@@ -65,19 +67,19 @@ export default function AutoBackupLogModal() {
 
   const columns = [
     { 
-      header: 'Backup ID', 
+      header: CM.backupId, 
       accessor: 'backupid',
       render: (val) => (
         <span className="text-amber-600 dark:text-amber-500 italic font-mono">{val}</span>
       )
     },
     { 
-      header: 'Log Time', 
+      header: CM.logTime, 
       accessor: 'error_time',
       className: 'w-[180px]'
     },
     { 
-      header: 'Description', 
+      header: CM.description, 
       accessor: 'error_desc',
       render: (val) => {
         const isSuccess = val?.toLowerCase().includes('success');
@@ -161,8 +163,8 @@ export default function AutoBackupLogModal() {
     <Modal
       isOpen={isAutoBackupLogModalOpen}
       onClose={() => dispatch(closeAutoBackupLogModal())}
-      title="Auto Backup Log"
-      subtitle={selectedDatabase ? `History for database: ${selectedDatabase}` : 'Global Backup History'}
+      title={CM.autoBackupLog}
+      subtitle={selectedDatabase ? CM.historyForDatabase(selectedDatabase) : CM.globalBackupHistory}
       icon="history"
       iconVariant="warning"
       maxWidth="max-w-[800px]"

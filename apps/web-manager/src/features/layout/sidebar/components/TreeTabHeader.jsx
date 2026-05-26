@@ -2,8 +2,10 @@ import { useDispatch } from 'react-redux';
 import { setSelectedDatabase, setSelectedDatabaseSubItem } from '../../../database/databaseSlice';
 import { setSelectedBroker } from '../../../broker/brokerSlice';
 import { Icon } from '../../../../components/ds/foundation/Icon';
+import { useCM } from '../../../../constants/useCM';
 
 export default function TreeTabHeader({ activeTab, setActiveTab, onDbTabContextMenu, onBrokerTabContextMenu }) {
+  const CM = useCM();
   const dispatch = useDispatch();
 
   const handleTabChange = (tab) => {
@@ -14,9 +16,9 @@ export default function TreeTabHeader({ activeTab, setActiveTab, onDbTabContextM
   };
 
   const tabs = [
-    { id: 'db',     label: 'Database', icon: 'database',      onContextMenu: onDbTabContextMenu },
-    { id: 'broker', label: 'Broker',   icon: 'hub',           onContextMenu: onBrokerTabContextMenu },
-    { id: 'log',    label: 'Log',      icon: 'receipt_long' },
+    { id: 'db',     label: CM.database, icon: 'database',      onContextMenu: onDbTabContextMenu },
+    { id: 'broker', label: CM.broker,   icon: 'hub',           onContextMenu: onBrokerTabContextMenu },
+    { id: 'log',    label: CM.log,      icon: 'receipt_long' },
   ];
 
   return (

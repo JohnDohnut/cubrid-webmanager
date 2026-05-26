@@ -21,6 +21,7 @@ import { Skeleton } from '../../../../components/ds/layout/Skeleton';
 import { Icon } from '../../../../components/ds/foundation/Icon';
 import { Typography } from '../../../../components/ds/foundation/Typography';
 import { Spinner } from '../../../../components/ds/foundation/Spinner';
+import { useCM } from '../../../../constants/useCM';
 
 // Granular selectors to avoid unnecessary re-renders when dashboard data or other slice state changes
 const selectDatabases = (state) => state.database.databases || [];
@@ -54,6 +55,7 @@ export default function DatabaseTree({
   onJobAutomationContextMenu,
   onBackupItemContextMenu
 }) {
+  const CM = useCM();
   const dispatch = useDispatch();
   const selectedHostUid = useSelector((state) => state.host.selectedHostUid);
   
@@ -224,13 +226,14 @@ export default function DatabaseTree({
 
 // Sub-components to isolate re-renders and logic
 const UsersFolder = React.memo(({ db, selectedDatabase, selectedDatabaseSubItem, users, isLoading, onUsersContextMenu, onUserContextMenu, onSelect, selectedHostUid }) => {
+  const CM = useCM();
   const dispatch = useDispatch();
   const isSelected = selectedDatabase === db.dbname && selectedDatabaseSubItem === 'Users';
 
   return (
     <TreeNode
       id="Users"
-      label="Users"
+      label={CM.users}
       icon="group"
       level={2}
       isActive={isSelected}
@@ -272,13 +275,14 @@ const UsersFolder = React.memo(({ db, selectedDatabase, selectedDatabaseSubItem,
 });
 
 const JobAutomationFolder = React.memo(({ db, selectedDatabase, selectedDatabaseSubItem, backupSchedules, backupSchedulesLoading, queryPlans, queryPlansLoading, onJobAutomationContextMenu, onBackupPlanContextMenu, onQueryPlanContextMenu, onQueryItemContextMenu, onBackupItemContextMenu, onSelect, selectedHostUid }) => {
+  const CM = useCM();
   const dispatch = useDispatch();
   const isSelected = selectedDatabase === db.dbname && selectedDatabaseSubItem === 'Job automation';
 
   return (
     <TreeNode
       id="Job automation"
-      label="Job automation"
+      label={CM.jobAutomation}
       icon="bolt"
       level={2}
       isActive={isSelected}
@@ -298,7 +302,7 @@ const JobAutomationFolder = React.memo(({ db, selectedDatabase, selectedDatabase
     >
        <TreeNode
           id="Backup Plan"
-          label="Backup Plan"
+          label={CM.backupPlan}
           icon="backup"
           level={3}
           isActive={selectedDatabase === db.dbname && selectedDatabaseSubItem === 'Backup Plan'}
@@ -327,7 +331,7 @@ const JobAutomationFolder = React.memo(({ db, selectedDatabase, selectedDatabase
 
         <TreeNode
           id="Query Plan"
-          label="Query Plan"
+          label={CM.queryPlan}
           icon="schema"
           level={3}
           isActive={selectedDatabase === db.dbname && selectedDatabaseSubItem === 'Query Plan'}
@@ -357,6 +361,7 @@ const JobAutomationFolder = React.memo(({ db, selectedDatabase, selectedDatabase
 });
 
 const SpaceFolder = React.memo(({ db, selectedDatabase, selectedDatabaseSubItem, spaceInfo, spaceInfoLoading, onSpaceContextMenu, onSelect, onTabOpen, selectedHostUid }) => {
+  const CM = useCM();
   const dispatch = useDispatch();
   const isSelected = selectedDatabase === db.dbname && selectedDatabaseSubItem === 'Space';
 
@@ -399,7 +404,7 @@ const SpaceFolder = React.memo(({ db, selectedDatabase, selectedDatabaseSubItem,
   return (
     <TreeNode
       id="Space"
-      label="Space"
+      label={CM.space}
       icon="donut_small"
       level={2}
       isActive={isSelected}
@@ -420,7 +425,7 @@ const SpaceFolder = React.memo(({ db, selectedDatabase, selectedDatabaseSubItem,
       
       <TreeNode
         id="Log"
-        label="Log"
+        label={CM.log}
         icon="history"
         level={3}
         isActive={selectedDatabase === db.dbname && selectedDatabaseSubItem === 'Log'}

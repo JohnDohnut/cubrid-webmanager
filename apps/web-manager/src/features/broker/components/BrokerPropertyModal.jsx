@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
+import { useCM } from '../../../constants/useCM';
 import {
   closeBrokerPropertyModal,
   fetchBrokerConfig,
@@ -100,6 +101,7 @@ const ViewStatus = {
 };
 
 export default function BrokerPropertyModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { propertyModal, brokerConfig } = useSelector((state) => state.broker, shallowEqual);
   const { isOpen, brokerName, hostUid } = propertyModal;
@@ -228,7 +230,7 @@ export default function BrokerPropertyModal() {
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="Broker Properties"
+      title={CM.brokerProperties}
       icon="hub"
       maxWidth="max-w-[620px]"
       footer={
@@ -237,11 +239,11 @@ export default function BrokerPropertyModal() {
             <div className="mr-auto">
               {modifiedCount > 0 && <Button variant="ghost" onClick={handleReset} className="text-amber-600">Reset</Button>}
             </div>
-            <Button variant="ghost" onClick={handleClose}>Discard</Button>
+            <Button variant="ghost" onClick={handleClose}>{CM.discard}</Button>
             <Button variant="primary" onClick={handleSave} loading={viewStatus === ViewStatus.SAVING} icon="save" disabled={modifiedCount === 0}>Apply</Button>
           </>
         ) : (
-          <Button variant="primary" onClick={handleClose} icon="check_circle" className="w-full">Close</Button>
+          <Button variant="primary" onClick={handleClose} icon="check_circle" className="w-full">{CM.close}</Button>
         )
       }
     >
@@ -277,9 +279,9 @@ export default function BrokerPropertyModal() {
             ) : (
               <div>
                 <div className="flex items-center h-10 px-5 bg-slate-50 dark:bg-bk-main border-b border-slate-200 dark:border-white/8 sticky top-0 z-20">
-                  <SectionHeader title="Property Name" icon="label" className="w-[280px] !m-0" />
-                  <SectionHeader title="Type" icon="code" className="w-[90px] !m-0" />
-                  <SectionHeader title="Value" icon="settings" className="flex-1 !m-0" />
+                  <SectionHeader title={CM.propertyName} icon="label" className="w-[280px] !m-0" />
+                  <SectionHeader title={CM.type} icon="code" className="w-[90px] !m-0" />
+                  <SectionHeader title={CM.value} icon="settings" className="flex-1 !m-0" />
                 </div>
                 <div className="divide-y divide-slate-100 dark:divide-white/4">
                   {BROKER_PARAMETERS.filter(p => p.category === activeTab).map(p => (

@@ -123,7 +123,7 @@ export class DatabaseConfigController {
   /**
    * Disable auto-start for a database.
    * Removes database name from the server parameter in configuration file.
-   * Uses POST (not DELETE) so request bodies are reliably delivered (Electron fetch, proxies).
+   * Uses POST so request bodies are reliably delivered (Electron fetch, proxies).
    *
    * @route POST /:hostUid/database/auto-start/remove
    * @param req Express request (contains authenticated user)

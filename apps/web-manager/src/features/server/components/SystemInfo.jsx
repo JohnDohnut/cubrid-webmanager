@@ -3,8 +3,10 @@ import { useSelector, shallowEqual } from 'react-redux';
 import { Card } from '../../../components/ds/layout/Card';
 import { Typography } from '../../../components/ds/foundation/Typography';
 import { Icon } from '../../../components/ds/foundation/Icon';
+import { useCM } from '../../../constants/useCM';
 
 export default function SystemInfo({ hostUid }) {
+  const CM = useCM();
   const { hosts, hostEnvs } = useSelector((state) => state.host, shallowEqual);
   const currentHost = hosts.find(h => h.uid === hostUid);
   const envData = hostEnvs[hostUid];
@@ -19,7 +21,7 @@ export default function SystemInfo({ hostUid }) {
   const cardTitle = (
     <div className="flex items-center gap-2">
       <Icon name="info" size="sm" weight={300} className="text-amber-500" />
-      <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Environment Details</span>
+      <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{CM.environmentDetails}</span>
     </div>
   );
 
@@ -28,17 +30,17 @@ export default function SystemInfo({ hostUid }) {
       {!envData ? (
         <div className="flex flex-col items-center justify-center py-8 opacity-40">
           <Icon name="cloud_off" size="md" className="mb-2"  weight={300} />
-          <Typography variant="caption">Environment information unavailable</Typography>
+          <Typography variant="caption">{CM.environmentUnavailable}</Typography>
         </div>
       ) : (
         <div className="flex flex-col">
-          <InfoRow label="Access Point" value={currentHost ? `${currentHost.address}:${currentHost.port}` : 'unknown'} />
-          <InfoRow label="Auth User" value={currentHost ? currentHost.id : 'unknown'} />
-          <InfoRow label="Operating System" value={envData.osinfo} />
-          <InfoRow label="CUBRID Engine" value={envData.CUBRIDVER} />
-          <InfoRow label="CAS Version" value={envData.BROKERVER} />
-          <InfoRow label="Home Directory" value={envData.CUBRID} />
-          <InfoRow label="Databases Root" value={envData.CUBRID_DATABASES} />
+          <InfoRow label={CM.accessPoint} value={currentHost ? `${currentHost.address}:${currentHost.port}` : 'unknown'} />
+          <InfoRow label={CM.authUser} value={currentHost ? currentHost.id : 'unknown'} />
+          <InfoRow label={CM.operatingSystem} value={envData.osinfo} />
+          <InfoRow label={CM.cubridEngine} value={envData.CUBRIDVER} />
+          <InfoRow label={CM.broker} value={envData.BROKERVER} />
+          <InfoRow label={CM.homeDirectory} value={envData.CUBRID} />
+          <InfoRow label={CM.databases} value={envData.CUBRID_DATABASES} />
         </div>
       )}
     </Card>

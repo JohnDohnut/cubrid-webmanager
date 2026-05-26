@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useDispatch } from 'react-redux';
 import {
   fetchDashboardLocks,
@@ -13,6 +13,7 @@ import { Table } from '../../../../components/ds/layout/Table';
 import { Card } from '../../../../components/ds/layout/Card';
 import { StatusBadge } from '../../../../components/ds/foundation/StatusBadge';
 import { EmptyState } from '../../../../components/ds/feedback/EmptyState';
+import { useCM } from '../../../../constants/useCM';
 
 /** lockdb dashboard row → gettransactioninfo / killtransaction shape */
 function lockRowToTransaction(row) {
@@ -27,6 +28,7 @@ function lockRowToTransaction(row) {
 }
 
 export default function DBLockTransactionSection({ locks, pollingProps }) {
+  const CM = useCM();
   const dispatch = useDispatch();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [rowMenu, setRowMenu] = useState(null);
@@ -83,14 +85,14 @@ export default function DBLockTransactionSection({ locks, pollingProps }) {
     dispatch(openKillTransactionModal(payload));
   };
 
-  const columns = [
-    { header: '#',       accessor: 'index', render: (val) => <span className="font-mono text-[12px] text-slate-400">{val}</span> },
-    { header: 'User',    accessor: 'user',  render: (val) => <span className="font-mono text-[12px] font-semibold text-slate-700 dark:text-slate-200">{val}</span> },
-    { header: 'Host',    accessor: 'host',  render: (val) => <span className="font-mono text-[12px] text-slate-400">{val}</span> },
-    { header: 'PID',     accessor: 'pid',   render: (val) => <span className="font-mono text-[12px] text-slate-400">{val}</span> },
-    { header: 'Object Type', accessor: 'obj', render: (val) => <span className="font-mono text-[12px] text-slate-500 max-w-[280px] truncate block" title={val}>{val}</span> },
+  const columns = useMemo(() => [
+    { header: '#', accessor: 'index', render: (val) => <span className="font-mono text-[12px] text-slate-400">{val}</span> },
+    { header: CM.userNameCol, accessor: 'user', render: (val) => <span className="font-mono text-[12px] font-semibold text-slate-700 dark:text-slate-200">{val}</span> },
+    { header: CM.host, accessor: 'host', render: (val) => <span className="font-mono text-[12px] text-slate-400">{val}</span> },
+    { header: CM.pid, accessor: 'pid', render: (val) => <span className="font-mono text-[12px] text-slate-400">{val}</span> },
+    { header: CM.objectType, accessor: 'obj', render: (val) => <span className="font-mono text-[12px] text-slate-500 max-w-[280px] truncate block" title={val}>{val}</span> },
     {
-      header: 'Lock Mode',
+      header: CM.lockMode,
       accessor: 'mode',
       render: (val) => {
         const isX = val?.includes('X_');
@@ -103,7 +105,7 @@ export default function DBLockTransactionSection({ locks, pollingProps }) {
         );
       }
     },
-  ];
+  ], [CM]);
 
   return (
     <>
@@ -111,8 +113,7 @@ export default function DBLockTransactionSection({ locks, pollingProps }) {
         title={
           <div className="flex items-center gap-2">
             <Icon name="lock" size="sm" weight={300} className="text-amber-500" />
-            <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Active Transactions & Locks</span>
-            <span className="text-[10px] text-slate-400 font-normal ml-1">· Concurrency Status</span>
+            <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{CM.lockAndTransaction}</span>
             {locks.length > 0 && (
               <span className="ml-1 px-1.5 py-0.5 rounded-sm bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20 text-[10px] font-bold">
                 {locks.length}
@@ -125,15 +126,15 @@ export default function DBLockTransactionSection({ locks, pollingProps }) {
         isCollapsed={isCollapsed}
         onToggle={(v) => setIsCollapsed(v)}
       >
-        <Table 
-          columns={columns} 
-          data={locks} 
+        <Table
+          columns={columns}
+          data={locks}
           onRowContextMenu={handleRowContextMenu}
           emptyState={
-            <EmptyState 
-              icon="verified_user" 
-              title="Clean Concurrency" 
-              subtitle="No active transactions or locks are currently contending for resources."
+            <EmptyState
+              icon="verified_user"
+              title={CM.lockAndTransaction}
+              subtitle={CM.loadingLockAndTransaction}
               py="py-12"
             />
           }
@@ -147,8 +148,8 @@ export default function DBLockTransactionSection({ locks, pollingProps }) {
           onClose={() => setRowMenu(null)}
           width="w-52"
         >
-          <MenuItem icon="swap_horiz" label="Transaction Info…" onClick={openTransactionInfo} />
-          <MenuItem icon="cancel" label="Kill Transaction…" onClick={openKillForRow} />
+          <MenuItem icon="swap_horiz" label={`${CM.transactionInformation}…`} onClick={openTransactionInfo} />
+          <MenuItem icon="cancel" label={`${CM.killTransaction}…`} onClick={openKillForRow} />
         </ContextMenuWrapper>
       )}
     </>

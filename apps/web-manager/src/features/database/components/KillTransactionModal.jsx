@@ -3,46 +3,35 @@ import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeKillTransactionModal } from '../databaseSlice';
 import { databaseApi } from '../databaseApi';
 import { buildKillParameter } from '../transactionUtils';
+import { useCM } from '../../../constants/useCM';
 
-import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
 import { Button } from '../../../components/ds/foundation/Button';
 import { Input } from '../../../components/ds/forms/Input';
 import { Select } from '../../../components/ds/forms/Select';
 import { Typography } from '../../../components/ds/foundation/Typography';
-import { InfoBanner } from '../../../components/ds/foundation/InfoBanner';
 import { useActionState } from '../../../infrastructure/hooks/useActionState';
-import { 
-  ModalStatusLoading, 
-  ModalStatusSuccess, 
-  ModalStatusError 
-} from '../../../components/ds/feedback/ActionStatus';
-
-// view states
-const VIEW_FORM    = 'form';
-const VIEW_LOADING = 'loading';
-const VIEW_SUCCESS = 'success';
-const VIEW_ERROR   = 'error';
+import { ModalStatusLoading, ModalStatusSuccess, ModalStatusError } from '../../../components/ds/feedback/ActionStatus';
 
 export default function KillTransactionModal({ onTransactionKilled }) {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isKillTransactionModalOpen, killTransactionData } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
   const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
 
-  const { 
-    state, 
-    error: actionError, 
-    startAction, 
-    endSuccess, 
-    endError, 
+  const {
+    error: actionError,
+    startAction,
+    endSuccess,
+    endError,
     resetAction,
     isLoading,
     isSuccess,
-    isError
+    isError,
   } = useActionState();
 
-  const [killType, setKillType] = useState('i'); // Default: Kill selected only
+  const [killType, setKillType] = useState('i');
 
   useEffect(() => {
     if (isKillTransactionModalOpen) {
@@ -54,7 +43,7 @@ export default function KillTransactionModal({ onTransactionKilled }) {
   if (!isKillTransactionModalOpen || !killTransactionData) return null;
 
   const handleKill = async () => {
-    if (!selectedHostUid) return;
+    if (!selectedHostUid || !selectedDatabase) return;
 
     startAction();
 
@@ -65,129 +54,101 @@ export default function KillTransactionModal({ onTransactionKilled }) {
         return;
       }
 
-      const payload = { type: killType, parameter };
+      await databaseApi.killTransaction(selectedHostUid, selectedDatabase, { type: killType, parameter });
+      endSuccess();
+      onTransactionKilled?.();
 
-      await databaseApi.killTransaction(selectedHostUid, selectedDatabase, payload);
-      
-      endSuccess('Transaction state discarded.');
-      if (onTransactionKilled) onTransactionKilled();
-      
-      // Auto close after brief success
-      setTimeout(() => {
-        dispatch(closeKillTransactionModal());
-      }, 1200);
+      setTimeout(() => dispatch(closeKillTransactionModal()), 800);
     } catch (err) {
-      endError(typeof err === 'string' ? err : (err.message || 'Termination sequence aborted by system controller. Handle remains active.'));
+      endError(err?.response?.data?.note || err?.message || CM.error);
     }
   };
 
   const handleClose = () => dispatch(closeKillTransactionModal());
 
-  /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title="Terminating Handle" icon="bolt" onClose={handleClose} maxWidth="540px">
-        <ModalStatusLoading 
-          title="Force Aborting" 
-          subtitle={`Initiating rollback and lock release for PID ${killTransactionData.pid}.`}
-        />
+      <Modal isOpen title={CM.killTransactionTitle} icon="cancel" onClose={handleClose} maxWidth="520px">
+        <ModalStatusLoading title={CM.killTransactionTitle} subtitle={CM.killTransactionTitle} />
       </Modal>
     );
   }
 
-  /* ─── SUCCESS view ─── */
   if (isSuccess) {
     return (
-      <Modal isOpen title="Handle Terminated" icon="verified" iconVariant="success" onClose={handleClose} maxWidth="540px">
-        <ModalStatusSuccess 
-          title="Transaction Aborted"
-          message="System resources released. Transaction state discarded."
+      <Modal isOpen title={CM.killTransactionTitle} icon="verified" iconVariant="success" onClose={handleClose} maxWidth="520px">
+        <ModalStatusSuccess
+          title={CM.success}
+          message={CM.killSuccess}
           onConfirm={handleClose}
-          confirmText="Acknowledge"
+          confirmText={CM.ok}
         />
       </Modal>
     );
   }
 
-  /* ─── ERROR view ─── */
   if (isError) {
     return (
-      <Modal isOpen title="Termination Failed" icon="error" iconVariant="danger" onClose={resetAction} maxWidth="540px">
-        <ModalStatusError 
-          title="Signal Interrupted"
+      <Modal isOpen title={CM.killTransactionTitle} icon="error" iconVariant="danger" onClose={resetAction} maxWidth="520px">
+        <ModalStatusError
+          title={CM.failure}
           error={actionError}
           onRetry={handleKill}
           onCancel={resetAction}
-          retryText="Retry Kill"
-          cancelText="Dismiss"
+          cancelText={CM.close}
         />
       </Modal>
     );
   }
 
-  /* ─── FORM view ─── */
   return (
     <Modal
       isOpen={isKillTransactionModalOpen}
       onClose={handleClose}
-      title="Danger: Terminate Transaction"
-      subtitle="Interrupt active handle and force rollback"
+      title={CM.killTransactionTitle}
+      subtitle={selectedDatabase ? `${CM.databaseName}: ${selectedDatabase}` : undefined}
       icon="cancel"
-      maxWidth="540px"
+      maxWidth="520px"
       footer={
         <div className="flex justify-end gap-3 w-full">
-          <Button variant="ghost" onClick={handleClose}>Discard</Button>
-          <Button variant="danger" onClick={handleKill} icon="bolt" className="min-w-[140px]">Force Abort</Button>
+          <Button variant="ghost" onClick={handleClose}>{CM.cancel}</Button>
+          <Button variant="danger" onClick={handleKill} icon="cancel">
+            {CM.killTransaction}
+          </Button>
         </div>
       }
     >
-      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
-        {/* Transaction context */}
-        <div className="bg-slate-50 dark:bg-white/2 border border-slate-100 dark:border-white/5 rounded-2xl p-5 space-y-5">
-           <div className="flex items-center gap-3 mb-1">
-            <Icon name="history" size="14px" weight={400} className="text-rose-500" />
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Handle Metadata</span>
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <Typography variant="caption" className="text-slate-500 ml-1">{CM.userNameCol}</Typography>
+            <Input value={killTransactionData['@user'] || killTransactionData['@uid'] || '-'} disabled size="sm" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Typography variant="caption" className="font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Principal</Typography>
-              <Input value={killTransactionData['@user'] || '-'} disabled icon="account_circle" size="sm" />
-            </div>
-            <div className="space-y-1">
-              <Typography variant="caption" className="font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Process PID</Typography>
-              <Input value={killTransactionData.pid || '-'} disabled icon="fingerprint" size="sm" className="font-bold!" />
-            </div>
-            <div className="space-y-1">
-              <Typography variant="caption" className="font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Source Host</Typography>
-              <Input value={killTransactionData.host || '-'} disabled icon="lan" size="sm" />
-            </div>
-            <div className="space-y-1">
-              <Typography variant="caption" className="font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Binary Path</Typography>
-              <Input value={killTransactionData.program || '-'} disabled icon="terminal" size="sm" />
-            </div>
+          <div className="space-y-1">
+            <Typography variant="caption" className="text-slate-500 ml-1">{CM.processId}</Typography>
+            <Input value={killTransactionData.pid || '-'} disabled size="sm" />
+          </div>
+          <div className="space-y-1">
+            <Typography variant="caption" className="text-slate-500 ml-1">{CM.host}</Typography>
+            <Input value={killTransactionData.host || '-'} disabled size="sm" />
+          </div>
+          <div className="space-y-1">
+            <Typography variant="caption" className="text-slate-500 ml-1">{CM.programName}</Typography>
+            <Input value={killTransactionData.program || killTransactionData.pname || '-'} disabled size="sm" />
           </div>
         </div>
 
-        {/* Action Strategy */}
-        <div className="space-y-4 px-1">
-           <div className="flex items-center gap-3">
-            <Icon name="settings" size="14px" weight={400} className="text-slate-400" />
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Termination Strategy</span>
-          </div>
-          
-          <Select 
+        <div className="space-y-2">
+          <Typography variant="caption" className="text-slate-500 ml-1">{CM.killType}</Typography>
+          <Select
             value={killType}
-            onChange={(val) => setKillType(val)}
+            onChange={(e) => setKillType(e.target.value)}
             options={[
-              { value: 'i', label: 'Isolated: Abort single handle', icon: 'gps_fixed' },
-              { value: 'h', label: 'Broadcast: Abort all client handles', icon: 'hub' },
-              { value: 'p', label: 'Programmatic: Abort all binary handles', icon: 'apps' }
+              { value: 'i', label: CM.killSelectedOnly },
+              { value: 'h', label: CM.killSameHost },
+              { value: 'p', label: CM.killSameProgram },
             ]}
           />
-
-          <InfoBanner title="Operational Impact">
-            Force termination results in an immediate rollback of any uncommitted atomic operations. Lock handles will be released asynchronously by the controller.
-          </InfoBanner>
         </div>
       </div>
     </Modal>

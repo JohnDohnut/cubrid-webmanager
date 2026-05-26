@@ -4,6 +4,7 @@ import { fetchBrokerLogs, fetchDatabaseLogs, fetchLogContent } from '../brokerSl
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { StatusBadge } from '../../../components/ds/foundation/StatusBadge';
 import { Spinner } from '../../../components/ds/foundation/Spinner';
+import { useCM } from '../../../constants/useCM';
 
 // ─── Constants & Helpers (Reused from LogViewer.jsx) ─────────────────────────
 const HighlightedLine = ({ line }) => {
@@ -48,6 +49,7 @@ const HighlightedLine = ({ line }) => {
 
 // Individual Log Section
 const LogSection = ({ hostUid, path, isExpanded, onToggleExpanded, isDb }) => {
+  const CM = useCM();
   const dispatch = useDispatch();
   const logState = useSelector(s => s.broker.viewingLogs[path], shallowEqual);
   const loading = logState?.loading;
@@ -101,7 +103,7 @@ const LogSection = ({ hostUid, path, isExpanded, onToggleExpanded, isDb }) => {
             onClick={handleRefresh}
             disabled={loading}
             className={`p-1.5 rounded-md text-slate-400 hover:${textAccent} hover:bg-slate-200/50 dark:hover:bg-white/10 transition-all disabled:opacity-50`}
-            title="Refresh Log"
+            title={CM.refreshLog}
           >
             <Icon name="refresh" size="16px" className={loading ? 'animate-spin' : ''} />
           </button>
@@ -145,6 +147,7 @@ const LogSection = ({ hostUid, path, isExpanded, onToggleExpanded, isDb }) => {
 };
 
 function AllLogsViewer({ type = 'broker', hostUid, targetName }) {
+  const CM = useCM();
   const dispatch = useDispatch();
   const [expandedLogs, setExpandedLogs] = useState({});
   const hasInitialized = useRef(false);
@@ -315,7 +318,7 @@ function AllLogsViewer({ type = 'broker', hostUid, targetName }) {
             onClick={handleDownloadAll}
             disabled={targetLogs.length === 0}
             className={`flex items-center gap-1.5 h-8 px-3 rounded-lg border bg-transparent transition-all active:scale-[0.98] text-[11px] font-bold shadow-xs ml-1 ${config.borderAccent}`}
-            title="Download all loaded logs into a single file"
+            title={CM.downloadAllLogs}
           >
             <Icon name="download" size="16px" />
             Download All
@@ -360,7 +363,7 @@ function AllLogsViewer({ type = 'broker', hostUid, targetName }) {
           <span>Total Files: {targetLogs.length}</span>
           <span>Host: {hostUid}</span>
         </div>
-        <StatusBadge label="Monitoring" variant="emerald" pulse className="border-none bg-transparent" />
+        <StatusBadge label={CM.monitoring} variant="emerald" pulse className="border-none bg-transparent" />
       </div>
     </div>
   );

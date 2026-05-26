@@ -12,8 +12,10 @@ import { Modal } from '../../../components/ds/layout/Modal';
 import { Button } from '../../../components/ds/foundation/Button';
 import { Typography } from '../../../components/ds/foundation/Typography';
 import { SectionHeader } from '../../../components/ds/foundation/SectionHeader';
+import { useCM } from '../../../constants/useCM';
 
 export default function CMSUserManagementModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { 
     isCmsUserManagementModalOpen, 
@@ -132,7 +134,7 @@ export default function CMSUserManagementModal() {
           <button
             onClick={() => handleEditUser(user)}
             className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 transition-all"
-            title="Edit user"
+            title={CM.editUser}
           >
             <Icon name="edit" size="14px" weight={300} />
           </button>
@@ -140,7 +142,7 @@ export default function CMSUserManagementModal() {
             <button
               onClick={() => handleDeleteUser(username)}
               className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-all"
-              title="Delete user"
+              title={CM.deleteUser}
             >
               <Icon name="delete" size="14px" weight={300} />
             </button>
@@ -154,7 +156,7 @@ export default function CMSUserManagementModal() {
     <Modal
       isOpen={isOpen}
       onClose={() => dispatch(closeCmsUserManagementModal())}
-      title="User Management"
+      title={CM.userManagement}
       subtitle={selectedHost?.alias || selectedHostUid}
       icon="manage_accounts"
       maxWidth="680px"
