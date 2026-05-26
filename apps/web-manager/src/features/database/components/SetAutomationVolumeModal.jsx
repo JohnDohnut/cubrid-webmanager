@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeSetAutomationVolumeModal, fetchAutoVolumeConfig, updateAutoVolumeConfig } from '../databaseSlice';
+import { useCM } from '../../../constants/useCM';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -61,6 +62,7 @@ const SliderField = memo(({ label, value, min, max, step = 1, onChange, unit = '
 
 // ── Policy Card ────────────────────────────────────────────────
 const PolicyCard = memo(({ title, icon, description, enabled, onToggle, threshold, onThresholdChange, addSize, onSizeChange }) => {
+  const CM = useCM();
   const extensionUnits = Math.floor(addSize * BYTES_TO_MB / PAGE_SIZE_BYTES);
   return (
     <div className={`rounded-sm border transition-all duration-300 overflow-hidden
@@ -93,7 +95,7 @@ const PolicyCard = memo(({ title, icon, description, enabled, onToggle, threshol
       {/* Card Body */}
       <div className={`px-4 py-4 space-y-4 transition-all duration-300 ${!enabled ? 'opacity-25 pointer-events-none' : ''}`}>
         <SliderField
-          label="Trigger threshold"
+          label={CM.triggerThreshold}
           value={threshold}
           min={5} max={30}
           onChange={onThresholdChange}
@@ -130,6 +132,7 @@ const PolicyCard = memo(({ title, icon, description, enabled, onToggle, threshol
 
 // ── Main Component ─────────────────────────────────────────────
 export default function SetAutomationVolumeModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isSetAutomationVolumeModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
@@ -198,10 +201,12 @@ export default function SetAutomationVolumeModal() {
 
   const handleClose = () => dispatch(closeSetAutomationVolumeModal());
 
+  if (!isSetAutomationVolumeModalOpen) return null;
+
   /* ── LOADING ── */
   if (isLoading) {
     return (
-      <Modal isOpen title="Set Auto Volume" icon="settings_suggest" onClose={handleClose} maxWidth="max-w-md">
+      <Modal isOpen title={CM.setAutomationVolume} icon="settings_suggest" onClose={handleClose} maxWidth="max-w-md">
         <ModalStatusLoading 
           title="Saving Policies" 
           subtitle={`Updating configuration for ${selectedDatabase}.`}
@@ -245,7 +250,7 @@ export default function SetAutomationVolumeModal() {
     <Modal
       isOpen={isSetAutomationVolumeModalOpen}
       onClose={handleClose}
-      title="Auto Volume"
+      title={CM.autoVolume}
       subtitle={selectedDatabase ? `Configure expansion policies for "${selectedDatabase}"` : ''}
       icon="settings_suggest"
       maxWidth="max-w-[580px]"
@@ -255,7 +260,7 @@ export default function SetAutomationVolumeModal() {
             Page size: 16K
           </Typography>
           <div className="flex gap-2">
-            <Button variant="ghost" onClick={handleClose}>Discard</Button>
+            <Button variant="ghost" onClick={handleClose}>{CM.discard}</Button>
             <Button
               variant="primary"
               onClick={handleSave}
@@ -299,7 +304,7 @@ export default function SetAutomationVolumeModal() {
 
           <div className="space-y-3">
             <PolicyCard
-              title="Data Volume"
+              title={CM.dataVolume}
               icon="database"
               description="Permanent data volumes"
               enabled={dataEnabled}

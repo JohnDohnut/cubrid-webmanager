@@ -9,8 +9,10 @@ import { Table } from '../../../components/ds/layout/Table';
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Spinner } from '../../../components/ds/foundation/Spinner';
 import { StatusBadge } from '../../../components/ds/foundation/StatusBadge';
+import { useCM } from '../../../constants/useCM';
 
 const Component = function Brokers({ hostUid, isSection = false }) {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { brokers, loading } = useSelector((state) => state.broker, shallowEqual);
   const { authorizedHosts } = useSelector((state) => state.host, shallowEqual);
@@ -22,14 +24,14 @@ const Component = function Brokers({ hostUid, isSection = false }) {
     onFetch: () => (dispatch) => dispatch(fetchBrokerList(hostUid))
   });
 
-  const columns = [
+  const columns = React.useMemo(() => [
     {
-      header: 'Name',
+      header: CM.name,
       accessor: 'name',
       render: (val) => <span className="font-mono text-[12px] font-semibold text-slate-700 dark:text-slate-200">{val}</span>
     },
     {
-      header: 'Status',
+      header: CM.status,
       accessor: 'state',
       render: (val) => (
         <StatusBadge 
@@ -40,27 +42,27 @@ const Component = function Brokers({ hostUid, isSection = false }) {
       )
     },
     { header: 'PID',  accessor: 'pid',         render: (val) => <span className="font-mono text-[12px] text-slate-500">{val}</span> },
-    { header: 'Port', accessor: 'port',         render: (val) => <span className="font-mono text-[12px] text-slate-500">{val}</span> },
-    { header: 'AS',   accessor: 'as',           render: (val) => <span className="font-mono text-[12px]">{val}</span> },
-    { header: 'JQ',   accessor: 'jq',           render: (val) => <span className="font-mono text-[12px]">{val}</span> },
-    { header: 'REQ',  accessor: 'req',          render: (val) => <span className="font-mono text-[12px] font-semibold">{val}</span> },
-    { header: 'TPS',  accessor: 'tps',          render: (val) => <span className="font-mono text-[12px] text-amber-600 dark:text-amber-400 font-semibold">{val}</span> },
-    { header: 'QPS',  accessor: 'qps',          render: (val) => <span className="font-mono text-[12px] text-amber-600 dark:text-amber-400 font-semibold">{val}</span> },
+    { header: CM.port, accessor: 'port', render: (val) => <span className="font-mono text-[12px] text-slate-500">{val}</span> },
+    { header: CM.asLabel, accessor: 'as', render: (val) => <span className="font-mono text-[12px]">{val}</span> },
+    { header: CM.jqLabel, accessor: 'jq', render: (val) => <span className="font-mono text-[12px]">{val}</span> },
+    { header: CM.reqLabel, accessor: 'req', render: (val) => <span className="font-mono text-[12px] font-semibold">{val}</span> },
+    { header: CM.tps, accessor: 'tps', render: (val) => <span className="font-mono text-[12px] text-amber-600 dark:text-amber-400 font-semibold">{val}</span> },
+    { header: CM.qps, accessor: 'qps', render: (val) => <span className="font-mono text-[12px] text-amber-600 dark:text-amber-400 font-semibold">{val}</span> },
     {
-      header: 'Long-T', accessor: 'long_tran',
+      header: CM.longTran, accessor: 'long_tran',
       render: (_, row) => <span className="font-mono text-[11px] text-slate-400">{row.long_tran || '0'} / {(parseFloat(row.long_tran_time || 0) * 1000).toFixed(0)}ms</span>
     },
     {
-      header: 'Long-Q', accessor: 'long_query',
+      header: CM.longQuery, accessor: 'long_query',
       render: (_, row) => <span className="font-mono text-[11px] text-slate-400">{row.long_query || '0'} / {(parseFloat(row.long_query_time || 0) * 1000).toFixed(0)}ms</span>
     },
-    { header: 'Err-Q', accessor: 'error_query', render: (val) => <span className={`font-mono text-[12px] font-bold ${parseInt(val) > 0 ? 'text-rose-500' : 'text-slate-400'}`}>{val}</span> },
-  ];
+    { header: CM.errQuery, accessor: 'error_query', render: (val) => <span className={`font-mono text-[12px] font-bold ${parseInt(val) > 0 ? 'text-rose-500' : 'text-slate-400'}`}>{val}</span> },
+  ], [CM]);
 
   const activeCount = brokers.filter(b => b.state === 'ON').length;
 
   const activeBadge = (
-    <StatusBadge label={`${activeCount} active`} variant="emerald" pulse={true} className="rounded-full" />
+    <StatusBadge label={CM.activeCount(activeCount)} variant="emerald" pulse={true} className="rounded-full" />
   );
 
   const content = (
@@ -68,7 +70,7 @@ const Component = function Brokers({ hostUid, isSection = false }) {
       title={
         <div className="flex items-center gap-2">
           <Icon name="hub" size="sm" weight={300} className="text-amber-500" />
-          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Broker Status</span>
+          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{CM.brokerStatus}</span>
         </div>
       }
       rightContent={(isCollapsed) => isCollapsed && activeBadge}
@@ -97,24 +99,24 @@ const Component = function Brokers({ hostUid, isSection = false }) {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[13px] font-bold text-slate-800 dark:text-slate-100 tracking-tight leading-tight">Broker Status</span>
+              <span className="text-[13px] font-bold text-slate-800 dark:text-slate-100 tracking-tight leading-tight">{CM.brokerStatus}</span>
               <div className={`px-2 py-0.5 rounded-full border flex items-center gap-1.5 shrink-0 transition-all duration-300 ${preferences.brokerStatusInterval > 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10'}`}>
                 <div className={`w-1 h-1 rounded-full ${preferences.brokerStatusInterval > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
                 <span className={`text-[9px] font-bold ${preferences.brokerStatusInterval > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
-                  {preferences.brokerStatusInterval > 0 ? 'Live' : 'Paused'}
+                  {preferences.brokerStatusInterval > 0 ? CM.live : CM.paused}
                 </span>
               </div>
             </div>
             <div className="flex items-center gap-1.5 mt-0.5">
               <div className="w-1.5 h-1.5 rounded-full bg-amber-500/60" />
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">Cluster Overview</span>
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">{CM.clusterOverview}</span>
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] text-slate-400 font-mono tracking-tight hidden lg:block mr-2">
-            Synced {lastRefreshed.toLocaleTimeString('en-US', { hour12: true })}
+            {CM.syncedAt(lastRefreshed.toLocaleTimeString())}
           </span>
 
           <button
@@ -124,7 +126,7 @@ const Component = function Brokers({ hostUid, isSection = false }) {
               ${(loading || isManualRefreshing)
                 ? 'bg-slate-100 dark:bg-white/5 text-slate-300 dark:text-slate-600 border-slate-200 dark:border-white/5 cursor-not-allowed opacity-50'
                 : 'bg-slate-50 dark:bg-white/[0.03] border-slate-200 dark:border-white/10 text-slate-400 hover:text-amber-600 dark:hover:text-amber-500 hover:border-amber-500/50 hover:bg-white dark:hover:bg-white/5 shadow-xs'}`}
-            title="Refresh brokers list"
+            title={CM.refreshBrokersList}
           >
             <Icon name="refresh" size="18px" className={(loading || isManualRefreshing) ? 'animate-spin' : ''} />
           </button>

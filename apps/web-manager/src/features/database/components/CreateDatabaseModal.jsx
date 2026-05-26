@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { 
   closeCreateDatabaseModal, 
@@ -23,7 +23,7 @@ import {
   ModalStatusSuccess, 
   ModalStatusError 
 } from '../../../components/ds/feedback/ActionStatus';
-import { CM } from '../../../constants/cmLabels';
+import { useCM } from '../../../constants/useCM';
 
 // view states
 const VIEW_FORM    = 'form';
@@ -32,16 +32,15 @@ const VIEW_SUCCESS = 'success';
 const VIEW_ERROR   = 'error';
 
 const PAGE_SIZES = [4096, 8192, 16384, 32768];
-const LOCALES = [
+const BASE_LOCALES = [
   { value: 'en_US.iso88591', label: 'en_US.iso88591 — English, Western European' },
   { value: 'en_US.utf8', label: 'en_US.utf8 — English, Universal' },
   { value: 'ko_KR.euckr', label: 'ko_KR.euckr — Korean, Legacy' },
   { value: 'ko_KR.utf8', label: 'ko_KR.utf8 — Korean, Universal' },
-  { value: 'user_defined', label: CM.userDefined }
 ];
-const VOLUME_TYPES = [
-  { value: 'data', label: 'Data' },
-  { value: 'temp', label: 'Temp' }
+const VOLUME_TYPE_KEYS = [
+  { value: 'data', key: 'volumeTypeData' },
+  { value: 'temp', key: 'volumeTypeTemp' },
 ];
 
 const renameVolumesSequentially = (volumes, dbName) => {
@@ -79,14 +78,6 @@ const INITIAL_FORM_DATA = {
   confirmPassword: ''
 };
 
-const STEPS = [
-  { id: 1, label: CM.wizardGeneral, icon: 'settings' },
-  { id: 2, label: CM.wizardAdditionalVol, icon: 'storage' },
-  { id: 3, label: CM.wizardAutoVol, icon: 'auto_mode' },
-  { id: 4, label: CM.wizardSetDbaPass, icon: 'lock' },
-  { id: 5, label: CM.wizardDbInfo, icon: 'fact_check' },
-];
-
 function SummaryRow({ label, value, accent }) {
   return (
     <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-white/4 last:border-0">
@@ -105,6 +96,25 @@ const typeBadge = (t) => {
 
 /* ── main component ─────────────────────────────────────────── */
 export default function CreateDatabaseModal() {
+  const CM = useCM();
+  const locales = useMemo(
+    () => [...BASE_LOCALES, { value: 'user_defined', label: CM.userDefined }],
+    [CM]
+  );
+  const volumeTypes = useMemo(
+    () => VOLUME_TYPE_KEYS.map(({ value, key }) => ({ value, label: CM[key] })),
+    [CM]
+  );
+  const steps = useMemo(
+    () => [
+      { id: 1, label: CM.wizardGeneral, icon: 'settings' },
+      { id: 2, label: CM.wizardAdditionalVol, icon: 'storage' },
+      { id: 3, label: CM.wizardAutoVol, icon: 'auto_mode' },
+      { id: 4, label: CM.wizardSetDbaPass, icon: 'lock' },
+      { id: 5, label: CM.wizardDbInfo, icon: 'fact_check' },
+    ],
+    [CM]
+  );
   const dispatch = useDispatch();
   const { isCreateDatabaseModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
@@ -334,7 +344,7 @@ export default function CreateDatabaseModal() {
       footer={
         <div className="flex w-full items-center justify-between">
           <div className="flex items-center gap-1.5">
-            {STEPS.map(s => (
+            {steps.map(s => (
               <div
                 key={s.id}
                 className={`rounded-full transition-all duration-300 ${
@@ -376,7 +386,7 @@ export default function CreateDatabaseModal() {
       <div className="space-y-0">
         {/* Step Track */}
         <div className="flex items-center gap-0 mb-5 px-1">
-          {STEPS.map((s, idx) => (
+          {steps.map((s, idx) => (
             <React.Fragment key={s.id}>
               <div className="flex items-center gap-2 shrink-0">
                 <div className={`w-6 h-6 rounded-xl flex items-center justify-center border text-[10px] font-black transition-all duration-300 ${
@@ -397,7 +407,7 @@ export default function CreateDatabaseModal() {
                   'text-slate-300 dark:text-slate-600'
                 }`}>{s.label}</span>
               </div>
-              {idx < STEPS.length - 1 && (
+              {idx < steps.length - 1 && (
                 <div className={`flex-1 mx-3 h-px transition-all duration-500 ${step > idx + 1 ? 'bg-amber-500/30' : 'bg-slate-100 dark:bg-white/6'}`} />
               )}
             </React.Fragment>
@@ -429,10 +439,10 @@ export default function CreateDatabaseModal() {
             <div className="bg-white dark:bg-white/2 border border-slate-100 dark:border-white/5 rounded-2xl p-4">
             <SectionHeader title={CM.localeCharset} icon="language" className="mb-4" />
               <Select
-                label="Region locale"
+                label={CM.regionLocale}
                 value={formData.locale}
                 onChange={(e) => handleInputChange('locale', e.target.value)}
-                options={LOCALES}
+                options={locales}
               />
               {formData.locale === 'user_defined' && (
                 <div className="mt-3 animate-in fade-in slide-in-from-top-1 duration-200">
@@ -512,13 +522,13 @@ export default function CreateDatabaseModal() {
                 onClick={addVolume}
                 icon="add_box"
               >
-                Add Volume
+                {CM.addVolume}
               </Button>
             </div>
 
             <div className="border border-slate-100 dark:border-white/8 rounded-2xl overflow-hidden bg-white dark:bg-white/1">
               <div className="grid grid-cols-[1fr_130px_110px_1.8fr_36px] bg-slate-50 dark:bg-white/3 border-b border-slate-100 dark:border-white/8 pl-4 pr-1 py-2.5">
-                {['Identifier', 'Segment', 'Size MB', 'Absolute Path', ''].map((h, i) => (
+                {[CM.identifier, CM.segment, CM.sizeMb, CM.absolutePath, ''].map((h, i) => (
                   <span key={i} className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{h}</span>
                 ))}
               </div>
@@ -531,7 +541,7 @@ export default function CreateDatabaseModal() {
                     </div>
                     <div>
                       <p className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">No additional volumes</p>
-                      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Click "Add Volume" to provision extra storage segments.</p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{CM.clickAddVolumeHint}</p>
                     </div>
                   </div>
                 ) : (
@@ -541,7 +551,7 @@ export default function CreateDatabaseModal() {
                         <Input value={vol.name} onChange={(e) => handleVolumeChange(idx, 'name', e.target.value)} size="sm" className="font-mono text-[11px]" />
                       </div>
                       <div className="pr-3">
-                        <Select value={vol.type} onChange={(e) => handleVolumeChange(idx, 'type', e.target.value)} options={VOLUME_TYPES} size="sm" />
+                        <Select value={vol.type} onChange={(e) => handleVolumeChange(idx, 'type', e.target.value)} options={volumeTypes} size="sm" />
                       </div>
                       <div className="pr-3">
                         <Input type="number" value={vol.size} onChange={(e) => handleVolumeChange(idx, 'size', Number(e.target.value))} size="sm" />
@@ -669,7 +679,7 @@ export default function CreateDatabaseModal() {
                 label={CM.password}
                 value={formData.dbaPassword}
                 onChange={(e) => handleInputChange('dbaPassword', e.target.value)}
-                placeholder="Leave blank for no password"
+                placeholder={CM.leaveBlankNoPassword}
                 icon="key"
               />
               <Input
@@ -677,9 +687,9 @@ export default function CreateDatabaseModal() {
                 label={CM.passwordConfirm}
                 value={formData.confirmPassword}
                 onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                placeholder="Repeat password"
+                placeholder={CM.repeatPassword}
                 icon="verified_user"
-                error={(formData.confirmPassword && formData.dbaPassword !== formData.confirmPassword) ? "Passwords do not match" : ""}
+                error={(formData.confirmPassword && formData.dbaPassword !== formData.confirmPassword) ? CM.passwordsDoNotMatch : ""}
               />
             </div>
           </div>
@@ -694,21 +704,21 @@ export default function CreateDatabaseModal() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 bg-white dark:bg-white/2 border border-slate-200 dark:border-white/8 rounded-2xl">
-                <SectionHeader title="Configuration" icon="tune" className="mb-4" />
+                <SectionHeader title={CM.configuration} icon="tune" className="mb-4" />
                 <div className="space-y-0.5 mt-1">
-                  <SummaryRow label="Database name" value={formData.dbName} accent />
-                  <SummaryRow label="Page size" value={`${formData.pageSize / 1024} KB`} />
-                  <SummaryRow label="Locale" value={formData.locale === 'user_defined' ? formData.userDefinedLocale : formData.locale.split('.')[0]} />
-                  <SummaryRow label="Auto-start" value={formData.autoStart ? 'Yes' : 'No'} />
+                  <SummaryRow label={CM.databaseName} value={formData.dbName} accent />
+                  <SummaryRow label={CM.pageSize} value={`${formData.pageSize / 1024} KB`} />
+                  <SummaryRow label={CM.localeCharset} value={formData.locale === 'user_defined' ? formData.userDefinedLocale : formData.locale.split('.')[0]} />
+                  <SummaryRow label={CM.autoStart} value={formData.autoStart ? CM.yes : CM.no} />
                 </div>
               </div>
 
               <div className="p-4 bg-white dark:bg-white/2 border border-slate-200 dark:border-white/8 rounded-2xl">
                 <SectionHeader title="Storage" icon="hard_drive" className="mb-4" />
                 <div className="space-y-0.5 mt-1">
-                  <SummaryRow label="Total volumes" value={`${formData.volumes.length + 2}`} />
-                  <SummaryRow label="Generic volume" value={`${formData.genericVolSize} MB`} />
-                  <SummaryRow label="Log volume" value={`${formData.logVolSize} MB`} />
+                  <SummaryRow label={CM.totalVolumes} value={`${formData.volumes.length + 2}`} />
+                  <SummaryRow label={CM.genericVolume} value={`${formData.genericVolSize} MB`} />
+                  <SummaryRow label={CM.logVolume} value={`${formData.logVolSize} MB`} />
                   <div className="flex items-center justify-between pt-3 mt-1.5 border-t border-slate-100 dark:border-white/4">
                     <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Total</span>
                     <span className="text-[16px] font-black font-mono text-emerald-500 tracking-tight">{totalStorage} MB</span>

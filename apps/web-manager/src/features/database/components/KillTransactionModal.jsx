@@ -3,7 +3,7 @@ import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeKillTransactionModal } from '../databaseSlice';
 import { databaseApi } from '../databaseApi';
 import { buildKillParameter } from '../transactionUtils';
-import { CM } from '../../../constants/cmLabels';
+import { useCM } from '../../../constants/useCM';
 
 import { Modal } from '../../../components/ds/layout/Modal';
 import { Button } from '../../../components/ds/foundation/Button';
@@ -14,6 +14,7 @@ import { useActionState } from '../../../infrastructure/hooks/useActionState';
 import { ModalStatusLoading, ModalStatusSuccess, ModalStatusError } from '../../../components/ds/feedback/ActionStatus';
 
 export default function KillTransactionModal({ onTransactionKilled }) {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isKillTransactionModalOpen, killTransactionData } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);

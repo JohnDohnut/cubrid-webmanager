@@ -16,6 +16,7 @@ import {
   ModalStatusSuccess, 
   ModalStatusError 
 } from '../../../components/ds/feedback/ActionStatus';
+import { useCM } from '../../../constants/useCM';
 
 // view states
 const VIEW_FORM    = 'form';
@@ -24,6 +25,7 @@ const VIEW_SUCCESS = 'success';
 const VIEW_ERROR   = 'error';
 
 export default function BackupDatabaseModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isBackupDatabaseModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
@@ -123,10 +125,10 @@ export default function BackupDatabaseModal() {
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title="Backup Database" icon="backup" onClose={handleClose} maxWidth="720px">
+      <Modal isOpen title={CM.backupDatabase} icon="backup" onClose={handleClose} maxWidth="720px">
         <ModalStatusLoading 
-          title="Snapshot In Progress" 
-          subtitle={`The system is consolidating data volumes and capturing a consistent snapshot for ${selectedDatabase}.`} 
+          title={CM.snapshotInProgress} 
+          subtitle={selectedDatabase} 
         />
       </Modal>
     );
@@ -135,12 +137,12 @@ export default function BackupDatabaseModal() {
   /* ─── SUCCESS view ─── */
   if (isSuccess) {
     return (
-      <Modal isOpen title="Backup Completed" icon="backup" iconVariant="success" onClose={handleClose} maxWidth="720px">
+      <Modal isOpen title={CM.backupCompleted} icon="backup" iconVariant="success" onClose={handleClose} maxWidth="720px">
         <ModalStatusSuccess 
-          title="Snapshot Secured"
+          title={CM.snapshotSecured}
           message={`A complete backup of ${selectedDatabase} has been written to: ${formData.backupDir}.`}
           onConfirm={handleClose}
-          confirmText="OK"
+          confirmText={CM.ok}
         />
       </Modal>
     );
@@ -149,14 +151,14 @@ export default function BackupDatabaseModal() {
   /* ─── ERROR view ─── */
   if (isError) {
     return (
-      <Modal isOpen title="Backup Failed" icon="backup" iconVariant="danger" onClose={resetAction} maxWidth="720px">
+      <Modal isOpen title={CM.backupFailed} icon="backup" iconVariant="danger" onClose={resetAction} maxWidth="720px">
         <ModalStatusError 
-          title="Operation Interrupted"
+          title={CM.operationInterrupted}
           error={error}
           onRetry={handleBackup}
           onCancel={resetAction}
-          retryText="Retry Backup"
-          cancelText="Dismiss"
+          retryText={CM.retryBackup}
+          cancelText={CM.dismiss}
         />
       </Modal>
     );
@@ -167,15 +169,15 @@ export default function BackupDatabaseModal() {
     <Modal
       isOpen={isBackupDatabaseModalOpen}
       onClose={handleClose}
-      title="Backup Database"
-      subtitle="Create a persistent snapshot of your database volumes"
+      title={CM.backupDatabase}
+      subtitle={CM.backupSubtitle}
       icon="backup"
       maxWidth="600px"
       footer={
         <div className="flex justify-end gap-3 w-full">
-          <Button variant="secondary" onClick={handleClose}>Discard</Button>
+          <Button variant="secondary" onClick={handleClose}>{CM.discard}</Button>
           <Button variant="primary" onClick={handleBackup} icon="play_circle" className="min-w-[140px]">
-            Run Backup
+            {CM.runBackup}
           </Button>
         </div>
       }
@@ -191,19 +193,19 @@ export default function BackupDatabaseModal() {
             </div>
             <div className="min-w-0 flex-1">
               <Typography variant="p" className="text-[10px] font-bold uppercase tracking-widest text-amber-600/70 dark:text-amber-400/60 mb-0.5">
-                Target Database
+                {CM.targetDatabase}
               </Typography>
               <Typography variant="p" className="text-[14px] font-bold text-amber-700 dark:text-amber-400 font-mono truncate">
                 {selectedDatabase || 'N/A'}
               </Typography>
             </div>
-            <StatusBadge label="Ready" variant="emerald" pulse={true} className="rounded-full" />
+            <StatusBadge label={CM.ready} variant="emerald" pulse={true} className="rounded-full" />
           </div>
         </div>
 
         {/* Backup Level */}
         <div>
-          <SectionHeader title="Backup Strategy" icon="layers" />
+          <SectionHeader title={CM.backupStrategy} icon="layers" />
           <div className="grid grid-cols-3 gap-2.5">
             {levels.map(item => {
               const isSelected = formData.backupLevel === item.level;
@@ -237,17 +239,17 @@ export default function BackupDatabaseModal() {
 
         {/* Storage Configuration */}
         <div>
-          <SectionHeader title="Storage Configuration" icon="storage" />
+          <SectionHeader title={CM.storageConfiguration} icon="storage" />
           <div className="grid grid-cols-2 gap-x-4 gap-y-4">
             <Input
-              label="Volume Name"
+              label={CM.volumeNameCol}
               value={formData.volPath}
               onChange={(e) => handleInputChange('volPath', e.target.value)}
               placeholder="db_backup_lv0"
               icon="folder_zip"
             />
             <Input
-              label="Revision ID"
+              label={CM.revisionId}
               value={formData.backupId}
               onChange={(e) => handleInputChange('backupId', e.target.value)}
               icon="tag"
@@ -255,7 +257,7 @@ export default function BackupDatabaseModal() {
             />
             <div className="col-span-2">
               <Input
-                label="Backup Directory"
+                label={CM.backupDirectory}
                 value={formData.backupDir}
                 onChange={(e) => handleInputChange('backupDir', e.target.value)}
                 placeholder="/var/lib/cubrid/backup"
@@ -265,7 +267,7 @@ export default function BackupDatabaseModal() {
             <div className="col-span-2">
               <Input
                 type="number"
-                label="Parallel Threads"
+                label={CM.parallelThreads}
                 description="Number of concurrent backup streams (based on CPU cores)"
                 value={formData.parallelBackup}
                 onChange={(e) => handleInputChange('parallelBackup', e.target.value)}
@@ -278,7 +280,7 @@ export default function BackupDatabaseModal() {
 
         {/* Options */}
         <div>
-          <SectionHeader title="Options" icon="tune" />
+          <SectionHeader title={CM.options} icon="tune" />
           <div className="space-y-2">
             {flags.map(opt => {
               const isOn = formData[opt.field];

@@ -10,7 +10,7 @@ import { Toggle } from '../../../components/ds/forms/Toggle';
 import { Typography } from '../../../components/ds/foundation/Typography';
 import { StatusBadge } from '../../../components/ds/foundation/StatusBadge';
 import { Table } from '../../../components/ds/layout/Table';
-import { CM } from '../../../constants/cmLabels';
+import { useCM } from '../../../constants/useCM';
 
 // view states
 const VIEW_FORM    = 'form';
@@ -19,6 +19,7 @@ const VIEW_SUCCESS = 'success';
 const VIEW_ERROR   = 'error';
 
 export default function DatabaseInfoModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isDatabaseInfoModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase, activeDatabases } = useSelector((state) => state.database, shallowEqual);
@@ -56,7 +57,7 @@ export default function DatabaseInfoModal() {
       })).unwrap();
       setView(VIEW_SUCCESS);
     } catch (err) {
-      setErrorMsg(typeof err === 'string' ? err : (err.message || 'Failed to get database parameters.'));
+      setErrorMsg(typeof err === 'string' ? err : (err.message || CM.failedToGetDbParams));
       setView(VIEW_ERROR);
     }
   };
@@ -82,15 +83,15 @@ export default function DatabaseInfoModal() {
   }));
 
   const columns = [
-    { header: 'Parameter', accessor: 'name', render: (val) => (
+    { header: CM.parameter, accessor: 'name', render: (val) => (
       <Typography variant="label" className="text-slate-900 dark:text-slate-100 font-bold tracking-tight">
         {val}
       </Typography>
     )},
-    { header: 'Server Value', accessor: 'server', className: dumpBoth ? 'w-[200px]' : 'w-[400px]', render: (val) => (
+    { header: CM.serverValue, accessor: 'server', className: dumpBoth ? 'w-[200px]' : 'w-[400px]', render: (val) => (
       <Typography variant="span" className="font-mono text-[11px] text-amber-500 font-bold">{val}</Typography>
     )},
-    ...(dumpBoth ? [{ header: 'Client Value', accessor: 'client', className: 'w-[200px]', render: (val) => (
+    ...(dumpBoth ? [{ header: CM.clientValue, accessor: 'client', className: 'w-[200px]', render: (val) => (
       <Typography variant="span" className={`font-mono text-[11px] ${val === '-' ? 'text-slate-300 dark:text-slate-600' : 'text-slate-900 dark:text-slate-100'}`}>{val}</Typography>
     )}] : [])
   ];
@@ -98,7 +99,7 @@ export default function DatabaseInfoModal() {
   /* ─── LOADING view ─── */
   if (view === VIEW_LOADING) {
     return (
-      <Modal isOpen title="Used Parameter Dump" icon="analytics" onClose={handleClose} maxWidth="500px">
+      <Modal isOpen title={CM.usedParameterDump} icon="analytics" onClose={handleClose} maxWidth="500px">
         <div className="flex flex-col items-center justify-center py-14 space-y-6 animate-in fade-in duration-200">
           <div className="relative w-16 h-16">
             <div className="absolute inset-0 rounded-full border-2 border-slate-100 dark:border-white/5" />
@@ -108,7 +109,7 @@ export default function DatabaseInfoModal() {
             </div>
           </div>
           <div className="text-center space-y-1.5 px-8">
-            <Typography variant="h4" className="text-[14px] font-bold text-slate-800 dark:text-white">Loading parameters</Typography>
+            <Typography variant="h4" className="text-[14px] font-bold text-slate-800 dark:text-white">{CM.loadingParameters}</Typography>
             <Typography variant="p" className="text-[11px] text-slate-500 max-w-[280px] mx-auto">
               {selectedDatabase}
             </Typography>
@@ -131,13 +132,13 @@ export default function DatabaseInfoModal() {
   /* ─── ERROR view ─── */
   if (view === VIEW_ERROR) {
     return (
-      <Modal isOpen title="Used Parameter Dump" icon="analytics" iconVariant="danger" onClose={handleClose} maxWidth="500px">
+      <Modal isOpen title={CM.usedParameterDump} icon="analytics" iconVariant="danger" onClose={handleClose} maxWidth="500px">
         <div className="flex flex-col items-center justify-center py-10 gap-6 text-center animate-in fade-in duration-200">
           <div className="relative w-14 h-14 bg-rose-500 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(244,63,94,0.3)]">
             <Icon name="error" size="md" weight={300} className="text-white" />
           </div>
           <div className="space-y-2 px-6">
-            <Typography variant="h4" className="text-[15px] font-bold text-slate-900 dark:text-white">Failed</Typography>
+            <Typography variant="h4" className="text-[15px] font-bold text-slate-900 dark:text-white">{CM.failure}</Typography>
             <Typography variant="p" className="text-[11.5px] text-slate-500">
               Could not get parameters for {selectedDatabase}.
             </Typography>
@@ -145,15 +146,15 @@ export default function DatabaseInfoModal() {
           <div className="w-full max-w-[420px] bg-rose-500/5 border border-rose-500/15 rounded-xl px-4 py-3 text-left">
             <div className="flex items-center gap-2 mb-1.5">
               <Icon name="terminal" size="xs" weight={300} className="text-rose-400" />
-              <span className="text-[9px] font-semibold uppercase tracking-wide text-rose-400">Message</span>
+              <span className="text-[9px] font-semibold uppercase tracking-wide text-rose-400">{CM.message}</span>
             </div>
             <Typography variant="caption" className="text-rose-400/80 font-mono leading-relaxed break-words">
               {errorMsg}
             </Typography>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="secondary" onClick={handleClose}>Close</Button>
-            <Button variant="primary" icon="refresh" onClick={() => { setView(VIEW_FORM); setErrorMsg(''); }}>Retry</Button>
+            <Button variant="secondary" onClick={handleClose}>{CM.close}</Button>
+            <Button variant="primary" icon="refresh" onClick={() => { setView(VIEW_FORM); setErrorMsg(''); }}>{CM.retry}</Button>
           </div>
         </div>
       </Modal>
@@ -167,7 +168,7 @@ export default function DatabaseInfoModal() {
       <Modal
         isOpen={isDatabaseInfoModalOpen}
         onClose={handleClose}
-        title="Used Parameter Dump"
+        title={CM.usedParameterDump}
         icon="analytics"
         maxWidth="900px"
         footer={
@@ -189,7 +190,7 @@ export default function DatabaseInfoModal() {
             </div>
             <div className="flex items-center gap-2">
               <Typography variant="span" className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter ${isActive ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-500/10 text-slate-500'}`}>
-                {isActive ? 'Active Context' : 'Offline Static'}
+                {isActive ? CM.activeContext : CM.offlineStatic}
               </Typography>
             </div>
           </div>
@@ -199,7 +200,7 @@ export default function DatabaseInfoModal() {
               columns={columns}
               data={paramList}
               className="h-full"
-              emptyMessage="No configuration parameters identified for this instance."
+              emptyMessage={CM.noConfigParameters}
             />
           </div>
         </div>
@@ -212,14 +213,14 @@ export default function DatabaseInfoModal() {
     <Modal
       isOpen={isDatabaseInfoModalOpen}
       onClose={handleClose}
-      title="Used Parameter Dump"
-      subtitle="Check out the parameter values"
+      title={CM.usedParameterDump}
+      subtitle={CM.parameterDumpSubtitle}
       icon="database"
       maxWidth="500px"
       footer={
         <div className="flex justify-end gap-3 w-full">
-          <Button variant="ghost" onClick={handleClose}>Cancel</Button>
-          <Button variant="primary" onClick={handleRunDump} icon="analytics">OK</Button>
+          <Button variant="ghost" onClick={handleClose}>{CM.cancel}</Button>
+          <Button variant="primary" onClick={handleRunDump} icon="analytics">{CM.ok}</Button>
         </div>
       }
     >
@@ -233,13 +234,13 @@ export default function DatabaseInfoModal() {
               <Typography variant="caption" className="font-semibold uppercase tracking-wide text-amber-600/70 dark:text-amber-400/60 mb-0.5">{CM.databaseName}</Typography>
               <Typography variant="h4" className="text-[14px] font-black text-amber-700 dark:text-amber-400 font-mono truncate">{selectedDatabase}</Typography>
             </div>
-            <StatusBadge label="Environment Ready" variant="emerald" pulse={true} className="rounded-full" />
+            <StatusBadge label={CM.environmentReady} variant="emerald" pulse={true} className="rounded-full" />
           </div>
         </div>
 
         <div className="space-y-4">
           <div className="flex items-center gap-2 px-1">
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Analysis Pipeline</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">{CM.analysisPipeline}</span>
             <div className="flex-1 h-px bg-slate-100 dark:bg-white/5" />
           </div>
 
@@ -261,8 +262,8 @@ export default function DatabaseInfoModal() {
                 <Icon name="compare_arrows" size="sm" weight={300} />
               </div>
               <div className="flex-1">
-                <Typography variant="p" className={`font-bold transition-colors ${dumpBoth ? 'text-amber-500' : 'text-slate-900 dark:text-white'} text-[12px] tracking-tight`}>Comparative Analysis</Typography>
-                <Typography variant="caption" className="text-slate-400 dark:text-slate-500 font-medium block mt-0.5">Force extraction of both client/server-side heap</Typography>
+                <Typography variant="p" className={`font-bold transition-colors ${dumpBoth ? 'text-amber-500' : 'text-slate-900 dark:text-white'} text-[12px] tracking-tight`}>{CM.comparativeAnalysis}</Typography>
+                <Typography variant="caption" className="text-slate-400 dark:text-slate-500 font-medium block mt-0.5">{CM.comparativeAnalysisDesc}</Typography>
               </div>
               <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
                 <Toggle 

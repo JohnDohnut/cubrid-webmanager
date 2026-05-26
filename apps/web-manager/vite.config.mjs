@@ -5,6 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig(({ mode }) => {
   const isElectronBuild = mode === 'electron'
+  const disablePwa = isElectronBuild || process.env.DISABLE_PWA === '1'
 
   return {
   base: isElectronBuild ? './' : '/',
@@ -12,7 +13,7 @@ export default defineConfig(({ mode }) => {
     react(),
     tailwindcss(),
   ].concat(
-    isElectronBuild
+    disablePwa
       ? []
       : [
           VitePWA({
@@ -42,7 +43,8 @@ export default defineConfig(({ mode }) => {
               ],
             },
             devOptions: {
-              enabled: true,
+              // Self-signed HTTPS (local stack) cannot register SW — avoid console SecurityError
+              enabled: false,
             },
           }),
         ]

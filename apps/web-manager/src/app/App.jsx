@@ -75,8 +75,10 @@ import AddVolumeModal from '../features/database/components/AddVolumeModal';
 import SuggestedHaNodesModal from '../features/host/components/SuggestedHaNodesModal';
 
 import { Icon } from '../components/ds/foundation/Icon';
+import { useCM } from '../constants/useCM';
 
 function DashboardLayout() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { loading: dbCoreLoading } = useSelector((state) => state.database, shallowEqual);
   const { actionLoading: dbUILoading } = useSelector((state) => state.databaseUI, shallowEqual);
@@ -109,35 +111,35 @@ function DashboardLayout() {
     } else if (tabId.startsWith('db:')) {
       acc[tabId] = tabId.split(':')[1];
     } else if (tabId.startsWith('edit_config:')) {
-      acc[tabId] = `Edit ${tabId.split(':')[2]}`;
+      acc[tabId] = CM.editConfigTab(tabId.split(':')[2]);
     } else if (tabId.startsWith('broker_config:')) {
-      acc[tabId] = 'Broker Config';
+      acc[tabId] = CM.brokerConfig;
     } else if (tabId.startsWith('log:')) {
       const parts = tabId.split(':');
       const path = parts[parts.length - 1];
       acc[tabId] = path.split('/').pop();
     } else if (tabId.startsWith('all_logs:')) {
-      acc[tabId] = `All Logs: ${tabId.split(':')[2]}`;
+      acc[tabId] = CM.allLogsTab(tabId.split(':')[2]);
     } else if (tabId.startsWith('all_db_logs:')) {
-      acc[tabId] = `All Server Logs: ${tabId.split(':')[2]}`;
+      acc[tabId] = CM.allServerLogsTab(tabId.split(':')[2]);
     } else if (tabId.startsWith('cms-access:')) {
-      acc[tabId] = 'Manager Access';
+      acc[tabId] = CM.managerAccess;
     } else if (tabId.startsWith('cms-error:')) {
-      acc[tabId] = 'Manager Error';
+      acc[tabId] = CM.managerError;
     } else if (tabId.startsWith('broker_status:')) {
-      acc[tabId] = `Status: ${tabId.split(':')[2]}`;
+      acc[tabId] = CM.statusTab(tabId.split(':')[2]);
     } else if (tabId.startsWith('brokers_status:')) {
-      acc[tabId] = 'Broker Status';
+      acc[tabId] = CM.brokerStatus;
     } else if (tabId.startsWith('db_space:')) {
-      acc[tabId] = `Space: ${tabId.split(':')[2]}`;
+      acc[tabId] = CM.spaceTab(tabId.split(':')[2]);
     } else if (tabId.startsWith('vol_info:')) {
       const fullPath = tabId.split(':')[3];
-      acc[tabId] = `Volume: ${fullPath.split(/[\\/]/).pop()}`;
+      acc[tabId] = CM.volumeTab(fullPath.split(/[\\/]/).pop());
     } else if (tabId.startsWith('vol_category:')) {
       const category = tabId.split(':')[3];
-      acc[tabId] = `Volumes: ${category.replace(/_/g, ' ')}`;
+      acc[tabId] = CM.volumesTab(category);
     } else if (tabId === 'service_dashboard') {
-      acc[tabId] = 'Service Dashboard';
+      acc[tabId] = CM.serviceDashboard;
     }
 
     return acc;
@@ -178,17 +180,15 @@ function DashboardLayout() {
   // Construct dynamic loading message
   const getLoadingSubtitle = () => {
     if (isServiceOperating) {
-      return serviceProgressMessage || `Please wait while we ${serviceOperationType === 'start' ? 'start' : 'stop'} all brokers and databases...`;
+      return serviceProgressMessage || (serviceOperationType === 'start' ? CM.serviceStartWait : CM.serviceStopWait);
     }
     if (brokerActionLoading && brokerActionName) {
-      const action = brokerActionType === 'start' ? 'Start' : 'Stop';
-      return `${action} broker : ${brokerActionName}`;
+      return brokerActionType === 'start' ? CM.startBrokerLine(brokerActionName) : CM.stopBrokerLine(brokerActionName);
     }
     if (dbActionLoading) {
-      // Fallback for generic DB actions if no specific message is provided
-      return "Processing database request...";
+      return CM.processingDbRequest;
     }
-    return "Processing your request, please wait...";
+    return CM.processingRequest;
   };
 
   return (
@@ -260,20 +260,20 @@ function DashboardLayout() {
                 {/* Text */}
                 <div className="text-center space-y-2">
                   <h2 className="text-base font-bold text-slate-800 dark:text-slate-100 tracking-tight uppercase">
-                    CUBRID Manager
+                    {CM.appName}
                   </h2>
                   <p className="text-[12px] text-slate-400 dark:text-slate-500 max-w-[260px] leading-relaxed">
-                    Select a host from the sidebar to start monitoring databases, brokers, and logs.
+                    {CM.selectHostHint}
                   </p>
                 </div>
 
                 {/* Feature pills */}
                 <div className="flex flex-wrap items-center justify-center gap-2">
                   {[
-                    { icon: 'dns', label: 'Host Management' },
-                    { icon: 'storage', label: 'Volume Monitor' },
-                    { icon: 'analytics', label: 'Performance' },
-                    { icon: 'lock', label: 'Lock Info' },
+                    { icon: 'dns', label: CM.hostManagement },
+                    { icon: 'storage', label: CM.volumeMonitor },
+                    { icon: 'analytics', label: CM.performance },
+                    { icon: 'lock', label: CM.lockInfo },
                   ].map(f => (
                     <div key={f.label} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-white/4 border border-slate-200 dark:border-white/6">
                       <Icon name={f.icon} size="13px" weight={300} className="text-slate-400 dark:text-slate-500" />
@@ -285,7 +285,7 @@ function DashboardLayout() {
                 {/* Status bar */}
                 <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-slate-200 dark:border-white/6 bg-slate-50 dark:bg-white/2">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">System Ready</span>
+                  <span className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">{CM.systemReady}</span>
                 </div>
 
               </div>
@@ -453,8 +453,8 @@ function DashboardLayout() {
           isVisible={isServiceOperating || dbActionLoading || brokerActionLoading} 
           title={
             isServiceOperating 
-              ? (serviceOperationType === 'start' ? 'Service Action' : 'Service Action')
-              : (dbActionLoading ? 'Database Action' : 'Broker Action')
+              ? CM.service
+              : (dbActionLoading ? CM.databaseAction : CM.brokerAction)
           }
           subtitle={getLoadingSubtitle()}
         />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useDispatch } from 'react-redux';
 import { fetchDashboardPerformance } from '../../databaseSlice';
 import { Icon } from '../../../../components/ds/foundation/Icon';
@@ -6,10 +6,10 @@ import { Table } from '../../../../components/ds/layout/Table';
 import { Typography } from '../../../../components/ds/foundation/Typography';
 import { Card } from '../../../../components/ds/layout/Card';
 import { ProgressBar } from '../../../../components/ds/foundation/ProgressBar';
-
-
+import { useCM } from '../../../../constants/useCM';
 
 export default function DBPerformanceSection({ dbStats, pollingProps }) {
+  const CM = useCM();
   const dispatch = useDispatch();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { hostUid, dbname, isTabActive, autoRefresh, refreshInterval } = pollingProps;
@@ -38,9 +38,9 @@ export default function DBPerformanceSection({ dbStats, pollingProps }) {
     return () => clearInterval(interval);
   }, [isTabActive, isCollapsed, autoRefresh, refreshInterval, hostUid, dbname]);
 
-  const columns = [
+  const columns = useMemo(() => [
     {
-      header: 'CPU',
+      header: CM.cpu,
       accessor: 'cpu',
       render: (val, row) => (
         <div className="min-w-[90px] pr-4">
@@ -54,7 +54,7 @@ export default function DBPerformanceSection({ dbStats, pollingProps }) {
       )
     },
     {
-      header: 'Memory',
+      header: CM.memory,
       accessor: 'memory',
       render: (val, row) => (
         <div className="min-w-[100px] pr-4">
@@ -68,7 +68,7 @@ export default function DBPerformanceSection({ dbStats, pollingProps }) {
       )
     },
     {
-      header: 'TPS',
+      header: CM.tps,
       accessor: 'tps',
       render: (val) => {
         const v = parseFloat(val);
@@ -76,13 +76,13 @@ export default function DBPerformanceSection({ dbStats, pollingProps }) {
         return (
           <div className="flex flex-col">
             <span className={`font-mono text-[18px] font-black leading-none transition-colors duration-500 ${color}`}>{val}</span>
-            <span className="text-[9px] text-slate-400 uppercase tracking-widest font-bold mt-0.5">Trans/sec</span>
+            <span className="text-[9px] text-slate-400 uppercase tracking-widest font-bold mt-0.5">{CM.transPerSec}</span>
           </div>
         );
       }
     },
     {
-      header: 'QPS',
+      header: CM.qps,
       accessor: 'qps',
       render: (val) => {
         const v = parseInt(val.replace(/,/g, ''));
@@ -90,13 +90,13 @@ export default function DBPerformanceSection({ dbStats, pollingProps }) {
         return (
           <div className="flex flex-col">
             <span className={`font-mono text-[18px] font-black leading-none transition-colors duration-500 ${color}`}>{val}</span>
-            <span className="text-[9px] text-slate-400 uppercase tracking-widest font-bold mt-0.5">Queries/sec</span>
+            <span className="text-[9px] text-slate-400 uppercase tracking-widest font-bold mt-0.5">{CM.queriesPerSec}</span>
           </div>
         );
       }
     },
     {
-      header: 'Buffer Hit',
+      header: CM.bufferHit,
       accessor: 'hitRatio',
       render: (val, row) => (
         <div className="min-w-[100px] pr-4">
@@ -109,19 +109,19 @@ export default function DBPerformanceSection({ dbStats, pollingProps }) {
         </div>
       )
     },
-    { header: 'Fetches/s',   accessor: 'fetch',    render: (val) => <span className="font-mono text-[12px] text-slate-500">{val}</span> },
-    { header: 'Dirty/s',     accessor: 'dirty',    render: (val) => <span className="font-mono text-[12px] text-slate-500">{val}</span> },
-    { header: 'IO Reads/s',  accessor: 'ioReads',  render: (val) => <span className="font-mono text-[12px] text-slate-500">{val}</span> },
-    { header: 'IO Writes/s', accessor: 'ioWrites', render: (val) => <span className="font-mono text-[12px] text-slate-500">{val}</span> },
-  ];
+    { header: CM.fetchesPerSec, accessor: 'fetch',    render: (val) => <span className="font-mono text-[12px] text-slate-500">{val}</span> },
+    { header: CM.dirtyPerSec,   accessor: 'dirty',    render: (val) => <span className="font-mono text-[12px] text-slate-500">{val}</span> },
+    { header: CM.ioReadsPerSec, accessor: 'ioReads',  render: (val) => <span className="font-mono text-[12px] text-slate-500">{val}</span> },
+    { header: CM.ioWritesPerSec, accessor: 'ioWrites', render: (val) => <span className="font-mono text-[12px] text-slate-500">{val}</span> },
+  ], [CM]);
 
   return (
     <Card
       title={
         <div className="flex items-center gap-2">
           <Icon name="monitoring" size="sm" weight={300} className="text-amber-500" />
-          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Performance Metrics</span>
-          <span className="text-[10px] text-slate-400 font-normal ml-1">· Real-time</span>
+          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{CM.performanceMetrics}</span>
+          <span className="text-[10px] text-slate-400 font-normal ml-1">· {CM.realTime}</span>
         </div>
       }
       bodyClassName="p-0"

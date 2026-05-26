@@ -19,6 +19,7 @@ import {
   ModalStatusSuccess, 
   ModalStatusError 
 } from '../../../components/ds/feedback/ActionStatus';
+import { useCM } from '../../../constants/useCM';
 
 // view states
 const VIEW_FORM    = 'form';
@@ -27,6 +28,7 @@ const VIEW_SUCCESS = 'success';
 const VIEW_ERROR   = 'error';
 
 export default function DeleteDatabaseModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isDeleteDatabaseModalOpen: isDeleteDBModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
@@ -127,7 +129,7 @@ export default function DeleteDatabaseModal() {
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title="DBA confirm" icon="delete_forever" onClose={handleClose} maxWidth="440px">
+      <Modal isOpen title={CM.dbaConfirm} icon="delete_forever" onClose={handleClose} maxWidth="440px">
         <ModalStatusLoading 
           title="Erasing Data Assets" 
           subtitle={`Authorizing destruction and removing all physical volumes for ${selectedDatabase}.`}
@@ -142,10 +144,10 @@ export default function DeleteDatabaseModal() {
     return (
       <Modal isOpen title="Operation Complete" icon="delete_forever" iconVariant="success" onClose={handleClose} maxWidth="440px">
         <ModalStatusSuccess 
-          title="Database deleted"
+          title={CM.success}
           message={`All volumes and associated metadata for ${selectedDatabase} have been permanently removed.`}
           onConfirm={handleClose}
-          confirmText="OK"
+          confirmText={CM.ok}
         />
       </Modal>
     );
@@ -156,12 +158,12 @@ export default function DeleteDatabaseModal() {
     return (
       <Modal isOpen title={step === 2 ? 'Authorization Error' : 'Capture Failed'} icon="delete_forever" iconVariant="danger" onClose={resetAction} maxWidth="440px">
         <ModalStatusError 
-          title="Action Interrupted"
+          title={CM.failure}
           error={error}
           onRetry={step === 2 ? handleConfirm : undefined}
           onCancel={resetAction}
-          retryText="Retry"
-          cancelText="Dismiss"
+          retryText={CM.retry}
+          cancelText={CM.dismiss}
         />
       </Modal>
     );
@@ -172,8 +174,8 @@ export default function DeleteDatabaseModal() {
     <Modal
       isOpen={isDeleteDBModalOpen}
       onClose={handleClose}
-      title={step === 1 ? 'Delete Database' : 'DBA confirm'}
-      subtitle={step === 1 ? 'Review volumes and confirm permanent removal' : 'Verify credentials to authorize destruction'}
+      title={step === 1 ? CM.deleteDatabase : CM.dbaConfirm}
+      subtitle={step === 1 ? CM.deleteDatabaseConfirm : CM.dbaConfirm}
       icon="delete_forever"
       iconVariant="danger"
       maxWidth={step === 1 ? '600px' : '440px'}
@@ -187,7 +189,7 @@ export default function DeleteDatabaseModal() {
             )}
           </div>
           <div className="flex items-center gap-2.5">
-            <Button variant="ghost" onClick={handleClose}>Discard</Button>
+            <Button variant="ghost" onClick={handleClose}>{CM.cancel}</Button>
             <Button
               variant="danger"
               onClick={handleConfirm}
@@ -215,13 +217,13 @@ export default function DeleteDatabaseModal() {
             </div>
           </div>
 
-          <InfoBanner title="Critical Warning" variant="warning">
+          <InfoBanner title={CM.criticalWarning} variant="warning">
             This action is <span className="text-amber-500 font-bold non-italic">permanent</span>. All database files and logs listed below will be erased and cannot be recovered.
           </InfoBanner>
 
           <div>
             <SectionHeader 
-              title="Volumes To Be Deleted" 
+              title={CM.volumesToDelete} 
               icon="hard_drive" 
               badge={volumeInfo.length > 0 ? `${volumeInfo.length} Assets` : null} 
             />
@@ -299,7 +301,7 @@ export default function DeleteDatabaseModal() {
 
           <div className="space-y-3">
             <Input
-              label="Username"
+              label={CM.userName}
               value={dbId}
               onChange={e => setDbId(e.target.value)}
               placeholder="dba"
@@ -308,7 +310,7 @@ export default function DeleteDatabaseModal() {
             />
             <Input
               type="password"
-              label="Password"
+              label={CM.password}
               value={password}
               onChange={e => setPassword(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleConfirm()}

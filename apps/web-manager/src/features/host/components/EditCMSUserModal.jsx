@@ -22,14 +22,15 @@ import {
   ModalStatusSuccess,
   ModalStatusError
 } from '../../../components/ds/feedback/ActionStatus';
-
-const AUTH_OPTIONS = [
-  { value: 'none', label: 'No Access' },
-  { value: 'monitor', label: 'Monitor Only' },
-  { value: 'admin', label: 'Full Control' },
-];
+import { useCM } from '../../../constants/useCM';
 
 export default function EditCMSUserModal() {
+  const CM = useCM();
+  const AUTH_OPTIONS = [
+    { value: 'none', label: CM.noAccess },
+    { value: 'monitor', label: CM.monitorOnly },
+    { value: 'admin', label: CM.fullControl },
+  ];
   const dispatch = useDispatch();
   const {
     isEditCmsUserModalOpen,
@@ -150,14 +151,14 @@ export default function EditCMSUserModal() {
   );
 
   if (isSuccess) return (
-    <Modal isOpen title="Success" icon="check_circle" iconVariant="success" onClose={handleClose} maxWidth="500px">
+    <Modal isOpen title={CM.success} icon="check_circle" iconVariant="success" onClose={handleClose} maxWidth="500px">
       <ModalStatusSuccess title="Synchronized" onConfirm={handleClose} />
     </Modal>
   );
 
   if (isError) return (
-    <Modal isOpen title="Error" icon="error" iconVariant="danger" onClose={resetAction} maxWidth="500px">
-      <ModalStatusError title="Failed" error={actionError} onRetry={handleSave} onCancel={resetAction} />
+    <Modal isOpen title={CM.error} icon="error" iconVariant="danger" onClose={resetAction} maxWidth="500px">
+      <ModalStatusError title={CM.failure} error={actionError} onRetry={handleSave} onCancel={resetAction} />
     </Modal>
   );
 
@@ -165,7 +166,7 @@ export default function EditCMSUserModal() {
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title={isEditMode ? 'Edit User' : 'Add User'}
+      title={isEditMode ? CM.editUser : CM.addUser}
       subtitle={isEditMode ? `Editing @${username}` : 'Create a new management account'}
       icon={isEditMode ? 'manage_accounts' : 'person_add'}
       maxWidth="540px"
@@ -227,11 +228,11 @@ export default function EditCMSUserModal() {
         {/* Permissions */}
         {!isAdmin && (
           <section>
-            <SectionHeader title="Permissions" icon="shield" />
+            <SectionHeader title={CM.permissions} icon="shield" />
             <div className="space-y-4 px-1">
               <div className="grid grid-cols-2 gap-4">
                 <Select
-                  label="Broker Authority"
+                  label={CM.brokerAuthority}
                   options={AUTH_OPTIONS}
                   value={formData.casauth}
                   onChange={(e) => setFormData(p => ({ ...p, casauth: e.target.value }))}

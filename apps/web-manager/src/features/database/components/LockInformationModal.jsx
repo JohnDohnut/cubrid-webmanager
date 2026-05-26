@@ -12,7 +12,7 @@ import { MetricCard } from '../../../components/ds/foundation/MetricCard';
 import { StatusBadge } from '../../../components/ds/foundation/StatusBadge';
 import { ProgressBar } from '../../../components/ds/foundation/ProgressBar';
 import { EmptyState } from '../../../components/ds/feedback/EmptyState';
-import { CM } from '../../../constants/cmLabels';
+import { useCM } from '../../../constants/useCM';
 
 function buildObjectLockRows(lot) {
   const entries = lot?.entry;
@@ -35,6 +35,7 @@ function buildObjectLockRows(lot) {
 }
 
 export default function LockInformationModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isLockInformationModalOpen: isLockInfoModalOpen } = useSelector((s) => s.databaseUI);
   const { selectedDatabase } = useSelector((s) => s.database);
@@ -64,7 +65,7 @@ export default function LockInformationModal() {
         setTransactions([]);
       }
     } catch (err) {
-      setError(err.response?.data?.note || err.response?.data?.message || 'Failed to get lock information.');
+      setError(err.response?.data?.note || err.response?.data?.message || CM.failedToGetLockInfo);
     } finally {
       setLoading(false);
     }
@@ -114,13 +115,13 @@ export default function LockInformationModal() {
         <div className="min-h-[300px]">
           {activeTab === 'sessions' && (
             transactions.length === 0 ? (
-              <EmptyState icon="info" title="No sessions" subtitle="No active transactions." py="py-12" />
+              <EmptyState icon="info" title={CM.noSessions} subtitle={CM.noActiveTransactions} py="py-12" />
             ) : (
               <div className="rounded-lg border border-slate-200 dark:border-white/10 overflow-hidden overflow-x-auto">
                 <table className="w-full text-left text-[12px]">
                   <thead className="bg-slate-50 dark:bg-white/5 text-[10px] uppercase text-slate-500">
                     <tr>
-                      {[CM.lockIndex, CM.pname, CM.uid, CM.host, CM.pid, CM.isolationLevel, CM.timeOut, 'Locks'].map((h) => (
+                      {[CM.lockIndex, CM.pname, CM.uid, CM.host, CM.pid, CM.isolationLevel, CM.timeOut, CM.locks].map((h) => (
                         <th key={h} className="px-3 py-2 whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -155,10 +156,10 @@ export default function LockInformationModal() {
               <div className="grid grid-cols-3 gap-3">
                 <MetricCard icon="lock" label={CM.currentLockedObjNum} value={lot.numlocked ?? 0} unit="" accent="amber" isLoading={loading} />
                 <MetricCard icon="view_list" label={CM.maxLockedObjNum} value={lot.numallocated ?? 0} unit="" accent="sky" isLoading={loading} />
-                <MetricCard icon="memory" label="Size" value={lot.sizelock ?? '-'} unit="bytes" accent="violet" isLoading={loading} />
+                <MetricCard icon="memory" label={CM.size} value={lot.sizelock ?? '-'} unit="bytes" accent="violet" isLoading={loading} />
               </div>
               {objectRows.length === 0 ? (
-                <EmptyState icon="info" title="No object locks" subtitle="No held object locks." py="py-10" />
+                <EmptyState icon="info" title={CM.noObjectLocks} subtitle={CM.noHeldObjectLocks} py="py-10" />
               ) : (
                 <div className="rounded-lg border border-slate-200 dark:border-white/10 overflow-hidden overflow-x-auto">
                   <table className="w-full text-left text-[12px]">

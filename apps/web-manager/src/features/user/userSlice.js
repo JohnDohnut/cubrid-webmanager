@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { getStoredLocale, LOCALE_STORAGE_KEY } from '../../constants/useCM';
 import { userApi } from './userApi';
 
 export const fetchPreferences = createAsyncThunk(
@@ -95,6 +96,7 @@ const initialState = {
   preferences: {
     dashboardInterval: 0,
     brokerStatusInterval: 0,
+    uiLocale: getStoredLocale(),
   },
   databaseUsers: {}, // { [dbname]: [] }
   databaseUsersLoading: {}, // { [dbname]: boolean }
@@ -150,6 +152,13 @@ const userSlice = createSlice({
     clearUserError: (state) => {
       state.error = null;
     },
+    setUiLocale: (state, action) => {
+      const locale = action.payload === 'ko' ? 'ko' : 'en';
+      state.preferences.uiLocale = locale;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -158,7 +167,10 @@ const userSlice = createSlice({
       })
       .addCase(fetchPreferences.fulfilled, (state, action) => {
         state.preferencesLoading = false;
-        state.preferences = action.payload;
+        state.preferences = {
+          ...action.payload,
+          uiLocale: action.payload?.uiLocale === 'ko' ? 'ko' : getStoredLocale(),
+        };
       })
       .addCase(fetchPreferences.rejected, (state, action) => {
         state.preferencesLoading = false;
@@ -169,7 +181,13 @@ const userSlice = createSlice({
       })
       .addCase(updatePreferences.fulfilled, (state, action) => {
         state.preferencesLoading = false;
-        state.preferences = action.payload;
+        state.preferences = {
+          ...action.payload,
+          uiLocale:
+            action.payload?.uiLocale === 'ko'
+              ? 'ko'
+              : state.preferences.uiLocale ?? getStoredLocale(),
+        };
       })
       .addCase(updatePreferences.rejected, (state, action) => {
         state.preferencesLoading = false;
@@ -248,6 +266,7 @@ export const {
   openDropUserModal,
   closeDropUserModal,
   clearUserError,
+  setUiLocale,
 } = userSlice.actions;
 
 export default userSlice.reducer;

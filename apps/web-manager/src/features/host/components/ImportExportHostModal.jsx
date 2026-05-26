@@ -13,8 +13,10 @@ import { Typography } from '../../../components/ds/foundation/Typography';
 import { Checkbox } from '../../../components/ds/forms/Checkbox';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
+import { useCM } from '../../../constants/useCM';
 
 export default function ImportExportHostModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isImportExportModalOpen, importExportMode, hosts } = useSelector((state) => state.host, shallowEqual);
   const [selectedHosts, setSelectedHosts] = useState([]);
@@ -129,8 +131,8 @@ export default function ImportExportHostModal() {
     }
   };
 
-  const title = importExportMode === 'export' ? 'Export Hosts' : 'Import Hosts';
-  const actionLabel = importExportMode === 'export' ? 'Export' : 'Import';
+  const title = importExportMode === 'export' ? CM.exportHosts : CM.importHosts;
+  const actionLabel = importExportMode === 'export' ? CM.exportHost : CM.importHost;
   const icon = importExportMode === 'export' ? 'file_upload' : 'file_download';
 
   const selectable = importList.filter(h => !h.isDuplicate);
@@ -202,7 +204,7 @@ export default function ImportExportHostModal() {
         {importExportMode === 'import' && importList.length === 0 ? (
             <div className="p-8">
               <FileUpload
-                label="Import Hosts XML"
+                label={CM.importHostsXml}
                 accept=".xml"
                 onFileSelect={(file) => {
                   const event = { target: { files: [file] } };
@@ -222,7 +224,7 @@ export default function ImportExportHostModal() {
                   indeterminate={isSomeSelected}
                   onChange={handleToggleAll}
                   disabled={selectable.length === 0}
-                  label="SELECT ALL"
+                  label={CM.selectAll}
                   className="text-[10px]! font-bold tracking-wider text-slate-500"
                 />
               </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useDispatch } from 'react-redux';
 import {
   fetchDashboardLocks,
@@ -13,7 +13,7 @@ import { Table } from '../../../../components/ds/layout/Table';
 import { Card } from '../../../../components/ds/layout/Card';
 import { StatusBadge } from '../../../../components/ds/foundation/StatusBadge';
 import { EmptyState } from '../../../../components/ds/feedback/EmptyState';
-import { CM } from '../../../../constants/cmLabels';
+import { useCM } from '../../../../constants/useCM';
 
 /** lockdb dashboard row → gettransactioninfo / killtransaction shape */
 function lockRowToTransaction(row) {
@@ -28,6 +28,7 @@ function lockRowToTransaction(row) {
 }
 
 export default function DBLockTransactionSection({ locks, pollingProps }) {
+  const CM = useCM();
   const dispatch = useDispatch();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [rowMenu, setRowMenu] = useState(null);
@@ -84,14 +85,14 @@ export default function DBLockTransactionSection({ locks, pollingProps }) {
     dispatch(openKillTransactionModal(payload));
   };
 
-  const columns = [
-    { header: '#',       accessor: 'index', render: (val) => <span className="font-mono text-[12px] text-slate-400">{val}</span> },
-    { header: 'User',    accessor: 'user',  render: (val) => <span className="font-mono text-[12px] font-semibold text-slate-700 dark:text-slate-200">{val}</span> },
-    { header: 'Host',    accessor: 'host',  render: (val) => <span className="font-mono text-[12px] text-slate-400">{val}</span> },
-    { header: 'PID',     accessor: 'pid',   render: (val) => <span className="font-mono text-[12px] text-slate-400">{val}</span> },
-    { header: 'Object Type', accessor: 'obj', render: (val) => <span className="font-mono text-[12px] text-slate-500 max-w-[280px] truncate block" title={val}>{val}</span> },
+  const columns = useMemo(() => [
+    { header: '#', accessor: 'index', render: (val) => <span className="font-mono text-[12px] text-slate-400">{val}</span> },
+    { header: CM.userNameCol, accessor: 'user', render: (val) => <span className="font-mono text-[12px] font-semibold text-slate-700 dark:text-slate-200">{val}</span> },
+    { header: CM.host, accessor: 'host', render: (val) => <span className="font-mono text-[12px] text-slate-400">{val}</span> },
+    { header: CM.pid, accessor: 'pid', render: (val) => <span className="font-mono text-[12px] text-slate-400">{val}</span> },
+    { header: CM.objectType, accessor: 'obj', render: (val) => <span className="font-mono text-[12px] text-slate-500 max-w-[280px] truncate block" title={val}>{val}</span> },
     {
-      header: 'Lock Mode',
+      header: CM.lockMode,
       accessor: 'mode',
       render: (val) => {
         const isX = val?.includes('X_');
@@ -104,7 +105,7 @@ export default function DBLockTransactionSection({ locks, pollingProps }) {
         );
       }
     },
-  ];
+  ], [CM]);
 
   return (
     <>

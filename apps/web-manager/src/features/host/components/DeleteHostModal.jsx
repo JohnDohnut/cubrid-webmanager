@@ -4,8 +4,10 @@ import { Modal } from '../../../components/ds/layout/Modal';
 import { Button } from '../../../components/ds/foundation/Button';
 import { Typography } from '../../../components/ds/foundation/Typography';
 import { Icon } from '../../../components/ds/foundation/Icon';
+import { useCM } from '../../../constants/useCM';
 
 export default function DeleteHostModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isDeleteHostModalOpen, hostToDeleteUid, hostToDeleteAlias, loading, error: apiError } = useSelector((state) => state.host, shallowEqual);
 
@@ -22,7 +24,7 @@ export default function DeleteHostModal() {
   };
 
   const consequences = [
-    { icon: 'link_off', label: 'Active connections to this host will be terminated' },
+    { icon: 'link_off', label: CM.activeConnectionsTerminated },
     { icon: 'key_off', label: 'Saved credentials and authentication tokens removed' },
     { icon: 'settings_backup_restore', label: 'Associated configuration profiles will be purged' },
   ];
@@ -31,7 +33,7 @@ export default function DeleteHostModal() {
     <Modal
       isOpen={isDeleteHostModalOpen}
       onClose={handleClose}
-      title="Remove Host Connection"
+      title={CM.removeHostConnection}
       icon="delete_forever"
       iconVariant="danger"
       loading={loading}
@@ -43,7 +45,7 @@ export default function DeleteHostModal() {
             onClick={handleClose}
             disabled={loading}
           >
-            Keep Host
+            {CM.keepHost}
           </Button>
           <Button 
             variant="danger" 
@@ -51,7 +53,7 @@ export default function DeleteHostModal() {
             loading={loading}
             icon="delete_forever"
           >
-            Confirm Removal
+            {CM.confirmRemoval}
           </Button>
         </div>
       }

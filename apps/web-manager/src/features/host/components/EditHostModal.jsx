@@ -9,8 +9,10 @@ import { Button } from '../../../components/ds/foundation/Button';
 import { Input } from '../../../components/ds/forms/Input';
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { SectionHeader } from '../../../components/ds/foundation/SectionHeader';
+import { useCM } from '../../../constants/useCM';
 
 export default function EditHostModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isEditHostModalOpen, hostToEditUid, hosts, selectedHostUid, loading, error: apiError } = useSelector((state) => state.host, shallowEqual);
 
@@ -50,10 +52,10 @@ export default function EditHostModal() {
 
   const validate = () => {
     const errs = {};
-    if (!formData.alias.trim()) errs.alias = 'Host name is required';
-    if (!formData.address.trim()) errs.address = 'Address is required';
-    if (!formData.port.trim()) errs.port = 'Port is required';
-    if (!formData.id.trim()) errs.id = 'Username is required';
+    if (!formData.alias.trim()) errs.alias = CM.hostNameRequired;
+    if (!formData.address.trim()) errs.address = CM.addressRequired;
+    if (!formData.port.trim()) errs.port = CM.portRequired;
+    if (!formData.id.trim()) errs.id = CM.usernameRequired;
     return errs;
   };
 
@@ -119,14 +121,14 @@ export default function EditHostModal() {
     <Modal
       isOpen={isEditHostModalOpen}
       onClose={handleClose}
-      title="Modify Host"
+      title={CM.modifyHost}
       icon="settings_input_component"
       loading={loading}
       maxWidth="max-w-[500px]"
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={loading}>
-            Discard
+            {CM.discard}
           </Button>
           <Button
             variant="primary"
@@ -135,7 +137,7 @@ export default function EditHostModal() {
             icon="save_as"
             className="min-w-[130px]"
           >
-            Save Changes
+            {CM.saveChanges}
           </Button>
         </>
       }
@@ -157,10 +159,10 @@ export default function EditHostModal() {
         )}
 
         {/* Section 1: Identity */}
-        <SectionHeader title="Identity" icon="badge" />
+        <SectionHeader title={CM.identity} icon="badge" />
         <div className="px-1">
           <Input
-            label="Friendly Name"
+            label={CM.friendlyName}
             name="alias"
             value={formData.alias}
             onChange={handleChange}
@@ -173,7 +175,7 @@ export default function EditHostModal() {
 
         {/* Section 2: Host Connection */}
         <SectionHeader 
-          title="Host" 
+          title={CM.host} 
           icon="lan" 
           className="mt-8"
         />
@@ -181,7 +183,7 @@ export default function EditHostModal() {
           <div className="grid grid-cols-4 gap-3">
             <div className="col-span-3">
               <Input
-                label="IP Address / Domain"
+                label={CM.ipAddressDomain}
                 name="address"
                 value={formData.address}
                 onChange={handleChange}
@@ -193,7 +195,7 @@ export default function EditHostModal() {
             </div>
             <div className="col-span-1">
               <Input
-                label="Port"
+                label={CM.port}
                 name="port"
                 type="number"
                 value={formData.port}
@@ -207,11 +209,11 @@ export default function EditHostModal() {
         </div>
 
         {/* Section 3: Credentials */}
-        <SectionHeader title="Credentials" icon="lock" className="mt-8" />
+        <SectionHeader title={CM.credentials} icon="lock" className="mt-8" />
         <div className="px-1">
           <div className="grid grid-cols-2 gap-3">
             <Input
-              label="Username"
+              label={CM.username}
               name="id"
               value={formData.id}
               onChange={handleChange}
@@ -221,14 +223,14 @@ export default function EditHostModal() {
               disabled={loading}
             />
             <Input
-              label="New Password"
+              label={CM.newPassword}
               labelExtra="(optional)"
               type="password"
               name="password"
               value={formData.password}
               onChange={handleChange}
               error={errors.password}
-              placeholder="Leave blank to keep"
+              placeholder={CM.leaveBlankToKeep}
               icon="key"
               disabled={loading}
             />

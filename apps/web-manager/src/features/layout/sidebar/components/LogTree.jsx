@@ -5,8 +5,10 @@ import { TreeNode } from '../../../../components/domain/tree/TreeNode';
 import { Skeleton } from '../../../../components/ds/layout/Skeleton';
 import { Typography } from '../../../../components/ds/foundation/Typography';
 import { Icon } from '../../../../components/ds/foundation/Icon';
+import { useCM } from '../../../../constants/useCM';
 
 export default function LogTree({ hostUid, onDbLogContextMenu }) {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { databases } = useSelector((state) => state.database, shallowEqual);
   const { brokers, logsByBroker, logsLoading, adminLogsByHost, adminLogsLoading, cmsLogsByHost, selectedBrokerSubItem, dbLogsByDbName, dbLogsLoading } = useSelector((state) => state.broker, shallowEqual);
@@ -15,7 +17,7 @@ export default function LogTree({ hostUid, onDbLogContextMenu }) {
     <div className="space-y-0.5 px-2 py-2">
       {/* Broker Logs Section */}
       <TreeNode
-        label="Broker"
+        label={CM.broker}
         icon="hub"
         level={1}
         isActive={selectedBrokerSubItem === 'log-broker-root'}
@@ -27,7 +29,7 @@ export default function LogTree({ hostUid, onDbLogContextMenu }) {
       >
           {/* Access Logs */}
           <TreeNode
-            label="Access"
+            label={CM.access}
             icon="login"
             level={2}
             isActive={selectedBrokerSubItem === 'log-access'}
@@ -40,7 +42,7 @@ export default function LogTree({ hostUid, onDbLogContextMenu }) {
 
           {/* Error Logs */}
           <TreeNode 
-            label="Error"
+            label={CM.error}
             icon="report"
             level={2}
             isActive={selectedBrokerSubItem === 'log-error'}
@@ -97,7 +99,7 @@ export default function LogTree({ hostUid, onDbLogContextMenu }) {
 
           {/* Admin Logs */}
           <TreeNode 
-            label="Admin Log"
+            label={CM.adminLog}
             icon="admin_panel_settings"
             level={2}
             isActive={selectedBrokerSubItem === 'log-admin'}
@@ -142,7 +144,7 @@ export default function LogTree({ hostUid, onDbLogContextMenu }) {
 
       {/* Manager Logs Section */}
       <TreeNode
-        label="Manager"
+        label={CM.manager}
         icon="manage_accounts"
         level={1}
         isActive={selectedBrokerSubItem === 'log-manager-root'}
@@ -158,7 +160,7 @@ export default function LogTree({ hostUid, onDbLogContextMenu }) {
         }}
       >
           <TreeNode
-            label="Access log"
+            label={CM.accessLog}
             icon="login"
             level={2}
             isActive={selectedBrokerSubItem === 'cms-access'}
@@ -169,7 +171,7 @@ export default function LogTree({ hostUid, onDbLogContextMenu }) {
             onDoubleClick={() => dispatch(openTab(`cms-access:${hostUid}`))}
           />
           <TreeNode
-            label="Error log"
+            label={CM.errorLog}
             icon="report"
             level={2}
             isActive={selectedBrokerSubItem === 'cms-error'}
@@ -183,7 +185,7 @@ export default function LogTree({ hostUid, onDbLogContextMenu }) {
 
       {/* Server/Database Logs Section */}
       <TreeNode
-        label="Server logs"
+        label={CM.serverLogs}
         icon="dns"
         level={1}
         isActive={selectedBrokerSubItem === 'log-server-root'}

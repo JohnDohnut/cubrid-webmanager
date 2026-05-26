@@ -10,13 +10,14 @@ import { Button } from '../../../components/ds/foundation/Button';
 import { Typography } from '../../../components/ds/foundation/Typography';
 import { EmptyState } from '../../../components/ds/feedback/EmptyState';
 import { ModalStatusLoading } from '../../../components/ds/feedback/ActionStatus';
-import { CM } from '../../../constants/cmLabels';
+import { useCM } from '../../../constants/useCM';
 
 const VIEW_LOADING = 'loading';
 const VIEW_SUCCESS = 'success';
 const VIEW_ERROR = 'error';
 
 export default function TransactionInfoModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isTransactionInfoModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);

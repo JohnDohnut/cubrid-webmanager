@@ -11,8 +11,10 @@ import { Typography } from '../../../components/ds/foundation/Typography';
 import { useActionState } from '../../../infrastructure/hooks/useActionState';
 import { Modal } from '../../../components/ds/layout/Modal';
 import { ModalStatusError } from '../../../components/ds/feedback/ActionStatus';
+import { useCM } from '../../../constants/useCM';
 
 export default function HeaderMenu() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
   const { selectedDatabase, activeDatabases } = useSelector((state) => state.database, shallowEqual);
@@ -27,11 +29,11 @@ export default function HeaderMenu() {
     error: menuActionError
   } = useActionState();
 
-  const [loadingTitle, setLoadingTitle] = useState('Processing...');
+  const [loadingTitle, setLoadingTitle] = useState(CM.processing);
 
   const handleServiceAction = async (action) => {
     if (!selectedHostUid) return;
-    setLoadingTitle(`${action === 'start' ? 'Starting' : 'Stopping'} Service`);
+    setLoadingTitle(action === 'start' ? CM.startingService : CM.stoppingService);
     startAction();
     try {
       if (action === 'start') {
@@ -47,7 +49,7 @@ export default function HeaderMenu() {
 
   const handleDatabaseAction = async (action) => {
     if (!selectedDatabase) return;
-    setLoadingTitle(`${action === 'start' ? 'Starting' : 'Stopping'} database : ${selectedDatabase}`);
+    setLoadingTitle(action === 'start' ? CM.startingDbNamed(selectedDatabase) : CM.stoppingDbNamed(selectedDatabase));
     startAction();
     try {
       if (action === 'start') {
@@ -64,7 +66,7 @@ export default function HeaderMenu() {
 
   const handleBrokerAction = async (action) => {
     if (!selectedBroker) return;
-    setLoadingTitle(`${action === 'start' ? 'Starting' : 'Stopping'} Broker: ${selectedBroker}`);
+    setLoadingTitle(action === 'start' ? CM.startingBrokerNamed(selectedBroker) : CM.stoppingBrokerNamed(selectedBroker));
     startAction();
     try {
       if (action === 'start') {
@@ -104,164 +106,164 @@ export default function HeaderMenu() {
         />
       )}
 
-      <DropdownMenu label={<MenuLabel>File</MenuLabel>}>
+      <DropdownMenu label={<MenuLabel>{CM.file}</MenuLabel>}>
         <MenuItem
           icon="add_box"
-          label="Add Host"
+          label={CM.addHost}
           onClick={() => dispatch(openAddHostModal())}
         />
         <MenuItem
           icon="edit"
-          label="Change Host"
+          label={CM.changeHost}
           disabled={!selectedHostUid}
           onClick={() => dispatch(openEditHostModal(selectedHostUid))}
         />
         <MenuItem
           icon="file_upload"
-          label="Export Host"
+          label={CM.exportHost}
           onClick={handleExport}
         />
         <MenuItem
           icon="file_download"
-          label="Import Host"
+          label={CM.importHost}
           onClick={handleImport}
         />
       </DropdownMenu>
 
-      <DropdownMenu label={<MenuLabel>Tool</MenuLabel>} width="w-56">
+      <DropdownMenu label={<MenuLabel>{CM.tools}</MenuLabel>} width="w-56">
         <MenuItem
           icon="space_dashboard"
-          label="Service Dashboard"
+          label={CM.serviceDashboard}
           onClick={() => dispatch(openTab('service_dashboard'))}
         />
         <MenuDivider />
         <MenuItem
           icon="play_arrow"
-          label="Start Service"
+          label={CM.startService}
           disabled={!selectedHostUid || menuActionLoading}
           onClick={() => handleServiceAction('start')}
         />
         <MenuItem
           icon="stop"
-          label="Stop Service"
+          label={CM.stopService}
           disabled={!selectedHostUid || menuActionLoading}
           onClick={() => handleServiceAction('stop')}
         />
         <MenuDivider />
         <MenuItem
           icon="database"
-          label="Start Database"
+          label={CM.startDatabase}
           disabled={!selectedDatabase || activeDatabases.includes(selectedDatabase) || menuActionLoading}
           onClick={() => handleDatabaseAction('start')}
         />
         <MenuItem
           icon="database_off"
-          label="Stop Database"
+          label={CM.stopDatabase}
           disabled={!selectedDatabase || !activeDatabases.includes(selectedDatabase) || menuActionLoading}
           onClick={() => handleDatabaseAction('stop')}
         />
         <MenuDivider />
         <MenuItem
           icon="hub"
-          label="Start Broker"
+          label={CM.startBroker}
           disabled={!selectedBroker || brokers.find(b => b.name === selectedBroker)?.state === 'ON' || menuActionLoading}
           onClick={() => handleBrokerAction('start')}
         />
         <MenuItem
           icon="hub"
-          label="Stop Broker"
+          label={CM.stopBroker}
           disabled={!selectedBroker || brokers.find(b => b.name === selectedBroker)?.state !== 'ON' || menuActionLoading}
           onClick={() => handleBrokerAction('stop')}
         />
       </DropdownMenu>
 
-      <DropdownMenu label={<MenuLabel>Action</MenuLabel>} width="w-48">
-        <MenuItem icon="tune" label="Properties" href="#" />
-        <SubMenu icon="settings" label="Config Param" width="w-56" gap="ml-3">
+      <DropdownMenu label={<MenuLabel>{CM.actionMenu}</MenuLabel>} width="w-48">
+        <MenuItem icon="tune" label={CM.properties} href="#" />
+        <SubMenu icon="settings" label={CM.configParam} width="w-56" gap="ml-3">
           <MenuItem
             icon="edit_document"
-            label="Edit Cubrid Config"
+            label={CM.editCubridConfig}
             onClick={() => {
               if (selectedHostUid) {
                 dispatch(openTab(`edit_config:${selectedHostUid}:cubridconf`));
               } else {
-                dispatch(showStatusModal({ type: 'info', title: 'No host selected', message: 'Please select a host from the sidebar first.' }));
+                dispatch(showStatusModal({ type: 'info', title: CM.noHostSelected, message: CM.selectHostHint }));
               }
             }}
           />
           <MenuItem
             icon="edit_note"
-            label="Edit Broker Config"
+            label={CM.editBrokerConfig}
             onClick={() => {
               if (selectedHostUid) {
                 dispatch(openTab(`broker_config:${selectedHostUid}`));
               } else {
-                dispatch(showStatusModal({ type: 'info', title: 'No host selected', message: 'Please select a host from the sidebar first.' }));
+                dispatch(showStatusModal({ type: 'info', title: CM.noHostSelected, message: CM.selectHostHint }));
               }
             }}
           />
           <MenuItem
             icon="manage_accounts"
-            label="Edit CM Config"
+            label={CM.editCmConfig}
             onClick={() => {
               if (selectedHostUid) {
                 dispatch(openTab(`edit_config:${selectedHostUid}:cmconf`));
               } else {
-                dispatch(showStatusModal({ type: 'info', title: 'No host selected', message: 'Please select a host from the sidebar first.' }));
+                dispatch(showStatusModal({ type: 'info', title: CM.noHostSelected, message: CM.selectHostHint }));
               }
             }}
           />
         </SubMenu>
       </DropdownMenu>
 
-      <DropdownMenu label={<MenuLabel>Help</MenuLabel>} width="w-56">
+      <DropdownMenu label={<MenuLabel>{CM.help}</MenuLabel>} width="w-56">
         <MenuItem
           icon="help"
-          label="Help"
+          label={CM.help}
           onClick={() => window.open('https://www.cubrid.org/', '_blank')}
         />
         <MenuItem
           icon="bug_report"
-          label="Report Bug"
+          label={CM.reportBug}
           onClick={() => window.open('http://jira.cubrid.org/secure/Dashboard.jspa', '_blank')}
         />
         <MenuItem
           icon="forum"
-          label="CUBRID Online Forum"
+          label={CM.cubridOnlineForum}
           onClick={() => window.open('https://www.reddit.com/r/CUBRID/', '_blank')}
         />
         <MenuItem
           icon="code"
-          label="CUBRID tools developments"
+          label={CM.cubridToolsDevelopment}
           onClick={() => window.open('https://github.com/CUBRID/cubrid-manager', '_blank')}
         />
         <MenuDivider />
         <MenuItem
           icon="update"
-          label="Check for Updates"
+          label={CM.checkForUpdates}
           disabled={true}
           onClick={() => {}}
         />
         <MenuItem
           icon="info"
-          label="Server Version"
+          label={CM.serverVersion}
           disabled={!selectedHostUid}
           onClick={() => dispatch(openServerVersionModal(selectedHostUid))}
         />
         <MenuItem
           icon="admin_panel_settings"
-          label="About CUBRID Admin"
+          label={CM.aboutCubridAdmin}
           onClick={() => dispatch(setAboutCubrid(true))}
         />
       </DropdownMenu>
       {isMenuActionError && (
-        <Modal isOpen title="Action Failed" icon="error" iconVariant="danger" onClose={resetAction} maxWidth="400px">
+        <Modal isOpen title={CM.actionFailed} icon="error" iconVariant="danger" onClose={resetAction} maxWidth="400px">
           <ModalStatusError 
-            title="Update Interrupted"
+            title={CM.updateInterrupted}
             error={menuActionError}
             onRetry={resetAction}
             onCancel={resetAction}
-            retryText="Dismiss"
+            retryText={CM.dismiss}
           />
         </Modal>
       )}

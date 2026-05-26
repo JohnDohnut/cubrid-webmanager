@@ -25,8 +25,10 @@ const MetricBar = ({ pct }) => (
 );
 
 import { ConfirmDialog } from '../../../components/ds/layout/ConfirmDialog';
+import { useCM } from '../../../constants/useCM';
 
 const Component = function ServiceDashboard() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { hosts, authorizedHosts, haInfo } = useSelector((state) => state.host, shallowEqual);
   const { summaries } = useSelector((state) => state.globalMonitoring, shallowEqual);
@@ -59,7 +61,7 @@ const Component = function ServiceDashboard() {
     error: actionError
   } = useActionState();
 
-  const [loadingTitle, setLoadingTitle] = useState('Synchronizing Services');
+  const [loadingTitle, setLoadingTitle] = useState(CM.synchronizingServices);
   const [confirmConfig, setConfirmConfig] = useState({ 
     isOpen: false, 
     title: '', 
@@ -68,21 +70,6 @@ const Component = function ServiceDashboard() {
     variant: 'primary',
     onConfirm: () => {} 
   });
-
-  const HA_ROLE_CONFIG = {
-    master: {
-      label: 'MASTER',
-      className: 'bg-amber-500/15 border-amber-500/30 text-amber-600 dark:text-amber-400',
-    },
-    slave: {
-      label: 'SLAVE',
-      className: 'bg-slate-500/10 border-slate-400/20 text-slate-500 dark:text-slate-400',
-    },
-    replica: {
-      label: 'REPLICA',
-      className: 'bg-blue-500/10 border-blue-400/20 text-blue-600 dark:text-blue-400',
-    },
-  };
 
   const closeConfirm = () => setConfirmConfig(prev => ({ ...prev, isOpen: false }));
 
@@ -93,19 +80,19 @@ const Component = function ServiceDashboard() {
 
     setConfirmConfig({
       isOpen: true,
-      title: 'Start Services',
-      description: `Are you sure you want to start all CUBRID services on host "${serverName}"?`,
-      confirmLabel: 'Start Services',
+      title: CM.startServicesConfirmTitle,
+      description: CM.startServicesConfirmDesc(serverName),
+      confirmLabel: CM.startServices,
       variant: 'primary',
       onConfirm: async () => {
         closeConfirm();
-        setLoadingTitle(`Starting services on ${serverName}`);
+        setLoadingTitle(CM.startingServicesOn(serverName));
         startAction();
         try {
           await dispatch(startService(hostUid)).unwrap();
           resetAction();
         } catch (err) {
-          endError(typeof err === 'string' ? err : (err.message || 'Service start command rejected by host agent.'));
+          endError(typeof err === 'string' ? err : (err.message || CM.serviceStartRejected));
         }
       }
     });
@@ -118,28 +105,44 @@ const Component = function ServiceDashboard() {
 
     setConfirmConfig({
       isOpen: true,
-      title: 'Stop Services',
-      description: `Are you sure you want to stop all CUBRID services on host "${serverName}"? This will terminate all active brokers and databases.`,
-      confirmLabel: 'Stop All Services',
+      title: CM.stopServicesConfirmTitle,
+      description: CM.stopServicesConfirmDesc(serverName),
+      confirmLabel: CM.stopAllServices,
       variant: 'danger',
       onConfirm: async () => {
         closeConfirm();
-        setLoadingTitle(`Stopping services on ${serverName}`);
+        setLoadingTitle(CM.stoppingServicesOn(serverName));
         startAction();
         try {
           await dispatch(stopService(hostUid)).unwrap();
           resetAction();
         } catch (err) {
-          endError(typeof err === 'string' ? err : (err.message || 'Service termination failed. Check agent logs.'));
+          endError(typeof err === 'string' ? err : (err.message || CM.serviceStopFailed));
         }
       }
     });
   };
 
 
-  const columns = React.useMemo(() => [
+  const columns = React.useMemo(() => {
+    const HA_ROLE_CONFIG = {
+      master: {
+        label: CM.haMaster,
+        className: 'bg-amber-500/15 border-amber-500/30 text-amber-600 dark:text-amber-400',
+      },
+      slave: {
+        label: CM.haSlave,
+        className: 'bg-slate-500/10 border-slate-400/20 text-slate-500 dark:text-slate-400',
+      },
+      replica: {
+        label: CM.haReplica,
+        className: 'bg-blue-500/10 border-blue-400/20 text-blue-600 dark:text-blue-400',
+      },
+    };
+
+    return [
     {
-      header: 'GROUP/HOST',
+      header: CM.groupHost,
       accessor: 'alias',
       render: (val, row) => {
         const isConnected = authorizedHosts.includes(row.uid);
@@ -207,11 +210,11 @@ const Component = function ServiceDashboard() {
         );
       }
     },
-    { header: 'ADDRESS', accessor: 'ip', render: (v) => <span className="font-mono text-[11px] text-slate-500">{v || 'Localhost'}</span> },
-    { header: 'PORT', accessor: 'port', render: (v) => <span className="font-mono text-[11px] text-slate-500">{v}</span> },
-    { header: 'USER', accessor: 'user', render: (v, row) => <span className="text-[12px] text-slate-600 dark:text-slate-400">{row.user || row.id}</span> },
+    { header: CM.address, accessor: 'ip', render: (v) => <span className="font-mono text-[11px] text-slate-500">{v || CM.localhost}</span> },
+    { header: CM.port, accessor: 'port', render: (v) => <span className="font-mono text-[11px] text-slate-500">{v}</span> },
+    { header: CM.userLabel, accessor: 'user', render: (v, row) => <span className="text-[12px] text-slate-600 dark:text-slate-400">{row.user || row.id}</span> },
     { 
-      header: 'PERMANENT', 
+      header: CM.permanent, 
       accessor: 'permFree',
       render: (_, row) => {
         const isConnected = authorizedHosts.includes(row.uid);
@@ -221,7 +224,7 @@ const Component = function ServiceDashboard() {
       }
     },
     { 
-      header: 'PERMANENTTEMP', 
+      header: CM.permanentTemp, 
       accessor: 'permTempFree',
       render: (_, row) => {
         const isConnected = authorizedHosts.includes(row.uid);
@@ -231,7 +234,7 @@ const Component = function ServiceDashboard() {
       }
     },
     { 
-      header: 'TEMPTEMP', 
+      header: CM.tempTemp, 
       accessor: 'tempTempFree',
       render: (_, row) => {
         const isConnected = authorizedHosts.includes(row.uid);
@@ -241,7 +244,7 @@ const Component = function ServiceDashboard() {
       }
     },
     { 
-      header: 'TPS', 
+      header: CM.tps, 
       accessor: 'tps',
       render: (_, row) => {
         const isConnected = authorizedHosts.includes(row.uid);
@@ -251,7 +254,7 @@ const Component = function ServiceDashboard() {
       }
     },
     { 
-      header: 'QPS', 
+      header: CM.qps, 
       accessor: 'qps',
       render: (_, row) => {
         const isConnected = authorizedHosts.includes(row.uid);
@@ -261,7 +264,7 @@ const Component = function ServiceDashboard() {
       }
     },
     { 
-      header: 'MEMORY', 
+      header: CM.memory, 
       accessor: 'memory',
       render: (_, row) => {
         const isConnected = authorizedHosts.includes(row.uid);
@@ -276,7 +279,7 @@ const Component = function ServiceDashboard() {
       }
     },
     { 
-      header: 'CPU', 
+      header: CM.cpu, 
       accessor: 'cpu',
       render: (_, row) => {
         const isConnected = authorizedHosts.includes(row.uid);
@@ -291,7 +294,7 @@ const Component = function ServiceDashboard() {
       }
     },
     { 
-      header: 'DB STATUS', 
+      header: CM.dbStatus, 
       accessor: 'dbStatus',
       render: (_, row) => {
         const isConnected = authorizedHosts.includes(row.uid);
@@ -306,7 +309,7 @@ const Component = function ServiceDashboard() {
       }
     },
     { 
-      header: 'ACTIONS', 
+      header: CM.actions, 
       accessor: 'actions',
       render: (_, row) => {
         const isConnected = authorizedHosts.includes(row.uid);
@@ -316,14 +319,14 @@ const Component = function ServiceDashboard() {
             <button 
               onClick={(e) => handleStartService(e, row)}
               className="w-7 h-7 flex items-center justify-center rounded-md bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all shadow-sm active:scale-90"
-              title="Start Services"
+              title={CM.startServices}
             >
               <Icon name="play_arrow" size="16px" weight={400} />
             </button>
             <button 
               onClick={(e) => handleStopService(e, row)}
               className="w-7 h-7 flex items-center justify-center rounded-md bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all shadow-sm active:scale-90"
-              title="Stop Services"
+              title={CM.stopServices}
             >
               <Icon name="stop" size="16px" weight={400} />
             </button>
@@ -331,7 +334,8 @@ const Component = function ServiceDashboard() {
         );
       }
     },
-  ], [authorizedHosts, summaries]);
+  ];
+  }, [authorizedHosts, summaries, CM]);
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white dark:bg-background-dark overflow-hidden font-sans">
@@ -343,22 +347,22 @@ const Component = function ServiceDashboard() {
           <div>
             <div className="flex items-center gap-2">
               <Typography variant="h1" className="text-[13px] font-bold text-slate-800 dark:text-slate-100 leading-tight">
-                Service Dashboard
+                {CM.serviceDashboard}
               </Typography>
               <div className={`px-2 py-0.5 rounded-full border flex items-center gap-1.5 shrink-0 transition-all duration-300 ${preferences.dashboardInterval > 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10'}`}>
                 <div className={`w-1 h-1 rounded-full ${preferences.dashboardInterval > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
                 <span className={`text-[9px] font-bold ${preferences.dashboardInterval > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
-                  {preferences.dashboardInterval > 0 ? 'Live' : 'Paused'}
+                  {preferences.dashboardInterval > 0 ? CM.live : CM.paused}
                 </span>
               </div>
             </div>
-            <Typography variant="label" className="text-[10px] text-slate-400 font-mono tracking-tight mt-0.5">Global Health Overview</Typography>
+            <Typography variant="label" className="text-[10px] text-slate-400 font-mono tracking-tight mt-0.5">{CM.globalHealthOverview}</Typography>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5 text-[12px]">
           <Typography variant="label" className="text-[10px] text-slate-400 font-mono tracking-tight hidden lg:block mr-2">
-            Synced {lastRefreshed.toLocaleTimeString('en-US', { hour12: true })}
+            {CM.syncedAt(lastRefreshed.toLocaleTimeString())}
           </Typography>
 
           <button
@@ -368,7 +372,7 @@ const Component = function ServiceDashboard() {
               ${isManualRefreshing
                 ? 'bg-slate-100 dark:bg-white/5 text-slate-300 dark:text-slate-600 border-slate-200 dark:border-white/5 cursor-not-allowed opacity-50'
                 : 'bg-slate-50 dark:bg-white/[0.03] border-slate-200 dark:border-white/10 text-slate-400 hover:text-amber-600 dark:hover:text-amber-500 hover:border-amber-500/50 hover:bg-white dark:hover:bg-white/5'}`}
-            title="Refresh dashboard"
+            title={CM.refreshDashboard}
           >
             <Icon name="refresh" size="18px" className={isManualRefreshing ? 'animate-spin' : ''} />
           </button>
@@ -379,12 +383,12 @@ const Component = function ServiceDashboard() {
           <div className="w-px h-4 bg-slate-200 dark:bg-white/10 mx-1" />
           <div className="flex items-center gap-4 px-3 py-1 bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 rounded-lg shadow-xs">
             <div className="flex flex-col">
-              <span className="text-[9px] uppercase font-bold text-slate-400 leading-none">Hosts</span>
+              <span className="text-[9px] uppercase font-bold text-slate-400 leading-none">{CM.hostsLabel}</span>
               <span className="text-[13px] font-bold text-slate-700 dark:text-slate-200 leading-none mt-1">{hosts?.length || 0}</span>
             </div>
             <div className="w-px h-5 bg-slate-200 dark:bg-white/10" />
             <div className="flex flex-col">
-              <span className="text-[9px] uppercase font-bold text-emerald-500 leading-none tracking-tight">Active</span>
+              <span className="text-[9px] uppercase font-bold text-emerald-500 leading-none tracking-tight">{CM.activeLabel}</span>
               <span className="text-[13px] font-bold text-emerald-500 leading-none mt-1">{authorizedHosts?.length || 0}</span>
             </div>
           </div>
@@ -405,8 +409,8 @@ const Component = function ServiceDashboard() {
         </Card>
         
         {authorizedHosts.length === 0 && (
-          <InfoBanner variant="warning" title="Sensors Offline" icon="dns" className="animate-pulse">
-            Connect to a host server from the navigator to activate global resource monitoring.
+          <InfoBanner variant="warning" title={CM.sensorsOffline} icon="dns" className="animate-pulse">
+            {CM.connectHostForMonitoring}
           </InfoBanner>
         )}
 
@@ -422,13 +426,13 @@ const Component = function ServiceDashboard() {
       </div>
 
       {isError && (
-        <Modal isOpen title="Service Error" icon="error" iconVariant="danger" onClose={resetAction} maxWidth="400px">
+        <Modal isOpen title={CM.serviceError} icon="error" iconVariant="danger" onClose={resetAction} maxWidth="400px">
           <ModalStatusError 
-            title="Failed"
+            title={CM.failure}
             error={actionError}
             onRetry={resetAction}
             onCancel={resetAction}
-            retryText="Dismiss"
+            retryText={CM.dismiss}
           />
         </Modal>
       )}

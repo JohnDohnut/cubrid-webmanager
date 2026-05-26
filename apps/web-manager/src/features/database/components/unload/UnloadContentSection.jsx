@@ -2,10 +2,8 @@ import { Checkbox } from '../../../../components/ds/forms/Checkbox';
 import { SectionHeader } from '../../../../components/ds/foundation/SectionHeader';
 import { Typography } from '../../../../components/ds/foundation/Typography';
 import { Spinner } from '../../../../components/ds/foundation/Spinner';
-import { CM } from '../../../../constants/cmLabels';
-
-const SCHEMA_OPTS = [CM.all, CM.selectedTables, CM.notInclude];
-const DATA_OPTS = [CM.selectedTables, CM.notInclude];
+import { useMemo } from 'react';
+import { useCM } from '../../../../constants/useCM';
 
 export default function UnloadContentSection({
   formData,
@@ -15,6 +13,13 @@ export default function UnloadContentSection({
   dynamicTables,
   isTablesLoading,
 }) {
+  const CM = useCM();
+  const schemaOpts = useMemo(
+    () => [CM.all, CM.selectedTables, CM.notInclude],
+    [CM]
+  );
+  const dataOpts = useMemo(() => [CM.selectedTables, CM.notInclude], [CM]);
+
   return (
     <div className="space-y-6">
       <SectionHeader title={CM.unloadTarget} icon="unfold_more" />
@@ -22,7 +27,7 @@ export default function UnloadContentSection({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-3">
           <SectionHeader title={CM.schema} icon="terminal" />
-          {SCHEMA_OPTS.map((opt) => (
+          {schemaOpts.map((opt) => (
             <label key={opt} className="flex items-center gap-2 cursor-pointer text-[12px]">
               <input
                 type="radio"
@@ -37,7 +42,7 @@ export default function UnloadContentSection({
 
         <div className="space-y-3">
           <SectionHeader title={CM.data} icon="dataset" />
-          {DATA_OPTS.map((opt) => (
+          {dataOpts.map((opt) => (
             <label key={opt} className="flex items-center gap-2 cursor-pointer text-[12px]">
               <input
                 type="radio"

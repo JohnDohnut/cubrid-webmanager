@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeUnloadDatabaseModal, openUnloadResultModal } from '../databaseSlice';
 import { databaseApi } from '../databaseApi';
-import { CM } from '../../../constants/cmLabels';
+import { useCM } from '../../../constants/useCM';
 
 import UnloadConfigSection from './unload/UnloadConfigSection';
 import UnloadContentSection from './unload/UnloadContentSection';
@@ -46,6 +46,7 @@ const INITIAL_FORM_DATA = {
 };
 
 export default function UnloadDatabaseModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isUnloadDatabaseModalOpen: isUnloadDBModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase, databases, activeDatabases } = useSelector((state) => state.database, shallowEqual);
