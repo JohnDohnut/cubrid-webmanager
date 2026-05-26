@@ -4,7 +4,7 @@ import { CmsConfigService } from '@cms-config/cms-config.service';
 import { HaService } from '@ha';
 import { checkCmsStatusError } from '@common';
 import { HostInfo, LoginCmsRequest, LoginCmsResponse, User } from '@type/index';
-import { ensureHostGroups, getHost } from '@host/host-group.util';
+import { getHost } from '@host/host-group.util';
 import { UserRepositoryService } from '@repository';
 import { HostError } from '@error/index';
 import { CmsError } from '@error/cms/cms-error';
@@ -45,7 +45,6 @@ export class CmsAuthService {
    */
   public async login(userId: string, uid: string): Promise<CmsHostLoginClientResponse> {
     const user = await this.repository.loadUserById(userId);
-    ensureHostGroups(user);
     Logger.log(uid);
     const host: HostInfo | null = getHost(user, uid);
     if (!host) {
@@ -74,7 +73,6 @@ export class CmsAuthService {
 
     const token = response.token;
     await this.repository.atomicUpdateUser(userId, async (user: User) => {
-      ensureHostGroups(user);
       const persisted = getHost(user, uid);
       if (!persisted) {
         throw HostError.NoSuchHost({ uid });

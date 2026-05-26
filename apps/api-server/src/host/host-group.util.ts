@@ -9,16 +9,9 @@ export type HostRef = {
   host: HostInfo;
 };
 
-export function ensureHostGroups(user: User): Record<string, HostGroupInfo> {
-  if (!user.host_groups) {
-    user.host_groups = {};
-  }
-  return user.host_groups;
-}
-
 export function findHostRef(user: User, hostUid: string): HostRef | null {
-  for (const [groupId, group] of Object.entries(user.host_groups ?? {})) {
-    const host = group.hosts?.[hostUid];
+  for (const [groupId, group] of Object.entries(user.host_groups)) {
+    const host = group.hosts[hostUid];
     if (host) {
       return { groupId, group, host };
     }
@@ -31,15 +24,15 @@ export function getHost(user: User, hostUid: string): HostInfo | null {
 }
 
 export function countAllHosts(user: User): number {
-  return Object.values(user.host_groups ?? {}).reduce(
-    (n, g) => n + Object.keys(g.hosts ?? {}).length,
+  return Object.values(user.host_groups).reduce(
+    (n, g) => n + Object.keys(g.hosts).length,
     0
   );
 }
 
 export function forEachHost(user: User, fn: (ref: HostRef) => void): void {
-  for (const [groupId, group] of Object.entries(user.host_groups ?? {})) {
-    for (const host of Object.values(group.hosts ?? {})) {
+  for (const [groupId, group] of Object.entries(user.host_groups)) {
+    for (const host of Object.values(group.hosts)) {
       fn({ groupId, group, host });
     }
   }
@@ -73,12 +66,12 @@ function hasSameDefinedAlias(a: string | undefined, b: string | undefined): bool
 
 export function sanitizeHostGroups(user: User): SafeHostGroupsMap {
   const out: SafeHostGroupsMap = {};
-  for (const [groupId, group] of Object.entries(user.host_groups ?? {})) {
+  for (const [groupId, group] of Object.entries(user.host_groups)) {
     out[groupId] = {
       name: group.name,
       defaultHostUid: group.defaultHostUid,
       createdAt: group.createdAt,
-      hosts: omitHashMap(group.hosts ?? {}, ['password', 'token', 'dbProfiles']) as SafeHostList,
+      hosts: omitHashMap(group.hosts, ['password', 'token', 'dbProfiles']) as SafeHostList,
     };
   }
   return out;
@@ -89,9 +82,8 @@ export function createGroupWithHost(
   host: HostInfo,
   opts?: { name?: string }
 ): string {
-  const groups = ensureHostGroups(user);
   const groupId = uuidv4();
-  groups[groupId] = {
+  user.host_groups[groupId] = {
     name: (opts?.name ?? host.alias ?? host.id ?? 'Host').trim() || 'Host',
     defaultHostUid: host.uid,
     createdAt: new Date().toISOString(),
@@ -101,10 +93,9 @@ export function createGroupWithHost(
 }
 
 export function createEmptyGroup(user: User, name: string): string {
-  const groups = ensureHostGroups(user);
   const groupId = uuidv4();
   const trimmed = (name ?? '').trim();
-  groups[groupId] = {
+  user.host_groups[groupId] = {
     name: trimmed || 'Group',
     createdAt: new Date().toISOString(),
     hosts: {},
@@ -113,9 +104,8 @@ export function createEmptyGroup(user: User, name: string): string {
 }
 
 export function deleteGroup(user: User, groupId: string): boolean {
-  const groups = ensureHostGroups(user);
-  if (!groups[groupId]) return false;
-  delete groups[groupId];
+  if (!user.host_groups[groupId]) return false;
+  delete user.host_groups[groupId];
   return true;
 }
 
@@ -124,8 +114,7 @@ export function updateGroup(
   groupId: string,
   patch: { name?: string; defaultHostUid?: string | null }
 ): boolean {
-  const groups = ensureHostGroups(user);
-  const group = groups[groupId];
+  const group = user.host_groups[groupId];
   if (!group) return false;
 
   if (patch.name !== undefined) {
@@ -138,7 +127,7 @@ export function updateGroup(
 
   if (patch.defaultHostUid !== undefined) {
     const next = patch.defaultHostUid ?? undefined;
-    if (next && !group.hosts?.[next]) {
+    if (next && !group.hosts[next]) {
       throw new Error('DEFAULT_HOST_NOT_IN_GROUP');
     }
     group.defaultHostUid = next;
@@ -148,13 +137,9 @@ export function updateGroup(
 }
 
 export function addHostToGroup(user: User, groupId: string, host: HostInfo): void {
-  const groups = ensureHostGroups(user);
-  const group = groups[groupId];
+  const group = user.host_groups[groupId];
   if (!group) {
     throw new Error(`Host group not found: ${groupId}`);
-  }
-  if (!group.hosts) {
-    group.hosts = {};
   }
   group.hosts[host.uid] = host;
   if (!group.defaultHostUid) {

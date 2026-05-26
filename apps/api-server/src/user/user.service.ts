@@ -6,7 +6,6 @@ import {
 } from '@api-interfaces';
 import { HandleUserErrors } from '@common';
 import { UserError } from '@error/user/user-error';
-import { ensureHostGroups } from '@host/host-group.util';
 import { Injectable } from '@nestjs/common';
 import { UserRepositoryService } from '@repository';
 import { PasswordService } from '@security';
@@ -96,14 +95,12 @@ export class UserService {
   async getUserData(userId: string): Promise<UserResponse> {
     const user = await this.repository.loadUserById(userId);
     
-    // Remove user password and uuid to match UserResponse type
-    ensureHostGroups(user);
     const { password, uuid, ...userResponse } = user;
 
     const sanitizedGroups: Record<string, any> = {};
-    for (const [groupId, group] of Object.entries(userResponse.host_groups ?? {})) {
+    for (const [groupId, group] of Object.entries(userResponse.host_groups)) {
       const sanitizedHosts: Record<string, any> = {};
-      for (const [hostUid, hostInfo] of Object.entries(group.hosts ?? {})) {
+      for (const [hostUid, hostInfo] of Object.entries(group.hosts)) {
         const { password: _p, token, dbProfiles, ...hostWithoutSensitive } = hostInfo;
         const sanitizedDbProfiles: Record<string, any> = {};
         if (dbProfiles) {

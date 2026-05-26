@@ -14,7 +14,6 @@ import {
   deleteGroup,
   findDuplicateHost,
   findHostRef,
-  ensureHostGroups,
   getHost,
   removeHostFromUser,
   sanitizeHostGroups,
@@ -28,10 +27,6 @@ export class HostService {
   private readonly logger = new Logger(HostService.name);
 
   constructor(private readonly repository: UserRepositoryService) {}
-
-  private prepareUser(user: User): void {
-    ensureHostGroups(user);
-  }
 
   private toResponse(user: User): GetHostsResponse {
     return { host_groups: sanitizeHostGroups(user) };
@@ -55,8 +50,6 @@ export class HostService {
     );
 
     const updatedUser = await this.repository.atomicUpdateUser(userId, async (user: User) => {
-      this.prepareUser(user);
-
       if (countAllHosts(user) >= 400) {
         throw HostError.ExceedMaxHosts({ 'current host count': 400 });
       }
@@ -102,7 +95,6 @@ export class HostService {
   @HandleHostErrors()
   async createHostGroup(userId: string, name: string): Promise<SafeHostGroupsMap> {
     const updatedUser = await this.repository.atomicUpdateUser(userId, async (user: User) => {
-      this.prepareUser(user);
       const trimmed = String(name ?? '').trim();
       if (!trimmed) {
         throw HostError.InvalidFormat({ field: 'name', reason: 'BLANK_GROUP_NAME_NOT_ALLOWED' });
@@ -120,7 +112,6 @@ export class HostService {
     patch: { name?: string; defaultHostUid?: string | null }
   ): Promise<SafeHostGroupsMap> {
     const updatedUser = await this.repository.atomicUpdateUser(userId, async (user: User) => {
-      this.prepareUser(user);
       try {
         const ok = updateGroup(user, groupId, patch);
         if (!ok) {
@@ -144,7 +135,6 @@ export class HostService {
   @HandleHostErrors()
   async deleteHostGroup(userId: string, groupId: string): Promise<SafeHostGroupsMap> {
     const updatedUser = await this.repository.atomicUpdateUser(userId, async (user: User) => {
-      this.prepareUser(user);
       const ok = deleteGroup(user, groupId);
       if (!ok) {
         throw HostError.InvalidFormat({ field: 'groupId', reason: 'GROUP_NOT_FOUND' });
@@ -161,7 +151,6 @@ export class HostService {
     hostInfo: UpdateHostRequest
   ): Promise<SafeHostGroupsMap> {
     const updatedUser = await this.repository.atomicUpdateUser(userId, async (user: User) => {
-      this.prepareUser(user);
       const ref = findHostRef(user, hostUid);
       if (!ref) {
         throw HostError.NoSuchHost({ hostUid });
@@ -212,7 +201,6 @@ export class HostService {
   @HandleHostErrors()
   async deleteHost(userId: string, hostUid: string): Promise<SafeHostGroupsMap> {
     const updatedUser = await this.repository.atomicUpdateUser(userId, async (user: User) => {
-      this.prepareUser(user);
       if (!removeHostFromUser(user, hostUid)) {
         throw HostError.NoSuchHost({ hostUid });
       }
@@ -224,7 +212,6 @@ export class HostService {
   @HandleHostErrors()
   async findHostInternal(userId: string, hostUid: string): Promise<HostInfo> {
     const user = await this.repository.loadUserById(userId);
-    this.prepareUser(user);
     const host = getHost(user, hostUid);
     if (!host) {
       throw HostError.NoSuchHost({ hostUid });
@@ -243,7 +230,6 @@ export class HostService {
   @HandleHostErrors()
   async markGroupHa(userId: string, hostUid: string, groupName?: string): Promise<SafeHostGroupsMap> {
     const updatedUser = await this.repository.atomicUpdateUser(userId, async (user: User) => {
-      this.prepareUser(user);
       const ref = findHostRef(user, hostUid);
       if (!ref) {
         throw HostError.NoSuchHost({ hostUid });
