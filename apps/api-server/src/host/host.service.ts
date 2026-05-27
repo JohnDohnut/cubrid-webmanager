@@ -2,235 +2,187 @@ import { HandleHostErrors } from '@common';
 import { HostError } from '@error/index';
 import { Injectable, Logger } from '@nestjs/common';
 import { UserRepositoryService } from '@repository';
-import {
-  SafeHostList,
-  HostInfo,
-  User,
-} from '@type/index';
-import {
-  AddHostRequest,
-  UpdateHostRequest,
-  GetHostsResponse,
-  HostResponse,
-} from '@api-interfaces';
-import { omitHashMap } from '@util';
+import { HostInfo, User } from '@type/index';
+import { AddHostRequest, GetHostsResponse, HostResponse, UpdateHostRequest } from '@api-interfaces';
+import { SafeHostGroupsMap } from '@type/collections';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  addHostToGroup,
+  countAllHosts,
+  createGroupWithHost,
+  createEmptyGroup,
+  deleteGroup,
+  ensureHostGroupsWritable,
+  findDuplicateHost,
+  findHostRef,
+  getHost,
+  removeHostFromUser,
+  sanitizeHostGroups,
+  updateGroup,
+} from './host-group.util';
 
-/**
- * Service for managing host-related operations.
- *
- * Provides business logic for host management including retrieving host lists,
- * adding new hosts, and validating host information. Handles host limits
- * and duplicate detection.
- *
- * @category Business Services
- * @since 1.0.0
- */
+export type AddHostPayload = AddHostRequest & { groupId?: string };
+
 @Injectable()
 export class HostService {
   private readonly logger = new Logger(HostService.name);
 
   constructor(private readonly repository: UserRepositoryService) {}
 
-  /**
-   * Retrieves the list of hosts for a specific user.
-   *
-   * Loads user data and returns all associated hosts with password fields
-   * removed for security purposes.
-   *
-   * @param {string} userId - The unique identifier of the user
-   * @returns {Promise<GetHostsResponse>} Response containing the list of hosts
-   * @throws {UserError} When user is not found
-   * @example
-   * ```typescript
-   * const response = await hostService.getHostList("user123");
-   * console.log(response.hosts); // Array of HostInfo objects without passwords
-   * ```
-   */
+  private toResponse(user: User): GetHostsResponse {
+    return { host_groups: sanitizeHostGroups(user) };
+  }
+
   @HandleHostErrors()
   async getHostList(userId: string): Promise<GetHostsResponse> {
     this.logger.log(`Getting host list for user: ${userId}`);
-    const user: User = await this.repository.loadUserById(userId);
-    const hosts = Object.fromEntries(
-      Object.entries(user.host_list).map(([uid, host]) => [
-        uid,
-        { ...host, initialLogin: host.initialLogin ?? true },
-      ])
+    const user = await this.repository.loadUserById(userId);
+    const hostGroups = sanitizeHostGroups(user);
+    this.logger.log(
+      `Found ${countAllHosts(user)} hosts in ${Object.keys(hostGroups).length} groups`
     );
-    const hostCount = Object.keys(hosts).length;
-    this.logger.log(`Found ${hostCount} hosts for user: ${userId}`);
-
-    return {
-      host_list: omitHashMap(hosts, ['password', 'token', 'dbProfiles']) as SafeHostList,
-    };
+    return { host_groups: hostGroups };
   }
 
-  /**
-   * Adds a new host to the user's host list.
-   *
-   * Validates host limits (max 50 hosts) and checks for duplicates before
-   * adding the new host. Uses atomic update to ensure data consistency.
-   *
-   * @param {string} userId - The unique identifier of the user
-   * @param {AddHostRequest} hostInfo - Host information without UID (will be generated)
-   * @returns {Promise<User>} The updated user object with the new host
-   * @throws {HostError} When host limit is exceeded or duplicate host is found
-   * @throws {UserError} When user is not found
-   * @example
-   * ```typescript
-   * const newHost = await hostService.addHost("user123", {
-   *   address: "192.168.1.100",
-   *   port: 22,
-   *   id: "server1",
-   *   password: "encrypted_password"
-   * });
-   * console.log(newHost.host_list); // Contains the new host with generated UID
-   * ```
-   */
   @HandleHostErrors()
-  async addHost(userId: string, hostInfo: AddHostRequest): Promise<SafeHostList> {
+  async addHost(userId: string, hostInfo: AddHostPayload): Promise<SafeHostGroupsMap> {
     this.logger.log(
-      `Adding host for user: ${userId}, address: ${hostInfo.address}, port: ${hostInfo.port}, id: ${hostInfo.id}`
+      `Adding host for user: ${userId}, address: ${hostInfo.address}, port: ${hostInfo.port}, groupId: ${hostInfo.groupId ?? 'new'}`
     );
+
     const updatedUser = await this.repository.atomicUpdateUser(userId, async (user: User) => {
-      if (Object.keys(user.host_list).length >= 400) {
-        this.logger.warn(
-          `Host limit exceeded for user: ${userId}, current count: ${Object.keys(user.host_list).length}`
-        );
-        throw HostError.ExceedMaxHosts({
-          'current host count': 400,
-        });
+      const groups = ensureHostGroupsWritable(user);
+      if (countAllHosts(user) >= 400) {
+        throw HostError.ExceedMaxHosts({ 'current host count': 400 });
       }
 
       const alias = typeof hostInfo.alias === 'string' ? hostInfo.alias.trim() : '';
       if (!alias) {
-        throw HostError.InvalidFormat({
-          field: 'alias',
-          reason: 'MISSING_OR_BLANK_ALIAS',
-        });
+        throw HostError.InvalidFormat({ field: 'alias', reason: 'MISSING_OR_BLANK_ALIAS' });
       }
 
-      const duplicate = Object.values(user.host_list).find(
-        (host) =>
-          (host.address === hostInfo.address &&
-            host.port === hostInfo.port &&
-            host.id === hostInfo.id) ||
-          this.hasSameDefinedAlias(host.alias, hostInfo.alias)
-      );
-
+      const duplicate = findDuplicateHost(user, { ...hostInfo, alias });
       if (duplicate) {
-        this.logger.warn(
-          `Duplicate host detected for user: ${userId}, duplicate hostUid: ${duplicate.uid}`
-        );
-        throw HostError.DuplicatedHost({
-          duplicatedHostId: duplicate.uid,
-        });
+        throw HostError.DuplicatedHost({ duplicatedHostId: duplicate.uid });
       }
 
       const newHost: HostInfo = {
         uid: uuidv4(),
-        ...hostInfo,
+        id: hostInfo.id,
+        address: hostInfo.address,
+        port: hostInfo.port,
+        password: hostInfo.password,
         alias,
         initialLogin: true,
         dbProfiles: {},
       };
 
-      user.host_list[newHost.uid] = newHost;
-      this.logger.log(`Host added successfully for user: ${userId}, hostUid: ${newHost.uid}`);
-      return user;
-    });
-
-    const rv = omitHashMap(updatedUser.host_list, ['token', 'password', 'dbProfiles']);
-    return rv;
-  }
-
-  /**
-   * Removes a host from the user's host list.
-   *
-   * @param {string} userId - The unique identifier of the user.
-   * @param {string} hostUid - The unique identifier of the host to be removed.
-   * @returns {Promise<User>} The updated user object after removing the host.
-   * @throws {HostError.NoSuchHost} If no host with the given UID is found.
-   * @throws {UserError} When user is not found.
-   */
-  @HandleHostErrors()
-  async removeHost(userId: string, hostUid: string): Promise<SafeHostList> {
-    this.logger.log(`Removing host for user: ${userId}, hostUid: ${hostUid}`);
-    const updatedUser = await this.repository.atomicUpdateUser(userId, async (user: User) => {
-      if (!user.host_list[hostUid]) {
-        this.logger.warn(`Host not found for removal: userId: ${userId}, hostUid: ${hostUid}`);
-        throw HostError.NoSuchHost({ hostUid });
+      const { groupId } = hostInfo;
+      if (groupId) {
+        if (!groups[groupId]) {
+          throw HostError.InvalidFormat({ field: 'groupId', reason: 'GROUP_NOT_FOUND' });
+        }
+        addHostToGroup(user, groupId, newHost);
+      } else {
+        createGroupWithHost(user, newHost, { name: alias });
       }
-      delete user.host_list[hostUid];
-      this.logger.log(`Host removed successfully for user: ${userId}, hostUid: ${hostUid}`);
+
+      this.logger.log(`Host added: ${newHost.uid}`);
       return user;
     });
-    const rv = omitHashMap(updatedUser.host_list, ['token', 'password', 'dbProfiles']);
-    return rv;
+
+    return sanitizeHostGroups(updatedUser);
   }
 
-  /**
-   * Updates an existing host in the user's host list.
-   *
-   * @param {string} userId - The unique identifier of the user.
-   * @param {string} hostUid - The unique identifier of the host to be updated.
-   * @param {UpdateHostRequest} hostInfo - The new host information to apply.
-   * @returns {Promise<User>} The updated user object with the modified host.
-   * @throws {HostError.NoSuchHost} If no host with the given UID is found.
-   * @throws {HostError.NoSuchUser}
-   * @throws {UserError} When user is not found.
-   */
+  @HandleHostErrors()
+  async createHostGroup(userId: string, name: string): Promise<SafeHostGroupsMap> {
+    const updatedUser = await this.repository.atomicUpdateUser(userId, async (user: User) => {
+      const trimmed = String(name ?? '').trim();
+      if (!trimmed) {
+        throw HostError.InvalidFormat({ field: 'name', reason: 'BLANK_GROUP_NAME_NOT_ALLOWED' });
+      }
+      createEmptyGroup(user, trimmed);
+      return user;
+    });
+    return sanitizeHostGroups(updatedUser);
+  }
+
+  @HandleHostErrors()
+  async updateHostGroup(
+    userId: string,
+    groupId: string,
+    patch: { name?: string; defaultHostUid?: string | null }
+  ): Promise<SafeHostGroupsMap> {
+    const updatedUser = await this.repository.atomicUpdateUser(userId, async (user: User) => {
+      try {
+        const ok = updateGroup(user, groupId, patch);
+        if (!ok) {
+          throw HostError.InvalidFormat({ field: 'groupId', reason: 'GROUP_NOT_FOUND' });
+        }
+      } catch (e: any) {
+        const code = String(e?.message || '');
+        if (code === 'BLANK_GROUP_NAME_NOT_ALLOWED') {
+          throw HostError.InvalidFormat({ field: 'name', reason: 'BLANK_GROUP_NAME_NOT_ALLOWED' });
+        }
+        if (code === 'DEFAULT_HOST_NOT_IN_GROUP') {
+          throw HostError.InvalidFormat({ field: 'defaultHostUid', reason: 'DEFAULT_HOST_NOT_IN_GROUP' });
+        }
+        throw e;
+      }
+      return user;
+    });
+    return sanitizeHostGroups(updatedUser);
+  }
+
+  @HandleHostErrors()
+  async deleteHostGroup(userId: string, groupId: string): Promise<SafeHostGroupsMap> {
+    const updatedUser = await this.repository.atomicUpdateUser(userId, async (user: User) => {
+      const ok = deleteGroup(user, groupId);
+      if (!ok) {
+        throw HostError.InvalidFormat({ field: 'groupId', reason: 'GROUP_NOT_FOUND' });
+      }
+      return user;
+    });
+    return sanitizeHostGroups(updatedUser);
+  }
+
   @HandleHostErrors()
   async updateHost(
     userId: string,
     hostUid: string,
     hostInfo: UpdateHostRequest
-  ): Promise<SafeHostList> {
-    const updateFields = Object.keys(hostInfo).filter(
-      (key) => hostInfo[key as keyof UpdateHostRequest] !== undefined
-    );
-    this.logger.log(
-      `Updating host for user: ${userId}, hostUid: ${hostUid}, fields: ${updateFields.join(', ')}`
-    );
-
+  ): Promise<SafeHostGroupsMap> {
     const updatedUser = await this.repository.atomicUpdateUser(userId, async (user: User) => {
-      if (!user.host_list[hostUid]) {
-        this.logger.warn(`Host not found for update: userId: ${userId}, hostUid: ${hostUid}`);
+      const ref = findHostRef(user, hostUid);
+      if (!ref) {
         throw HostError.NoSuchHost({ hostUid });
       }
 
-      const existingHost = user.host_list[hostUid];
-
+      const existingHost = ref.host;
       let proposedAlias = existingHost.alias;
       if (hostInfo.alias !== undefined) {
         const trimmed = String(hostInfo.alias).trim();
         if (!trimmed) {
-          throw HostError.InvalidFormat({
-            field: 'alias',
-            reason: 'BLANK_ALIAS_NOT_ALLOWED',
-          });
+          throw HostError.InvalidFormat({ field: 'alias', reason: 'BLANK_ALIAS_NOT_ALLOWED' });
         }
         proposedAlias = trimmed;
       }
 
-      const duplicate = Object.values(user.host_list).find(
-        (host) =>
-          host.uid !== hostUid &&
-          ((host.address === hostInfo.address &&
-            host.port === hostInfo.port &&
-            host.id === hostInfo.id) ||
-            this.hasSameDefinedAlias(host.alias, proposedAlias))
+      const duplicate = findDuplicateHost(
+        user,
+        {
+          address: hostInfo.address ?? existingHost.address,
+          port: hostInfo.port ?? existingHost.port,
+          id: hostInfo.id ?? existingHost.id,
+          alias: proposedAlias,
+        },
+        hostUid
       );
       if (duplicate) {
-        this.logger.warn(
-          `Duplicate host detected during update: userId: ${userId}, hostUid: ${hostUid}, duplicate hostUid: ${duplicate.uid}`
-        );
-        throw HostError.DuplicatedHost({
-          duplicatedHostId: duplicate.uid,
-        });
+        throw HostError.DuplicatedHost({ duplicatedHostId: duplicate.uid });
       }
 
-      const updatedHost: HostInfo = {
+      ref.group.hosts[hostUid] = {
         uid: hostUid,
         id: hostInfo.id ?? existingHost.id,
         address: hostInfo.address ?? existingHost.address,
@@ -242,95 +194,53 @@ export class HostService {
         dbProfiles: hostInfo.dbProfiles ?? existingHost.dbProfiles ?? {},
       };
 
-      user.host_list[hostUid] = updatedHost;
-      this.logger.log(`Host updated successfully for user: ${userId}, hostUid: ${hostUid}`);
       return user;
     });
-    const rv = omitHashMap(updatedUser.host_list, ['token', 'password', 'dbProfiles']);
-    return rv;
+
+    return sanitizeHostGroups(updatedUser);
   }
 
-  /**
-   * Finds and returns a single host by its UID (internal use with password).
-   *
-   * This method is used as infrastructure service by other business services.
-   * Errors from this method will be converted to domain errors by the calling service's decorators.
-   *
-   * @param {string} userId - The unique identifier of the user.
-   * @param {string} hostUid - The unique identifier of the host to find.
-   * @returns {Promise<HostInfo>} The found host object with password.
-   * @throws {HostError.NoSuchHost} If no host with the given UID is found.
-   * @throws {UserError} When user is not found.
-   */
+  @HandleHostErrors()
+  async deleteHost(userId: string, hostUid: string): Promise<SafeHostGroupsMap> {
+    const updatedUser = await this.repository.atomicUpdateUser(userId, async (user: User) => {
+      if (!removeHostFromUser(user, hostUid)) {
+        throw HostError.NoSuchHost({ hostUid });
+      }
+      return user;
+    });
+    return sanitizeHostGroups(updatedUser);
+  }
+
   @HandleHostErrors()
   async findHostInternal(userId: string, hostUid: string): Promise<HostInfo> {
-    this.logger.debug(`Finding host (internal) for user: ${userId}, hostUid: ${hostUid}`);
     const user = await this.repository.loadUserById(userId);
-    const host = user.host_list[hostUid];
-
+    const host = getHost(user, hostUid);
     if (!host) {
-      this.logger.warn(`Host not found (internal): userId: ${userId}, hostUid: ${hostUid}`);
       throw HostError.NoSuchHost({ hostUid });
     }
-
     return { ...host, initialLogin: host.initialLogin ?? true };
   }
 
-  /**
-   * Finds and returns a single host by its UID (external use without password, token, and dbProfiles).
-   *
-   * @param {string} userId - The unique identifier of the user.
-   * @param {string} hostUid - The unique identifier of the host to find.
-   * @returns {Promise<HostResponse>} The found host object without password, token, and dbProfiles.
-   * @throws {HostError.NoSuchHost} If no host with the given UID is found.
-   * @throws {UserError} When user is not found.
-   */
   async findHost(userId: string, hostUid: string): Promise<HostResponse> {
-    this.logger.log(`Finding host for user: ${userId}, hostUid: ${hostUid}`);
-    const user = await this.repository.loadUserById(userId);
-    const host = user.host_list[hostUid];
-
-    if (!host) {
-      this.logger.warn(`Host not found: userId: ${userId}, hostUid: ${hostUid}`);
-      throw HostError.NoSuchHost({ hostUid });
-    }
-
+    const host = await this.findHostInternal(userId, hostUid);
     const { password, token, dbProfiles, ...hostResponse } = host;
     hostResponse.initialLogin = host.initialLogin ?? true;
     return hostResponse as HostResponse;
   }
 
-  /**
-   * Deletes a host and returns updated host list.
-   *
-   * @param {string} userId - The unique identifier of the user.
-   * @param {string} hostUid - The unique identifier of the host to delete.
-   * @returns {Promise<SafeHostList>} Updated host list without password, token, and dbProfiles.
-   * @throws {HostError.NoSuchHost} If no host with the given UID is found.
-   * @throws {UserError} When user is not found.
-   */
+  /** Mark the group containing this host as an HA cluster group. */
   @HandleHostErrors()
-  async deleteHost(userId: string, hostUid: string): Promise<SafeHostList> {
-    this.logger.log(`Deleting host for user: ${userId}, hostUid: ${hostUid}`);
+  async markGroupHa(userId: string, hostUid: string, groupName?: string): Promise<SafeHostGroupsMap> {
     const updatedUser = await this.repository.atomicUpdateUser(userId, async (user: User) => {
-      if (!user.host_list[hostUid]) {
-        this.logger.warn(`Host not found for deletion: userId: ${userId}, hostUid: ${hostUid}`);
+      const ref = findHostRef(user, hostUid);
+      if (!ref) {
         throw HostError.NoSuchHost({ hostUid });
       }
-      delete user.host_list[hostUid];
-      this.logger.log(`Host deleted successfully for user: ${userId}, hostUid: ${hostUid}`);
+      if (groupName?.trim()) {
+        ref.group.name = groupName.trim();
+      }
       return user;
     });
-    return omitHashMap(updatedUser.host_list, ['password', 'token', 'dbProfiles']) as SafeHostList;
-  }
-
-  /**
-   * True only when both aliases are non-empty after trim and equal.
-   * Skips match when either side is missing so undefined/blank pairs are not treated as duplicates.
-   */
-  private hasSameDefinedAlias(a: string | undefined, b: string | undefined): boolean {
-    const left = a?.trim() ?? '';
-    const right = b?.trim() ?? '';
-    return left !== '' && right !== '' && left === right;
+    return sanitizeHostGroups(updatedUser);
   }
 }

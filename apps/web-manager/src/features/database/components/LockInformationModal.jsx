@@ -24,9 +24,9 @@ function buildObjectLockRows(lot) {
     holders.forEach((h) => {
       rows.push({
         oid: entry.oid ?? '-',
-        class_name: entry.class_name ?? '-',
+        class_name: entry.ob_type ?? entry.class_name ?? '-',
         holder: h.tran_index ?? h['@user'] ?? '-',
-        mode: h.mode ?? '-',
+        mode: h.granted_mode ?? h.mode ?? '-',
         waiters: entry.waiters?.length ?? 0,
       });
     });

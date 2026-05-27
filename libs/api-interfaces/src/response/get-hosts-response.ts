@@ -1,13 +1,8 @@
-import { SafeHostList } from '@type/collections';
+import { SafeHostGroupsMap } from '@type/collections';
 
 /**
- * Response interface for getting hosts list.
- *
- * Contains a hashmap of host information returned from the server.
- *
- * @category Responses
- * @since 1.0.0
+ * Response for host/group listing — groups contain nested hosts.
  */
 export type GetHostsResponse = {
-  host_list: SafeHostList;
+  host_groups: SafeHostGroupsMap;
 };

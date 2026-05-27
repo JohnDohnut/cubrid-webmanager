@@ -1,5 +1,7 @@
 // Request exports
 export * from './add-host-request';
+export * from './create-host-group-request';
+export * from './update-host-group-request';
 export * from './add-db-request';
 export * from './change-password-request';
 export * from './delete-user-request';

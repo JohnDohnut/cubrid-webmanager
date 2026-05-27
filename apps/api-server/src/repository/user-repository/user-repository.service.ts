@@ -64,7 +64,7 @@ export class UserRepositoryService {
       id: dto.id,
       password: await this.passwordService.getHashedValue(dto.password),
       department: 'default',
-      host_list: {},
+      host_groups: {},
       ha_mon_list: {},
       resource_mon_list: {},
       user_preference: { dashboardInterval: 0, brokerStatusInterval: 0 },

@@ -10,7 +10,9 @@ import Header from '../features/layout/components/Header';
 import Breadcrumb from '../features/layout/components/Breadcrumb';
 import Footer from '../features/layout/components/Footer';
 import AddHostModal from '../features/host/components/AddHostModal';
+import HostGroupNameModal from '../features/host/components/HostGroupNameModal';
 import ChangeHostPasswordModal from '../features/host/components/ChangeHostPasswordModal';
+import DeleteHostGroupModal from '../features/host/components/DeleteHostGroupModal';
 import ServerContent from '../features/server/components/ServerContent';
 import DatabaseDashboard from '../features/database/components/DatabaseDashboard';
 import DatabaseSpaceMonitor from '../features/database/components/DatabaseSpaceMonitor';
@@ -394,11 +396,13 @@ function DashboardLayout() {
 
         <SuggestedHaNodesModal />
 
+        <HostGroupNameModal />
         <AddHostModal
           isOpen={isAddHostModalOpen}
           onClose={() => dispatch(closeAddHostModal())}
         />
         <DeleteHostModal />
+        <DeleteHostGroupModal />
         <EditHostModal />
         <ChangeHostPasswordModal />
         <ServerVersionModal />

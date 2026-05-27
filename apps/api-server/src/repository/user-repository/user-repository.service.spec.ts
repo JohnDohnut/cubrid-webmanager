@@ -28,7 +28,7 @@ describe('UserRepositoryService', () => {
     id: 'test-user',
     password: 'hashed-password',
     department: 'default',
-    host_list: {},
+    host_groups: {},
     ha_mon_list: {},
     resource_mon_list: {},
     user_preference: { dashboardInterval: 0, brokerStatusInterval: 0 },
@@ -150,7 +150,7 @@ describe('UserRepositoryService', () => {
       expect(userJson.id).toBe(mockUserId);
       expect(userJson.password).toBe(mockHashedPassword);
       expect(userJson.department).toBe('default');
-      expect(userJson.host_list).toEqual({});
+      expect(userJson.host_groups).toEqual({});
       expect(userJson.ha_mon_list).toEqual({});
       expect(userJson.resource_mon_list).toEqual({});
       expect(userJson.user_preference).toEqual({

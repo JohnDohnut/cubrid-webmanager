@@ -37,7 +37,7 @@ export class UserController {
    * @example
    * ```typescript
    * // GET /user
-   * // Returns: { uuid: "123", id: "user1", department: "IT", host_list: [], ... }
+   * // Returns: { uuid: "123", id: "user1", department: "IT", host_groups: {}, ... }
    * ```
    */
   @Get()

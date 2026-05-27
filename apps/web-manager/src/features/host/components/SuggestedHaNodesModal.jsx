@@ -10,7 +10,7 @@ import { useCM } from '../../../constants/useCM';
 export default function SuggestedHaNodesModal() {
   const CM = useCM();
   const dispatch = useDispatch();
-  const { suggestedHaNodes, hosts, isDiscoveryModalOpen } = useSelector((state) => state.host, shallowEqual);
+  const { suggestedHaNodes, suggestedHaGroupId, hosts, isDiscoveryModalOpen } = useSelector((state) => state.host, shallowEqual);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   // Filter out nodes that are already in the hosts list
@@ -38,7 +38,8 @@ export default function SuggestedHaNodesModal() {
       address: node.ip || '',
       port: 8001,
       id: 'admin',
-      password: ''
+      password: '',
+      ...(suggestedHaGroupId ? { groupId: suggestedHaGroupId } : {}),
     };
 
     // Hide this modal so AddHostModal can take focus
