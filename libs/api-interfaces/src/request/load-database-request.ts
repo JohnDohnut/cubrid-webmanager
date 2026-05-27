@@ -23,6 +23,16 @@ export type LoadDatabaseRequest = {
   user: string;
 
   /**
+   * CMS loaddb database user id (same as `user` when provided from UI).
+   */
+  _DBID: string;
+
+  /**
+   * CMS loaddb database password.
+   */
+  _DBPASSWD: string;
+
+  /**
    * Estimated
    * Values: "none" | other values
    */

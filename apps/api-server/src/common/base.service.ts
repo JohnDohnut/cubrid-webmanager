@@ -90,6 +90,69 @@ export abstract class BaseService {
     return response;
   }
 
+  /** CMS calls that may run for hours (unload/load). Does not hold user-file locks. */
+  protected async executeLongRunningCmsRequest<
+    TRequest extends Omit<BaseCmsRequest, 'token'>,
+    TResponse
+  >(
+    userId: string,
+    hostUid: string,
+    cmsRequest: TRequest,
+    options?: { skipStatusCheck?: boolean }
+  ): Promise<TResponse> {
+    const host = await this.hostService.findHostInternal(userId, hostUid);
+    const url = `https://${host.address}:${host.port}/cm_api`;
+    const requestWithToken = { ...cmsRequest, token: host.token || '' };
+    const timeoutMs = 6 * 60 * 60 * 1000;
+    const startedAt = Date.now();
+
+    this.logger.log(
+      formatAuditLog('cms_request', {
+        user: userId,
+        method: 'POST',
+        address: url,
+        hostUid,
+        task: cmsRequest.task,
+        longRunning: true,
+        body: requestWithToken,
+      })
+    );
+
+    const response = await this.cmsClient.postAuthenticated<TRequest, TResponse>(
+      url,
+      requestWithToken,
+      { timeoutMs }
+    );
+
+    const cmsResponse = response as {
+      status?: string;
+      task?: string;
+      __EXEC_TIME?: string;
+    };
+
+    this.logger.log(
+      formatAuditLog('cms_response', {
+        user: userId,
+        method: 'POST',
+        address: url,
+        hostUid,
+        task: cmsRequest.task,
+        longRunning: true,
+        status: cmsResponse.status ?? 'unknown',
+        execTime: cmsResponse.__EXEC_TIME,
+        durationMs: Date.now() - startedAt,
+        payload: response,
+      })
+    );
+
+    checkCmsTokenError(response);
+    if (!options?.skipStatusCheck) {
+      checkCmsStatusError(response);
+    }
+
+    return response;
+  }
+
   /**
    * Extracts domain-only data from CMS response by removing envelope fields.
    *

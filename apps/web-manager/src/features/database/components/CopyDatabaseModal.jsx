@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { closeCopyDatabaseModal, copyDatabase, fetchDatabaseStartInfo } from '../databaseSlice';
+import { closeCopyDatabaseModal, fetchDatabaseStartInfo } from '../databaseSlice';
+import { databaseJobApi } from '../databaseJobApi';
+import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -75,6 +77,8 @@ export default function CopyDatabaseModal() {
     isSuccess,
     isError
   } = useActionState();
+  const { runJob } = useCmsJob();
+  const [jobStatus, setJobStatus] = useState(null);
 
   const [formData, setFormData] = useState({
     destName: '',
@@ -122,7 +126,10 @@ export default function CopyDatabaseModal() {
     };
 
     try {
-      await dispatch(copyDatabase({ hostUid: selectedHostUid, payload })).unwrap();
+      await runJob(
+        () => databaseJobApi.submitCopy(selectedHostUid, payload),
+        { onProgress: (j) => setJobStatus(j.jobStatus ?? j.status) }
+      );
       dispatch(fetchDatabaseStartInfo(selectedHostUid));
       endSuccess(`Clone "${formData.destName}" has been established and registered successfully.`);
     } catch (err) {
@@ -130,15 +137,18 @@ export default function CopyDatabaseModal() {
     }
   };
 
-  const handleClose = () => dispatch(closeCopyDatabaseModal());
+  const handleClose = () => {
+    dispatch(closeCopyDatabaseModal());
+    resetAction();
+  };
 
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
       <Modal isOpen title={CM.copyDatabase} icon="content_copy" onClose={handleClose} maxWidth="580px">
-        <ModalStatusLoading 
-          title={CM.synchronizingVolumes} 
-          subtitle={formData.destName} 
+        <ModalStatusLoading
+          title={CM.synchronizingVolumes}
+          subtitle={`${formData.destName}${jobStatus === 'running' ? ' (CMS)' : jobStatus === 'queued' ? ' (queued)' : ''} — running in background`}
         />
       </Modal>
     );

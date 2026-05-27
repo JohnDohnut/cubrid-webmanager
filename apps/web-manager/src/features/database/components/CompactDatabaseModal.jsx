@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeCompactDatabaseModal } from '../databaseSlice';
-import { databaseApi } from '../databaseApi';
+import { databaseJobApi } from '../databaseJobApi';
+import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -33,6 +34,8 @@ export default function CompactDatabaseModal() {
     isSuccess,
     isError
   } = useActionState();
+  const { runJob } = useCmsJob();
+  const [jobStatus, setJobStatus] = useState(null);
 
   const [verbose, setVerbose] = useState(false);
 
@@ -59,21 +62,30 @@ export default function CompactDatabaseModal() {
       const payload = {
         verbose: verbose ? 'y' : 'n'
       };
-      const response = await databaseApi.compactDatabase(selectedHostUid, selectedDatabase, payload);
-      endSuccess(response.note || CM.optimizationComplete);
+      const job = await runJob(
+        () => databaseJobApi.submitCompact(selectedHostUid, selectedDatabase, payload),
+        { onProgress: (j) => setJobStatus(j.jobStatus ?? j.status) }
+      );
+      const log = job?.result?.log;
+      endSuccess(log || CM.optimizationComplete);
     } catch (err) {
-      endError(err.response?.data?.note || err.response?.data?.message || CM.compactionFailed);
+      endError(typeof err === 'string' ? err : err.message || CM.compactionFailed);
     }
   };
 
-  const handleClose = () => dispatch(closeCompactDatabaseModal());
+  const handleClose = () => {
+    dispatch(closeCompactDatabaseModal());
+    resetAction();
+  };
 
   if (isLoading) {
+    const statusHint =
+      jobStatus === 'running' ? ' (CMS)' : jobStatus === 'queued' ? ' (queued)' : '';
     return (
       <Modal isOpen title={CM.dynamicCompaction} icon="compress" onClose={handleClose} maxWidth="480px">
-        <ModalStatusLoading 
-          title={CM.consolidatingBlocks} 
-          subtitle={selectedDatabase} 
+        <ModalStatusLoading
+          title={CM.consolidatingBlocks}
+          subtitle={`${selectedDatabase}${statusHint} — running in background`}
         />
       </Modal>
     );

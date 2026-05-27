@@ -2,10 +2,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { 
   closeCreateDatabaseModal, 
-  createDatabase, 
   fetchCreateDatabaseInfo,
   fetchDatabaseStartInfo 
 } from '../databaseSlice';
+
+import { databaseJobApi } from '../databaseJobApi';
+import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -130,6 +132,9 @@ export default function CreateDatabaseModal() {
     isSuccess,
     isError
   } = useActionState();
+
+  const { runJob } = useCmsJob();
+  const [jobStatus, setJobStatus] = useState(null);
 
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState(INITIAL_FORM_DATA);
@@ -270,7 +275,10 @@ export default function CreateDatabaseModal() {
         }
       };
 
-      await dispatch(createDatabase({ hostUid: selectedHostUid, payload })).unwrap();
+      await runJob(
+        () => databaseJobApi.submitCreate(selectedHostUid, payload),
+        { onProgress: (j) => setJobStatus(j.jobStatus ?? j.status) }
+      );
       
       // refetch database list in background to update UI
       dispatch(fetchDatabaseStartInfo({ hostUid: selectedHostUid, isBackground: true }));
@@ -297,7 +305,7 @@ export default function CreateDatabaseModal() {
       <Modal isOpen title={CM.createDatabase} icon="add_circle" onClose={handleClose} maxWidth="600px">
         <ModalStatusLoading 
           title={CM.createDatabase} 
-          subtitle={formData.dbName} 
+          subtitle={`${formData.dbName}${jobStatus === 'running' ? ' (CMS)' : jobStatus === 'queued' ? ' (queued)' : ''}`} 
         />
       </Modal>
     );

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { closeAddVolumeModal, addVolume } from '../databaseSlice';
+import { closeAddVolumeModal } from '../databaseSlice';
+import { databaseJobApi } from '../databaseJobApi';
+import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
 import { databaseApi } from '../databaseApi';
 import { useCM } from '../../../constants/useCM';
 
@@ -76,7 +78,9 @@ export default function AddVolumeModal() {
     isSuccess,
     isError
   } = useActionState();
-  
+  const { runJob } = useCmsJob();
+  const [jobStatus, setJobStatus] = useState(null);
+
   const [volStatus, setVolStatus] = useState({ freespace: '', volpath: '' });
   const [volName, setVolName] = useState('');
   const [purpose, setPurpose] = useState('data');
@@ -124,23 +128,29 @@ export default function AddVolumeModal() {
         numberofpages: numberOfPages.toString(),
         size_need_mb: `${sizeMB.toFixed(3)}(MB)`
       };
-      await dispatch(addVolume({ hostUid: selectedHostUid, dbname: selectedDatabase, payload })).unwrap();
+      await runJob(
+        () => databaseJobApi.submitAddVol(selectedHostUid, selectedDatabase, payload),
+        { onProgress: (j) => setJobStatus(j.jobStatus ?? j.status) }
+      );
       endSuccess();
     } catch (err) {
-      endError(err);
+      endError(typeof err === 'string' ? err : err.message || CM.failure);
     }
   };
 
-  const handleClose = () => dispatch(closeAddVolumeModal());
+  const handleClose = () => {
+    dispatch(closeAddVolumeModal());
+    resetAction();
+  };
   const formatSize = (mb) => mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`;
 
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
       <Modal isOpen title={CM.volumeAllocation} icon="add_box" onClose={handleClose} maxWidth="720px">
-        <ModalStatusLoading 
-          title={CM.scalingFoundation} 
-          subtitle={`The system is creating and formatting a new ${purpose} volume for ${selectedDatabase}.`} 
+        <ModalStatusLoading
+          title={CM.scalingFoundation}
+          subtitle={`The system is creating and formatting a new ${purpose} volume for ${selectedDatabase}${jobStatus === 'running' ? ' (CMS)' : jobStatus === 'queued' ? ' (queued)' : ''}.`}
         />
       </Modal>
     );

@@ -78,10 +78,15 @@ export class CmsHttpsClientService {
    * @throws CmsError if the request fails or an unexpected error occurs.
    */
   @HandleCmsErrors()
-  public async postAuthenticated<T extends BaseCmsRequest, P>(url: string, data: T): Promise<P> {
+  public async postAuthenticated<T extends BaseCmsRequest, P>(
+    url: string,
+    data: T,
+    options?: { timeoutMs?: number }
+  ): Promise<P> {
     const config = {
       headers: { 'Content-Type': 'application/json' },
       httpsAgent: this.createHttpsAgent(),
+      ...(options?.timeoutMs !== undefined ? { timeout: options.timeoutMs } : {}),
     };
     const startedAt = Date.now();
     this.logCmsRequest('authenticated', url, data);

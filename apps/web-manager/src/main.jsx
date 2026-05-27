@@ -7,6 +7,7 @@ import './styles/index.css'
 import App from './app/App'
 
 import { ToastProvider } from './infrastructure/context/ToastContext'
+import { CmsJobProvider } from './infrastructure/context/CmsJobContext'
 import { ConfirmProvider } from './infrastructure/context/ConfirmContext'
 import { ErrorBoundary } from './infrastructure/ErrorBoundary'
 import { registerDesktopExitAuthReset } from './app/registerDesktopExitAuthReset'
@@ -17,13 +18,15 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <Provider store={store}>
       <ToastProvider>
-        <ConfirmProvider>
-          <AppRouter>
-            <ErrorBoundary>
-              <App />
-            </ErrorBoundary>
-          </AppRouter>
-        </ConfirmProvider>
+        <CmsJobProvider>
+          <ConfirmProvider>
+            <AppRouter>
+              <ErrorBoundary>
+                <App />
+              </ErrorBoundary>
+            </AppRouter>
+          </ConfirmProvider>
+        </CmsJobProvider>
       </ToastProvider>
     </Provider>
   </StrictMode>,
