@@ -29,6 +29,13 @@ export default function HostGroupTree({
 
   const handleGroupSelect = (groupId) => {
     dispatch(setSelectedGroup({ groupId }));
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (!next.has(groupId)) {
+        next.add(groupId);
+      }
+      return next;
+    });
   };
 
   return (
@@ -52,7 +59,6 @@ export default function HostGroupTree({
               open={isExpanded}
               onToggle={() => toggleGroup(groupId)}
               onSelect={() => handleGroupSelect(groupId)}
-              onDoubleClick={() => toggleGroup(groupId)}
               onContextMenu={(e) => {
                 if (onGroupContextMenu) onGroupContextMenu(e, groupId, group.name);
               }}
