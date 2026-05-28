@@ -38,13 +38,31 @@ export type CmsJobRecord = {
   error?: { message: string; code?: string; cmsStatus?: string };
 };
 
-export function buildOperationKey(userId: string, hostUid: string, dbname: string): string {
-  return `${userId}:${hostUid}:${dbname}`;
-}
+/** One active long-running CMS job per host (CMS serializes requests). */
+export type HostCmsOperationLock = {
+  jobId: string;
+  userKey: string;
+  dbname: string;
+  type: CmsJobType;
+};
 
 export function resolveJobDbname(type: CmsJobType, dbname: string, payload: CmsJobPayload): string {
   if (type === 'copy') {
-    return (payload as CopyDbRequest).destdbname;
+    const copy = payload as CopyDbRequest;
+    return `${copy.srcdbname}→${copy.destdbname}`;
   }
   return dbname;
+}
+
+/** DB names involved in the lock (copy locks source + destination). */
+export function resolveLockedDbnames(
+  type: CmsJobType,
+  dbname: string,
+  payload: CmsJobPayload
+): string[] {
+  if (type === 'copy') {
+    const copy = payload as CopyDbRequest;
+    return [copy.srcdbname, copy.destdbname];
+  }
+  return [dbname];
 }

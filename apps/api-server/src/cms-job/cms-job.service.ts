@@ -22,10 +22,11 @@ import { DatabaseLifecycleService } from '@database/lifecycle/database-lifecycle
 import { EncryptionService } from '@security';
 import { LockService } from '@lock/lock.service';
 import {
-  buildOperationKey,
   CmsJobPayload,
   CmsJobRecord,
+  HostCmsOperationLock,
   resolveJobDbname,
+  resolveLockedDbnames,
 } from './cms-job.types';
 import { CmsJobStore } from './cms-job.store';
 import { CMS_JOB_CLEANUP_INTERVAL_MS } from './cms-job.cleanup';
@@ -47,8 +48,8 @@ export class CmsJobService implements OnModuleInit, OnModuleDestroy {
     return this.encryptionService.getHashedValue(userId);
   }
 
-  private opsLockFile(userKey: string): string {
-    return `jobs-ops-${userKey}`;
+  private hostOpsLockFile(hostUid: string): string {
+    return `jobs-host-ops-${hostUid}`;
   }
 
   onModuleInit(): void {
@@ -113,21 +114,8 @@ export class CmsJobService implements OnModuleInit, OnModuleDestroy {
   ): Promise<CreateCmsJobResponse> {
     const uKey = this.userKey(userId);
     const lockDbname = resolveJobDbname(type, dbname, payload);
-    const operationKey = buildOperationKey(userId, hostUid, lockDbname);
+    const lockedDbnames = resolveLockedDbnames(type, dbname, payload);
     const jobId = uuidv4();
-
-    await this.lockService.withLock(this.opsLockFile(uKey), async () => {
-      const ops = await this.store.readOperations(uKey);
-      if (ops[operationKey]) {
-        throw DatabaseError.OperationInProgress({
-          hostUid,
-          dbname: lockDbname,
-          existingJobId: ops[operationKey],
-        });
-      }
-      ops[operationKey] = jobId;
-      await this.store.writeOperations(uKey, ops);
-    });
 
     const record: CmsJobRecord = {
       jobId,
@@ -139,11 +127,45 @@ export class CmsJobService implements OnModuleInit, OnModuleDestroy {
       createdAt: new Date().toISOString(),
       payload,
     };
-    await this.store.saveJob(uKey, record);
+
+    try {
+      await this.store.saveJob(uKey, record);
+    } catch (err) {
+      throw err;
+    }
+
+    try {
+      await this.lockService.withLock(this.hostOpsLockFile(hostUid), async () => {
+        await this.store.reconcileHostOperation(hostUid);
+        await this.store.reconcileLegacyUserOperations(uKey);
+
+        const existing = await this.store.readHostOperation(hostUid);
+        if (existing && (await this.store.isJobActive(existing.userKey, existing.jobId))) {
+          throw DatabaseError.OperationInProgress({
+            hostUid,
+            dbname: lockDbname,
+            lockedDbnames,
+            existingJobId: existing.jobId,
+          });
+        }
+
+        const hostLock: HostCmsOperationLock = {
+          jobId,
+          userKey: uKey,
+          dbname: lockDbname,
+          type,
+        };
+        await this.store.writeHostOperation(hostUid, hostLock);
+      });
+    } catch (err) {
+      await this.store.deleteJob(uKey, jobId);
+      throw err;
+    }
+
     void this.runJobCleanup('create');
 
     setImmediate(() => {
-      void this.runJob(uKey, jobId, operationKey).catch((err) => {
+      void this.runJob(uKey, jobId, hostUid).catch((err) => {
         this.logger.error(`Job ${jobId} crashed: ${err?.message || err}`, err?.stack);
       });
     });
@@ -312,7 +334,7 @@ export class CmsJobService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async runJob(uKey: string, jobId: string, operationKey: string): Promise<void> {
+  private async runJob(uKey: string, jobId: string, hostUid: string): Promise<void> {
     const job = await this.store.getJob(uKey, jobId);
     if (!job) return;
 
@@ -347,12 +369,8 @@ export class CmsJobService implements OnModuleInit, OnModuleDestroy {
     } finally {
       job.finishedAt = new Date().toISOString();
       await this.store.saveJob(uKey, job);
-      await this.lockService.withLock(this.opsLockFile(uKey), async () => {
-        const ops = await this.store.readOperations(uKey);
-        if (ops[operationKey] === jobId) {
-          delete ops[operationKey];
-          await this.store.writeOperations(uKey, ops);
-        }
+      await this.lockService.withLock(this.hostOpsLockFile(hostUid), async () => {
+        await this.store.clearHostOperationIfJob(hostUid, jobId);
       });
     }
   }

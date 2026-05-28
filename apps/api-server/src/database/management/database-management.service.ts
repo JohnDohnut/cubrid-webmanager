@@ -23,6 +23,7 @@ import {
   UnloadDatabaseRequest,
   UnloadInfoClientResponse,
 } from '@api-interfaces';
+import { normalizeLoadDatabaseRequest } from './normalize-load-database-request';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import { DatabaseInfoService } from '@database/info/database-info.service';
 import {
@@ -277,23 +278,25 @@ export class DatabaseManagementService extends BaseService {
     dbname: string,
     request: LoadDatabaseRequest
   ): Promise<LoadDatabaseCmsResponse> {
+    const normalized = normalizeLoadDatabaseRequest(request);
+
     const cmsRequest: LoadDatabaseCmsRequest = {
       task: 'loaddb',
       dbname: dbname,
-      checkoption: request.checkoption,
-      period: request.period,
-      user: request.user,
-      _DBID: request._DBID ?? request.user,
-      _DBPASSWD: request._DBPASSWD ?? '',
-      estimated: request.estimated,
-      oiduse: request.oiduse,
-      statisticsuse: request.statisticsuse,
-      nolog: request.nolog,
-      schema: request.schema,
-      object: request.object,
-      index: request.index,
-      errorcontrolfile: request.errorcontrolfile,
-      ignoreclassfile: request.ignoreclassfile,
+      checkoption: normalized.checkoption,
+      period: normalized.period,
+      user: normalized.user,
+      _DBID: normalized._DBID,
+      _DBPASSWD: normalized._DBPASSWD,
+      estimated: normalized.estimated,
+      oiduse: normalized.oiduse,
+      statisticsuse: normalized.statisticsuse,
+      nolog: normalized.nolog,
+      schema: normalized.schema,
+      object: normalized.object,
+      index: normalized.index,
+      errorcontrolfile: normalized.errorcontrolfile,
+      ignoreclassfile: normalized.ignoreclassfile,
     };
 
     return this.executeLongRunningCmsRequest<LoadDatabaseCmsRequest, LoadDatabaseCmsResponse>(

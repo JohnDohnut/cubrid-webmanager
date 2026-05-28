@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { getStoragePath } from '@util';
-import { CmsJobRecord } from './cms-job.types';
+import { CmsJobRecord, HostCmsOperationLock } from './cms-job.types';
 import {
   getJobRetentionMs,
   getStaleRunningJobMs,
@@ -25,6 +25,10 @@ export class CmsJobStore {
 
   private operationsPath(userKey: string): string {
     return path.join(this.jobsRoot(), 'operations', `${userKey}.json`);
+  }
+
+  private hostOperationPath(hostUid: string): string {
+    return path.join(this.jobsRoot(), 'operations', 'hosts', `${hostUid}.json`);
   }
 
   async saveJob(userKey: string, record: CmsJobRecord): Promise<void> {
@@ -84,6 +88,70 @@ export class CmsJobStore {
     }
   }
 
+  async readHostOperation(hostUid: string): Promise<HostCmsOperationLock | null> {
+    try {
+      const raw = await fs.readFile(this.hostOperationPath(hostUid), 'utf8');
+      const parsed = JSON.parse(raw) as HostCmsOperationLock | null;
+      return parsed?.jobId ? parsed : null;
+    } catch (err: any) {
+      if (err?.code === 'ENOENT') return null;
+      throw err;
+    }
+  }
+
+  async writeHostOperation(hostUid: string, lock: HostCmsOperationLock | null): Promise<void> {
+    const file = this.hostOperationPath(hostUid);
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    if (!lock) {
+      await fs.unlink(file).catch((err: any) => {
+        if (err?.code !== 'ENOENT') throw err;
+      });
+      return;
+    }
+    await fs.writeFile(file, JSON.stringify(lock), 'utf8');
+  }
+
+  async clearHostOperationIfJob(hostUid: string, jobId: string): Promise<void> {
+    const lock = await this.readHostOperation(hostUid);
+    if (lock?.jobId === jobId) {
+      await this.writeHostOperation(hostUid, null);
+    }
+  }
+
+  async isJobActive(userKey: string, jobId: string): Promise<boolean> {
+    const job = await this.getJob(userKey, jobId);
+    return job != null && (job.status === 'queued' || job.status === 'running');
+  }
+
+  /** Drop host lock when the referenced job file is missing or no longer active. */
+  async reconcileHostOperation(hostUid: string): Promise<void> {
+    const lock = await this.readHostOperation(hostUid);
+    if (!lock) return;
+
+    const active = await this.isJobActive(lock.userKey, lock.jobId);
+    if (!active) {
+      await this.writeHostOperation(hostUid, null);
+    }
+  }
+
+  /** Clear legacy per-user ops entries whose job records are gone (pre host-level lock). */
+  async reconcileLegacyUserOperations(userKey: string): Promise<void> {
+    const ops = await this.readOperations(userKey);
+    let changed = false;
+
+    for (const [key, jobId] of Object.entries(ops)) {
+      const active = await this.isJobActive(userKey, jobId);
+      if (!active) {
+        delete ops[key];
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      await this.writeOperations(userKey, ops);
+    }
+  }
+
   private async listUserJobKeys(): Promise<string[]> {
     const root = this.jobsRoot();
     try {
@@ -127,6 +195,7 @@ export class CmsJobStore {
         job.finishedAt = finishedAt;
         await this.saveJob(userKey, job);
         await this.removeJobIdFromOperations(userKey, job.jobId);
+        await this.clearHostOperationIfJob(job.hostUid, job.jobId);
         failed += 1;
       }
     }
@@ -169,7 +238,7 @@ export class CmsJobStore {
     }
 
     for (const userKey of userKeys) {
-      if (userKey === 'operations') continue;
+      if (userKey === 'operations' || userKey === 'hosts') continue;
 
       const dir = path.join(root, userKey);
       let stat;
@@ -219,6 +288,7 @@ export class CmsJobStore {
 
         await fs.unlink(filePath);
         await this.removeJobIdFromOperations(userKey, jobId);
+        await this.clearHostOperationIfJob(job.hostUid, jobId);
         removed += 1;
       }
     }

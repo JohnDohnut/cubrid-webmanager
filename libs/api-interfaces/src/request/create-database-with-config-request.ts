@@ -33,8 +33,13 @@ export type CreateDatabaseWithConfigRequest = CreateDatabaseClientRequest & {
   setAutoAddVol?: SetAutoAddVolRequest;
 
   /**
-   * Optional: Enable auto-start after creation
-   * Uses top-level dbname and automatically uses "cubridconf" as confname
+   * Optional: Start the database immediately after creation (default: true).
+   */
+  startAfterCreation?: boolean;
+
+  /**
+   * Optional: Register DB in cubridconf for auto-start when CUBRID service boots.
+   * Uses top-level dbname and automatically uses "cubridconf" as confname.
    */
   setAutoStart?: boolean;
 };
