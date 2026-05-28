@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeLoadDatabaseModal } from '../databaseSlice';
 import { databaseApi } from '../databaseApi';
-import { databaseJobApi, buildLoadDatabaseCredentials } from '../databaseJobApi';
+import { databaseJobApi } from '../databaseJobApi';
 import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
 import { getCmsJobLoadingSubtitle } from '../../../infrastructure/cmsJob/cmsJobUi';
 import { useCM } from '../../../constants/useCM';
@@ -40,7 +40,6 @@ export default function LoadDatabaseModal() {
   } = useActionState();
   const { runJob } = useCmsJob();
   const [jobStatus, setJobStatus] = useState(null);
-  const jobDismissedRef = useRef(false);
 
   const [unloadList, setUnloadList] = useState([]);
   const [selectedUnload, setSelectedUnload] = useState('');
@@ -97,7 +96,6 @@ export default function LoadDatabaseModal() {
 
   useEffect(() => {
     if (isLoadDBModalOpen && selectedDatabase) {
-      jobDismissedRef.current = false;
       resetAction();
       setFormData((prev) => ({
         ...prev,
@@ -181,7 +179,9 @@ export default function LoadDatabaseModal() {
       const payload = {
         dbname: selectedDatabase,
         ...loadObject,
-        ...buildLoadDatabaseCredentials(formData.dbUsername, formData.dbPassword),
+        user: formData.dbUsername,
+        _DBID: formData.dbUsername,
+        _DBPASSWD: formData.dbPassword ?? '',
         oiduse: toYesNo(formData.checkBoxes.oiduse),
         statisticsuse: toYesNo(formData.checkBoxes.statisticsuse),
         nolog: toYesNo(formData.checkBoxes.nolog),
@@ -194,28 +194,15 @@ export default function LoadDatabaseModal() {
 
       await runJob(
         () => databaseJobApi.submitLoad(selectedHostUid, selectedDatabase, payload),
-        {
-          onProgress: (j) => {
-            if (!jobDismissedRef.current) {
-              setJobStatus(j.jobStatus ?? j.status);
-            }
-          },
-        }
+        { onProgress: (j) => setJobStatus(j.jobStatus ?? j.status) }
       );
-      if (!jobDismissedRef.current) {
-        endSuccess();
-      }
+      endSuccess();
     } catch (err) {
-      if (!jobDismissedRef.current) {
-        endError(typeof err === 'string' ? err : (err.message || CM.failure));
-      }
+      endError(typeof err === 'string' ? err : (err.message || CM.failure));
     }
   };
 
   const handleClose = () => {
-    if (isLoading) {
-      jobDismissedRef.current = true;
-    }
     dispatch(closeLoadDatabaseModal());
     resetAction();
   };

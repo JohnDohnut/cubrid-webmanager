@@ -414,8 +414,7 @@ export class DatabaseLifecycleService extends BaseService {
     hostUid: string,
     request: CreateDatabaseWithConfigRequest
   ): Promise<CreateDatabaseWithConfigResponse> {
-    const { username, updateUser, setAutoAddVol, setAutoStart, startAfterCreation, ...createDbRequest } =
-      request;
+    const { username, updateUser, setAutoAddVol, setAutoStart, ...createDbRequest } = request;
 
     const response: CreateDatabaseWithConfigResponse = {
       createDatabase: { success: false },
@@ -435,9 +434,8 @@ export class DatabaseLifecycleService extends BaseService {
       data: createDatabaseResult,
     };
 
-    // 1-1. Start database after successful creation (default on; separate from cubridconf auto-start).
-    const shouldStartAfterCreation = startAfterCreation !== false;
-    if (shouldStartAfterCreation) {
+    // 1-1. Start database after successful creation only when requested.
+    if (setAutoStart) {
       try {
         const startInfo = await this.startDatabase(userId, hostUid, createDbRequest.dbname);
         response.startDatabase = {

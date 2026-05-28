@@ -265,7 +265,7 @@ export default function CreateDatabaseModal() {
         logpagesize: formData.logPageSize,
         logsize: formData.logVolSize,
         logvolpath: formData.logVolPath,
-        startAfterCreation: formData.autoStart,
+        setAutoStart: formData.autoStart,
         overwrite_config_file: 'YES',
         numpage: Math.floor((formData.genericVolSize * 1024 * 1024) / formData.pageSize),
         exvol: exvol,

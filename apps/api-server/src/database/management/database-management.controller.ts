@@ -36,7 +36,6 @@ import {
 } from '@api-interfaces';
 import { ValidationError } from '@error/validation/validation-error';
 import { validateRequiredFields } from '@util';
-import { normalizeLoadDatabaseRequest } from './normalize-load-database-request';
 import { CmsJobService } from '@cms-job/cms-job.service';
 import { DatabaseManagementService } from './database-management.service';
 
@@ -174,10 +173,9 @@ export class DatabaseManagementController {
     @Body() body: LoadDatabaseRequest
   ): Promise<CreateCmsJobResponse> {
     const userId = req.user.sub;
-    const request = normalizeLoadDatabaseRequest(body);
 
     validateRequiredFields(
-      request,
+      body,
       [
         'checkoption',
         'period',
@@ -199,7 +197,7 @@ export class DatabaseManagementController {
     );
 
     this.logger.log(`Enqueue load job: ${dbname} on host: ${hostUid}`);
-    return await this.cmsJobService.createLoadJob(userId, hostUid, dbname, request);
+    return await this.cmsJobService.createLoadJob(userId, hostUid, dbname, body);
   }
 
   /**

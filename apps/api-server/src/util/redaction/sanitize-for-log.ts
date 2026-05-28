@@ -3,21 +3,14 @@ export const REDACTED_VALUE = '[REDACTED]';
 export function isSensitiveLogKey(key: string): boolean {
   const lower = key.toLowerCase();
 
-  if (
-    lower === 'authorization' ||
-    lower === 'cookie' ||
-    lower === 'token' ||
-    lower === 'secret' ||
-    lower === '_dbid' ||
-    lower === '_dbpasswd'
-  ) {
+  if (lower === 'authorization' || lower === 'cookie' || lower === 'token' || lower === 'secret') {
     return true;
   }
 
   return (
     lower.includes('password') ||
     lower.includes('passwd') ||
-    lower.includes('userpass') ||
+    lower.includes('pass') ||
     lower.includes('secret')
   );
 }

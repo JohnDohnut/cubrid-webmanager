@@ -23,14 +23,14 @@ export type LoadDatabaseRequest = {
   user: string;
 
   /**
-   * CMS loaddb database user id (mirrors `user`; api-server always sends both).
+   * CMS loaddb database user id (same as `user` when provided from UI).
    */
-  _DBID?: string;
+  _DBID: string;
 
   /**
-   * CMS loaddb database password (empty string when omitted).
+   * CMS loaddb database password.
    */
-  _DBPASSWD?: string;
+  _DBPASSWD: string;
 
   /**
    * Estimated

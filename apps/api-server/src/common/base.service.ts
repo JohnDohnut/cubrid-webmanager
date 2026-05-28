@@ -4,7 +4,7 @@ import { checkCmsStatusError } from './decorators/handle-cms-status-errors.decor
 import { checkCmsTokenError } from './decorators/handle-cms-token-errors.decorator';
 import { Logger } from '@nestjs/common';
 import { BaseCmsRequest } from '@type/cms-request/base-cms-request';
-import { formatAuditLog, sanitizeForLog } from '@util';
+import { formatAuditLog } from '@util';
 import { getLongJobCmsTimeoutMs } from '../cms-job/cms-job.constants';
 
 /**
@@ -57,7 +57,7 @@ export abstract class BaseService {
         address: url,
         hostUid,
         task: cmsRequest.task,
-        body: sanitizeForLog(requestWithToken),
+        body: requestWithToken,
       })
     );
 
@@ -115,7 +115,7 @@ export abstract class BaseService {
         hostUid,
         task: cmsRequest.task,
         longRunning: true,
-        body: sanitizeForLog(requestWithToken),
+        body: requestWithToken,
       })
     );
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeUnloadDatabaseModal, openUnloadResultModal } from '../databaseSlice';
 import { databaseApi } from '../databaseApi';
@@ -67,7 +67,6 @@ export default function UnloadDatabaseModal() {
   } = useActionState();
   const { runJob } = useCmsJob();
   const [jobStatus, setJobStatus] = useState(null);
-  const jobDismissedRef = useRef(false);
 
   const [formData, setFormData] = useState(INITIAL_FORM_DATA);
   const [dynamicTables, setDynamicTables] = useState([]);
@@ -96,7 +95,6 @@ export default function UnloadDatabaseModal() {
 
   useEffect(() => {
     if (isUnloadDBModalOpen && selectedDatabase) {
-      jobDismissedRef.current = false;
       resetAction();
       setFormData({
         ...INITIAL_FORM_DATA,
@@ -176,30 +174,17 @@ export default function UnloadDatabaseModal() {
 
       const job = await runJob(
         () => databaseJobApi.submitUnload(selectedHostUid, selectedDatabase, payload),
-        {
-          onProgress: (j) => {
-            if (!jobDismissedRef.current) {
-              setJobStatus(j.jobStatus ?? j.status);
-            }
-          },
-        }
+        { onProgress: (j) => setJobStatus(j.jobStatus ?? j.status) }
       );
       resetAction();
       dispatch(closeUnloadDatabaseModal());
-      if (!jobDismissedRef.current) {
-        dispatch(openUnloadResultModal(job.result ?? {}));
-      }
+      dispatch(openUnloadResultModal(job.result ?? {}));
     } catch (err) {
-      if (!jobDismissedRef.current) {
-        endError(typeof err === 'string' ? err : (err.message || CM.failure));
-      }
+      endError(typeof err === 'string' ? err : (err.message || CM.failure));
     }
   };
 
   const handleClose = () => {
-    if (isLoading) {
-      jobDismissedRef.current = true;
-    }
     dispatch(closeUnloadDatabaseModal());
     setFormData(INITIAL_FORM_DATA);
     setDynamicTables([]);

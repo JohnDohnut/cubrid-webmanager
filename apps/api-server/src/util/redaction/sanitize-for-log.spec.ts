@@ -25,22 +25,6 @@ describe('sanitizeForLog', () => {
     });
   });
 
-  it('redacts CMS loaddb credential fields', () => {
-    const sanitized = sanitizeForLog({
-      task: 'loaddb',
-      token: 'cms-token',
-      _DBID: 'dba',
-      _DBPASSWD: 'secret',
-    });
-
-    expect(sanitized).toEqual({
-      task: 'loaddb',
-      token: REDACTED_VALUE,
-      _DBID: REDACTED_VALUE,
-      _DBPASSWD: REDACTED_VALUE,
-    });
-  });
-
   it('redacts sensitive values inside arrays', () => {
     const sanitized = sanitizeForLog([
       { userpass: 'secret', username: 'dba' },

@@ -44,16 +44,6 @@ const submitJob = (url, payload) =>
     timeout: JOB_SUBMIT_TIMEOUT_MS,
   });
 
-/** CMS loaddb expects user, _DBID, and _DBPASSWD together. */
-export function buildLoadDatabaseCredentials(username, password) {
-  const id = String(username ?? 'dba').trim() || 'dba';
-  return {
-    user: id,
-    _DBID: id,
-    _DBPASSWD: password != null ? String(password) : '',
-  };
-}
-
 export const databaseJobApi = {
   getJob: async (jobId) => {
     const job = await apiClient.get(`/jobs/${jobId}`, { timeout: JOB_POLL_TIMEOUT_MS });

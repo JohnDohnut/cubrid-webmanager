@@ -632,34 +632,11 @@ describe('DatabaseLifecycleService', () => {
           success: true,
           data: mockCreateDatabaseResponse,
         },
-        startDatabase: {
-          success: true,
-          data: mockStartInfoForCreate,
-        },
       });
-      expect(startDatabaseSpy).toHaveBeenCalledWith(mockUserId, mockHostUid, 'testdb');
+      expect(startDatabaseSpy).not.toHaveBeenCalled();
       expect(databaseUserService.updateUser).not.toHaveBeenCalled();
       expect(databaseConfigService.setAutoAddVol).not.toHaveBeenCalled();
       expect(databaseConfigService.setAutoStart).not.toHaveBeenCalled();
-    });
-
-    it('should skip startDatabase when startAfterCreation is false but still apply setAutoStart config', async () => {
-      const startDatabaseSpy = jest.spyOn(service, 'startDatabase');
-      const request = {
-        ...mockCreateDbRequest,
-        startAfterCreation: false,
-        setAutoStart: true,
-      };
-
-      const result = await service.createDatabase(mockUserId, mockHostUid, request);
-
-      expect(startDatabaseSpy).not.toHaveBeenCalled();
-      expect(databaseConfigService.setAutoStart).toHaveBeenCalledWith(mockUserId, mockHostUid, {
-        confname: 'cubridconf',
-        dbname: 'testdb',
-      });
-      expect(result.startDatabase).toBeUndefined();
-      expect(result.setAutoStart?.success).toBe(true);
     });
 
     it('should successfully create database with all optional configurations', async () => {
