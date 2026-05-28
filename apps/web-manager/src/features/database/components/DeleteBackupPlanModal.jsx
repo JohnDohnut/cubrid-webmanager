@@ -77,7 +77,7 @@ export default function DeleteBackupPlanModal() {
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title="Deleting Plan" icon="delete_forever" onClose={handleClose} maxWidth="440px" iconVariant="danger">
+      <Modal isOpen title="Deleting Plan" icon="delete_forever" onClose={handleClose} maxWidth="440px" iconVariant="danger" showCloseButton={false}>
         <ModalStatusLoading 
           title="Removing Registry" 
           subtitle={`Discarding automation handle "${selectedBackupId}".`}

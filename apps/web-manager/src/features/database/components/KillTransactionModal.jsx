@@ -68,7 +68,7 @@ export default function KillTransactionModal({ onTransactionKilled }) {
 
   if (isLoading) {
     return (
-      <Modal isOpen title={CM.killTransactionTitle} icon="cancel" onClose={handleClose} maxWidth="520px">
+      <Modal isOpen title={CM.killTransactionTitle} icon="cancel" onClose={handleClose} maxWidth="520px" showCloseButton={false}>
         <ModalStatusLoading title={CM.killTransactionTitle} subtitle={CM.killTransactionTitle} />
       </Modal>
     );

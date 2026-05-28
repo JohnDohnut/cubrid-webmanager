@@ -9,7 +9,7 @@ import {
 } from './cmsJobLabels';
 
 function StatusBadge({ status, CM }) {
-  const base = 'text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full';
+  const base = 'text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full';
   if (status === 'succeeded') {
     return (
       <span className={`${base} bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300`}>
@@ -43,12 +43,10 @@ function JobRow({ job, CM, onDismiss }) {
   const op = getCmsJobTypeLabel(job.type, CM);
 
   return (
-    <li className="flex items-start gap-3 px-3 py-2.5 border-b border-slate-100 dark:border-white/5 last:border-0">
+    <li className="flex items-start gap-2 px-3 py-2 border-b border-slate-100 dark:border-white/5 last:border-0">
       <div className="mt-0.5 shrink-0">
         {isActive ? (
-          <span className="inline-flex h-5 w-5 items-center justify-center">
-            <Icon name="sync" className="text-amber-500 animate-spin" size="sm" weight={300} />
-          </span>
+          <Icon name="sync" className="text-amber-500 animate-spin" size="sm" weight={300} />
         ) : job.jobStatus === 'succeeded' ? (
           <Icon name="check_circle" className="text-green-500" size="sm" weight={300} />
         ) : (
@@ -56,19 +54,19 @@ function JobRow({ job, CM, onDismiss }) {
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <Typography variant="p" className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">
+        <Typography variant="p" className="text-[12px] font-medium text-slate-800 dark:text-slate-100 truncate">
           {op}
         </Typography>
-        <Typography variant="p" className="text-xs text-slate-500 dark:text-slate-400 truncate">
+        <Typography variant="p" className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
           {job.dbname || '—'}
         </Typography>
         {job.jobStatus === 'failed' && job.error?.message && (
-          <Typography variant="p" className="text-xs text-red-600 dark:text-red-400 mt-1 line-clamp-2">
+          <Typography variant="p" className="text-[10px] text-red-600 dark:text-red-400 mt-0.5 line-clamp-2">
             {job.error.message}
           </Typography>
         )}
       </div>
-      <div className="flex flex-col items-end gap-1 shrink-0">
+      <div className="flex flex-col items-end gap-0.5 shrink-0">
         <StatusBadge status={job.jobStatus} CM={CM} />
         {isTerminalCmsJobStatus(job.jobStatus) && (
           <button
@@ -85,6 +83,9 @@ function JobRow({ job, CM, onDismiss }) {
   );
 }
 
+/**
+ * Background jobs strip — rendered at the bottom of the sidebar navigator.
+ */
 export function BackgroundJobsPanel({
   jobs,
   activeCount,
@@ -96,74 +97,68 @@ export function BackgroundJobsPanel({
   const CM = useCM();
   const hasCompleted = jobs.some((j) => isTerminalCmsJobStatus(j.jobStatus));
 
-  if (!expanded) {
-    return (
-      <button
-        type="button"
-        onClick={onToggleExpanded}
-        className="fixed bottom-4 left-4 z-[9998] flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-bk-side text-slate-800 dark:text-slate-100 pointer-events-auto hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
-      >
-        {activeCount > 0 ? (
-          <Icon name="sync" className="text-amber-500 animate-spin" size="sm" weight={300} />
-        ) : (
-          <Icon name="pending_actions" className="text-slate-500" size="sm" weight={300} />
-        )}
-        <span className="text-sm font-medium">
-          {activeCount > 0 ? CM.backgroundJobsRunning(activeCount) : CM.backgroundJobsTitle}
-        </span>
-        <Icon name="expand_less" size="sm" weight={300} className="text-slate-400" />
-      </button>
-    );
+  if (jobs.length === 0) {
+    return null;
   }
 
   return (
-    <div
-      className="fixed bottom-4 left-4 z-[9998] w-[min(100vw-2rem,360px)] max-h-[min(50vh,420px)] flex flex-col rounded-xl shadow-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-bk-side pointer-events-auto overflow-hidden"
+    <section
+      className="flex-none w-full border-t border-slate-200 dark:border-white/5 bg-slate-50/90 dark:bg-black/25 flex flex-col shrink-0 max-h-[min(40vh,240px)]"
       role="region"
       aria-label={CM.backgroundJobsTitle}
+      id="sidebar-background-jobs"
     >
-      <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-slate-100 dark:border-white/10 bg-slate-50/80 dark:bg-white/5">
-        <div className="flex items-center gap-2 min-w-0">
-          <Icon name="pending_actions" className="text-amber-500 shrink-0" weight={300} />
-          <Typography variant="p" className="text-sm font-semibold truncate">
-            {CM.backgroundJobsTitle}
-          </Typography>
-          {activeCount > 0 && (
-            <span className="text-xs font-medium text-amber-600 dark:text-amber-400 shrink-0">
-              {CM.backgroundJobsRunning(activeCount)}
-            </span>
-          )}
+      <button
+        type="button"
+        onClick={onToggleExpanded}
+        className="flex-none w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-slate-100/80 dark:hover:bg-white/5 transition-colors"
+      >
+        <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 text-amber-500">
+          <Icon
+            name="chevron_right"
+            size="xs"
+            className={`transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
+            weight={300}
+          />
         </div>
-        <div className="flex items-center gap-1 shrink-0">
-          {hasCompleted && (
-            <button
-              type="button"
-              onClick={onClearCompleted}
-              className="text-[11px] text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 px-2 py-1 rounded"
-            >
-              {CM.clearCompletedJobs}
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onToggleExpanded}
-            className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded"
-            aria-label={CM.close}
-          >
-            <Icon name="expand_more" size="sm" weight={300} />
-          </button>
-        </div>
-      </div>
-
-      <ul className="flex-1 overflow-y-auto overscroll-contain">
-        {jobs.length === 0 ? (
-          <li className="px-4 py-6 text-center text-sm text-slate-500">{CM.backgroundJobsEmpty}</li>
+        {activeCount > 0 ? (
+          <Icon name="sync" className="text-amber-500 animate-spin shrink-0" size="sm" weight={300} />
         ) : (
-          jobs.map((job) => (
-            <JobRow key={job.jobId} job={job} CM={CM} onDismiss={onDismiss} />
-          ))
+          <Icon name="pending_actions" className="text-slate-400 shrink-0" size="sm" weight={300} />
         )}
-      </ul>
-    </div>
+        <Typography
+          variant="caption"
+          className="flex-1 min-w-0 font-bold text-[11px] uppercase tracking-widest text-slate-600 dark:text-slate-400 truncate text-left"
+        >
+          {CM.backgroundJobsTitle}
+        </Typography>
+        {activeCount > 0 && (
+          <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 shrink-0">
+            {CM.backgroundJobsRunning(activeCount)}
+          </span>
+        )}
+      </button>
+
+      {expanded && (
+        <>
+          {hasCompleted && (
+            <div className="flex-none px-3 pb-1 flex justify-end">
+              <button
+                type="button"
+                onClick={onClearCompleted}
+                className="text-[10px] text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+              >
+                {CM.clearCompletedJobs}
+              </button>
+            </div>
+          )}
+          <ul className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+            {jobs.map((job) => (
+              <JobRow key={job.jobId} job={job} CM={CM} onDismiss={onDismiss} />
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
   );
 }

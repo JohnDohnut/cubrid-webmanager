@@ -1,4 +1,5 @@
 import { CmsJobStatus } from '@api-interfaces';
+import { getLongJobCmsTimeoutMs } from './cms-job.constants';
 
 /** How long to keep terminal job JSON files after finishedAt (default 24h). */
 export function getJobRetentionMs(): number {
@@ -9,11 +10,12 @@ export function getJobRetentionMs(): number {
   return hours * 60 * 60 * 1000;
 }
 
-/** Drop queued/running jobs older than this (default 8h; CMS long timeout is 6h). */
+/** Drop queued/running jobs older than this (default: long job timeout + 1h). */
 export function getStaleRunningJobMs(): number {
-  const hours = Number(process.env.CMS_JOB_STALE_RUNNING_HOURS ?? 8);
+  const defaultHours = getLongJobCmsTimeoutMs() / (60 * 60 * 1000) + 1;
+  const hours = Number(process.env.CMS_JOB_STALE_RUNNING_HOURS ?? defaultHours);
   if (!Number.isFinite(hours) || hours <= 0) {
-    return 8 * 60 * 60 * 1000;
+    return getLongJobCmsTimeoutMs() + 60 * 60 * 1000;
   }
   return hours * 60 * 60 * 1000;
 }

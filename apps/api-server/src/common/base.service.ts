@@ -5,6 +5,7 @@ import { checkCmsTokenError } from './decorators/handle-cms-token-errors.decorat
 import { Logger } from '@nestjs/common';
 import { BaseCmsRequest } from '@type/cms-request/base-cms-request';
 import { formatAuditLog } from '@util';
+import { getLongJobCmsTimeoutMs } from '../cms-job/cms-job.constants';
 
 /**
  * Base service class for CMS API communication.
@@ -103,7 +104,7 @@ export abstract class BaseService {
     const host = await this.hostService.findHostInternal(userId, hostUid);
     const url = `https://${host.address}:${host.port}/cm_api`;
     const requestWithToken = { ...cmsRequest, token: host.token || '' };
-    const timeoutMs = 6 * 60 * 60 * 1000;
+    const timeoutMs = getLongJobCmsTimeoutMs();
     const startedAt = Date.now();
 
     this.logger.log(

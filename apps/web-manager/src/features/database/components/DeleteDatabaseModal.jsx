@@ -129,7 +129,7 @@ export default function DeleteDatabaseModal() {
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title={CM.dbaConfirm} icon="delete_forever" onClose={handleClose} maxWidth="440px">
+      <Modal isOpen title={CM.dbaConfirm} icon="delete_forever" onClose={handleClose} maxWidth="440px" showCloseButton={false}>
         <ModalStatusLoading 
           title="Erasing Data Assets" 
           subtitle={`Authorizing destruction and removing all physical volumes for ${selectedDatabase}.`}

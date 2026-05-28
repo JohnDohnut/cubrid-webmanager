@@ -141,7 +141,7 @@ export default function AddQueryPlanModal() {
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title="Scheduling Automate" icon="bolt" onClose={handleClose} maxWidth="720px">
+      <Modal isOpen title="Scheduling Automate" icon="bolt" onClose={handleClose} maxWidth="720px" showCloseButton={false}>
         <ModalStatusLoading 
           title="Syncing Schedule" 
           subtitle={`Registering ${formData.queryId} with the CUBRID Automation Service.`}

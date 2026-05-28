@@ -232,6 +232,8 @@ export const CM = {
   brokerStatus: 'Broker Status',
   processingDbRequest: 'Processing database request...',
   processingRequest: 'Processing your request, please wait...',
+  cmsJobRunningInBackground: (target, statusHint = '') =>
+    `${target}${statusHint} — running in background`,
   backgroundJobsTitle: 'Background jobs',
   backgroundJobsRunning: (n) => `${n} running`,
   backgroundJobsEmpty: 'No background jobs',
@@ -538,6 +540,7 @@ export const CM = {
   genericVolume: 'Generic volume',
   logVolume: 'Log volume',
   volumeTypeData: 'Data',
+  volumeTypeIndex: 'Index',
   volumeTypeTemp: 'Temp',
   operationInterrupted: 'Operation Interrupted',
   operationFailed: 'Operation Failed',

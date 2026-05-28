@@ -3,6 +3,7 @@ import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeAddVolumeModal } from '../databaseSlice';
 import { databaseJobApi } from '../databaseJobApi';
 import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
+import { getCmsJobLoadingSubtitle } from '../../../infrastructure/cmsJob/cmsJobUi';
 import { databaseApi } from '../databaseApi';
 import { useCM } from '../../../constants/useCM';
 
@@ -150,7 +151,7 @@ export default function AddVolumeModal() {
       <Modal isOpen title={CM.volumeAllocation} icon="add_box" onClose={handleClose} maxWidth="720px">
         <ModalStatusLoading
           title={CM.scalingFoundation}
-          subtitle={`The system is creating and formatting a new ${purpose} volume for ${selectedDatabase}${jobStatus === 'running' ? ' (CMS)' : jobStatus === 'queued' ? ' (queued)' : ''}.`}
+          subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
         />
       </Modal>
     );

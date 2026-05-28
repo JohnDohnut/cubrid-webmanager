@@ -224,6 +224,8 @@ export const CM_KO = {
   brokerStatus: '브로커 상태',
   processingDbRequest: '데이터베이스 요청 처리 중...',
   processingRequest: '요청을 처리하는 중입니다. 잠시만 기다려 주세요.',
+  cmsJobRunningInBackground: (target, statusHint = '') =>
+    `${target}${statusHint} — 백그라운드에서 실행 중`,
   backgroundJobsTitle: '백그라운드 작업',
   backgroundJobsRunning: (n) => `${n}개 실행 중`,
   backgroundJobsEmpty: '백그라운드 작업 없음',
@@ -521,6 +523,7 @@ export const CM_KO = {
   genericVolume: '일반 볼륨',
   logVolume: '로그 볼륨',
   volumeTypeData: '데이터',
+  volumeTypeIndex: '인덱스',
   volumeTypeTemp: '임시',
   operationInterrupted: '작업 중단됨',
   operationFailed: '작업 실패',

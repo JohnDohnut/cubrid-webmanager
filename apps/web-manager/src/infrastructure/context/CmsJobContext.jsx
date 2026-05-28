@@ -17,7 +17,6 @@ import {
   isTerminalCmsJobStatus,
 } from '../cmsJob/cmsJobLabels';
 import { normalizeTrackedJob } from '../cmsJob/cmsJobUtils';
-import { BackgroundJobsPanel } from '../cmsJob/BackgroundJobsPanel';
 
 export const CmsJobContext = createContext(null);
 
@@ -96,7 +95,13 @@ export function CmsJobProvider({ children }) {
       const onUpdate = (serverJob) => {
         const normalized = normalizeTrackedJob(serverJob);
         upsertJob(jobId, normalized);
-        if (onProgress) onProgress(serverJob);
+        if (onProgress) {
+          try {
+            onProgress(serverJob);
+          } catch {
+            // Modal closed — background tracking continues.
+          }
+        }
       };
 
       if (initialJob) {
@@ -212,8 +217,6 @@ export function CmsJobProvider({ children }) {
     [visibleJobs]
   );
 
-  const showPanel = visibleJobs.length > 0;
-
   useEffect(() => {
     if (activeCount > 0) {
       setPanelExpanded(true);
@@ -244,21 +247,7 @@ export function CmsJobProvider({ children }) {
     ]
   );
 
-  return (
-    <CmsJobContext.Provider value={value}>
-      {children}
-      {isAuthenticated && showPanel && (
-        <BackgroundJobsPanel
-          jobs={visibleJobs}
-          activeCount={activeCount}
-          expanded={panelExpanded}
-          onToggleExpanded={() => setPanelExpanded((v) => !v)}
-          onDismiss={dismissJob}
-          onClearCompleted={clearCompleted}
-        />
-      )}
-    </CmsJobContext.Provider>
-  );
+  return <CmsJobContext.Provider value={value}>{children}</CmsJobContext.Provider>;
 }
 
 export function useCmsJobs() {

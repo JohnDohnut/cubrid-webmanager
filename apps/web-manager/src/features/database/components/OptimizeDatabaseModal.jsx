@@ -5,6 +5,7 @@ import { closeOptimizeDatabaseModal } from '../databaseSlice';
 import { databaseApi } from '../databaseApi';
 import { databaseJobApi } from '../databaseJobApi';
 import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
+import { getCmsJobLoadingSubtitle } from '../../../infrastructure/cmsJob/cmsJobUi';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -280,9 +281,7 @@ export default function OptimizeDatabaseModal() {
           <div className="text-center space-y-1.5 px-8">
             <Typography variant="h4" className="text-[14px] font-black text-slate-800 dark:text-white tracking-tight">Regenerating Statistics</Typography>
             <Typography variant="p" className="text-[11px] text-slate-500 font-medium leading-relaxed max-w-[280px] mx-auto">
-              Updating the cost-based optimizer for{' '}
-              <span className="font-black text-slate-900 dark:text-white">{selectedClassName || selectedDatabase}</span>
-              {jobStatus === 'running' ? ' (CMS)' : jobStatus === 'queued' ? ' (queued)' : ''}.
+              {getCmsJobLoadingSubtitle(selectedClassName || selectedDatabase, jobStatus, CM)}
             </Typography>
           </div>
           <div className="w-32 h-[2px] bg-slate-100 dark:bg-white/4 rounded-full overflow-hidden">

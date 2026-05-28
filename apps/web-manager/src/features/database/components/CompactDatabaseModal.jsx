@@ -3,6 +3,7 @@ import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeCompactDatabaseModal } from '../databaseSlice';
 import { databaseJobApi } from '../databaseJobApi';
 import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
+import { getCmsJobLoadingSubtitle } from '../../../infrastructure/cmsJob/cmsJobUi';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -79,13 +80,11 @@ export default function CompactDatabaseModal() {
   };
 
   if (isLoading) {
-    const statusHint =
-      jobStatus === 'running' ? ' (CMS)' : jobStatus === 'queued' ? ' (queued)' : '';
     return (
       <Modal isOpen title={CM.dynamicCompaction} icon="compress" onClose={handleClose} maxWidth="480px">
         <ModalStatusLoading
           title={CM.consolidatingBlocks}
-          subtitle={`${selectedDatabase}${statusHint} — running in background`}
+          subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
         />
       </Modal>
     );

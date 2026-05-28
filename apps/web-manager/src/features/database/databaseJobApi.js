@@ -30,17 +30,28 @@ export function formatCmsJobError(job) {
   return 'Job failed';
 }
 
+/** Align with api-server CMS long job timeout (default 12h). */
+export const CMS_JOB_LONG_TIMEOUT_MS = 12 * 60 * 60 * 1000;
+
+/** Job submit must not use the default 15s client timeout. */
+const JOB_SUBMIT_TIMEOUT_MS = CMS_JOB_LONG_TIMEOUT_MS;
+/** Per status poll; each GET /jobs/:id should return quickly. */
+const JOB_POLL_TIMEOUT_MS = 120_000;
+
 const submitJob = (url, payload) =>
-  apiClient.post(url, payload, { validateStatus: ACCEPTED });
+  apiClient.post(url, payload, {
+    validateStatus: ACCEPTED,
+    timeout: JOB_SUBMIT_TIMEOUT_MS,
+  });
 
 export const databaseJobApi = {
   getJob: async (jobId) => {
-    const job = await apiClient.get(`/jobs/${jobId}`);
+    const job = await apiClient.get(`/jobs/${jobId}`, { timeout: JOB_POLL_TIMEOUT_MS });
     const resolved = resolveCmsJobStatus(job);
     return resolved ? { ...job, jobStatus: resolved } : job;
   },
 
-  listActive: () => apiClient.get('/jobs/active'),
+  listActive: () => apiClient.get('/jobs/active', { timeout: JOB_POLL_TIMEOUT_MS }),
 
   submitUnload: (hostUid, dbname, payload) =>
     submitJob(`/${hostUid}/database/unload/${encodeURIComponent(dbname)}`, payload),
@@ -97,7 +108,13 @@ export function pollCmsJob(jobId, { intervalMs = 3000, onUpdate } = {}) {
       try {
         const job = await databaseJobApi.getJob(jobId);
         if (cancelled) return;
-        if (onUpdate) onUpdate(job);
+        if (onUpdate) {
+          try {
+            onUpdate(job);
+          } catch {
+            // Consumer unmounted (e.g. modal closed) — keep polling.
+          }
+        }
 
         const status = resolveCmsJobStatus(job);
         if (status === 'succeeded') {

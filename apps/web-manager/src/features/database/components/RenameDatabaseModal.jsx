@@ -3,6 +3,7 @@ import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeRenameDatabaseModal, fetchDatabaseStartInfo } from '../databaseSlice';
 import { databaseJobApi } from '../databaseJobApi';
 import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
+import { getCmsJobLoadingSubtitle } from '../../../infrastructure/cmsJob/cmsJobUi';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -97,7 +98,7 @@ export default function RenameDatabaseModal() {
       <Modal isOpen title={CM.renamingDatabase} icon="drive_file_rename_outline" onClose={handleClose} maxWidth="480px">
         <ModalStatusLoading
           title={CM.updatingIdentity}
-          subtitle={`${selectedDatabase}${jobStatus === 'running' ? ' (CMS)' : jobStatus === 'queued' ? ' (queued)' : ''} — running in background`}
+          subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
         />
       </Modal>
     );

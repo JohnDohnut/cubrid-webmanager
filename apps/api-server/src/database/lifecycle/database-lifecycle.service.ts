@@ -434,27 +434,29 @@ export class DatabaseLifecycleService extends BaseService {
       data: createDatabaseResult,
     };
 
-    // 1-1. Start database after successful creation
-    try {
-      const startInfo = await this.startDatabase(userId, hostUid, createDbRequest.dbname);
-      response.startDatabase = {
-        success: true,
-        data: startInfo,
-      };
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const errorStack = error instanceof Error ? error.stack : undefined;
-      const errorCode = (error as any)?.code || (error instanceof Error ? error.name : 'UNKNOWN');
-      const errorDetails = (error as any)?.details;
-      this.logger.error(`Failed to start database: ${errorMessage}`, errorStack);
-      response.startDatabase = {
-        success: false,
-        error: {
-          message: errorMessage || 'Failed to start database',
-          code: errorCode,
-          details: errorDetails,
-        },
-      };
+    // 1-1. Start database after successful creation only when requested.
+    if (setAutoStart) {
+      try {
+        const startInfo = await this.startDatabase(userId, hostUid, createDbRequest.dbname);
+        response.startDatabase = {
+          success: true,
+          data: startInfo,
+        };
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        const errorCode = (error as any)?.code || (error instanceof Error ? error.name : 'UNKNOWN');
+        const errorDetails = (error as any)?.details;
+        this.logger.error(`Failed to start database: ${errorMessage}`, errorStack);
+        response.startDatabase = {
+          success: false,
+          error: {
+            message: errorMessage || 'Failed to start database',
+            code: errorCode,
+            details: errorDetails,
+          },
+        };
+      }
     }
 
     // 2. Update user if requested

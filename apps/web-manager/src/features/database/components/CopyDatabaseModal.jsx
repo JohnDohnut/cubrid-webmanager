@@ -3,6 +3,7 @@ import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeCopyDatabaseModal, fetchDatabaseStartInfo } from '../databaseSlice';
 import { databaseJobApi } from '../databaseJobApi';
 import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
+import { getCmsJobLoadingSubtitle } from '../../../infrastructure/cmsJob/cmsJobUi';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -148,7 +149,7 @@ export default function CopyDatabaseModal() {
       <Modal isOpen title={CM.copyDatabase} icon="content_copy" onClose={handleClose} maxWidth="580px">
         <ModalStatusLoading
           title={CM.synchronizingVolumes}
-          subtitle={`${formData.destName}${jobStatus === 'running' ? ' (CMS)' : jobStatus === 'queued' ? ' (queued)' : ''} — running in background`}
+          subtitle={getCmsJobLoadingSubtitle(formData.destName, jobStatus, CM)}
         />
       </Modal>
     );

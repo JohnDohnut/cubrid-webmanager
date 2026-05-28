@@ -4,6 +4,7 @@ import { closeLoadDatabaseModal } from '../databaseSlice';
 import { databaseApi } from '../databaseApi';
 import { databaseJobApi } from '../databaseJobApi';
 import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
+import { getCmsJobLoadingSubtitle } from '../../../infrastructure/cmsJob/cmsJobUi';
 import { useCM } from '../../../constants/useCM';
 
 import LoadConfigSection from './load/LoadConfigSection';
@@ -207,12 +208,11 @@ export default function LoadDatabaseModal() {
   };
 
   if (isLoading) {
-    const statusHint = jobStatus === 'running' ? ' (CMS)' : jobStatus === 'queued' ? ' (queued)' : '';
     return (
       <Modal isOpen title={CM.loadDatabase} icon="download" onClose={handleClose} maxWidth="720px">
         <ModalStatusLoading
           title={CM.loadDatabase}
-          subtitle={`${selectedDatabase}${statusHint} — running in background`}
+          subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
         />
       </Modal>
     );
