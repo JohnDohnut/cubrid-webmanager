@@ -189,7 +189,7 @@ export default function LoadDatabaseModal() {
         estimated: formData.checkBoxes.estimated ? formData.values.estimated : 'none',
         errorcontrolfile: formData.checkBoxes.errorcontrolfile ? formData.values.errorcontrolfile : 'none',
         ignoreclassfile: formData.checkBoxes.ignoreclassfile ? formData.values.ignoreclassfile : 'none',
-        checkoption: formData.checkBoxes.checkoption ? 'both' : 'none',
+        checkoption: formData.checkBoxes.checkoption ? 'both' : 'load',
       };
 
       await runJob(
