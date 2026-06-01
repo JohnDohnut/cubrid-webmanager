@@ -19,7 +19,6 @@ const resolveApiBaseUrl = () => {
     return '/api';
   }
 
-  // HTTPS stack / reverse proxy: same-origin /api avoids browser CORS to :8080
   if (
     window.location.protocol === 'https:' ||
     window.location.protocol === 'http:'
@@ -31,7 +30,6 @@ const resolveApiBaseUrl = () => {
 };
 
 const apiClient = axios.create({
-  // Default to same-origin API path so deployments work across arbitrary customer hostnames/IPs.
   baseURL: resolveApiBaseUrl(),
   timeout: 15000,
   headers: {
@@ -56,15 +54,68 @@ export const setAuthToken = (token) => {
   }
 };
 
-// Initialize token from localStorage on app load
 const initialToken = localStorage.getItem('token');
 if (initialToken) {
   setAuthToken(initialToken);
 }
 
-// Map to track active host re-authentication promises
 const refreshingHosts = new Map();
 let isHandlingSystemSessionExpiry = false;
+let isRefreshingAccessToken = false;
+/** @type {Array<{ resolve: (token: string) => void, reject: (err: Error) => void }>} */
+let accessTokenRefreshWaiters = [];
+
+function unwrapAuthTokens(raw) {
+  const payload = raw?.data && typeof raw.data === 'object' ? raw.data : raw;
+  if (!payload?.token) return null;
+  return {
+    token: payload.token,
+    refreshToken: payload.refreshToken,
+  };
+}
+
+function notifyAccessTokenRefreshed(token) {
+  accessTokenRefreshWaiters.forEach(({ resolve }) => resolve(token));
+  accessTokenRefreshWaiters = [];
+}
+
+function notifyAccessTokenRefreshFailed(err) {
+  accessTokenRefreshWaiters.forEach(({ reject }) => reject(err));
+  accessTokenRefreshWaiters = [];
+}
+
+async function refreshAccessToken() {
+  const refreshToken = localStorage.getItem('refreshToken');
+  if (!refreshToken) {
+    throw new Error('No refresh token');
+  }
+
+  const response = await axios.post(
+    `${resolveApiBaseUrl()}/auth/refresh`,
+    { refreshToken },
+    {
+      headers: { 'Content-Type': 'application/json' },
+      ...(isDesktopRuntime() ? { adapter: 'fetch' } : {}),
+    }
+  );
+
+  const tokens = unwrapAuthTokens(response.data);
+  if (!tokens?.token) {
+    throw new Error('Refresh response missing access token');
+  }
+
+  localStorage.setItem('token', tokens.token);
+  if (tokens.refreshToken) {
+    localStorage.setItem('refreshToken', tokens.refreshToken);
+  }
+  setAuthToken(tokens.token);
+
+  const { store } = await import('../app/store');
+  const { sessionRefreshed } = await import('../features/auth/authSlice');
+  store.dispatch(sessionRefreshed(tokens));
+
+  return tokens.token;
+}
 
 async function handleSystemSessionExpired() {
   if (isHandlingSystemSessionExpiry) {
@@ -79,6 +130,7 @@ async function handleSystemSessionExpired() {
   isHandlingSystemSessionExpiry = true;
   try {
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     const { store } = await import('../app/store');
     const { logout } = await import('../features/auth/authSlice');
     store.dispatch(logout());
@@ -87,39 +139,28 @@ async function handleSystemSessionExpired() {
   }
 }
 
-// Helper to determine if a URL belongs to a specific host
 const getHostUidFromUrl = (url) => {
   if (!url) return null;
-  // URLs usually follow pattern /UID/endpoint
   const cleanUrl = url.replace(/^\//, '');
   const segments = cleanUrl.split('/');
   let hostUid = segments[0];
 
-  // If URL is /host/UID/..., the UID is the second segment
   if (hostUid === 'host' && segments[1]) {
     hostUid = segments[1];
   }
 
-  // Simple heuristic: host UIDs are usually long strings (UUID-like) or specific identifiers
   return (hostUid && hostUid.length > 15) ? hostUid : null;
 };
 
-// Response interceptor
 apiClient.interceptors.response.use(
   (response) => {
-    // Standard unwrap logic: if backend returned { data: ..., note: ... }, extract data
-    // If data is false or null, we still return the full response object to avoid falsy unwrap bugs
-    // or we check strictly for property existence.
     const rawData = response.data;
     if (rawData && typeof rawData === 'object' && Object.prototype.hasOwnProperty.call(rawData, 'data')) {
       if (rawData.data === false || rawData.data === null || rawData.data === 0) {
-        // If data is explicitly false/null, return the whole object so callers like hostSlice 
-        // can check response.data === false reliably.
         return rawData;
       }
       const payload = rawData.data;
       if (payload && typeof payload === 'object') {
-        // Attach envelope fields without clobbering domain `status` (e.g. CmsJobStatus).
         if (rawData.note) payload.note = rawData.note;
         if (rawData.status !== undefined) {
           payload.httpStatus = rawData.status;
@@ -137,30 +178,28 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config;
     const apiData = error.response?.data;
     const statusCode = error.response?.status;
+    const requestUrl = originalRequest?.url ?? '';
 
-    // Handle 401 Unauthorized
     if (statusCode === 401 && !originalRequest._retry) {
-      const hostUid = getHostUidFromUrl(originalRequest.url);
-      const isLoginRequest = originalRequest.url?.includes('/cms-auth/login');
+      const hostUid = getHostUidFromUrl(requestUrl);
+      const isHostLoginRequest = requestUrl.includes('/cms-auth/login');
+      const isAuthRefreshRequest = requestUrl.includes('/auth/refresh');
+      const isAuthLoginRequest = requestUrl.includes('/auth/login');
+      const isAuthLogoutRequest = requestUrl.includes('/auth/logout');
 
       if (hostUid) {
-        // SCENARIO: Host-level 401
-
-        if (isLoginRequest) {
+        if (isHostLoginRequest) {
           return Promise.reject(error);
         }
 
-        // Standard host request failed with 401 -> Attempt re-authentication
         console.warn(`Host session for ${hostUid} expired. Initiating revocation and re-login...`);
 
         try {
           const { store } = await import('../app/store');
           const { revokeHostLogin, loginToHost } = await import('../features/host/hostSlice');
 
-          // 1. "it should revoke host login"
           store.dispatch(revokeHostLogin(hostUid));
 
-          // 2. "wait for result"
           if (!refreshingHosts.has(hostUid)) {
             const refreshPromise = store.dispatch(loginToHost(hostUid)).unwrap();
             refreshingHosts.set(hostUid, refreshPromise);
@@ -169,31 +208,51 @@ apiClient.interceptors.response.use(
           await refreshingHosts.get(hostUid);
           refreshingHosts.delete(hostUid);
 
-          // 3. "proceed those request again"
           originalRequest._retry = true;
-          // Ensure we use current headers (though token shouldn't have changed)
           return apiClient(originalRequest);
         } catch (refreshError) {
           refreshingHosts.delete(hostUid);
-
-          // Note: If refreshError was a 401, it was already handled by the isLoginRequest check above 
-          // for the secondary request generated by store.dispatch(loginToHost).
-
-          // "if revoke host login failed (but not 401). just show error page of host login"
-          // This is already accomplished as loginToHost.rejected updates the hostAuthErrors state,
-          // which the Sidebar UI uses to show the "Connection Failed" / "Try Again" overlay.
           return Promise.reject(error);
         }
-      } else {
-        console.warn('Authentication expired. Redirecting to system login...');
-        await handleSystemSessionExpired();
-        return Promise.reject(error);
       }
+
+      if (!isAuthRefreshRequest && !isAuthLoginRequest && !isAuthLogoutRequest) {
+        originalRequest._retry = true;
+
+        if (isRefreshingAccessToken) {
+          try {
+            const token = await new Promise((resolve, reject) => {
+              accessTokenRefreshWaiters.push({ resolve, reject });
+            });
+            originalRequest.headers = originalRequest.headers || {};
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return apiClient(originalRequest);
+          } catch {
+            return Promise.reject(error);
+          }
+        }
+
+        isRefreshingAccessToken = true;
+        try {
+          const token = await refreshAccessToken();
+          notifyAccessTokenRefreshed(token);
+          originalRequest.headers = originalRequest.headers || {};
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return apiClient(originalRequest);
+        } catch (refreshErr) {
+          notifyAccessTokenRefreshFailed(refreshErr);
+          await handleSystemSessionExpired();
+          return Promise.reject(error);
+        } finally {
+          isRefreshingAccessToken = false;
+        }
+      }
+
+      await handleSystemSessionExpired();
+      return Promise.reject(error);
     }
 
-    // Standardize error messaging for components
     if (apiData) {
-      // Prioritize 'note' for detailed CMS-level error messages as requested
       apiData.message = apiData.note || apiData.data?.title || apiData.message || 'An unexpected error occurred';
     }
 

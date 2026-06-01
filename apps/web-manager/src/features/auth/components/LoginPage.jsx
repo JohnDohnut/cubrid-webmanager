@@ -37,8 +37,14 @@ export default function LoginPage() {
     dispatch(loginStart());
     try {
       const response = await authApi.login(username, password);
-      const token = response?.token;
-      dispatch(loginSuccess({ token, user: { id: username } }));
+      if (!response?.token || !response?.refreshToken) {
+        throw new Error('Login response missing access/refresh token');
+      }
+      dispatch(loginSuccess({
+        token: response.token,
+        refreshToken: response.refreshToken,
+        user: { id: username },
+      }));
       navigate('/home', { replace: true });
     } catch (err) {
       const msg = err.response?.data?.message || err.response?.data?.error || 'Login failed. Please check your credentials.';
