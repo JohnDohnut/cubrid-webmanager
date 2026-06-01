@@ -481,7 +481,10 @@ export default function ImportExportHostModal() {
                         const rowId = host.rowId;
                         const isSelected = selectedHosts.includes(rowId);
                         return (
-                          <div className="flex justify-center">
+                          <div
+                            className="flex justify-center"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <Checkbox
                               checked={isSelected}
                               onChange={() => host.isSelectable && handleToggleHost(rowId)}
