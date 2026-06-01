@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { logout, fetchUser } from '../../auth/authSlice';
+import { logoutUser, fetchUser } from '../../auth/authSlice';
 import { fetchPreferences } from '../../user/userSlice';
 import UserProfileModal from '../../user/components/UserProfileModal';
 import { showStatusModal } from '../layoutSlice';
@@ -33,8 +33,8 @@ export default function Header({ theme, toggleTheme }) {
     }
   }, [dispatch, isAuthenticated, user]);
 
-  const handleLogout = () => {
-    dispatch(logout());
+  const handleLogout = async () => {
+    await dispatch(logoutUser());
     window.location.href = '/login';
   };
 
