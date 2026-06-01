@@ -275,12 +275,14 @@ export default function ImportExportHostModal() {
     }
 
     setIsProcessing(true);
-    let updatedCount = 0;
 
     try {
+      const passwordSaveFailed = [];
+      let updatedCount = 0;
+
       for (const host of pendingPasswordHosts) {
-        const password = String(passwordDrafts[host.uid] || '').trim();
-        if (!password) continue;
+        const password = passwordDrafts[host.uid] ?? '';
+        if (password === '') continue;
 
         const payload = {
           id: host.id,
@@ -294,14 +296,32 @@ export default function ImportExportHostModal() {
           await dispatch(editHost({ hostUid: host.uid, payload })).unwrap();
           updatedCount += 1;
         } catch {
-          // Continue for remaining hosts.
+          passwordSaveFailed.push(host.alias || host.id || host.uid);
         }
       }
 
+      const messageParts = [];
+      if (updatedCount > 0) {
+        messageParts.push(`Password saved for ${updatedCount} host(s). Log in from the sidebar when ready.`);
+      }
+      if (passwordSaveFailed.length > 0) {
+        messageParts.push(`Password not saved: ${passwordSaveFailed.join(', ')}.`);
+      }
+      if (messageParts.length === 0) {
+        messageParts.push('No passwords were entered.');
+      }
+
+      let statusType = 'success';
+      if (updatedCount === 0) {
+        statusType = passwordSaveFailed.length > 0 ? 'error' : 'info';
+      } else if (passwordSaveFailed.length > 0) {
+        statusType = 'info';
+      }
+
       dispatch(showStatusModal({
-        type: updatedCount > 0 ? 'success' : 'info',
+        type: statusType,
         title: 'Import Result',
-        message: `Password updated for ${updatedCount} host(s). Log in from the sidebar when ready.`,
+        message: messageParts.join(' '),
       }));
       dispatch(closeImportExportModal());
     } finally {
@@ -313,7 +333,7 @@ export default function ImportExportHostModal() {
 
   const handleLoginAllImported = async () => {
     const hostsWithPassword = pendingPasswordHosts.filter(
-      (host) => String(passwordDrafts[host.uid] || '').trim()
+      (host) => (passwordDrafts[host.uid] ?? '') !== ''
     );
     if (hostsWithPassword.length === 0) return;
 
@@ -321,9 +341,11 @@ export default function ImportExportHostModal() {
     dispatch(setSkipAutoHostLogin(true));
 
     try {
-      let updatedCount = 0;
+      const savedUids = [];
+      const passwordSaveFailed = [];
+
       for (const host of hostsWithPassword) {
-        const password = String(passwordDrafts[host.uid] || '').trim();
+        const password = passwordDrafts[host.uid] ?? '';
         const payload = {
           id: host.id,
           address: host.address,
@@ -333,24 +355,49 @@ export default function ImportExportHostModal() {
         };
         try {
           await dispatch(editHost({ hostUid: host.uid, payload })).unwrap();
-          updatedCount += 1;
+          savedUids.push(host.uid);
         } catch {
-          // Continue for remaining hosts.
+          passwordSaveFailed.push(host.alias || host.id || host.uid);
         }
       }
 
-      const uids = hostsWithPassword.map((h) => h.uid);
-      const { successCount, failed } = await dispatch(loginHostsBatch(uids)).unwrap();
+      let successCount = 0;
+      let loginFailed = [];
+      if (savedUids.length > 0) {
+        const loginResult = await dispatch(loginHostsBatch(savedUids)).unwrap();
+        successCount = loginResult.successCount;
+        loginFailed = loginResult.failed;
+      }
 
-      let message = `Password updated for ${updatedCount} host(s). Connected ${successCount} host(s).`;
-      if (failed.length > 0) {
-        message += ` Login failed: ${failed.join(', ')}.`;
+      const messageParts = [];
+      if (savedUids.length > 0) {
+        messageParts.push(`Password saved for ${savedUids.length} host(s).`);
+      }
+      if (passwordSaveFailed.length > 0) {
+        messageParts.push(`Password not saved: ${passwordSaveFailed.join(', ')}.`);
+      }
+      if (savedUids.length > 0) {
+        messageParts.push(`Connected ${successCount} host(s).`);
+        if (loginFailed.length > 0) {
+          messageParts.push(`Login failed: ${loginFailed.join(', ')}.`);
+        }
+      }
+
+      const hasSaveFailures = passwordSaveFailed.length > 0;
+      const hasLoginFailures = loginFailed.length > 0;
+      let statusType = 'success';
+      if (savedUids.length === 0) {
+        statusType = 'error';
+      } else if (hasSaveFailures || (hasLoginFailures && successCount === 0)) {
+        statusType = 'error';
+      } else if (hasLoginFailures) {
+        statusType = 'info';
       }
 
       dispatch(showStatusModal({
-        type: failed.length > 0 && successCount === 0 ? 'error' : 'success',
+        type: statusType,
         title: CM.loginAll,
-        message,
+        message: messageParts.join(' '),
       }));
       dispatch(closeImportExportModal());
     } catch {
@@ -369,7 +416,7 @@ export default function ImportExportHostModal() {
 
   const isPasswordStep = importExportMode === 'import' && pendingPasswordHosts.length > 0;
   const hasPasswordDrafts = pendingPasswordHosts.some(
-    (host) => String(passwordDrafts[host.uid] || '').trim()
+    (host) => (passwordDrafts[host.uid] ?? '') !== ''
   );
   const title = isPasswordStep
     ? 'Set Passwords for Imported Hosts'

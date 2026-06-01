@@ -1030,7 +1030,7 @@ export const loginToHostWithSideEffects = createAsyncThunk(
   }
 );
 
-/** CMS-login for multiple hosts (sequential). First host runs HA side effects. */
+/** CMS-login for multiple hosts (sequential), then HA side effects per successful login. */
 export const loginHostsBatch = createAsyncThunk(
   'host/loginHostsBatch',
   async (hostUids, { dispatch, getState }) => {
@@ -1038,21 +1038,22 @@ export const loginHostsBatch = createAsyncThunk(
       (uid) => uid && !getState().host.authorizedHosts.includes(uid)
     );
     const failed = [];
+    const succeededUids = [];
     let successCount = 0;
 
-    for (let i = 0; i < pending.length; i += 1) {
-      const uid = pending[i];
+    for (const uid of pending) {
       try {
-        if (i === 0) {
-          await dispatch(loginToHostWithSideEffects(uid)).unwrap();
-        } else {
-          await dispatch(loginToHost(uid)).unwrap();
-        }
+        await dispatch(loginToHost(uid)).unwrap();
+        succeededUids.push(uid);
         successCount += 1;
       } catch {
         const host = getState().host.hosts.find((h) => h.uid === uid);
         failed.push(host?.alias || host?.id || uid);
       }
+    }
+
+    for (const uid of succeededUids) {
+      await dispatch(processHaLoginSideEffects(uid)).unwrap().catch(() => {});
     }
 
     return { successCount, failed, attempted: pending.length };

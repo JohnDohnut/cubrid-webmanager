@@ -121,19 +121,45 @@ function joinPropertyContinuations(text) {
 export const PREFS_KEY_SERVERS = 'CUBRID_SERVERS';
 export const PREFS_KEY_HOSTGROUP = 'com.cubrid.manager.hostgroup';
 
-function extractPropertyValueForKey(line, propertyKey) {
+/**
+ * Splits a logical Java .properties line (key still escaped in file).
+ * Keys like com\.cubrid\.manager\.hostgroup unescape to com.cubrid.manager.hostgroup.
+ */
+export function parsePropertyLine(line) {
   const trimmed = line.trim();
   if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('!')) {
     return null;
   }
 
-  const escapedKey = String(propertyKey).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const match = trimmed.match(new RegExp(`^${escapedKey}\\s*(?:\\\\?=|:)\\s*(.*)$`));
-  if (!match) {
+  let separatorIndex = -1;
+  for (let i = 0; i < trimmed.length; i += 1) {
+    if (trimmed[i] === '\\' && i + 1 < trimmed.length) {
+      i += 1;
+      continue;
+    }
+    if (trimmed[i] === '=' || trimmed[i] === ':') {
+      separatorIndex = i;
+      break;
+    }
+  }
+
+  if (separatorIndex < 0) {
     return null;
   }
 
-  return match[1] ?? '';
+  return {
+    key: unescapeJavaProperties(trimmed.slice(0, separatorIndex)),
+    rawValue: trimmed.slice(separatorIndex + 1),
+  };
+}
+
+function extractPropertyValueForKey(line, propertyKey) {
+  const parsed = parsePropertyLine(line);
+  if (!parsed || parsed.key !== propertyKey) {
+    return null;
+  }
+
+  return parsed.rawValue;
 }
 
 /** @returns {string|null} unescaped XML from a Java .properties / .prefs entry */
