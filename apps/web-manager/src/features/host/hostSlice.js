@@ -118,6 +118,20 @@ export const moveHost = createAsyncThunk(
   }
 );
 
+export const mergeHaPeers = createAsyncThunk(
+  'host/mergeHaPeers',
+  async ({ targetGroupId, peers }, { dispatch, rejectWithValue }) => {
+    try {
+      for (const peer of peers) {
+        await dispatch(moveHost({ hostUid: peer.hostUid, targetGroupId })).unwrap();
+      }
+      return { mergedCount: peers.length, targetGroupId };
+    } catch (err) {
+      return rejectWithValue(typeof err === 'string' ? err : err?.message || 'Failed to merge HA peers');
+    }
+  }
+);
+
 export const markGroupHa = createAsyncThunk(
   'host/markGroupHa',
   async ({ hostUid, groupName }, { rejectWithValue }) => {
@@ -372,6 +386,8 @@ const initialState = {
   suggestedHaNodes: [],
   suggestedHaGroupId: null,
   isDiscoveryModalOpen: false, // Visibility of the discovery modal
+  pendingHaMerge: null,
+  isHaMergeModalOpen: false,
   initialHostData: null, // Data to pre-fill AddHostModal
   lastAddedHostUid: null, // Tracks newly added host to trigger discovery ONLY on first login
   selectedHostUid: null,
@@ -500,6 +516,14 @@ const hostSlice = createSlice({
     },
     closeDiscoveryModal: (state) => {
       state.isDiscoveryModalOpen = false;
+    },
+    setPendingHaMerge: (state, action) => {
+      state.pendingHaMerge = action.payload;
+      state.isHaMergeModalOpen = !!action.payload?.peers?.length;
+    },
+    clearPendingHaMerge: (state) => {
+      state.pendingHaMerge = null;
+      state.isHaMergeModalOpen = false;
     },
     closeServerVersionModal: (state) => {
       state.isServerVersionModalOpen = false;
@@ -639,6 +663,17 @@ const hostSlice = createSlice({
         syncHostSelection(state);
       })
       .addCase(moveHost.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(mergeHaPeers.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(mergeHaPeers.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(mergeHaPeers.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
@@ -809,6 +844,8 @@ export const {
   closeServerVersionModal,
   setSuggestedHaNodes,
   clearSuggestedHaNodes,
+  setPendingHaMerge,
+  clearPendingHaMerge,
   openDiscoveryModal,
   closeDiscoveryModal,
   openImportExportModal,

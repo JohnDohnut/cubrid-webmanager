@@ -13,6 +13,7 @@ import {
   openServerVersionModal,
   fetchHostEnv,
   setSuggestedHaNodes,
+  setPendingHaMerge,
   clearLastAddedHostUid,
   editHost,
   openCmsUserManagementModal
@@ -96,6 +97,7 @@ import AutoVolumeLogModal from '../../database/components/AutoVolumeLogModal';
 import CMSUserManagementModal from '../../host/components/CMSUserManagementModal';
 import EditCMSUserModal from '../../host/components/EditCMSUserModal';
 import { findGroupIdForHost } from '../../host/hostGroupUtils';
+import { findHaPeersNeedingMerge, findUndiscoveredHaPeers } from '../../host/haPeerUtils';
 import { store } from '../../../app/store';
 import { openCreateGroupModal, openDeleteGroupModal, openRenameGroupModal } from '../../host/hostSlice';
 
@@ -183,30 +185,24 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
         const isNewlyAdded = lastAddedHostUid === uid;
 
         if (response.isHA) {
-          // Group name should not auto-change based on which node was selected.
-          // Group rename is handled explicitly via group CRUD.
           await dispatch(markGroupHa({ hostUid: uid })).unwrap().catch(() => {});
         }
 
-        if (response.isHA && response.haNodes?.length > 0 && isNewlyAdded) {
-          const undiscovered = response.haNodes.filter(node => {
-            const isSelf = hosts.find(h => {
-              const hAddr = h.address.toLowerCase();
-              const nIp = (node.ip || '').toLowerCase();
-              const nHost = (node.hostname || '').toLowerCase();
-              if (hAddr === nIp || hAddr === nHost) return true;
-              const isLoopback = (addr) => addr === 'localhost' || addr === '127.0.0.1';
-              if (isLoopback(hAddr) && (isLoopback(nIp) || isLoopback(nHost))) return true;
-              return false;
-            });
-            return !isSelf;
-          });
-          if (undiscovered.length > 0) {
-            const freshGroups = store.getState().host.hostGroups;
-            dispatch(setSuggestedHaNodes({
-              nodes: undiscovered,
-              groupId: findGroupIdForHost(freshGroups, uid),
-            }));
+        if (response.isHA && response.haNodes?.length > 0) {
+          const freshGroups = store.getState().host.hostGroups;
+          const mergePlan = findHaPeersNeedingMerge(freshGroups, response.haNodes, uid);
+          if (mergePlan) {
+            dispatch(setPendingHaMerge(mergePlan));
+          }
+
+          if (isNewlyAdded) {
+            const undiscovered = findUndiscoveredHaPeers(hosts, response.haNodes);
+            if (undiscovered.length > 0) {
+              dispatch(setSuggestedHaNodes({
+                nodes: undiscovered,
+                groupId: findGroupIdForHost(freshGroups, uid),
+              }));
+            }
           }
         }
 
