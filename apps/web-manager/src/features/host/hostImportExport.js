@@ -1,15 +1,16 @@
 
 /**
  * Utility for exporting and importing CUBRID Host connections.
- * Tailored to be compatible with d-cms (CUBRID Manager) XML format.
+ * Compatible with legacy CUBRID Admin XML and desktop .prefs / .properties.
  */
+
+export const MIN_IMPORT_PORT = 1;
+export const MAX_IMPORT_PORT = 65535;
+export const DEFAULT_IMPORT_PORT = 8001;
 
 /**
  * Exports a list of hosts to an XML file.
- * Following d-cms logic: Passwords are NOT included.
- * 
- * @param {Array} hosts - Array of host objects from Redux state
- * @param {string} fileName - Default filename for download
+ * Passwords are NOT included.
  */
 export const exportHostsToXml = (hosts, fileName = 'export_servers.xml') => {
   if (!hosts || hosts.length === 0) return;
@@ -19,23 +20,20 @@ export const exportHostsToXml = (hosts, fileName = 'export_servers.xml') => {
 
   hosts.forEach(host => {
     const hostNode = doc.createElement('host');
-    
-    // Mapping b-cms fields to d-cms XML attributes
-    hostNode.setAttribute('id', host.uid || ''); // d-cms uses id, but in b-cms uid is unique
-    hostNode.setAttribute('name', host.alias || host.address || ''); // d-cms 'name' is b-cms 'alias'
+    hostNode.setAttribute('id', host.uid || '');
+    hostNode.setAttribute('name', host.alias || host.address || '');
     hostNode.setAttribute('address', host.address || '');
-    hostNode.setAttribute('port', String(host.port || '8001'));
-    hostNode.setAttribute('user', host.id || ''); // d-cms 'user' is b-cms 'id'
-    hostNode.setAttribute('password', ''); // Passwords not included in export per d-cms
+    hostNode.setAttribute('port', String(host.port || DEFAULT_IMPORT_PORT));
+    hostNode.setAttribute('user', host.id || '');
+    hostNode.setAttribute('password', '');
     hostNode.setAttribute('savePassword', 'false');
     hostNode.setAttribute('jdbcDriver', 'default');
-    
     root.appendChild(hostNode);
   });
 
   const serializer = new XMLSerializer();
   const xmlString = '<?xml version="1.0" encoding="UTF-8"?>\n' + serializer.serializeToString(doc);
-  
+
   const blob = new Blob([xmlString], { type: 'application/xml' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -47,53 +45,257 @@ export const exportHostsToXml = (hosts, fileName = 'export_servers.xml') => {
   URL.revokeObjectURL(url);
 };
 
-function unescapePrefsXml(value) {
-  return value
-    .replace(/\\n/g, '\n')
-    .replace(/\\r/g, '\r')
-    .replace(/\\t/g, '\t')
-    .replace(/\\"/g, '"')
-    .replace(/\\\\/g, '\\');
-}
-
-function extractHostsXmlFromPrefs(rawText) {
-  const line = rawText
-    .split('\n')
-    .find((entry) => entry.startsWith('CUBRID_SERVERS='));
-  if (!line) return null;
-  const escapedXml = line.slice('CUBRID_SERVERS='.length);
-  return escapedXml ? unescapePrefsXml(escapedXml) : null;
+function stripBom(text) {
+  return String(text || '').replace(/^\uFEFF/, '');
 }
 
 /**
- * Parses host XML or legacy CUBRID desktop prefs text and returns host entries.
- *
- * Supported inputs:
- * - `<hosts>...</hosts>` XML
- * - `.prefs` containing `CUBRID_SERVERS=<?xml ...><hosts>...`
- *
- * @param {string} rawInput - XML text or prefs text
- * @returns {Array} - Array of host objects ready for addHost action
+ * Java Properties-style unescape (\n \r \t \f \" \\ \: \= \uXXXX, etc.).
+ */
+export function unescapeJavaProperties(value) {
+  let result = '';
+  const str = String(value ?? '');
+  for (let i = 0; i < str.length; i += 1) {
+    if (str[i] !== '\\' || i + 1 >= str.length) {
+      result += str[i];
+      continue;
+    }
+    const next = str[i + 1];
+    if (next === 'n') {
+      result += '\n';
+      i += 1;
+    } else if (next === 'r') {
+      result += '\r';
+      i += 1;
+    } else if (next === 't') {
+      result += '\t';
+      i += 1;
+    } else if (next === 'f') {
+      result += '\f';
+      i += 1;
+    } else if (next === 'u' && i + 5 < str.length) {
+      const hex = str.slice(i + 2, i + 6);
+      if (/^[0-9a-fA-F]{4}$/.test(hex)) {
+        result += String.fromCharCode(parseInt(hex, 16));
+        i += 5;
+      } else {
+        result += next;
+        i += 1;
+      }
+    } else {
+      result += next;
+      i += 1;
+    }
+  }
+  return result;
+}
+
+/** Join physical lines using Java properties continuation (trailing `\`). */
+function joinPropertyContinuations(text) {
+  const physical = stripBom(text).replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  const logical = [];
+  let current = null;
+
+  for (const raw of physical) {
+    if (current === null) {
+      current = raw;
+    } else {
+      current += raw.replace(/^\s+/, '');
+    }
+
+    if (current.endsWith('\\')) {
+      current = current.slice(0, -1);
+    } else {
+      logical.push(current);
+      current = null;
+    }
+  }
+
+  if (current !== null) {
+    logical.push(current);
+  }
+
+  return logical;
+}
+
+function extractPropertyValue(line) {
+  const trimmed = line.trim();
+  if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('!')) {
+    return null;
+  }
+
+  const match = trimmed.match(/^CUBRID_SERVERS\s*(?:\\?=|:)\s*(.*)$/);
+  if (!match) {
+    return null;
+  }
+
+  return match[1] ?? '';
+}
+
+function extractHostsXmlFromPrefs(rawText) {
+  const text = stripBom(rawText);
+  const trimmed = text.trim();
+  if (trimmed.startsWith('<')) {
+    return trimmed;
+  }
+
+  const logicalLines = joinPropertyContinuations(text);
+  for (const line of logicalLines) {
+    const rawValue = extractPropertyValue(line);
+    if (rawValue == null) continue;
+    const xml = unescapeJavaProperties(rawValue).trim();
+    if (xml) return xml;
+  }
+
+  return null;
+}
+
+/**
+ * @returns {{ valid: true, port: number } | { valid: false, error: string }}
+ */
+export function parseImportPort(value, defaultPort = DEFAULT_IMPORT_PORT) {
+  const raw = String(value ?? '').trim();
+  if (!raw) {
+    return { valid: true, port: defaultPort };
+  }
+
+  if (!/^\d+$/.test(raw)) {
+    return { valid: false, error: 'Port must be an integer' };
+  }
+
+  const port = Number(raw);
+  if (!Number.isInteger(port) || port < MIN_IMPORT_PORT || port > MAX_IMPORT_PORT) {
+    return { valid: false, error: `Port must be ${MIN_IMPORT_PORT}-${MAX_IMPORT_PORT}` };
+  }
+
+  return { valid: true, port };
+}
+
+function sameConnection(a, b) {
+  return (
+    String(a.address).trim() === String(b.address).trim() &&
+    String(a.port) === String(b.port)
+  );
+}
+
+function sameAlias(a, b) {
+  const left = String(a.alias ?? '').trim();
+  const right = String(b.alias ?? '').trim();
+  return left !== '' && right !== '' && left === right;
+}
+
+/**
+ * @returns {string|null} validation error message
+ */
+export function validateImportHostEntry(entry, { existingHosts = [], batchPeers = [] } = {}) {
+  const alias = String(entry.alias ?? '').trim();
+  const address = String(entry.address ?? '').trim();
+  const id = String(entry.id ?? '').trim();
+  const portResult = entry.portNumber != null
+    ? { valid: true, port: entry.portNumber }
+    : parseImportPort(entry.port);
+
+  if (!alias) return 'Name (alias) is required';
+  if (!address) return 'Address is required';
+  if (!id) return 'Username is required';
+  if (!portResult.valid) return portResult.error;
+
+  const normalized = { alias, address, id, port: portResult.port };
+
+  for (const existing of existingHosts) {
+    if (sameConnection(normalized, existing)) {
+      return 'Already registered (address + port)';
+    }
+    if (sameAlias(normalized, existing)) {
+      return 'Alias already in use';
+    }
+  }
+
+  for (const peer of batchPeers) {
+    if (peer.uid === entry.uid) continue;
+    if (sameConnection(normalized, peer)) {
+      return 'Duplicate address + port in import file';
+    }
+    if (sameAlias(normalized, peer)) {
+      return 'Duplicate alias in import file';
+    }
+  }
+
+  return null;
+}
+
+export function buildImportPreviewList(parsedHosts, existingHosts) {
+  const baseRows = parsedHosts.map((host) => {
+    const portResult = parseImportPort(host.port);
+    return {
+      ...host,
+      uid: `${host.address}:${host.port}:${host.id}`,
+      portNumber: portResult.valid ? portResult.port : null,
+      port: portResult.valid ? String(portResult.port) : String(host.port ?? ''),
+      password: host.password ?? '',
+    };
+  });
+
+  return baseRows.map((row) => {
+    const batchPeers = baseRows
+      .filter((other) => other.uid !== row.uid)
+      .map((other) => {
+        const peerPort = parseImportPort(other.port);
+        return {
+          uid: other.uid,
+          alias: String(other.alias ?? '').trim(),
+          address: String(other.address ?? '').trim(),
+          port: peerPort.valid ? peerPort.port : other.port,
+        };
+      });
+
+    const validationError = validateImportHostEntry(row, { existingHosts, batchPeers });
+
+    return {
+      ...row,
+      validationError,
+      isDuplicate: validationError === 'Already registered (address + port)',
+      isSelectable: !validationError,
+    };
+  });
+}
+
+/**
+ * @returns {{ ok: true } | { ok: false, messages: string[] }}
+ */
+export function validateSelectedImportRows(rows) {
+  const invalid = rows.filter((row) => row.validationError && !row.isDuplicate);
+  if (invalid.length === 0) {
+    return { ok: true };
+  }
+
+  const messages = invalid.map((row) =>
+    `${row.alias || row.address || row.uid}: ${row.validationError}`
+  );
+  return { ok: false, messages };
+}
+
+/**
+ * Parses host XML or legacy CUBRID desktop prefs/properties text.
  */
 export const parseHostsXml = (rawInput) => {
-  const input = String(rawInput || '').trim();
+  const input = stripBom(String(rawInput || '')).trim();
   const xmlString = input.startsWith('<')
     ? input
     : extractHostsXmlFromPrefs(input);
+
   if (!xmlString) {
-    throw new Error('No CUBRID host XML found. Provide a <hosts> XML or .prefs with CUBRID_SERVERS.');
+    throw new Error('No CUBRID host XML found. Provide a <hosts> XML or .prefs/.properties with CUBRID_SERVERS.');
   }
 
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlString, 'application/xml');
-  
-  // Check for parser errors
+
   const errorNode = doc.querySelector('parsererror');
   if (errorNode) {
     throw new Error('Invalid XML format. Please select a valid CUBRID Host export file.');
   }
 
-  // Check if it's the right XML for hosts
   if (doc.documentElement.nodeName !== 'hosts') {
     throw new Error('Incorrect file format. Expected <hosts> root element.');
   }
@@ -102,24 +304,22 @@ export const parseHostsXml = (rawInput) => {
   if (hostNodes.length === 0) {
     throw new Error('No host connection information found in the selected file.');
   }
-  
+
   const parsedHosts = [];
   for (let i = 0; i < hostNodes.length; i++) {
     const node = hostNodes[i];
-    const address = node.getAttribute('address');
-    if (!address) continue; // Skip if mandatory address is missing
+    const address = (node.getAttribute('address') || '').trim();
+    if (!address) continue;
 
     parsedHosts.push({
-      // Only map fields used by web manager addHost.
-      alias: node.getAttribute('name') || node.getAttribute('id') || address,
+      alias: (node.getAttribute('name') || node.getAttribute('id') || address).trim(),
       address,
-      port: node.getAttribute('port') || '8001',
-      id: node.getAttribute('user') || 'admin',
-      // Legacy desktop passwords are not reusable for WM host login.
+      port: node.getAttribute('port') || String(DEFAULT_IMPORT_PORT),
+      id: (node.getAttribute('user') || 'admin').trim(),
       password: '',
     });
   }
-  
+
   if (parsedHosts.length === 0) {
     throw new Error('The selected file contains no valid host connections.');
   }

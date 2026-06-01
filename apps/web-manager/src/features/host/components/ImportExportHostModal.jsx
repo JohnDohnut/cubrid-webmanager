@@ -1,8 +1,25 @@
 import { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { closeImportExportModal, addHost, createHostGroup, deleteHostGroup, editHost } from '../hostSlice';
+import {
+  closeImportExportModal,
+  addHost,
+  createHostGroup,
+  deleteHostGroup,
+  editHost,
+  loginToHost,
+  setSelectedHost,
+  fetchHostEnv,
+} from '../hostSlice';
 import { showStatusModal } from '../../layout/layoutSlice';
-import { exportHostsToXml, parseHostsXml } from '../hostImportExport';
+import { fetchDatabaseStartInfo } from '../../database/databaseSlice';
+import { fetchBrokerList } from '../../broker/brokerSlice';
+import { setActiveMainTab } from '../../layout/layoutSlice';
+import {
+  exportHostsToXml,
+  parseHostsXml,
+  buildImportPreviewList,
+  validateSelectedImportRows,
+} from '../hostImportExport';
 import { flattenHostsFromGroups, findNewGroupId } from '../hostGroupUtils';
 import { store } from '../../../app/store';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -14,8 +31,19 @@ import { FileUpload } from '../../../components/ds/forms/FileUpload';
 import { Typography } from '../../../components/ds/foundation/Typography';
 import { Checkbox } from '../../../components/ds/forms/Checkbox';
 
-import { Icon } from '../../../components/ds/foundation/Icon';
 import { useCM } from '../../../constants/useCM';
+
+async function loginImportedHost(dispatch, hostUid) {
+  await dispatch(loginToHost(hostUid)).unwrap();
+}
+
+function activateImportedHost(dispatch, hostUid) {
+  dispatch(setSelectedHost(hostUid));
+  dispatch(setActiveMainTab(`host:${hostUid}`));
+  dispatch(fetchDatabaseStartInfo(hostUid));
+  dispatch(fetchBrokerList(hostUid));
+  dispatch(fetchHostEnv(hostUid));
+}
 
 export default function ImportExportHostModal() {
   const CM = useCM();
@@ -48,13 +76,13 @@ export default function ImportExportHostModal() {
   if (!isImportExportModalOpen) return null;
 
   const handleToggleHost = (uid) => {
-    setSelectedHosts(prev => 
+    setSelectedHosts(prev =>
       prev.includes(uid) ? prev.filter(id => id !== uid) : [...prev, uid]
     );
   };
 
   const handleToggleAll = () => {
-    const selectable = importList.filter(h => !h.isDuplicate);
+    const selectable = importList.filter(h => h.isSelectable);
     if (selectedHosts.length === selectable.length) {
       setSelectedHosts([]);
     } else {
@@ -77,32 +105,26 @@ export default function ImportExportHostModal() {
     reader.onload = (event) => {
       try {
         setImportGroupName(deriveImportGroupName(file.name));
-        const xmlString = event.target.result;
-        const parsed = parseHostsXml(xmlString);
-        
-        const listWithStatus = parsed.map(h => {
-          const isDuplicate = hosts.find(existing => 
-            existing.address === h.address && String(existing.port) === String(h.port)
-          );
-          return {
-            ...h,
-            uid: h.address + ':' + h.port + ':' + h.id,
-            isDuplicate: !!isDuplicate
-          };
-        });
+        const parsed = parseHostsXml(event.target.result);
+        const listWithStatus = buildImportPreviewList(parsed, hosts);
 
         setImportList(listWithStatus);
-        setSelectedHosts(listWithStatus.filter(h => !h.isDuplicate).map(h => h.uid));
+        setSelectedHosts(listWithStatus.filter(h => h.isSelectable).map(h => h.uid));
       } catch (err) {
-        dispatch(showStatusModal({ 
-          type: 'error', 
-          title: 'Import Error', 
-          message: err.message || 'An error occurred while parsing the file.' 
+        dispatch(showStatusModal({
+          type: 'error',
+          title: 'Import Error',
+          message: err.message || 'An error occurred while parsing the file.',
         }));
         e.target.value = '';
       }
     };
     reader.readAsText(file);
+  };
+
+  const rollbackImportGroup = async (importGroupId) => {
+    if (!importGroupId) return;
+    await dispatch(deleteHostGroup(importGroupId)).unwrap().catch(() => {});
   };
 
   const handleAction = async () => {
@@ -117,15 +139,32 @@ export default function ImportExportHostModal() {
         dispatch(closeImportExportModal());
       } else {
         const hostsToImport = importList.filter((h) => selectedHosts.includes(h.uid));
-        const hostsToAdd = hostsToImport.filter((hostData) =>
-          !hosts.find((h) => h.address === hostData.address && String(h.port) === String(hostData.port))
-        );
-        let skippedCount = hostsToImport.length - hostsToAdd.length;
-        let addedCount = 0;
+        const hostsToAdd = hostsToImport.filter((row) => row.isSelectable);
+
+        const preflight = validateSelectedImportRows(hostsToAdd);
+        if (!preflight.ok) {
+          dispatch(showStatusModal({
+            type: 'error',
+            title: 'Import validation failed',
+            message: preflight.messages.join('\n'),
+          }));
+          return;
+        }
+
+        if (hostsToAdd.length === 0) {
+          dispatch(showStatusModal({
+            type: 'info',
+            title: 'Import Result',
+            message: 'No valid hosts selected for import.',
+          }));
+          return;
+        }
+
+        const skippedCount = hostsToImport.length - hostsToAdd.length;
         const importedWithoutPassword = [];
         let importGroupId = null;
 
-        if (hostsToAdd.length > 0) {
+        try {
           const groupName = importGroupName.trim() || 'Imported';
           const previousGroups = store.getState().host.hostGroups;
           const groupsAfterCreate = await dispatch(createHostGroup({ name: groupName })).unwrap();
@@ -136,58 +175,55 @@ export default function ImportExportHostModal() {
           }
 
           for (const hostData of hostsToAdd) {
-            try {
-              const hostGroups = await dispatch(addHost({
-                ...hostData,
-                port: Number(hostData.port),
-                groupId: importGroupId,
-              })).unwrap();
-              addedCount += 1;
-              if (!hostData.password) {
-                const addedHosts = flattenHostsFromGroups(hostGroups);
-                const addedHost = addedHosts.find((h) =>
-                  h.address === hostData.address &&
-                  String(h.port) === String(hostData.port) &&
-                  h.id === hostData.id
-                );
-                if (addedHost) {
-                  importedWithoutPassword.push(addedHost);
-                }
+            const hostGroups = await dispatch(addHost({
+              alias: hostData.alias,
+              address: hostData.address,
+              id: hostData.id,
+              password: hostData.password || '',
+              port: hostData.portNumber,
+              groupId: importGroupId,
+            })).unwrap();
+
+            if (!hostData.password) {
+              const addedHosts = flattenHostsFromGroups(hostGroups);
+              const addedHost = addedHosts.find((h) =>
+                h.address === hostData.address &&
+                h.port === hostData.portNumber &&
+                h.id === hostData.id
+              );
+              if (addedHost) {
+                importedWithoutPassword.push(addedHost);
               }
-            } catch {
-              skippedCount += 1;
             }
           }
 
-          if (addedCount === 0 && importGroupId) {
-            await dispatch(deleteHostGroup(importGroupId)).unwrap().catch(() => {});
-          }
-        }
+          const addedCount = hostsToAdd.length;
 
-        if (addedCount === 0 && skippedCount > 0) {
+          if (importedWithoutPassword.length > 0) {
+            const draft = {};
+            importedWithoutPassword.forEach((host) => { draft[host.uid] = ''; });
+            setPasswordDrafts(draft);
+            setPendingPasswordHosts(importedWithoutPassword);
+            dispatch(showStatusModal({
+              type: 'info',
+              title: 'Set imported passwords',
+              message: `Imported ${addedCount} host(s) into "${groupName}". Add passwords for ${importedWithoutPassword.length} host(s), or skip.`,
+            }));
+          } else {
+            dispatch(showStatusModal({
+              type: 'success',
+              title: 'Import Result',
+              message: `Imported ${addedCount} host(s) into "${groupName}". ${skippedCount} item(s) were skipped.`,
+            }));
+            dispatch(closeImportExportModal());
+          }
+        } catch (err) {
+          await rollbackImportGroup(importGroupId);
           dispatch(showStatusModal({
-            type: 'info',
-            title: 'Import Result',
-            message: 'No hosts were imported. All selected items were duplicates or failed.',
+            type: 'error',
+            title: 'Import failed',
+            message: err?.message || 'Import was rolled back. No hosts were added.',
           }));
-          dispatch(closeImportExportModal());
-        } else if (importedWithoutPassword.length > 0) {
-          const draft = {};
-          importedWithoutPassword.forEach((host) => { draft[host.uid] = ''; });
-          setPasswordDrafts(draft);
-          setPendingPasswordHosts(importedWithoutPassword);
-          dispatch(showStatusModal({
-            type: 'info',
-            title: 'Set imported passwords',
-            message: `Imported ${addedCount} host(s) into "${importGroupName.trim() || 'Imported'}". Add passwords for ${importedWithoutPassword.length} host(s), or skip.`,
-          }));
-        } else {
-          dispatch(showStatusModal({ 
-            type: 'success', 
-            title: 'Import Result', 
-            message: `Imported ${addedCount} host(s) into "${importGroupName.trim() || 'Imported'}". ${skippedCount} item(s) were skipped.` 
-          }));
-          dispatch(closeImportExportModal());
         }
       }
     } catch (err) {
@@ -213,10 +249,14 @@ export default function ImportExportHostModal() {
 
     setIsProcessing(true);
     let updatedCount = 0;
+    let firstLoggedInUid = null;
+    const loginFailures = [];
+
     try {
       for (const host of pendingPasswordHosts) {
         const password = String(passwordDrafts[host.uid] || '');
         if (!password) continue;
+
         const payload = {
           id: host.id,
           address: host.address,
@@ -224,18 +264,39 @@ export default function ImportExportHostModal() {
           alias: host.alias,
           password,
         };
+
         try {
           await dispatch(editHost({ hostUid: host.uid, payload })).unwrap();
           updatedCount += 1;
+          try {
+            await loginImportedHost(dispatch, host.uid);
+            if (!firstLoggedInUid) {
+              firstLoggedInUid = host.uid;
+            }
+          } catch (loginErr) {
+            loginFailures.push(host.alias || host.id);
+          }
         } catch {
           // Continue for remaining hosts.
         }
       }
 
+      let message = `Password updated for ${updatedCount} host(s).`;
+      if (firstLoggedInUid) {
+        message += ' First successful host was connected.';
+      }
+      if (loginFailures.length > 0) {
+        message += ` Login failed for: ${loginFailures.join(', ')}.`;
+      }
+
+      if (firstLoggedInUid) {
+        activateImportedHost(dispatch, firstLoggedInUid);
+      }
+
       dispatch(showStatusModal({
-        type: 'success',
+        type: updatedCount > 0 ? 'success' : 'info',
         title: 'Import Result',
-        message: `Imported hosts processed. Password updated for ${updatedCount} host(s).`,
+        message,
       }));
       dispatch(closeImportExportModal());
     } finally {
@@ -254,9 +315,10 @@ export default function ImportExportHostModal() {
     : (importExportMode === 'export' ? CM.exportHost : CM.importHost);
   const icon = importExportMode === 'export' ? 'file_upload' : 'file_download';
 
-  const selectable = importList.filter(h => !h.isDuplicate);
+  const selectable = importList.filter(h => h.isSelectable);
   const isAllSelected = selectable.length > 0 && selectedHosts.length === selectable.length;
   const isSomeSelected = selectedHosts.length > 0 && selectedHosts.length < selectable.length;
+  const hasValidationErrors = importList.some((h) => h.validationError && !h.isDuplicate);
 
   return (
     <Modal
@@ -268,15 +330,15 @@ export default function ImportExportHostModal() {
       maxWidth="max-w-[720px]"
       subtitle={isPasswordStep
         ? 'Imported hosts were added without passwords. Enter passwords now or skip.'
-        : importExportMode === 'export' 
-        ? 'Export hosts to XML file. Note: The passwords are not included.' 
-        : 'Import flat host lists into a single group (legacy XML / .prefs).'}
+        : importExportMode === 'export'
+        ? 'Export hosts to XML file. Note: The passwords are not included.'
+        : 'Import flat host lists into a single group (legacy XML / .prefs / .properties).'}
       footer={
         <div className="flex justify-between items-center w-full">
           <div className="flex items-center gap-4">
             {importExportMode === 'import' && importList.length > 0 && !isPasswordStep && (
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="sm"
                 icon="change_circle"
                 onClick={() => { setImportList([]); setSelectedHosts([]); }}
@@ -288,7 +350,7 @@ export default function ImportExportHostModal() {
               <div className="flex items-center gap-2">
                 <Typography variant="caption" className="font-bold text-slate-400 uppercase tracking-tight">Filename:</Typography>
                 <div className="w-48">
-                  <Input 
+                  <Input
                     size="sm"
                     value={fileName}
                     onChange={(e) => setFileName(e.target.value)}
@@ -300,8 +362,8 @@ export default function ImportExportHostModal() {
             )}
           </div>
           <div className="flex gap-3">
-            <Button 
-              variant="secondary" 
+            <Button
+              variant="secondary"
               onClick={() => {
                 if (isPasswordStep) {
                   dispatch(showStatusModal({
@@ -318,8 +380,8 @@ export default function ImportExportHostModal() {
             >
               {isPasswordStep ? 'Skip' : 'Discard'}
             </Button>
-            <Button 
-              variant="primary" 
+            <Button
+              variant="primary"
               onClick={isPasswordStep ? handleApplyImportedPasswords : handleAction}
               disabled={isPasswordStep ? isProcessing : (selectedHosts.length === 0 || isProcessing)}
               loading={isProcessing}
@@ -361,7 +423,7 @@ export default function ImportExportHostModal() {
                 }}
               />
               <Typography variant="p" className="text-slate-500 mt-4 text-center text-[11px] max-w-[280px] mx-auto">
-                Select a CUBRID hosts XML file or legacy desktop .prefs file.
+                Select a CUBRID hosts XML file or legacy desktop .prefs / .properties file.
               </Typography>
             </div>
         ) : (
@@ -385,9 +447,14 @@ export default function ImportExportHostModal() {
                   </Typography>
                 </div>
               )}
+              {hasValidationErrors && (
+                <Typography variant="caption" className="text-amber-600 dark:text-amber-400 text-[10px]">
+                  Rows with validation errors cannot be imported. Fix the source file or deselect them.
+                </Typography>
+              )}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Checkbox 
+                  <Checkbox
                     checked={isAllSelected}
                     indeterminate={isSomeSelected}
                     onChange={handleToggleAll}
@@ -406,34 +473,44 @@ export default function ImportExportHostModal() {
                <Table
                   className="h-full"
                    columns={[
-                    { 
-                      accessor: 'select', 
-                      header: '', 
+                    {
+                      accessor: 'select',
+                      header: '',
                       width: '48px',
                       render: (_, host) => {
-                        const id = host.uid || host.address + host.port + host.id;
+                        const id = host.uid;
                         const isSelected = selectedHosts.includes(id);
                         return (
                           <div className="flex justify-center">
-                            <Checkbox 
+                            <Checkbox
                               checked={isSelected}
-                              onChange={() => !host.isDuplicate && handleToggleHost(id)}
-                              disabled={host.isDuplicate}
+                              onChange={() => host.isSelectable && handleToggleHost(id)}
+                              disabled={!host.isSelectable}
                             />
                           </div>
                         );
                       }
                     },
-                    { 
-                      accessor: 'alias', 
+                    {
+                      accessor: 'alias',
                       header: 'Name',
                       render: (alias, host) => (
-                        <div className="flex items-center gap-2">
-                          <Typography variant="caption" className={`font-bold ${host.isDuplicate ? 'text-slate-400' : 'text-slate-700 dark:text-slate-200'}`}>
-                            {alias || 'Unnamed'}
-                          </Typography>
-                          {host.isDuplicate && (
-                            <Badge variant="secondary" size="xs">DUPLICATE</Badge>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <Typography variant="caption" className={`font-bold ${host.isSelectable ? 'text-slate-700 dark:text-slate-200' : 'text-slate-400'}`}>
+                              {alias || 'Unnamed'}
+                            </Typography>
+                            {host.isDuplicate && (
+                              <Badge variant="secondary" size="xs">DUPLICATE</Badge>
+                            )}
+                            {host.validationError && !host.isDuplicate && (
+                              <Badge variant="secondary" size="xs">INVALID</Badge>
+                            )}
+                          </div>
+                          {host.validationError && (
+                            <Typography variant="caption" className="text-[10px] text-amber-600 dark:text-amber-400">
+                              {host.validationError}
+                            </Typography>
                           )}
                         </div>
                       )
@@ -443,15 +520,13 @@ export default function ImportExportHostModal() {
                   ]}
                   data={importList}
                   onRowClick={(host) => {
-                    const id = host.uid || host.address + host.port + host.id;
-                    if (!host.isDuplicate) handleToggleHost(id);
+                    if (host.isSelectable) handleToggleHost(host.uid);
                   }}
                   rowClassName={(host) => {
-                    const id = host.uid || host.address + host.port + host.id;
-                    const isSelected = selectedHosts.includes(id);
+                    const isSelected = selectedHosts.includes(host.uid);
                     return `
-                      ${isSelected ? 'bg-bk-yellow/3' : ''} 
-                      ${host.isDuplicate ? 'opacity-60 grayscale-[0.5]' : 'cursor-pointer'}
+                      ${isSelected ? 'bg-bk-yellow/3' : ''}
+                      ${host.isSelectable ? 'cursor-pointer' : 'opacity-60 grayscale-[0.35]'}
                     `;
                   }}
                />
