@@ -31,12 +31,15 @@ export const updateAccount = createAsyncThunk(
 
 export const logoutUser = createAsyncThunk(
   'auth/logoutUser',
-  async (_, { getState }) => {
+  async (_, { getState, dispatch }) => {
     const storedRefresh = getState().auth.refreshToken || localStorage.getItem('refreshToken');
     try {
       await authApi.logout(storedRefresh);
     } catch {
       // Clear client session even when server logout fails (e.g. expired access token).
+    } finally {
+      // Must trigger root reducer reset path (`auth/logout`) to clear all slices.
+      dispatch(logout());
     }
   }
 );
@@ -59,6 +62,18 @@ const authSlice = createSlice({
       state.error = null;
     },
     loginSuccess: (state, action) => {
+      if (!action.payload?.token || !action.payload?.refreshToken) {
+        state.loading = false;
+        state.isAuthenticated = false;
+        state.token = null;
+        state.refreshToken = null;
+        state.user = null;
+        state.error = 'Login response missing required tokens';
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        setAuthToken(null);
+        return;
+      }
       state.loading = false;
       state.isAuthenticated = true;
       state.token = action.payload.token;
@@ -124,16 +139,6 @@ const authSlice = createSlice({
       .addCase(updateAccount.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
-      })
-      .addCase(logoutUser.fulfilled, (state) => {
-        state.isAuthenticated = false;
-        state.token = null;
-        state.refreshToken = null;
-        state.user = null;
-        state.error = null;
-        localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
-        setAuthToken(null);
       });
   },
 });
