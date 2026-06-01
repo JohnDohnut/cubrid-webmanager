@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { closeImportExportModal, addHost, editHost } from '../hostSlice';
+import { closeImportExportModal, addHost, createHostGroup, deleteHostGroup, editHost } from '../hostSlice';
 import { showStatusModal } from '../../layout/layoutSlice';
 import { exportHostsToXml, parseHostsXml } from '../hostImportExport';
-import { flattenHostsFromGroups } from '../hostGroupUtils';
+import { flattenHostsFromGroups, findNewGroupId } from '../hostGroupUtils';
+import { store } from '../../../app/store';
 import { Modal } from '../../../components/ds/layout/Modal';
 import { Button } from '../../../components/ds/foundation/Button';
 import { Table } from '../../../components/ds/layout/Table';
@@ -26,6 +27,7 @@ export default function ImportExportHostModal() {
   const [passwordDrafts, setPasswordDrafts] = useState({});
   const [isProcessing, setIsProcessing] = useState(false);
   const [fileName, setFileName] = useState('export_servers');
+  const [importGroupName, setImportGroupName] = useState('Imported');
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -38,6 +40,7 @@ export default function ImportExportHostModal() {
         setSelectedHosts([]);
         setPendingPasswordHosts([]);
         setPasswordDrafts({});
+        setImportGroupName('Imported');
       }
     }
   }, [isImportExportModalOpen, importExportMode, hosts]);
@@ -59,6 +62,13 @@ export default function ImportExportHostModal() {
     }
   };
 
+  const deriveImportGroupName = (filename) => {
+    const base = String(filename || '')
+      .replace(/\.(xml|prefs|properties|txt)$/i, '')
+      .trim();
+    return base || 'Imported';
+  };
+
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -66,6 +76,7 @@ export default function ImportExportHostModal() {
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
+        setImportGroupName(deriveImportGroupName(file.name));
         const xmlString = event.target.result;
         const parsed = parseHostsXml(xmlString);
         
@@ -105,38 +116,62 @@ export default function ImportExportHostModal() {
         exportHostsToXml(hostsToExport, finalFileName);
         dispatch(closeImportExportModal());
       } else {
-        const hostsToImport = importList.filter(h => selectedHosts.includes(h.uid));
+        const hostsToImport = importList.filter((h) => selectedHosts.includes(h.uid));
+        const hostsToAdd = hostsToImport.filter((hostData) =>
+          !hosts.find((h) => h.address === hostData.address && String(h.port) === String(hostData.port))
+        );
+        let skippedCount = hostsToImport.length - hostsToAdd.length;
         let addedCount = 0;
-        let skippedCount = 0;
         const importedWithoutPassword = [];
+        let importGroupId = null;
 
-        for (const hostData of hostsToImport) {
-          const isDuplicate = hosts.find(h => h.address === hostData.address && String(h.port) === String(hostData.port));
-          if (isDuplicate) {
-            skippedCount++;
-            continue;
+        if (hostsToAdd.length > 0) {
+          const groupName = importGroupName.trim() || 'Imported';
+          const previousGroups = store.getState().host.hostGroups;
+          const groupsAfterCreate = await dispatch(createHostGroup({ name: groupName })).unwrap();
+          importGroupId = findNewGroupId(previousGroups, groupsAfterCreate);
+
+          if (!importGroupId) {
+            throw new Error('Failed to create import group.');
           }
-          
-          try {
-            const hostGroups = await dispatch(addHost({ ...hostData, port: Number(hostData.port) })).unwrap();
-            addedCount++;
-            if (!hostData.password) {
-              const addedHosts = flattenHostsFromGroups(hostGroups);
-              const addedHost = addedHosts.find((h) =>
-                h.address === hostData.address &&
-                String(h.port) === String(hostData.port) &&
-                h.id === hostData.id
-              );
-              if (addedHost) {
-                importedWithoutPassword.push(addedHost);
+
+          for (const hostData of hostsToAdd) {
+            try {
+              const hostGroups = await dispatch(addHost({
+                ...hostData,
+                port: Number(hostData.port),
+                groupId: importGroupId,
+              })).unwrap();
+              addedCount += 1;
+              if (!hostData.password) {
+                const addedHosts = flattenHostsFromGroups(hostGroups);
+                const addedHost = addedHosts.find((h) =>
+                  h.address === hostData.address &&
+                  String(h.port) === String(hostData.port) &&
+                  h.id === hostData.id
+                );
+                if (addedHost) {
+                  importedWithoutPassword.push(addedHost);
+                }
               }
+            } catch {
+              skippedCount += 1;
             }
-          } catch (err) {
-            skippedCount++;
+          }
+
+          if (addedCount === 0 && importGroupId) {
+            await dispatch(deleteHostGroup(importGroupId)).unwrap().catch(() => {});
           }
         }
 
-        if (importedWithoutPassword.length > 0) {
+        if (addedCount === 0 && skippedCount > 0) {
+          dispatch(showStatusModal({
+            type: 'info',
+            title: 'Import Result',
+            message: 'No hosts were imported. All selected items were duplicates or failed.',
+          }));
+          dispatch(closeImportExportModal());
+        } else if (importedWithoutPassword.length > 0) {
           const draft = {};
           importedWithoutPassword.forEach((host) => { draft[host.uid] = ''; });
           setPasswordDrafts(draft);
@@ -144,17 +179,23 @@ export default function ImportExportHostModal() {
           dispatch(showStatusModal({
             type: 'info',
             title: 'Set imported passwords',
-            message: `Imported ${addedCount} hosts. Add passwords for ${importedWithoutPassword.length} imported host(s), or skip.`,
+            message: `Imported ${addedCount} host(s) into "${importGroupName.trim() || 'Imported'}". Add passwords for ${importedWithoutPassword.length} host(s), or skip.`,
           }));
         } else {
           dispatch(showStatusModal({ 
             type: 'success', 
             title: 'Import Result', 
-            message: `Imported ${addedCount} hosts successfully. ${skippedCount} items were skipped.` 
+            message: `Imported ${addedCount} host(s) into "${importGroupName.trim() || 'Imported'}". ${skippedCount} item(s) were skipped.` 
           }));
           dispatch(closeImportExportModal());
         }
       }
+    } catch (err) {
+      dispatch(showStatusModal({
+        type: 'error',
+        title: 'Import Error',
+        message: err?.message || 'Failed to import hosts.',
+      }));
     } finally {
       setIsProcessing(false);
     }
@@ -229,7 +270,7 @@ export default function ImportExportHostModal() {
         ? 'Imported hosts were added without passwords. Enter passwords now or skip.'
         : importExportMode === 'export' 
         ? 'Export hosts to XML file. Note: The passwords are not included.' 
-        : 'Import hosts from XML file.'}
+        : 'Import flat host lists into a single group (legacy XML / .prefs).'}
       footer={
         <div className="flex justify-between items-center w-full">
           <div className="flex items-center gap-4">
@@ -325,20 +366,40 @@ export default function ImportExportHostModal() {
             </div>
         ) : (
           <>
-            <div className="px-4 py-2 bg-slate-50/50 dark:bg-bk-main/20 flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-3">
-                <Checkbox 
-                  checked={isAllSelected}
-                  indeterminate={isSomeSelected}
-                  onChange={handleToggleAll}
-                  disabled={selectable.length === 0}
-                  label={CM.selectAll}
-                  className="text-[10px]! font-bold tracking-wider text-slate-500"
-                />
+            <div className="px-4 py-2 bg-slate-50/50 dark:bg-bk-main/20 flex flex-col gap-2 border-b border-slate-100 dark:border-slate-800">
+              {importExportMode === 'import' && (
+                <div className="flex items-center gap-2">
+                  <Typography variant="caption" className="font-bold text-slate-400 uppercase tracking-tight shrink-0">
+                    Group
+                  </Typography>
+                  <div className="flex-1 max-w-xs">
+                    <Input
+                      size="sm"
+                      value={importGroupName}
+                      onChange={(e) => setImportGroupName(e.target.value)}
+                      placeholder="Imported"
+                    />
+                  </div>
+                  <Typography variant="caption" className="text-slate-400 text-[10px]">
+                    All selected hosts go into this group
+                  </Typography>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Checkbox 
+                    checked={isAllSelected}
+                    indeterminate={isSomeSelected}
+                    onChange={handleToggleAll}
+                    disabled={selectable.length === 0}
+                    label={CM.selectAll}
+                    className="text-[10px]! font-bold tracking-wider text-slate-500"
+                  />
+                </div>
+                <Badge variant="yellow" size="sm">
+                  {selectedHosts.length} SELECTED
+                </Badge>
               </div>
-              <Badge variant="yellow" size="sm">
-                {selectedHosts.length} SELECTED
-              </Badge>
             </div>
 
             <div className="flex-1 overflow-hidden">

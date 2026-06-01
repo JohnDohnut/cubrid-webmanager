@@ -18,6 +18,12 @@ export function findGroupIdForHost(hostGroups, hostUid) {
   return null;
 }
 
+/** Group id present in `nextGroups` but not in `previousGroups` (e.g. after createHostGroup). */
+export function findNewGroupId(previousGroups, nextGroups) {
+  const prev = new Set(Object.keys(previousGroups || {}));
+  return Object.keys(nextGroups || {}).find((id) => !prev.has(id)) ?? null;
+}
+
 export function getGroupHostUids(group) {
   return Object.keys(group?.hosts || {});
 }
