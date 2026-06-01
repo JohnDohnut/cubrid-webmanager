@@ -165,7 +165,7 @@ export default function RestoreDatabaseModal() {
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title={CM.restoringDatabase} icon="settings_backup_restore" onClose={handleClose} maxWidth="600px" iconVariant="danger">
+      <Modal isOpen title={CM.restoringDatabase} icon="settings_backup_restore" onClose={handleClose} maxWidth="600px" iconVariant="danger" showCloseButton={false}>
         <ModalStatusLoading 
           title={CM.reconstructingInstance} 
           subtitle={selectedDatabase}

@@ -93,7 +93,7 @@ export default function LoginDatabaseModal() {
 
   if (isLoading) {
     return (
-      <Modal isOpen title={CM.loginDatabase} icon="lock" onClose={handleClose} maxWidth="440px">
+      <Modal isOpen title={CM.loginDatabase} icon="lock" onClose={handleClose} maxWidth="440px" showCloseButton={false}>
         <ModalStatusLoading title={CM.loginDatabase} subtitle={CM.loggingInto(selectedDatabase)} />
       </Modal>
     );

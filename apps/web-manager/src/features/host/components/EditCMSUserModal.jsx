@@ -145,7 +145,7 @@ export default function EditCMSUserModal() {
   if (!isOpen) return null;
 
   if (isLoading) return (
-    <Modal isOpen title={isEditMode ? 'Saving Changes' : 'Creating User'} icon="person" onClose={() => { }} maxWidth="500px">
+    <Modal isOpen title={isEditMode ? 'Saving Changes' : 'Creating User'} icon="person" onClose={() => { }} maxWidth="500px" showCloseButton={false}>
       <ModalStatusLoading title={isEditMode ? 'Updating...' : 'Creating...'} />
     </Modal>
   );

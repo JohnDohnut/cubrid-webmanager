@@ -332,4 +332,13 @@ export class DatabaseError extends AppError {
       originalError
     );
   }
+
+  /** Another long-running CMS job is already active for this host/database. */
+  static OperationInProgress(additionalData?: Record<string, any>) {
+    return new DatabaseError(
+      'DATABASE',
+      DatabaseErrorCode.OPERATION_IN_PROGRESS,
+      additionalData
+    );
+  }
 }

@@ -35,6 +35,16 @@ export type LoadDatabaseCmsRequest = BaseCmsRequest & {
   user: string;
 
   /**
+   * CMS loaddb database user id.
+   */
+  _DBID: string;
+
+  /**
+   * CMS loaddb database password.
+   */
+  _DBPASSWD: string;
+
+  /**
    * Estimated
    * Values: "none" | other values
    */

@@ -119,10 +119,15 @@ apiClient.interceptors.response.use(
       }
       const payload = rawData.data;
       if (payload && typeof payload === 'object') {
-        // Attach note/status to payload so callers have access for display messages
-        // while maintaining legacy unwrap behavior for payload extraction.
+        // Attach envelope fields without clobbering domain `status` (e.g. CmsJobStatus).
         if (rawData.note) payload.note = rawData.note;
-        if (rawData.status) payload.status = rawData.status;
+        if (rawData.status !== undefined) {
+          payload.httpStatus = rawData.status;
+          const isJobPayload = Object.prototype.hasOwnProperty.call(payload, 'jobId');
+          if (!isJobPayload && !Object.prototype.hasOwnProperty.call(payload, 'status')) {
+            payload.status = rawData.status;
+          }
+        }
       }
       return payload;
     }

@@ -52,7 +52,7 @@ export default function DropUserModal() {
 
   if (isLoading) {
     return (
-      <Modal isOpen title="Purging Identity" icon="person_remove" onClose={handleClose} maxWidth="400px">
+      <Modal isOpen title="Purging Identity" icon="person_remove" onClose={handleClose} maxWidth="400px" showCloseButton={false}>
         <ModalStatusLoading 
           title="Executing Purge" 
           subtitle={`Synchronizing recursive deletion for @${dropUserData.userName} with target namespace.`}

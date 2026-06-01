@@ -451,7 +451,7 @@ export default function DatabasePropertyModal() {
 
   /* ─── LOADING VIEW ─── */
   if (isLoading) return (
-    <Modal isOpen title={CM.syncingConfiguration} icon="settings" onClose={handleClose} maxWidth="900px">
+    <Modal isOpen title={CM.syncingConfiguration} icon="settings" onClose={handleClose} maxWidth="900px" showCloseButton={false}>
       <ModalStatusLoading 
         title={CM.updatingRegistry} 
         subtitle={CM.syncingRegistrySubtitle} 

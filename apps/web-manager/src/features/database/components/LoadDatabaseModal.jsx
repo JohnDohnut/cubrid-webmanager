@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeLoadDatabaseModal } from '../databaseSlice';
 import { databaseApi } from '../databaseApi';
+import { databaseJobApi } from '../databaseJobApi';
+import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
+import { getCmsJobLoadingSubtitle } from '../../../infrastructure/cmsJob/cmsJobUi';
 import { useCM } from '../../../constants/useCM';
 
 import LoadConfigSection from './load/LoadConfigSection';
@@ -35,6 +38,8 @@ export default function LoadDatabaseModal() {
     isSuccess,
     isError,
   } = useActionState();
+  const { runJob } = useCmsJob();
+  const [jobStatus, setJobStatus] = useState(null);
 
   const [unloadList, setUnloadList] = useState([]);
   const [selectedUnload, setSelectedUnload] = useState('');
@@ -44,6 +49,7 @@ export default function LoadDatabaseModal() {
   const [formData, setFormData] = useState({
     targetDbName: '',
     dbUsername: 'dba',
+    dbPassword: '',
     unloadFiles: {
       schema: '',
       object: '',
@@ -174,6 +180,8 @@ export default function LoadDatabaseModal() {
         dbname: selectedDatabase,
         ...loadObject,
         user: formData.dbUsername,
+        _DBID: formData.dbUsername,
+        _DBPASSWD: formData.dbPassword ?? '',
         oiduse: toYesNo(formData.checkBoxes.oiduse),
         statisticsuse: toYesNo(formData.checkBoxes.statisticsuse),
         nolog: toYesNo(formData.checkBoxes.nolog),
@@ -181,22 +189,31 @@ export default function LoadDatabaseModal() {
         estimated: formData.checkBoxes.estimated ? formData.values.estimated : 'none',
         errorcontrolfile: formData.checkBoxes.errorcontrolfile ? formData.values.errorcontrolfile : 'none',
         ignoreclassfile: formData.checkBoxes.ignoreclassfile ? formData.values.ignoreclassfile : 'none',
-        checkoption: formData.checkBoxes.checkoption ? 'both' : 'none',
+        checkoption: formData.checkBoxes.checkoption ? 'both' : 'load',
       };
 
-      await databaseApi.loadDatabase(selectedHostUid, selectedDatabase, payload);
+      await runJob(
+        () => databaseJobApi.submitLoad(selectedHostUid, selectedDatabase, payload),
+        { onProgress: (j) => setJobStatus(j.jobStatus ?? j.status) }
+      );
       endSuccess();
     } catch (err) {
       endError(typeof err === 'string' ? err : (err.message || CM.failure));
     }
   };
 
-  const handleClose = () => dispatch(closeLoadDatabaseModal());
+  const handleClose = () => {
+    dispatch(closeLoadDatabaseModal());
+    resetAction();
+  };
 
   if (isLoading) {
     return (
       <Modal isOpen title={CM.loadDatabase} icon="download" onClose={handleClose} maxWidth="720px">
-        <ModalStatusLoading title={CM.loadDatabase} subtitle={selectedDatabase} />
+        <ModalStatusLoading
+          title={CM.loadDatabase}
+          subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
+        />
       </Modal>
     );
   }

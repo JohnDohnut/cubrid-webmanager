@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { closeRenameDatabaseModal, renameDatabase, fetchDatabaseStartInfo } from '../databaseSlice';
+import { closeRenameDatabaseModal, fetchDatabaseStartInfo } from '../databaseSlice';
+import { databaseJobApi } from '../databaseJobApi';
+import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
+import { getCmsJobLoadingSubtitle } from '../../../infrastructure/cmsJob/cmsJobUi';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -41,6 +44,8 @@ export default function RenameDatabaseModal() {
     isSuccess,
     isError
   } = useActionState();
+  const { runJob } = useCmsJob();
+  const [jobStatus, setJobStatus] = useState(null);
 
   const [newDbName, setNewDbName] = useState('');
   const [forcedel, setForcedel] = useState(false);
@@ -65,7 +70,10 @@ export default function RenameDatabaseModal() {
         advanced: 'off',
         forcedel: forcedel ? 'y' : 'n',
       };
-      await dispatch(renameDatabase({ hostUid: selectedHostUid, dbname: selectedDatabase, payload })).unwrap();
+      await runJob(
+        () => databaseJobApi.submitRename(selectedHostUid, selectedDatabase, payload),
+        { onProgress: (j) => setJobStatus(j.jobStatus ?? j.status) }
+      );
       dispatch(fetchDatabaseStartInfo(selectedHostUid));
       endSuccess(`Database "${selectedDatabase}" has been renamed to "${newDbName.trim()}".`);
     } catch (err) {
@@ -76,7 +84,10 @@ export default function RenameDatabaseModal() {
     }
   };
 
-  const handleClose = () => dispatch(closeRenameDatabaseModal());
+  const handleClose = () => {
+    dispatch(closeRenameDatabaseModal());
+    resetAction();
+  };
 
   const hasNewName = newDbName.trim().length > 0;
   const isNameChanged = newDbName.trim() !== selectedDatabase;
@@ -85,9 +96,9 @@ export default function RenameDatabaseModal() {
   if (isLoading) {
     return (
       <Modal isOpen title={CM.renamingDatabase} icon="drive_file_rename_outline" onClose={handleClose} maxWidth="480px">
-        <ModalStatusLoading 
-          title={CM.updatingIdentity} 
-          subtitle={selectedDatabase} 
+        <ModalStatusLoading
+          title={CM.updatingIdentity}
+          subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
         />
       </Modal>
     );

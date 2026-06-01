@@ -125,7 +125,7 @@ export default function BackupDatabaseModal() {
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title={CM.backupDatabase} icon="backup" onClose={handleClose} maxWidth="720px">
+      <Modal isOpen title={CM.backupDatabase} icon="backup" onClose={handleClose} maxWidth="720px" showCloseButton={false}>
         <ModalStatusLoading 
           title={CM.snapshotInProgress} 
           subtitle={selectedDatabase} 

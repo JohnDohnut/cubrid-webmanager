@@ -172,7 +172,7 @@ export default function AddBackupPlanModal() {
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title={CM.initializingSchedule} icon="backup_table" onClose={handleClose} maxWidth="700px">
+      <Modal isOpen title={CM.initializingSchedule} icon="backup_table" onClose={handleClose} maxWidth="700px" showCloseButton={false}>
         <ModalStatusLoading 
           title={CM.committingAutomation} 
           subtitle={`Synchronizing ${formData.backupId} with the system scheduler.`}

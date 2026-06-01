@@ -192,7 +192,7 @@ export default function EditQueryPlanModal() {
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title={CM.editQueryPlan} icon="edit" onClose={handleClose} maxWidth="720px">
+      <Modal isOpen title={CM.editQueryPlan} icon="edit" onClose={handleClose} maxWidth="720px" showCloseButton={false}>
         <ModalStatusLoading 
           title="Syncing Changes" 
           subtitle="Committing the new automation sequence to the task controller."

@@ -615,6 +615,7 @@ describe('DatabaseLifecycleService', () => {
     });
 
     it('should successfully create database without optional configuration', async () => {
+      const startDatabaseSpy = jest.spyOn(service, 'startDatabase');
       const request = {
         ...mockCreateDbRequest,
       };
@@ -631,11 +632,8 @@ describe('DatabaseLifecycleService', () => {
           success: true,
           data: mockCreateDatabaseResponse,
         },
-        startDatabase: {
-          success: true,
-          data: mockStartInfoForCreate,
-        },
       });
+      expect(startDatabaseSpy).not.toHaveBeenCalled();
       expect(databaseUserService.updateUser).not.toHaveBeenCalled();
       expect(databaseConfigService.setAutoAddVol).not.toHaveBeenCalled();
       expect(databaseConfigService.setAutoStart).not.toHaveBeenCalled();
