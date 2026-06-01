@@ -75,6 +75,8 @@ import DatabasePropertyModal from '../features/database/components/DatabasePrope
 import RenameDatabaseModal from '../features/database/components/RenameDatabaseModal';
 import AddVolumeModal from '../features/database/components/AddVolumeModal';
 import SuggestedHaNodesModal from '../features/host/components/SuggestedHaNodesModal';
+import HaPeerMergeModal from '../features/host/components/HaPeerMergeModal';
+import HaClusterLinkedModal from '../features/host/components/HaClusterLinkedModal';
 
 import { Icon } from '../components/ds/foundation/Icon';
 import { useCM } from '../constants/useCM';
@@ -395,6 +397,8 @@ function DashboardLayout() {
         </SplitPane>
 
         <SuggestedHaNodesModal />
+        <HaPeerMergeModal />
+        <HaClusterLinkedModal />
 
         <HostGroupNameModal />
         <AddHostModal

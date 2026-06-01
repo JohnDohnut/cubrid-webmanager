@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { clearSuggestedHaNodes, openAddHostModal, closeDiscoveryModal } from '../hostSlice';
+import { findUndiscoveredHaPeers } from '../haPeerUtils';
 import { Modal } from '../../../components/ds/layout/Modal';
 import { Button } from '../../../components/ds/foundation/Button';
 import { Icon } from '../../../components/ds/foundation/Icon';
@@ -13,19 +14,13 @@ export default function SuggestedHaNodesModal() {
   const { suggestedHaNodes, suggestedHaGroupId, hosts, isDiscoveryModalOpen } = useSelector((state) => state.host, shallowEqual);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  // Filter out nodes that are already in the hosts list
-  const filteredNodes = (suggestedHaNodes || []).filter(node => {
-    const isSelf = hosts.find(h => {
-      const hAddr = h.address.toLowerCase();
-      const nIp = (node.ip || '').toLowerCase();
-      const nHost = (node.hostname || '').toLowerCase();
-      if (hAddr === nIp || hAddr === nHost) return true;
-      const isLoopback = (addr) => addr === 'localhost' || addr === '127.0.0.1';
-      if (isLoopback(hAddr) && (isLoopback(nIp) || isLoopback(nHost))) return true;
-      return false;
-    });
-    return !isSelf;
-  });
+  const filteredNodes = findUndiscoveredHaPeers(hosts, suggestedHaNodes);
+
+  useEffect(() => {
+    if (isDiscoveryModalOpen && filteredNodes.length === 0) {
+      dispatch(clearSuggestedHaNodes());
+    }
+  }, [dispatch, filteredNodes.length, isDiscoveryModalOpen]);
 
   if (filteredNodes.length === 0) return null;
 
@@ -55,6 +50,7 @@ export default function SuggestedHaNodesModal() {
       onClose={() => dispatch(clearSuggestedHaNodes())}
       title={CM.haPeersDiscovered}
       icon="hub"
+      zIndexClass="z-[2200]"
       maxWidth="max-w-[450px]"
       footer={
         <>

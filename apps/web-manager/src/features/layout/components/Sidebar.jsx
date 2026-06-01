@@ -4,17 +4,13 @@ import { useSelector, useDispatch , shallowEqual } from 'react-redux';
 import {
   fetchHosts,
   setSelectedHost,
-  loginToHost,
-  markGroupHa,
+  loginToHostWithSideEffects,
   openDeleteHostModal,
   openEditHostModal,
   openChangePasswordModal,
   revokeHostLogin,
   openServerVersionModal,
   fetchHostEnv,
-  setSuggestedHaNodes,
-  clearLastAddedHostUid,
-  editHost,
   openCmsUserManagementModal
 } from '../../host/hostSlice';
 import {
@@ -95,8 +91,6 @@ import DeleteQueryPlanModal from '../../database/components/DeleteQueryPlanModal
 import AutoVolumeLogModal from '../../database/components/AutoVolumeLogModal';
 import CMSUserManagementModal from '../../host/components/CMSUserManagementModal';
 import EditCMSUserModal from '../../host/components/EditCMSUserModal';
-import { findGroupIdForHost } from '../../host/hostGroupUtils';
-import { store } from '../../../app/store';
 import { openCreateGroupModal, openDeleteGroupModal, openRenameGroupModal } from '../../host/hostSlice';
 
 export default function Sidebar({ isCollapsed, onAddHost }) {
@@ -142,7 +136,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
 
   const [loadingText, setLoadingText] = useState(CM.processing);
 
-  const { hosts, hostGroups, selectedHostUid, selectedGroupUid, loading: hostsLoading, authorizedHosts, isLoggingIntoHost, hostAuthErrors, haInfo, lastAddedHostUid } = useSelector((state) => state.host, shallowEqual);
+  const { hosts, hostGroups, selectedHostUid, selectedGroupUid, loading: hostsLoading, authorizedHosts, isLoggingIntoHost, hostAuthErrors, haInfo, skipAutoHostLogin } = useSelector((state) => state.host, shallowEqual);
   const { databases, activeDatabases, loggedInDatabases } = useSelector((state) => state.database, shallowEqual);
   const { brokers } = useSelector((state) => state.broker, shallowEqual);
 
@@ -171,68 +165,32 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
 
   const handleHostLogin = useCallback((uid) => {
     if (!uid) return;
-    
-    dispatch(loginToHost(uid))
+
+    dispatch(loginToHostWithSideEffects(uid))
       .unwrap()
-      .then(async (response) => {
+      .then(() => {
         dispatch(setActiveMainTab('host:' + uid));
         dispatch(fetchDatabaseStartInfo(uid));
         dispatch(fetchBrokerList(uid));
         dispatch(fetchHostEnv(uid));
-
-        const isNewlyAdded = lastAddedHostUid === uid;
-
-        if (response.isHA) {
-          // Group name should not auto-change based on which node was selected.
-          // Group rename is handled explicitly via group CRUD.
-          await dispatch(markGroupHa({ hostUid: uid })).unwrap().catch(() => {});
-        }
-
-        if (response.isHA && response.haNodes?.length > 0 && isNewlyAdded) {
-          const undiscovered = response.haNodes.filter(node => {
-            const isSelf = hosts.find(h => {
-              const hAddr = h.address.toLowerCase();
-              const nIp = (node.ip || '').toLowerCase();
-              const nHost = (node.hostname || '').toLowerCase();
-              if (hAddr === nIp || hAddr === nHost) return true;
-              const isLoopback = (addr) => addr === 'localhost' || addr === '127.0.0.1';
-              if (isLoopback(hAddr) && (isLoopback(nIp) || isLoopback(nHost))) return true;
-              return false;
-            });
-            return !isSelf;
-          });
-          if (undiscovered.length > 0) {
-            const freshGroups = store.getState().host.hostGroups;
-            dispatch(setSuggestedHaNodes({
-              nodes: undiscovered,
-              groupId: findGroupIdForHost(freshGroups, uid),
-            }));
-          }
-        }
-
-        if (isNewlyAdded) {
-          dispatch(clearLastAddedHostUid());
-        }
-
-        const host = hosts.find(h => h.uid === uid);
-        if (host && response.currentNodeType === 'master' && !host.alias?.toLowerCase().includes('(master)')) {
-          const newAlias = `${host.alias || host.id} (master)`;
-          dispatch(editHost({ hostUid: uid, payload: { ...host, alias: newAlias } }));
-        }
       })
       .catch((err) => {
         console.error('Failed to log into host:', err);
       });
-  }, [dispatch, hosts, lastAddedHostUid]);
+  }, [dispatch]);
 
   useEffect(() => {
     if (selectedHostUid && selectedHostUid !== lastProcessedHostUid.current) {
-      handleHostLogin(selectedHostUid);
-      lastProcessedHostUid.current = selectedHostUid;
+      if (skipAutoHostLogin) {
+        lastProcessedHostUid.current = selectedHostUid;
+      } else {
+        handleHostLogin(selectedHostUid);
+        lastProcessedHostUid.current = selectedHostUid;
+      }
     } else if (!selectedHostUid) {
       lastProcessedHostUid.current = null;
     }
-  }, [selectedHostUid, handleHostLogin]);
+  }, [selectedHostUid, handleHostLogin, skipAutoHostLogin]);
 
   const handleContextMenu = (e, serverName, hostUid, alias) => {
     e.preventDefault();

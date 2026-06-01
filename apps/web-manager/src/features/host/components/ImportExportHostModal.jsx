@@ -6,14 +6,9 @@ import {
   createHostGroup,
   deleteHostGroup,
   editHost,
-  loginToHost,
-  setSelectedHost,
-  fetchHostEnv,
+  setSkipAutoHostLogin,
 } from '../hostSlice';
 import { showStatusModal } from '../../layout/layoutSlice';
-import { fetchDatabaseStartInfo } from '../../database/databaseSlice';
-import { fetchBrokerList } from '../../broker/brokerSlice';
-import { setActiveMainTab } from '../../layout/layoutSlice';
 import {
   exportHostsToXml,
   parseHostsXml,
@@ -32,18 +27,6 @@ import { Typography } from '../../../components/ds/foundation/Typography';
 import { Checkbox } from '../../../components/ds/forms/Checkbox';
 
 import { useCM } from '../../../constants/useCM';
-
-async function loginImportedHost(dispatch, hostUid) {
-  await dispatch(loginToHost(hostUid)).unwrap();
-}
-
-function activateImportedHost(dispatch, hostUid) {
-  dispatch(setSelectedHost(hostUid));
-  dispatch(setActiveMainTab(`host:${hostUid}`));
-  dispatch(fetchDatabaseStartInfo(hostUid));
-  dispatch(fetchBrokerList(hostUid));
-  dispatch(fetchHostEnv(hostUid));
-}
 
 export default function ImportExportHostModal() {
   const CM = useCM();
@@ -165,6 +148,8 @@ export default function ImportExportHostModal() {
         let importGroupId = null;
 
         try {
+          dispatch(setSkipAutoHostLogin(true));
+
           const groupName = importGroupName.trim() || 'Imported';
           const previousGroups = store.getState().host.hostGroups;
           const groupsAfterCreate = await dispatch(createHostGroup({ name: groupName })).unwrap();
@@ -224,6 +209,8 @@ export default function ImportExportHostModal() {
             title: 'Import failed',
             message: err?.message || 'Import was rolled back. No hosts were added.',
           }));
+        } finally {
+          dispatch(setSkipAutoHostLogin(false));
         }
       }
     } catch (err) {
@@ -249,12 +236,10 @@ export default function ImportExportHostModal() {
 
     setIsProcessing(true);
     let updatedCount = 0;
-    let firstLoggedInUid = null;
-    const loginFailures = [];
 
     try {
       for (const host of pendingPasswordHosts) {
-        const password = String(passwordDrafts[host.uid] || '');
+        const password = String(passwordDrafts[host.uid] || '').trim();
         if (!password) continue;
 
         const payload = {
@@ -268,35 +253,15 @@ export default function ImportExportHostModal() {
         try {
           await dispatch(editHost({ hostUid: host.uid, payload })).unwrap();
           updatedCount += 1;
-          try {
-            await loginImportedHost(dispatch, host.uid);
-            if (!firstLoggedInUid) {
-              firstLoggedInUid = host.uid;
-            }
-          } catch (loginErr) {
-            loginFailures.push(host.alias || host.id);
-          }
         } catch {
           // Continue for remaining hosts.
         }
       }
 
-      let message = `Password updated for ${updatedCount} host(s).`;
-      if (firstLoggedInUid) {
-        message += ' First successful host was connected.';
-      }
-      if (loginFailures.length > 0) {
-        message += ` Login failed for: ${loginFailures.join(', ')}.`;
-      }
-
-      if (firstLoggedInUid) {
-        activateImportedHost(dispatch, firstLoggedInUid);
-      }
-
       dispatch(showStatusModal({
         type: updatedCount > 0 ? 'success' : 'info',
         title: 'Import Result',
-        message,
+        message: `Password updated for ${updatedCount} host(s). Log in from the sidebar when ready.`,
       }));
       dispatch(closeImportExportModal());
     } finally {
