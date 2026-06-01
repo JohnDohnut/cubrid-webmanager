@@ -47,13 +47,43 @@ export const exportHostsToXml = (hosts, fileName = 'export_servers.xml') => {
   URL.revokeObjectURL(url);
 };
 
+function unescapePrefsXml(value) {
+  return value
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\r')
+    .replace(/\\t/g, '\t')
+    .replace(/\\"/g, '"')
+    .replace(/\\\\/g, '\\');
+}
+
+function extractHostsXmlFromPrefs(rawText) {
+  const line = rawText
+    .split('\n')
+    .find((entry) => entry.startsWith('CUBRID_SERVERS='));
+  if (!line) return null;
+  const escapedXml = line.slice('CUBRID_SERVERS='.length);
+  return escapedXml ? unescapePrefsXml(escapedXml) : null;
+}
+
 /**
- * Parses an XML file and returns an array of host objects.
- * 
- * @param {string} xmlString - The raw XML content
+ * Parses host XML or legacy CUBRID desktop prefs text and returns host entries.
+ *
+ * Supported inputs:
+ * - `<hosts>...</hosts>` XML
+ * - `.prefs` containing `CUBRID_SERVERS=<?xml ...><hosts>...`
+ *
+ * @param {string} rawInput - XML text or prefs text
  * @returns {Array} - Array of host objects ready for addHost action
  */
-export const parseHostsXml = (xmlString) => {
+export const parseHostsXml = (rawInput) => {
+  const input = String(rawInput || '').trim();
+  const xmlString = input.startsWith('<')
+    ? input
+    : extractHostsXmlFromPrefs(input);
+  if (!xmlString) {
+    throw new Error('No CUBRID host XML found. Provide a <hosts> XML or .prefs with CUBRID_SERVERS.');
+  }
+
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlString, 'application/xml');
   
@@ -80,10 +110,12 @@ export const parseHostsXml = (xmlString) => {
     if (!address) continue; // Skip if mandatory address is missing
 
     parsedHosts.push({
-      alias: node.getAttribute('name') || '',
-      address: address,
+      // Only map fields used by web manager addHost.
+      alias: node.getAttribute('name') || node.getAttribute('id') || address,
+      address,
       port: node.getAttribute('port') || '8001',
-      id: node.getAttribute('user') || '',
+      id: node.getAttribute('user') || 'admin',
+      // Legacy desktop passwords are not reusable for WM host login.
       password: '',
     });
   }

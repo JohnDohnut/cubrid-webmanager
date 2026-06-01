@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { closeImportExportModal, addHost } from '../hostSlice';
+import { closeImportExportModal, addHost, editHost } from '../hostSlice';
 import { showStatusModal } from '../../layout/layoutSlice';
 import { exportHostsToXml, parseHostsXml } from '../hostImportExport';
+import { flattenHostsFromGroups } from '../hostGroupUtils';
 import { Modal } from '../../../components/ds/layout/Modal';
 import { Button } from '../../../components/ds/foundation/Button';
 import { Table } from '../../../components/ds/layout/Table';
@@ -21,6 +22,8 @@ export default function ImportExportHostModal() {
   const { isImportExportModalOpen, importExportMode, hosts } = useSelector((state) => state.host, shallowEqual);
   const [selectedHosts, setSelectedHosts] = useState([]);
   const [importList, setImportList] = useState([]);
+  const [pendingPasswordHosts, setPendingPasswordHosts] = useState([]);
+  const [passwordDrafts, setPasswordDrafts] = useState({});
   const [isProcessing, setIsProcessing] = useState(false);
   const [fileName, setFileName] = useState('export_servers');
   const fileInputRef = useRef(null);
@@ -33,6 +36,8 @@ export default function ImportExportHostModal() {
       } else {
         setImportList([]);
         setSelectedHosts([]);
+        setPendingPasswordHosts([]);
+        setPasswordDrafts({});
       }
     }
   }, [isImportExportModalOpen, importExportMode, hosts]);
@@ -103,6 +108,7 @@ export default function ImportExportHostModal() {
         const hostsToImport = importList.filter(h => selectedHosts.includes(h.uid));
         let addedCount = 0;
         let skippedCount = 0;
+        const importedWithoutPassword = [];
 
         for (const hostData of hostsToImport) {
           const isDuplicate = hosts.find(h => h.address === hostData.address && String(h.port) === String(hostData.port));
@@ -112,27 +118,99 @@ export default function ImportExportHostModal() {
           }
           
           try {
-            await dispatch(addHost({ ...hostData, port: Number(hostData.port) })).unwrap();
+            const hostGroups = await dispatch(addHost({ ...hostData, port: Number(hostData.port) })).unwrap();
             addedCount++;
+            if (!hostData.password) {
+              const addedHosts = flattenHostsFromGroups(hostGroups);
+              const addedHost = addedHosts.find((h) =>
+                h.address === hostData.address &&
+                String(h.port) === String(hostData.port) &&
+                h.id === hostData.id
+              );
+              if (addedHost) {
+                importedWithoutPassword.push(addedHost);
+              }
+            }
           } catch (err) {
             skippedCount++;
           }
         }
 
-        dispatch(showStatusModal({ 
-          type: 'success', 
-          title: 'Import Result', 
-          message: `Imported ${addedCount} hosts successfully. ${skippedCount} items were skipped.` 
-        }));
-        dispatch(closeImportExportModal());
+        if (importedWithoutPassword.length > 0) {
+          const draft = {};
+          importedWithoutPassword.forEach((host) => { draft[host.uid] = ''; });
+          setPasswordDrafts(draft);
+          setPendingPasswordHosts(importedWithoutPassword);
+          dispatch(showStatusModal({
+            type: 'info',
+            title: 'Set imported passwords',
+            message: `Imported ${addedCount} hosts. Add passwords for ${importedWithoutPassword.length} imported host(s), or skip.`,
+          }));
+        } else {
+          dispatch(showStatusModal({ 
+            type: 'success', 
+            title: 'Import Result', 
+            message: `Imported ${addedCount} hosts successfully. ${skippedCount} items were skipped.` 
+          }));
+          dispatch(closeImportExportModal());
+        }
       }
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const title = importExportMode === 'export' ? CM.exportHosts : CM.importHosts;
-  const actionLabel = importExportMode === 'export' ? CM.exportHost : CM.importHost;
+  const handlePasswordDraftChange = (uid, value) => {
+    setPasswordDrafts((prev) => ({ ...prev, [uid]: value }));
+  };
+
+  const handleApplyImportedPasswords = async () => {
+    if (pendingPasswordHosts.length === 0) {
+      dispatch(closeImportExportModal());
+      return;
+    }
+
+    setIsProcessing(true);
+    let updatedCount = 0;
+    try {
+      for (const host of pendingPasswordHosts) {
+        const password = String(passwordDrafts[host.uid] || '');
+        if (!password) continue;
+        const payload = {
+          id: host.id,
+          address: host.address,
+          port: Number(host.port),
+          alias: host.alias,
+          password,
+        };
+        try {
+          await dispatch(editHost({ hostUid: host.uid, payload })).unwrap();
+          updatedCount += 1;
+        } catch {
+          // Continue for remaining hosts.
+        }
+      }
+
+      dispatch(showStatusModal({
+        type: 'success',
+        title: 'Import Result',
+        message: `Imported hosts processed. Password updated for ${updatedCount} host(s).`,
+      }));
+      dispatch(closeImportExportModal());
+    } finally {
+      setIsProcessing(false);
+      setPendingPasswordHosts([]);
+      setPasswordDrafts({});
+    }
+  };
+
+  const isPasswordStep = importExportMode === 'import' && pendingPasswordHosts.length > 0;
+  const title = isPasswordStep
+    ? 'Set Passwords for Imported Hosts'
+    : (importExportMode === 'export' ? CM.exportHosts : CM.importHosts);
+  const actionLabel = isPasswordStep
+    ? 'Apply Passwords'
+    : (importExportMode === 'export' ? CM.exportHost : CM.importHost);
   const icon = importExportMode === 'export' ? 'file_upload' : 'file_download';
 
   const selectable = importList.filter(h => !h.isDuplicate);
@@ -147,13 +225,15 @@ export default function ImportExportHostModal() {
       icon={icon}
       loading={isProcessing}
       maxWidth="max-w-[720px]"
-      subtitle={importExportMode === 'export' 
+      subtitle={isPasswordStep
+        ? 'Imported hosts were added without passwords. Enter passwords now or skip.'
+        : importExportMode === 'export' 
         ? 'Export hosts to XML file. Note: The passwords are not included.' 
         : 'Import hosts from XML file.'}
       footer={
         <div className="flex justify-between items-center w-full">
           <div className="flex items-center gap-4">
-            {importExportMode === 'import' && importList.length > 0 && (
+            {importExportMode === 'import' && importList.length > 0 && !isPasswordStep && (
               <Button 
                 variant="ghost" 
                 size="sm"
@@ -163,7 +243,7 @@ export default function ImportExportHostModal() {
                 Change File
               </Button>
             )}
-            {importExportMode === 'export' && (
+            {importExportMode === 'export' && !isPasswordStep && (
               <div className="flex items-center gap-2">
                 <Typography variant="caption" className="font-bold text-slate-400 uppercase tracking-tight">Filename:</Typography>
                 <div className="w-48">
@@ -181,15 +261,26 @@ export default function ImportExportHostModal() {
           <div className="flex gap-3">
             <Button 
               variant="secondary" 
-              onClick={() => dispatch(closeImportExportModal())}
+              onClick={() => {
+                if (isPasswordStep) {
+                  dispatch(showStatusModal({
+                    type: 'info',
+                    title: 'Import Result',
+                    message: 'Passwords were skipped for imported hosts. You can edit each host later.',
+                  }));
+                }
+                dispatch(closeImportExportModal());
+                setPendingPasswordHosts([]);
+                setPasswordDrafts({});
+              }}
               disabled={isProcessing}
             >
-              Discard
+              {isPasswordStep ? 'Skip' : 'Discard'}
             </Button>
             <Button 
               variant="primary" 
-              onClick={handleAction}
-              disabled={selectedHosts.length === 0 || isProcessing}
+              onClick={isPasswordStep ? handleApplyImportedPasswords : handleAction}
+              disabled={isPasswordStep ? isProcessing : (selectedHosts.length === 0 || isProcessing)}
               loading={isProcessing}
               icon={icon === 'file_upload' ? 'bolt' : icon}
               className="min-w-[120px]"
@@ -201,18 +292,35 @@ export default function ImportExportHostModal() {
       }
     >
       <div className="flex flex-col h-[500px]">
-        {importExportMode === 'import' && importList.length === 0 ? (
+        {isPasswordStep ? (
+          <div className="px-4 py-3 space-y-3 overflow-auto">
+            {pendingPasswordHosts.map((host) => (
+              <div key={host.uid} className="p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                <div className="text-xs font-semibold mb-2">
+                  {host.alias || host.id} ({host.address}:{host.port})
+                </div>
+                <Input
+                  type="password"
+                  size="sm"
+                  placeholder="Host password"
+                  value={passwordDrafts[host.uid] || ''}
+                  onChange={(e) => handlePasswordDraftChange(host.uid, e.target.value)}
+                />
+              </div>
+            ))}
+          </div>
+        ) : importExportMode === 'import' && importList.length === 0 ? (
             <div className="p-8">
               <FileUpload
                 label={CM.importHostsXml}
-                accept=".xml"
+                accept=".xml,.prefs,.properties,.txt"
                 onFileSelect={(file) => {
                   const event = { target: { files: [file] } };
                   handleFileChange(event);
                 }}
               />
               <Typography variant="p" className="text-slate-500 mt-4 text-center text-[11px] max-w-[280px] mx-auto">
-                Select an XML file containing host connections exported from CUBRID Admin.
+                Select a CUBRID hosts XML file or legacy desktop .prefs file.
               </Typography>
             </div>
         ) : (
