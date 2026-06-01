@@ -1,11 +1,14 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { 
   closeCreateDatabaseModal, 
-  createDatabase, 
   fetchCreateDatabaseInfo,
   fetchDatabaseStartInfo 
 } from '../databaseSlice';
+
+import { databaseJobApi } from '../databaseJobApi';
+import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
+import { getCmsJobLoadingSubtitle } from '../../../infrastructure/cmsJob/cmsJobUi';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -38,10 +41,7 @@ const BASE_LOCALES = [
   { value: 'ko_KR.euckr', label: 'ko_KR.euckr — Korean, Legacy' },
   { value: 'ko_KR.utf8', label: 'ko_KR.utf8 — Korean, Universal' },
 ];
-const VOLUME_TYPE_KEYS = [
-  { value: 'data', key: 'volumeTypeData' },
-  { value: 'temp', key: 'volumeTypeTemp' },
-];
+// Fixed volume type: segment represents a permanent data volume.
 
 const renameVolumesSequentially = (volumes, dbName) => {
   const typeCounters = {};
@@ -69,9 +69,12 @@ const INITIAL_FORM_DATA = {
   autoStart: true,
   volumes: [],
   autoAddVol: {
-    data: "ON",
-    dataWarn: "0.15",
-    dataExtPage: "32768"
+    data: 'ON',
+    dataWarn: '0.15',
+    dataExtPage: '32768',
+    index: 'OFF',
+    indexWarn: '0.15',
+    indexExtPage: '32768',
   },
   baseDir: '',
   dbaPassword: '',
@@ -101,10 +104,7 @@ export default function CreateDatabaseModal() {
     () => [...BASE_LOCALES, { value: 'user_defined', label: CM.userDefined }],
     [CM]
   );
-  const volumeTypes = useMemo(
-    () => VOLUME_TYPE_KEYS.map(({ value, key }) => ({ value, label: CM[key] })),
-    [CM]
-  );
+  // Removed dynamic volume type selection. Fixed to permanent data segment.
   const steps = useMemo(
     () => [
       { id: 1, label: CM.wizardGeneral, icon: 'settings' },
@@ -131,6 +131,10 @@ export default function CreateDatabaseModal() {
     isError
   } = useActionState();
 
+  const { runJob } = useCmsJob();
+  const [jobStatus, setJobStatus] = useState(null);
+  const jobDismissedRef = useRef(false);
+
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState(INITIAL_FORM_DATA);
 
@@ -138,6 +142,7 @@ export default function CreateDatabaseModal() {
 
   useEffect(() => {
     if (isCreateDatabaseModalOpen && selectedHostUid) {
+      jobDismissedRef.current = false;
       setStep(1);
       resetAction();
       setFormData(INITIAL_FORM_DATA);
@@ -262,7 +267,10 @@ export default function CreateDatabaseModal() {
         setAutoAddVol: {
           data: formData.autoAddVol.data,
           data_warn_outofspace: formData.autoAddVol.dataWarn,
-          data_ext_page: formData.autoAddVol.dataExtPage
+          data_ext_page: formData.autoAddVol.dataExtPage,
+          index: formData.autoAddVol.index,
+          index_warn_outofspace: formData.autoAddVol.indexWarn,
+          index_ext_page: formData.autoAddVol.indexExtPage,
         },
         username: "dba",
         updateUser: {
@@ -270,18 +278,38 @@ export default function CreateDatabaseModal() {
         }
       };
 
-      await dispatch(createDatabase({ hostUid: selectedHostUid, payload })).unwrap();
-      
-      // refetch database list in background to update UI
+      await runJob(
+        () => databaseJobApi.submitCreate(selectedHostUid, payload),
+        {
+          onProgress: (j) => {
+            if (!jobDismissedRef.current) {
+              setJobStatus(j.jobStatus ?? j.status);
+            }
+          },
+        }
+      );
+
       dispatch(fetchDatabaseStartInfo({ hostUid: selectedHostUid, isBackground: true }));
 
-      endSuccess(`Database "${formData.dbName}" has been successfully initialized and commissioned.`);
+      if (!jobDismissedRef.current) {
+        endSuccess(`Database "${formData.dbName}" has been successfully initialized and commissioned.`);
+      }
     } catch (err) {
-      endError(typeof err === 'string' ? err : (err.message || 'An unexpected error occurred during database creation.'));
+      if (!jobDismissedRef.current) {
+        const msg =
+          err?.response?.data?.note ||
+          err?.response?.data?.message ||
+          (typeof err === 'string' ? err : err?.message) ||
+          'An unexpected error occurred during database creation.';
+        endError(msg);
+      }
     }
   };
 
   const handleClose = () => {
+    if (isLoading) {
+      jobDismissedRef.current = true;
+    }
     dispatch(closeCreateDatabaseModal());
     setStep(1);
     setFormData(INITIAL_FORM_DATA);
@@ -295,9 +323,9 @@ export default function CreateDatabaseModal() {
   if (isLoading) {
     return (
       <Modal isOpen title={CM.createDatabase} icon="add_circle" onClose={handleClose} maxWidth="600px">
-        <ModalStatusLoading 
-          title={CM.createDatabase} 
-          subtitle={formData.dbName} 
+        <ModalStatusLoading
+          title={CM.createDatabase}
+          subtitle={getCmsJobLoadingSubtitle(formData.dbName, jobStatus, CM)}
         />
       </Modal>
     );
@@ -385,33 +413,58 @@ export default function CreateDatabaseModal() {
     >
       <div className="space-y-0">
         {/* Step Track */}
-        <div className="flex items-center gap-0 mb-5 px-1">
-          {steps.map((s, idx) => (
-            <React.Fragment key={s.id}>
-              <div className="flex items-center gap-2 shrink-0">
-                <div className={`w-6 h-6 rounded-xl flex items-center justify-center border text-[10px] font-black transition-all duration-300 ${
-                  step > s.id
-                    ? 'bg-amber-500 border-amber-500 text-white'
-                    : step === s.id
-                    ? 'bg-amber-500/10 border-amber-500 text-amber-500 shadow-[0_0_12px_rgba(255,193,7,0.1)]'
-                    : 'bg-transparent border-slate-200 dark:border-white/10 text-slate-400'
-                }`}>
-                  {step > s.id
-                    ? <Icon name="check" size="11px" weight={700} />
-                    : <span>{s.id}</span>
-                  }
-                </div>
-                <span className={`text-[11px] font-bold transition-colors uppercase tracking-widest ${
-                  step === s.id ? 'text-amber-600 dark:text-amber-400' :
-                  step > s.id ? 'text-slate-400 dark:text-slate-500' :
-                  'text-slate-300 dark:text-slate-600'
-                }`}>{s.label}</span>
-              </div>
-              {idx < steps.length - 1 && (
-                <div className={`flex-1 mx-3 h-px transition-all duration-500 ${step > idx + 1 ? 'bg-amber-500/30' : 'bg-slate-100 dark:bg-white/6'}`} />
-              )}
-            </React.Fragment>
-          ))}
+        <div className="mb-6">
+          {/* Step nodes */}
+          <div className="flex items-center">
+            {steps.map((s, idx) => {
+              const isActive  = step === s.id;
+              const isDone    = step > s.id;
+              const isLast    = idx === steps.length - 1;
+              return (
+                <React.Fragment key={s.id}>
+                  {/* Node column */}
+                  <div className="flex flex-col items-center shrink-0" style={{ minWidth: 0 }}>
+                    {/* Pill */}
+                    <div className={`relative w-9 h-9 rounded-2xl flex items-center justify-center border-2 transition-all duration-300 ${
+                      isDone
+                        ? 'bg-amber-500 border-amber-500 text-white shadow-[0_0_14px_rgba(245,158,11,0.3)]'
+                        : isActive
+                        ? 'bg-amber-500/10 border-amber-500 text-amber-500 shadow-[0_0_16px_rgba(245,158,11,0.2)]'
+                        : 'bg-transparent border-slate-200 dark:border-white/10 text-slate-400 dark:text-slate-600'
+                    }`}>
+                      <Icon
+                        name={isDone ? 'check' : s.icon}
+                        size={isDone ? '13px' : '15px'}
+                        weight={isDone ? 700 : 300}
+                      />
+                      {isActive && (
+                        <span className="absolute inset-0 rounded-2xl border-2 border-amber-500/50 animate-ping opacity-50" />
+                      )}
+                    </div>
+                    {/* Label — only under active step */}
+                    <div className="h-8 flex flex-col items-center justify-center mt-1.5">
+                      {isActive && (
+                        <span className="text-[9px] font-black capitalize tracking-widest text-amber-500 text-center leading-tight animate-in fade-in slide-in-from-top-1 duration-200 px-1">
+                          {s.label}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {/* Connector line */}
+                  {!isLast && (
+                    <div className="flex-1 mx-2 mb-7">
+                      <div className="relative h-px">
+                        <div className="absolute inset-0 bg-slate-100 dark:bg-white/6 rounded-full" />
+                        <div className={`absolute inset-y-0 left-0 rounded-full transition-all duration-600 ease-in-out ${
+                          isDone ? 'right-0 bg-gradient-to-r from-amber-500/60 to-amber-400/40' : 'right-full'
+                        }`} />
+                      </div>
+                    </div>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
         </div>
 
         {/* STEP 1: General Info */}
@@ -511,7 +564,7 @@ export default function CreateDatabaseModal() {
 
         {/* STEP 2: Volumes */}
         {step === 2 && (
-          <div className="animate-in fade-in duration-200 space-y-4">
+          <div className="animate-in fade-in duration-200 space-y-5">
             <div className="flex items-center justify-between">
               <div>
                 <Typography variant="h4" className="text-[14px] font-bold text-slate-800 dark:text-white">{CM.wizardAdditionalVol}</Typography>
@@ -519,6 +572,7 @@ export default function CreateDatabaseModal() {
               </div>
               <Button
                 variant="primary"
+                size="sm"
                 onClick={addVolume}
                 icon="add_box"
               >
@@ -526,50 +580,72 @@ export default function CreateDatabaseModal() {
               </Button>
             </div>
 
-            <div className="border border-slate-100 dark:border-white/8 rounded-2xl overflow-hidden bg-white dark:bg-white/1">
-              <div className="grid grid-cols-[1fr_130px_110px_1.8fr_36px] bg-slate-50 dark:bg-white/3 border-b border-slate-100 dark:border-white/8 pl-4 pr-1 py-2.5">
-                {[CM.identifier, CM.segment, CM.sizeMb, CM.absolutePath, ''].map((h, i) => (
-                  <span key={i} className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{h}</span>
-                ))}
-              </div>
-
-              <div className="divide-y divide-slate-100 dark:divide-white/4 max-h-[320px] overflow-y-auto custom-scrollbar">
-                {formData.volumes.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
-                    <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-white/5 flex items-center justify-center">
-                      <Icon name="storage" size="sm" weight={300} className="text-slate-400" />
-                    </div>
-                    <div>
-                      <p className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">No additional volumes</p>
-                      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{CM.clickAddVolumeHint}</p>
-                    </div>
+            <div className="max-h-[380px] overflow-y-auto pr-1 space-y-4 custom-scrollbar">
+              {formData.volumes.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-3 text-center border border-dashed border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/30 dark:bg-white/[0.01]">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-white/5 flex items-center justify-center text-slate-400 dark:text-slate-500">
+                    <Icon name="storage" size="md" weight={300} />
                   </div>
-                ) : (
-                  formData.volumes.map((vol, idx) => (
-                    <div key={idx} className="grid grid-cols-[1fr_130px_110px_1.8fr_36px] items-center gap-0 pl-4 pr-1 py-2 hover:bg-slate-50/50 dark:hover:bg-white/2 transition-colors group">
-                      <div className="pr-3">
-                        <Input value={vol.name} onChange={(e) => handleVolumeChange(idx, 'name', e.target.value)} size="sm" className="font-mono text-[11px]" />
-                      </div>
-                      <div className="pr-3">
-                        <Select value={vol.type} onChange={(e) => handleVolumeChange(idx, 'type', e.target.value)} options={volumeTypes} size="sm" />
-                      </div>
-                      <div className="pr-3">
-                        <Input type="number" value={vol.size} onChange={(e) => handleVolumeChange(idx, 'size', Number(e.target.value))} size="sm" />
-                      </div>
-                      <div className="pr-1">
-                        <Input value={vol.path} onChange={(e) => handleVolumeChange(idx, 'path', e.target.value)} size="sm" className="font-mono text-[10px]" title={vol.path} />
+                  <div>
+                    <p className="text-[13px] font-semibold text-slate-600 dark:text-slate-400">No additional volumes</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">{CM.clickAddVolumeHint}</p>
+                  </div>
+                </div>
+              ) : (
+                formData.volumes.map((vol, idx) => (
+                  <div key={idx} className="p-3.5 bg-white dark:bg-white/2 border border-slate-100 dark:border-white/5 rounded-xl space-y-3 hover:border-amber-500/25 dark:hover:border-amber-500/25 transition-all duration-200 group">
+                    
+                    {/* Card Header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Icon name="storage" size="14px" className="text-amber-500 shrink-0" />
+                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                          Volume {idx + 1}
+                        </span>
+                        <span className="text-[9px] font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 dark:border-blue-500/30 px-1.5 py-0.5 rounded-md">
+                          {CM.permanent}
+                        </span>
                       </div>
                       <button
+                        type="button"
                         onClick={() => removeVolume(idx)}
-                        className="w-8 h-8 flex items-center justify-center rounded-xl text-rose-500 bg-rose-500/5 hover:bg-rose-500/15 transition-all cursor-pointer"
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-rose-500 bg-rose-500/5 hover:bg-rose-500/15 transition-all cursor-pointer border border-transparent hover:border-rose-500/10"
+                        title="Remove volume"
                       >
                         <Icon name="delete_outline" size="sm" weight={300} />
                       </button>
                     </div>
-                  ))
-                )}
-              </div>
 
+                    {/* Card Content Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-[1.2fr_0.8fr_2fr] gap-3">
+                      <Input
+                        value={vol.name}
+                        onChange={(e) => handleVolumeChange(idx, 'name', e.target.value)}
+                        size="sm"
+                        placeholder={CM.identifier}
+                        className="font-mono text-[11px]"
+                      />
+                      <Input
+                        type="number"
+                        value={vol.size}
+                        onChange={(e) => handleVolumeChange(idx, 'size', Number(e.target.value))}
+                        size="sm"
+                        min={1}
+                        placeholder={CM.sizeMb}
+                        suffix="MB"
+                      />
+                      <Input
+                        value={vol.path}
+                        onChange={(e) => handleVolumeChange(idx, 'path', e.target.value)}
+                        size="sm"
+                        placeholder={CM.absolutePath}
+                        className="font-mono text-[10px]"
+                        title={vol.path}
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
@@ -648,6 +724,70 @@ export default function CreateDatabaseModal() {
                     <Input
                       value={formData.autoAddVol.dataExtPage}
                       onChange={(e) => handleAutoAddVolChange('dataExtPage', e.target.value)}
+                      size="sm"
+                      placeholder="e.g. 32768"
+                    />
+                    <p className="text-[9px] text-slate-400">Number of pages to add per extension</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Index volume policy (CMS setautoaddvol requires index + data) */}
+            <div className={`rounded-2xl border transition-all duration-300 overflow-hidden ${
+              formData.autoAddVol.index === 'ON'
+                ? 'bg-white dark:bg-white/2 border-amber-500/20'
+                : 'bg-slate-50/50 dark:bg-white/1 border-slate-100 dark:border-white/5'
+            }`}>
+              <div className={`flex items-center justify-between px-4 py-3 border-b transition-all duration-300 ${
+                formData.autoAddVol.index === 'ON'
+                  ? 'border-amber-500/10 bg-amber-500/[0.03]'
+                  : 'border-transparent'
+              }`}>
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center border transition-all duration-300 ${
+                    formData.autoAddVol.index === 'ON'
+                      ? 'bg-amber-500/10 border-amber-500/25 text-amber-500'
+                      : 'bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/8 text-slate-400'
+                  }`}>
+                    <Icon name="sort" size="sm" weight={300} />
+                  </div>
+                  <div>
+                    <p className={`text-[12px] font-bold leading-tight transition-colors ${
+                      formData.autoAddVol.index === 'ON' ? 'text-slate-800 dark:text-slate-100' : 'text-slate-400 dark:text-slate-600'
+                    }`}>{CM.volumeTypeIndex} volume</p>
+                    <p className="text-[9px] text-slate-400 font-mono">auto-expansion policy</p>
+                  </div>
+                </div>
+                <Toggle
+                  checked={formData.autoAddVol.index === 'ON'}
+                  onChange={(v) => handleAutoAddVolChange('index', v ? 'ON' : 'OFF')}
+                  size="sm"
+                  color="amber"
+                />
+              </div>
+
+              <div className={`px-4 py-4 transition-all duration-300 ${formData.autoAddVol.index !== 'ON' ? 'opacity-30 pointer-events-none' : ''}`}>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                      Warning threshold
+                    </label>
+                    <Input
+                      value={formData.autoAddVol.indexWarn}
+                      onChange={(e) => handleAutoAddVolChange('indexWarn', e.target.value)}
+                      size="sm"
+                      placeholder="e.g. 0.15"
+                    />
+                    <p className="text-[9px] text-slate-400">Ratio 0–1 (e.g. 0.15 = 15% free)</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                      Extension size
+                    </label>
+                    <Input
+                      value={formData.autoAddVol.indexExtPage}
+                      onChange={(e) => handleAutoAddVolChange('indexExtPage', e.target.value)}
                       size="sm"
                       placeholder="e.g. 32768"
                     />
@@ -758,6 +898,33 @@ export default function CreateDatabaseModal() {
                   </div>
                 </div>
               </div>
+              <div className={`mt-3 rounded-xl border transition-all ${
+                formData.autoAddVol.index === 'ON'
+                  ? 'bg-amber-500/[0.03] border-amber-500/15'
+                  : 'bg-slate-50 dark:bg-white/2 border-slate-100 dark:border-white/5'
+              }`}>
+                <div className="flex items-center justify-between px-4 py-2.5 border-b border-inherit">
+                  <div className="flex items-center gap-2">
+                    <Icon name="sort" size="sm" weight={300} className={formData.autoAddVol.index === 'ON' ? 'text-amber-500' : 'text-slate-400'} />
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">{CM.volumeTypeIndex} volume</span>
+                  </div>
+                  <span className={`text-[9px] font-black px-2 py-0.5 rounded-md border ${
+                    formData.autoAddVol.index === 'ON'
+                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                      : 'bg-slate-500/10 text-slate-500 border-slate-500/15'
+                  }`}>{formData.autoAddVol.index}</span>
+                </div>
+                <div className="grid grid-cols-2 divide-x divide-slate-100 dark:divide-white/5">
+                  <div className="px-4 py-3">
+                    <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Warning threshold</p>
+                    <p className="text-[13px] font-black font-mono text-slate-700 dark:text-slate-200">{formData.autoAddVol.indexWarn}</p>
+                  </div>
+                  <div className="px-4 py-3">
+                    <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Extension size</p>
+                    <p className="text-[13px] font-black font-mono text-slate-700 dark:text-slate-200">{formData.autoAddVol.indexExtPage}</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="border border-slate-100 dark:border-white/8 rounded-2xl overflow-hidden shadow-xs">
@@ -773,7 +940,9 @@ export default function CreateDatabaseModal() {
                   <div key={idx} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50/50 dark:hover:bg-white/2 transition-colors">
                     <Icon name="storage" size="14px" weight={300} className="text-slate-400 shrink-0" />
                     <span className="text-[11px] font-mono font-bold text-slate-600 dark:text-slate-300 flex-1 truncate">{vol.name}</span>
-                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg border leading-tight ${typeBadge(vol.type)}`}>{vol.type}</span>
+                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg border leading-tight ${typeBadge('data')}`}>
+                      {CM.permanent}
+                    </span>
                     <span className="text-[11px] font-black font-mono text-slate-700 dark:text-slate-300 w-16 text-right tabular-nums">{vol.size} MB</span>
                   </div>
                 ))}

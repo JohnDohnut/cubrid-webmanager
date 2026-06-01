@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { closeOptimizeDatabaseModal, optimizeDatabase } from '../databaseSlice';
+import { closeOptimizeDatabaseModal } from '../databaseSlice';
 import { databaseApi } from '../databaseApi';
+import { databaseJobApi } from '../databaseJobApi';
+import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
+import { getCmsJobLoadingSubtitle } from '../../../infrastructure/cmsJob/cmsJobUi';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -192,9 +195,11 @@ export default function OptimizeDatabaseModal() {
   const { selectedDatabase, activeDatabases } = useSelector((state) => state.database, shallowEqual);
   const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
   
+  const { runJob } = useCmsJob();
   const [view, setView] = useState(VIEW_FORM);
   const [selectedClassName, setSelectedClassName] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [jobStatus, setJobStatus] = useState(null);
 
   // Direct state for classes to follow user requirement for direct getClassInfo usage
   const [classesData, setClassesData] = useState({ userclass: [] });
@@ -242,12 +247,11 @@ export default function OptimizeDatabaseModal() {
         ? { class: [{ classname: selectedClassName }] }
         : {};
         
-      await dispatch(optimizeDatabase({ 
-        hostUid: selectedHostUid, 
-        dbname: selectedDatabase, 
-        payload 
-      })).unwrap();
-      
+      await runJob(
+        () => databaseJobApi.submitOptimize(selectedHostUid, selectedDatabase, payload),
+        { onProgress: (j) => setJobStatus(j.jobStatus ?? j.status) }
+      );
+
       setView(VIEW_SUCCESS);
     } catch (err) {
       setErrorMsg(typeof err === 'string' ? err : (err.message || 'The optimization sequence was interrupted. Please verify database connectivity and state.'));
@@ -255,7 +259,9 @@ export default function OptimizeDatabaseModal() {
     }
   };
 
-  const handleClose = () => dispatch(closeOptimizeDatabaseModal());
+  const handleClose = () => {
+    dispatch(closeOptimizeDatabaseModal());
+  };
 
   const totalTables = classesData.userclass.length;
 
@@ -275,7 +281,7 @@ export default function OptimizeDatabaseModal() {
           <div className="text-center space-y-1.5 px-8">
             <Typography variant="h4" className="text-[14px] font-black text-slate-800 dark:text-white tracking-tight">Regenerating Statistics</Typography>
             <Typography variant="p" className="text-[11px] text-slate-500 font-medium leading-relaxed max-w-[280px] mx-auto">
-              Updating the cost-based optimizer for <span className="font-black text-slate-900 dark:text-white">{selectedClassName || selectedDatabase}</span>.
+              {getCmsJobLoadingSubtitle(selectedClassName || selectedDatabase, jobStatus, CM)}
             </Typography>
           </div>
           <div className="w-32 h-[2px] bg-slate-100 dark:bg-white/4 rounded-full overflow-hidden">

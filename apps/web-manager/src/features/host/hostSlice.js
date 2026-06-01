@@ -90,6 +90,18 @@ export const editHost = createAsyncThunk(
   }
 );
 
+export const moveHost = createAsyncThunk(
+  'host/moveHost',
+  async ({ hostUid, targetGroupId }, { rejectWithValue }) => {
+    try {
+      const response = await hostApi.moveHost(hostUid, targetGroupId);
+      return response.host_groups || {};
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.response?.data?.error || 'Failed to move host');
+    }
+  }
+);
+
 export const markGroupHa = createAsyncThunk(
   'host/markGroupHa',
   async ({ hostUid, groupName }, { rejectWithValue }) => {
@@ -601,6 +613,18 @@ const hostSlice = createSlice({
         applyHostGroupsResponse(state, action.payload);
       })
       .addCase(editHost.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(moveHost.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(moveHost.fulfilled, (state, action) => {
+        state.loading = false;
+        applyHostGroupsResponse(state, action.payload);
+      })
+      .addCase(moveHost.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })

@@ -76,6 +76,8 @@ import { Modal } from '../../../components/ds/layout/Modal';
 import { Button } from '../../../components/ds/foundation/Button';
 import { StatusBadge } from '../../../components/ds/foundation/StatusBadge';
 import { useCM } from '../../../constants/useCM';
+import { useCmsJobs } from '../../../infrastructure/context/CmsJobContext';
+import { BackgroundJobsPanel } from '../../../infrastructure/cmsJob/BackgroundJobsPanel';
 
 // Internal Sidebar Components
 import SidebarHeader from '../sidebar/components/SidebarHeader';
@@ -99,6 +101,14 @@ import { openCreateGroupModal, openDeleteGroupModal, openRenameGroupModal } from
 
 export default function Sidebar({ isCollapsed, onAddHost }) {
   const CM = useCM();
+  const {
+    jobs: backgroundJobs,
+    activeCount: backgroundJobActiveCount,
+    panelExpanded: backgroundJobsExpanded,
+    setPanelExpanded: setBackgroundJobsExpanded,
+    dismissJob: dismissBackgroundJob,
+    clearCompleted: clearCompletedBackgroundJobs,
+  } = useCmsJobs();
   const sidebarRef = useRef(null);
   const hostSectionRef = useRef(null);
   const [activeTab, setActiveTab] = useState('db');
@@ -460,7 +470,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
               onContextMenu={handleHostRootContextMenu}
             >
               {!isServerListCollapsed && (
-                hostsLoading ? (
+                (hostsLoading && hosts.length === 0) ? (
                   <div className="flex items-center justify-center py-8">
                     <Spinner size="md" />
                   </div>
@@ -613,7 +623,14 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           </div>
         </SplitPane>
 
-
+        <BackgroundJobsPanel
+          jobs={backgroundJobs}
+          activeCount={backgroundJobActiveCount}
+          expanded={backgroundJobsExpanded}
+          onToggleExpanded={() => setBackgroundJobsExpanded((v) => !v)}
+          onDismiss={dismissBackgroundJob}
+          onClearCompleted={clearCompletedBackgroundJobs}
+        />
       </aside>
 
       {/* Context Menus */}

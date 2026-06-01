@@ -21,7 +21,18 @@ const HA_ROLE_CONFIG = {
   },
 };
 
-export default function ServerListItem({ host, isSelected, isAuthorized, haInfo, onContextMenu, compact = false }) {
+export default function ServerListItem({
+  host,
+  isSelected,
+  isAuthorized,
+  haInfo,
+  onContextMenu,
+  compact = false,
+  draggable = false,
+  isDragging = false,
+  onDragStart,
+  onDragEnd,
+}) {
   const dispatch = useDispatch();
 
   const getInferredHaInfo = () => {
@@ -47,7 +58,12 @@ export default function ServerListItem({ host, isSelected, isAuthorized, haInfo,
   return (
     <div
       title={`${host.address}:${host.port}`}
-      className={`relative flex items-center gap-2.5 py-1.5 cursor-pointer select-none transition-all duration-150 group
+      draggable={draggable}
+      onDragStart={draggable ? onDragStart : undefined}
+      onDragEnd={draggable ? onDragEnd : undefined}
+      className={`relative flex items-center gap-2.5 py-1.5 select-none transition-all duration-150 group
+        ${draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}
+        ${isDragging ? 'opacity-40' : ''}
         ${compact ? 'pl-6 pr-2' : 'pl-3 pr-2'}
         ${isSelected
           ? 'bg-amber-500/8 dark:bg-amber-500/10'

@@ -85,7 +85,7 @@ export default function DeleteQueryPlanModal() {
   /* ─── LOADING view ─── */
   if (view === VIEW_LOADING) {
     return (
-      <Modal isOpen title={CM.deletingQueryPlan} icon="delete_forever" onClose={handleClose} maxWidth="440px">
+      <Modal isOpen title={CM.deletingQueryPlan} icon="delete_forever" onClose={handleClose} maxWidth="440px" showCloseButton={false}>
         <div className="flex flex-col items-center justify-center py-12 space-y-6 animate-in fade-in duration-200">
           <div className="relative w-16 h-16">
             <div className="absolute inset-0 rounded-full border-2 border-rose-500/10" />

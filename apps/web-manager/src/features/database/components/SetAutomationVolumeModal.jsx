@@ -206,7 +206,7 @@ export default function SetAutomationVolumeModal() {
   /* ── LOADING ── */
   if (isLoading) {
     return (
-      <Modal isOpen title={CM.setAutomationVolume} icon="settings_suggest" onClose={handleClose} maxWidth="max-w-md">
+      <Modal isOpen title={CM.setAutomationVolume} icon="settings_suggest" onClose={handleClose} maxWidth="max-w-md" showCloseButton={false}>
         <ModalStatusLoading 
           title="Saving Policies" 
           subtitle={`Updating configuration for ${selectedDatabase}.`}

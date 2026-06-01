@@ -37,8 +37,14 @@ export default function LoginPage() {
     dispatch(loginStart());
     try {
       const response = await authApi.login(username, password);
-      const token = response?.token;
-      dispatch(loginSuccess({ token, user: { id: username } }));
+      if (!response?.token || !response?.refreshToken) {
+        throw new Error('Login response missing access/refresh token');
+      }
+      dispatch(loginSuccess({
+        token: response.token,
+        refreshToken: response.refreshToken,
+        user: { id: username },
+      }));
       navigate('/home', { replace: true });
     } catch (err) {
       const msg = err.response?.data?.message || err.response?.data?.error || 'Login failed. Please check your credentials.';
@@ -207,7 +213,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors p-1"
+                  className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors p-1 flex items-center justify-center"
                 >
                   <Icon name={showPassword ? 'visibility_off' : 'visibility'} size="sm" weight={300} />
                 </button>

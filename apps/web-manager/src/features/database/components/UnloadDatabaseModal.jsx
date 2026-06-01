@@ -2,6 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeUnloadDatabaseModal, openUnloadResultModal } from '../databaseSlice';
 import { databaseApi } from '../databaseApi';
+import { databaseJobApi } from '../databaseJobApi';
+import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
+import { getCmsJobLoadingSubtitle } from '../../../infrastructure/cmsJob/cmsJobUi';
 import { useCM } from '../../../constants/useCM';
 
 import UnloadConfigSection from './unload/UnloadConfigSection';
@@ -62,6 +65,8 @@ export default function UnloadDatabaseModal() {
     isLoading,
     isError,
   } = useActionState();
+  const { runJob } = useCmsJob();
+  const [jobStatus, setJobStatus] = useState(null);
 
   const [formData, setFormData] = useState(INITIAL_FORM_DATA);
   const [dynamicTables, setDynamicTables] = useState([]);
@@ -167,9 +172,13 @@ export default function UnloadDatabaseModal() {
         lofile: formData.useLoFileDirectory ? String(formData.loFileDirectory) : '',
       };
 
-      const response = await databaseApi.unloadDatabase(selectedHostUid, selectedDatabase, payload);
+      const job = await runJob(
+        () => databaseJobApi.submitUnload(selectedHostUid, selectedDatabase, payload),
+        { onProgress: (j) => setJobStatus(j.jobStatus ?? j.status) }
+      );
+      resetAction();
       dispatch(closeUnloadDatabaseModal());
-      dispatch(openUnloadResultModal(response));
+      dispatch(openUnloadResultModal(job.result ?? {}));
     } catch (err) {
       endError(typeof err === 'string' ? err : (err.message || CM.failure));
     }
@@ -185,7 +194,10 @@ export default function UnloadDatabaseModal() {
   if (isLoading) {
     return (
       <Modal isOpen title={CM.unloadDatabase} icon="upload" onClose={handleClose} maxWidth="740px">
-        <ModalStatusLoading title={CM.unloadDatabase} subtitle={selectedDatabase} />
+        <ModalStatusLoading
+          title={CM.unloadDatabase}
+          subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
+        />
       </Modal>
     );
   }

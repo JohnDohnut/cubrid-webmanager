@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { randomUUID } from 'crypto';
 import { ConfigService } from '@config/config.service';
 import { PasswordService } from '@security';
 import { User, UserDTO } from '@type/index';
@@ -8,46 +9,27 @@ import { AuthError } from '@error/auth/auth-error';
 import { UserError } from '@error/user/user-error';
 import { HandleAuthErrors } from '@common';
 import { passwordValidityChecker } from '@util';
+import { AuthTokens, CreateLoginResponse } from '@api-interfaces';
+import {
+  ACCESS_TOKEN_EXPIRES,
+  ACCESS_TOKEN_EXPIRES_SEC,
+} from '@token/token.constants';
+import { RefreshTokenService } from '@token/refresh-token.service';
+import { TokenBlacklistService } from '@token/token-blacklist.service';
 
-/**
- * Service for handling authentication operations.
- *
- * Provides business logic for user authentication including login validation,
- * JWT token generation, and user registration. All operations are wrapped
- * with error handling decorators.
- *
- * @category Business Services
- * @since 1.0.0
- */
 @Injectable()
 export class AuthService {
   constructor(
     private readonly usersRepo: UserRepositoryService,
     private readonly jwt: JwtService,
     private readonly password: PasswordService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly refreshTokenService: RefreshTokenService,
+    private readonly tokenBlacklistService: TokenBlacklistService
   ) {}
-  /**
-   * Authenticates a user and generates a JWT token.
-   *
-   * Validates user credentials by checking if the user exists and comparing
-   * the provided password with the stored hash. Returns a JWT token on
-   * successful authentication.
-   *
-   * @param {UserDTO} dto - User credentials containing id and password
-   * @returns {Promise<string>} JWT token for authenticated requests
-   * @throws {UserError} When user is not found or password is incorrect
-   * @example
-   * ```typescript
-   * const token = await authService.login({
-   *   id: "user123",
-   *   password: "password123"
-   * });
-   * console.log(token); // "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-   * ```
-   */
+
   @HandleAuthErrors()
-  async login(dto: UserDTO): Promise<string> {
+  async login(dto: UserDTO): Promise<AuthTokens> {
     const user: User | null = await this.usersRepo.loadUserById(dto.id);
     if (!user) {
       throw UserError.UserNotFound({ userId: dto.id });
@@ -58,29 +40,45 @@ export class AuthService {
       throw UserError.UserNotFound({ userId: dto.id });
     }
 
-    const payload = { sub: user.id };
-    const token = await this.jwt.signAsync(payload);
-    return token;
+    return this.issueTokenPair(user.id);
   }
 
-  /**
-   * Registers a new user account.
-   *
-   * Creates a new user account with the provided credentials. The password
-   * will be hashed before storage for security.
-   *
-   * @param {UserDTO} dto - User information containing id and password
-   * @returns {Promise<void>} No return value on success
-   * @throws {UserError} When user already exists or registration fails
-   * @example
-   * ```typescript
-   * await authService.register({
-   *   id: "newuser",
-   *   password: "newpassword123"
-   * });
-   * // New user account created
-   * ```
-   */
+  @HandleAuthErrors()
+  async refresh(refreshToken: string): Promise<AuthTokens> {
+    const consumeResult = await this.refreshTokenService.consumeForRotation(refreshToken);
+    if (consumeResult.kind === 'reused') {
+      await this.refreshTokenService.revokeFamily(consumeResult.familyId);
+      throw AuthError.InvalidToken({ reason: 'REFRESH_TOKEN_REUSED' });
+    }
+    if (consumeResult.kind === 'invalid') {
+      throw AuthError.InvalidToken({ reason: 'REFRESH_TOKEN_INVALID' });
+    }
+
+    const { session } = consumeResult;
+    try {
+      const tokens = await this.issueTokenPair(session.record.userId, session.record.familyId);
+      await this.refreshTokenService.commitConsume(session);
+      return tokens;
+    } catch (err) {
+      await this.refreshTokenService.rollbackConsume(session);
+      throw err;
+    }
+  }
+
+  @HandleAuthErrors()
+  async logout(
+    accessJti: string | undefined,
+    accessExp: number | undefined,
+    refreshToken?: string
+  ): Promise<void> {
+    if (accessJti && accessExp) {
+      await this.tokenBlacklistService.add(accessJti, new Date(accessExp * 1000));
+    }
+    if (refreshToken) {
+      await this.refreshTokenService.revoke(refreshToken);
+    }
+  }
+
   @HandleAuthErrors()
   async register(dto: UserDTO): Promise<void> {
     if (!this.configService.isAuthRegistrationEnabled()) {
@@ -92,5 +90,15 @@ export class AuthService {
     }
 
     await this.usersRepo.createUser(dto);
+  }
+
+  private async issueTokenPair(userId: string, familyId?: string): Promise<AuthTokens> {
+    const jti = randomUUID();
+    const token = await this.jwt.signAsync(
+      { sub: userId, jti, type: 'access' },
+      { expiresIn: ACCESS_TOKEN_EXPIRES }
+    );
+    const { token: refreshToken } = await this.refreshTokenService.create(userId, familyId);
+    return CreateLoginResponse(token, refreshToken, ACCESS_TOKEN_EXPIRES_SEC);
   }
 }

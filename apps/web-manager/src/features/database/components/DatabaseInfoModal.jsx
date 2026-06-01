@@ -99,7 +99,7 @@ export default function DatabaseInfoModal() {
   /* ─── LOADING view ─── */
   if (view === VIEW_LOADING) {
     return (
-      <Modal isOpen title={CM.usedParameterDump} icon="analytics" onClose={handleClose} maxWidth="500px">
+      <Modal isOpen title={CM.usedParameterDump} icon="analytics" onClose={handleClose} maxWidth="500px" showCloseButton={false}>
         <div className="flex flex-col items-center justify-center py-14 space-y-6 animate-in fade-in duration-200">
           <div className="relative w-16 h-16">
             <div className="absolute inset-0 rounded-full border-2 border-slate-100 dark:border-white/5" />

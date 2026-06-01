@@ -12,16 +12,19 @@ export const Modal = ({
   footer,
   maxWidth = 'max-w-md',
   children,
+  /** When false, hides the header X and ignores Escape (e.g. synchronous in-flight requests). */
+  showCloseButton = true,
 }) => {
   const modalRef = useRef(null);
 
   useEffect(() => {
+    if (!showCloseButton) return undefined;
     const handleEscape = (e) => {
       if (e.key === 'Escape' && isOpen) onClose();
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, showCloseButton]);
 
   useEffect(() => {
     if (isOpen) {
@@ -62,14 +65,16 @@ export const Modal = ({
         {/* Subtle Top Accent */}
         <div className="absolute top-0 left-0 right-0 h-[2.5px] bg-amber-500"></div>
 
-        <button
-          type="button"
-          className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 w-7 h-7 rounded-md transition-all flex items-center justify-center hover:bg-slate-100 dark:hover:bg-white/5 z-10"
-          onClick={onClose}
-        >
-          <span className="sr-only">Close</span>
-          <Icon name="close" size="md"  weight={300} />
-        </button>
+        {showCloseButton && (
+          <button
+            type="button"
+            className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 w-7 h-7 rounded-md transition-all flex items-center justify-center hover:bg-slate-100 dark:hover:bg-white/5 z-10"
+            onClick={onClose}
+          >
+            <span className="sr-only">Close</span>
+            <Icon name="close" size="md"  weight={300} />
+          </button>
+        )}
 
         <div className="px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-bk-main/50 flex gap-3 items-center">
           {icon && (

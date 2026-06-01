@@ -192,7 +192,7 @@ export default function EditBackupPlanModal() {
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title="Committing Updates" icon="edit" onClose={handleClose} maxWidth="700px">
+      <Modal isOpen title="Committing Updates" icon="edit" onClose={handleClose} maxWidth="700px" showCloseButton={false}>
         <ModalStatusLoading 
           title="Syncing Registry" 
           subtitle={`Patching automation configuration for ${formData.backupId}.`}

@@ -72,7 +72,7 @@ export default function TransactionInfoModal() {
 
   if (view === VIEW_LOADING) {
     return (
-      <Modal isOpen title={CM.transactionInformation} icon="swap_horiz" onClose={handleClose} maxWidth="540px">
+      <Modal isOpen title={CM.transactionInformation} icon="swap_horiz" onClose={handleClose} maxWidth="540px" showCloseButton={false}>
         <ModalStatusLoading title={CM.transactionInformation} subtitle={CM.loggingInto(selectedDatabase)} />
       </Modal>
     );

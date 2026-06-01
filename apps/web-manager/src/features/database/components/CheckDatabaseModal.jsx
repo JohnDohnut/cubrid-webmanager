@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeCheckDatabaseModal } from '../databaseSlice';
-import { databaseApi } from '../databaseApi';
+import { databaseJobApi } from '../databaseJobApi';
+import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
+import { getCmsJobLoadingSubtitle } from '../../../infrastructure/cmsJob/cmsJobUi';
 import { useCM } from '../../../constants/useCM';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
@@ -23,8 +25,10 @@ export default function CheckDatabaseModal() {
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
   const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
 
-  const { error, startAction, endSuccess, endError, resetAction, isLoading, isSuccess, isError } = useActionState();
-
+  const { error, startAction, endSuccess, endError, resetAction, isLoading, isSuccess, isError } =
+    useActionState();
+  const { runJob } = useCmsJob();
+  const [jobStatus, setJobStatus] = useState(null);
   const [repair, setRepair] = useState(false);
 
   useEffect(() => {
@@ -40,19 +44,31 @@ export default function CheckDatabaseModal() {
     if (!selectedHostUid || !selectedDatabase) return;
     startAction();
     try {
-      await databaseApi.checkDatabase(selectedHostUid, selectedDatabase, { repairdb: repair ? 'y' : 'n' });
+      await runJob(
+        () =>
+          databaseJobApi.submitCheck(selectedHostUid, selectedDatabase, {
+            repairdb: repair ? 'y' : 'n',
+          }),
+        { onProgress: (j) => setJobStatus(j.jobStatus ?? j.status) }
+      );
       endSuccess();
     } catch (err) {
-      endError(err.response?.data?.note || err.response?.data?.message || CM.failure);
+      endError(typeof err === 'string' ? err : err.message || CM.failure);
     }
   };
 
-  const handleClose = () => dispatch(closeCheckDatabaseModal());
+  const handleClose = () => {
+    dispatch(closeCheckDatabaseModal());
+    resetAction();
+  };
 
   if (isLoading) {
     return (
       <Modal isOpen title={CM.checkDatabase} icon="verified" onClose={handleClose} maxWidth="480px">
-        <ModalStatusLoading title={CM.checkDatabase} subtitle={selectedDatabase} />
+        <ModalStatusLoading
+          title={CM.checkDatabase}
+          subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
+        />
       </Modal>
     );
   }

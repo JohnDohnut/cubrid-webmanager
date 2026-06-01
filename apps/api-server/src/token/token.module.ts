@@ -4,6 +4,9 @@ import { PassportModule } from '@nestjs/passport';
 import { ConfigModule } from '@config/config.module';
 import { ConfigService } from '@config/config.service';
 import { JwtStrategy } from './jwt-strategy';
+import { RefreshTokenService } from './refresh-token.service';
+import { TokenBlacklistService } from './token-blacklist.service';
+import { ACCESS_TOKEN_EXPIRES } from './token.constants';
 
 /**
  * Module for managing JWT authentication and token-related functionalities.
@@ -20,11 +23,11 @@ import { JwtStrategy } from './jwt-strategy';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         secret: config.getSecretKey(),
-        signOptions: { expiresIn: '1h' },
+        signOptions: { expiresIn: ACCESS_TOKEN_EXPIRES },
       }),
     }),
   ],
-  exports: [JwtModule, PassportModule],
-  providers: [JwtStrategy],
+  exports: [JwtModule, PassportModule, RefreshTokenService, TokenBlacklistService],
+  providers: [JwtStrategy, RefreshTokenService, TokenBlacklistService],
 })
 export class TokenModule {}
