@@ -121,9 +121,17 @@ function joinPropertyContinuations(text) {
 export const PREFS_KEY_SERVERS = 'CUBRID_SERVERS';
 export const PREFS_KEY_HOSTGROUP = 'com.cubrid.manager.hostgroup';
 
+function isPropertyKeyTerminator(char) {
+  return char === ' ' || char === '\t' || char === '\f' || char === '=' || char === ':';
+}
+
+function isPropertyWhitespace(char) {
+  return char === ' ' || char === '\t' || char === '\f';
+}
+
 /**
- * Splits a logical Java .properties line (key still escaped in file).
- * Keys like com\.cubrid\.manager\.hostgroup unescape to com.cubrid.manager.hostgroup.
+ * Splits a logical Java .properties line (value still escaped in file).
+ * Separator is the first unescaped whitespace, '=', or ':' (JDK Properties.load rules).
  */
 export function parsePropertyLine(line) {
   const trimmed = line.trim();
@@ -131,25 +139,44 @@ export function parsePropertyLine(line) {
     return null;
   }
 
-  let separatorIndex = -1;
+  let keyEnd = -1;
   for (let i = 0; i < trimmed.length; i += 1) {
     if (trimmed[i] === '\\' && i + 1 < trimmed.length) {
       i += 1;
       continue;
     }
-    if (trimmed[i] === '=' || trimmed[i] === ':') {
-      separatorIndex = i;
+    if (isPropertyKeyTerminator(trimmed[i])) {
+      keyEnd = i;
       break;
     }
   }
 
-  if (separatorIndex < 0) {
-    return null;
+  if (keyEnd < 0) {
+    return {
+      key: unescapeJavaProperties(trimmed),
+      rawValue: '',
+    };
+  }
+
+  let valueStart = keyEnd;
+  while (valueStart < trimmed.length) {
+    const char = trimmed[valueStart];
+    if (!isPropertyWhitespace(char)) {
+      if (char === '=' || char === ':') {
+        valueStart += 1;
+      }
+      break;
+    }
+    valueStart += 1;
+  }
+
+  while (valueStart < trimmed.length && isPropertyWhitespace(trimmed[valueStart])) {
+    valueStart += 1;
   }
 
   return {
-    key: unescapeJavaProperties(trimmed.slice(0, separatorIndex)),
-    rawValue: trimmed.slice(separatorIndex + 1),
+    key: unescapeJavaProperties(trimmed.slice(0, keyEnd)),
+    rawValue: trimmed.slice(valueStart),
   };
 }
 
