@@ -180,6 +180,7 @@ export const CM_KO = {
   apply: '적용',
   discard: '취소',
   connect: '연결',
+  loginAll: '전체 로그인',
   disconnect: '연결 해제',
   tryAgain: '다시 시도',
   add: '추가',

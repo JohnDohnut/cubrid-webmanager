@@ -28,6 +28,23 @@ export function getGroupHostUids(group) {
   return Object.keys(group?.hosts || {});
 }
 
+/** Host UIDs in one group or entire tree that are not CMS-logged-in yet. */
+export function getUnauthorizedHostUids(hostGroups, authorizedHosts, groupId = null) {
+  const authorized = new Set(authorizedHosts || []);
+  const uids = [];
+
+  const groups = groupId
+    ? (hostGroups?.[groupId] ? [[groupId, hostGroups[groupId]]] : [])
+    : Object.entries(hostGroups || {});
+
+  for (const [, group] of groups) {
+    for (const uid of Object.keys(group?.hosts || {})) {
+      if (!authorized.has(uid)) uids.push(uid);
+    }
+  }
+  return uids;
+}
+
 export function resolveDefaultHostUid(group) {
   if (!group) return null;
   if (group.defaultHostUid && group.hosts?.[group.defaultHostUid]) {

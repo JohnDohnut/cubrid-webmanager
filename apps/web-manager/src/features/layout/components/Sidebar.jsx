@@ -5,6 +5,7 @@ import {
   fetchHosts,
   setSelectedHost,
   loginToHostWithSideEffects,
+  loginHostsBatch,
   openDeleteHostModal,
   openEditHostModal,
   openChangePasswordModal,
@@ -92,6 +93,7 @@ import AutoVolumeLogModal from '../../database/components/AutoVolumeLogModal';
 import CMSUserManagementModal from '../../host/components/CMSUserManagementModal';
 import EditCMSUserModal from '../../host/components/EditCMSUserModal';
 import { openCreateGroupModal, openDeleteGroupModal, openRenameGroupModal } from '../../host/hostSlice';
+import { getUnauthorizedHostUids } from '../../host/hostGroupUtils';
 
 export default function Sidebar({ isCollapsed, onAddHost }) {
   const CM = useCM();
@@ -178,6 +180,35 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
         console.error('Failed to log into host:', err);
       });
   }, [dispatch]);
+
+  const pendingLoginAllUids = getUnauthorizedHostUids(hostGroups, authorizedHosts, null);
+  const pendingLoginCount = pendingLoginAllUids.length;
+
+  const handleLoginAll = useCallback((groupId = null) => {
+    const uids = getUnauthorizedHostUids(hostGroups, authorizedHosts, groupId);
+    if (uids.length === 0) return;
+
+    dispatch(loginHostsBatch(uids))
+      .unwrap()
+      .then(({ successCount, failed }) => {
+        let message = `Connected ${successCount} host(s).`;
+        if (failed.length > 0) {
+          message += ` Failed: ${failed.join(', ')}.`;
+        }
+        dispatch(showStatusModal({
+          type: failed.length > 0 && successCount === 0 ? 'error' : 'success',
+          title: CM.loginAll,
+          message,
+        }));
+      })
+      .catch(() => {
+        dispatch(showStatusModal({
+          type: 'error',
+          title: CM.loginAll,
+          message: 'Failed to log in to hosts.',
+        }));
+      });
+  }, [dispatch, hostGroups, authorizedHosts, CM.loginAll]);
 
   useEffect(() => {
     if (selectedHostUid && selectedHostUid !== lastProcessedHostUid.current) {
@@ -318,8 +349,8 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
   }, [closeAllContextMenus]);
 
   const [isServerListCollapsed, setIsServerListCollapsed] = useState(false);
-  const [serverListSize, setServerListSize] = useState(320);
-  const [prevServerListSize, setPrevServerListSize] = useState(320);
+  const [serverListSize, setServerListSize] = useState(380);
+  const [prevServerListSize, setPrevServerListSize] = useState(380);
   const [isTreeCollapsed, setIsTreeCollapsed] = useState(false);
   const lastProcessedHostUid = useRef(null);
 
@@ -414,6 +445,28 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                   >
                     <Icon name="create_new_folder" size="12px" weight={400} />
                     <span className="text-[10px] font-semibold tracking-wide">New Group</span>
+                  </button>
+                )}
+                {!isServerListCollapsed && hosts.length > 0 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (pendingLoginCount === 0) {
+                        dispatch(showStatusModal({
+                          type: 'info',
+                          title: CM.loginAll,
+                          message: 'All hosts are already connected.',
+                        }));
+                        return;
+                      }
+                      handleLoginAll(null);
+                    }}
+                    disabled={isLoggingIntoHost}
+                    className="flex items-center gap-1 h-6 px-2 rounded-sm border border-slate-200 dark:border-white/10 bg-white dark:bg-white/4 text-slate-400 hover:text-amber-500 hover:border-amber-400/50 hover:bg-amber-500/5 dark:hover:bg-amber-500/10 transition-all active:scale-95 shadow-xs disabled:opacity-50 disabled:pointer-events-none"
+                    title={CM.loginAll}
+                  >
+                    <Icon name="login" size="12px" weight={400} />
+                    <span className="text-[10px] font-semibold tracking-wide">{CM.loginAll}</span>
                   </button>
                 )}
               </div>
@@ -663,8 +716,32 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
               setGroupContextMenu(null);
             }}
           />
+          {hosts.length > 0 && (
+            <MenuItem
+              icon="login"
+              label={CM.loginAll}
+              disabled={isLoggingIntoHost || pendingLoginCount === 0}
+              onClick={() => {
+                handleLoginAll(null);
+                setGroupContextMenu(null);
+              }}
+            />
+          )}
           {groupContextMenu.groupId && (
             <>
+            <MenuItem
+              icon="login"
+              label={CM.loginAll}
+              disabled={
+                isLoggingIntoHost
+                || getUnauthorizedHostUids(hostGroups, authorizedHosts, groupContextMenu.groupId).length === 0
+              }
+              onClick={() => {
+                handleLoginAll(groupContextMenu.groupId);
+                setGroupContextMenu(null);
+              }}
+            />
+            <MenuDivider />
             <MenuItem
             icon="add_link"
             label="Add Node"

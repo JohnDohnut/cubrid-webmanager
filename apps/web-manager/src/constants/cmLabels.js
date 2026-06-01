@@ -187,6 +187,7 @@ export const CM = {
   apply: 'Apply',
   discard: 'Discard',
   connect: 'Connect',
+  loginAll: 'Login All',
   disconnect: 'Disconnect',
   tryAgain: 'Try Again',
   add: 'Add',

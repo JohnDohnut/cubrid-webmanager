@@ -6,6 +6,7 @@ import {
   createHostGroup,
   deleteHostGroup,
   editHost,
+  loginHostsBatch,
   setSkipAutoHostLogin,
 } from '../hostSlice';
 import { showStatusModal } from '../../layout/layoutSlice';
@@ -271,7 +272,66 @@ export default function ImportExportHostModal() {
     }
   };
 
+  const handleLoginAllImported = async () => {
+    const hostsWithPassword = pendingPasswordHosts.filter(
+      (host) => String(passwordDrafts[host.uid] || '').trim()
+    );
+    if (hostsWithPassword.length === 0) return;
+
+    setIsProcessing(true);
+    dispatch(setSkipAutoHostLogin(true));
+
+    try {
+      let updatedCount = 0;
+      for (const host of hostsWithPassword) {
+        const password = String(passwordDrafts[host.uid] || '').trim();
+        const payload = {
+          id: host.id,
+          address: host.address,
+          port: Number(host.port),
+          alias: host.alias,
+          password,
+        };
+        try {
+          await dispatch(editHost({ hostUid: host.uid, payload })).unwrap();
+          updatedCount += 1;
+        } catch {
+          // Continue for remaining hosts.
+        }
+      }
+
+      const uids = hostsWithPassword.map((h) => h.uid);
+      const { successCount, failed } = await dispatch(loginHostsBatch(uids)).unwrap();
+
+      let message = `Password updated for ${updatedCount} host(s). Connected ${successCount} host(s).`;
+      if (failed.length > 0) {
+        message += ` Login failed: ${failed.join(', ')}.`;
+      }
+
+      dispatch(showStatusModal({
+        type: failed.length > 0 && successCount === 0 ? 'error' : 'success',
+        title: CM.loginAll,
+        message,
+      }));
+      dispatch(closeImportExportModal());
+    } catch {
+      dispatch(showStatusModal({
+        type: 'error',
+        title: CM.loginAll,
+        message: 'Failed to log in to imported hosts.',
+      }));
+    } finally {
+      dispatch(setSkipAutoHostLogin(false));
+      setIsProcessing(false);
+      setPendingPasswordHosts([]);
+      setPasswordDrafts({});
+    }
+  };
+
   const isPasswordStep = importExportMode === 'import' && pendingPasswordHosts.length > 0;
+  const hasPasswordDrafts = pendingPasswordHosts.some(
+    (host) => String(passwordDrafts[host.uid] || '').trim()
+  );
   const title = isPasswordStep
     ? 'Set Passwords for Imported Hosts'
     : (importExportMode === 'export' ? CM.exportHosts : CM.importHosts);
@@ -345,6 +405,17 @@ export default function ImportExportHostModal() {
             >
               {isPasswordStep ? 'Skip' : 'Discard'}
             </Button>
+            {isPasswordStep && (
+              <Button
+                variant="secondary"
+                onClick={handleLoginAllImported}
+                disabled={isProcessing || !hasPasswordDrafts}
+                loading={isProcessing}
+                icon="login"
+              >
+                {CM.loginAll}
+              </Button>
+            )}
             <Button
               variant="primary"
               onClick={isPasswordStep ? handleApplyImportedPasswords : handleAction}

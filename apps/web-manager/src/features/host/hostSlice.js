@@ -411,6 +411,7 @@ const initialState = {
   isImportExportModalOpen: false,
   importExportMode: 'export', // 'import' or 'export'
   skipAutoHostLogin: false, // import batch: do not auto CMS-login on selectedHostUid change
+  isBatchHostLogin: false,
   isChangePasswordModalOpen: false,
   changePasswordHostUid: null,
   cmsUsers: {}, // { [hostUid]: [] }
@@ -634,16 +635,20 @@ const hostSlice = createSlice({
         state.error = action.payload; // AddHostModal can also show this
       })
       .addCase(loginToHost.pending, (state, action) => {
-        state.isLoggingIntoHost = true;
-        state.loading = true;
+        if (!state.isBatchHostLogin) {
+          state.isLoggingIntoHost = true;
+          state.loading = true;
+        }
         // Clean up previous error for this host if any
         if (state.hostAuthErrors[action.meta.arg]) {
           delete state.hostAuthErrors[action.meta.arg];
         }
       })
       .addCase(loginToHost.fulfilled, (state, action) => {
-        state.isLoggingIntoHost = false;
-        state.loading = false;
+        if (!state.isBatchHostLogin) {
+          state.isLoggingIntoHost = false;
+          state.loading = false;
+        }
         const { hostUid, ...haInfo } = action.payload;
         if (!state.authorizedHosts.includes(hostUid)) {
           state.authorizedHosts.push(hostUid);
@@ -652,11 +657,33 @@ const hostSlice = createSlice({
         localStorage.setItem('cubrid_ha_info', JSON.stringify(state.haInfo));
       })
       .addCase(loginToHost.rejected, (state, action) => {
-        state.isLoggingIntoHost = false;
-        state.loading = false;
+        if (!state.isBatchHostLogin) {
+          state.isLoggingIntoHost = false;
+          state.loading = false;
+        }
         state.hostAuthErrors[action.meta.arg] = action.payload;
-        state.error = action.payload;
+        if (!state.isBatchHostLogin) {
+          state.error = action.payload;
+        }
       })
+      .addMatcher(
+        (action) => action.type === 'host/loginHostsBatch/pending',
+        (state) => {
+          state.isBatchHostLogin = true;
+          state.isLoggingIntoHost = true;
+          state.loading = true;
+        }
+      )
+      .addMatcher(
+        (action) =>
+          action.type === 'host/loginHostsBatch/fulfilled'
+          || action.type === 'host/loginHostsBatch/rejected',
+        (state) => {
+          state.isBatchHostLogin = false;
+          state.isLoggingIntoHost = false;
+          state.loading = false;
+        }
+      )
       .addCase(deleteHost.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -1000,6 +1027,35 @@ export const loginToHostWithSideEffects = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(err);
     }
+  }
+);
+
+/** CMS-login for multiple hosts (sequential). First host runs HA side effects. */
+export const loginHostsBatch = createAsyncThunk(
+  'host/loginHostsBatch',
+  async (hostUids, { dispatch, getState }) => {
+    const pending = (hostUids || []).filter(
+      (uid) => uid && !getState().host.authorizedHosts.includes(uid)
+    );
+    const failed = [];
+    let successCount = 0;
+
+    for (let i = 0; i < pending.length; i += 1) {
+      const uid = pending[i];
+      try {
+        if (i === 0) {
+          await dispatch(loginToHostWithSideEffects(uid)).unwrap();
+        } else {
+          await dispatch(loginToHost(uid)).unwrap();
+        }
+        successCount += 1;
+      } catch {
+        const host = getState().host.hosts.find((h) => h.uid === uid);
+        failed.push(host?.alias || host?.id || uid);
+      }
+    }
+
+    return { successCount, failed, attempted: pending.length };
   }
 );
 
