@@ -185,6 +185,7 @@ apiClient.interceptors.response.use(
       const isHostLoginRequest = requestUrl.includes('/cms-auth/login');
       const isAuthRefreshRequest = requestUrl.includes('/auth/refresh');
       const isAuthLoginRequest = requestUrl.includes('/auth/login');
+      const isAuthLogoutRequest = requestUrl.includes('/auth/logout');
 
       if (hostUid) {
         if (isHostLoginRequest) {
@@ -215,7 +216,7 @@ apiClient.interceptors.response.use(
         }
       }
 
-      if (!isAuthRefreshRequest && !isAuthLoginRequest) {
+      if (!isAuthRefreshRequest && !isAuthLoginRequest && !isAuthLogoutRequest) {
         originalRequest._retry = true;
 
         if (isRefreshingAccessToken) {

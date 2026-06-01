@@ -45,13 +45,24 @@ export class AuthService {
 
   @HandleAuthErrors()
   async refresh(refreshToken: string): Promise<AuthTokens> {
-    const record = await this.refreshTokenService.find(refreshToken);
-    if (!record) {
+    const consumeResult = await this.refreshTokenService.consumeForRotation(refreshToken);
+    if (consumeResult.kind === 'reused') {
+      await this.refreshTokenService.revokeFamily(consumeResult.familyId);
+      throw AuthError.InvalidToken({ reason: 'REFRESH_TOKEN_REUSED' });
+    }
+    if (consumeResult.kind === 'invalid') {
       throw AuthError.InvalidToken({ reason: 'REFRESH_TOKEN_INVALID' });
     }
 
-    await this.refreshTokenService.revoke(refreshToken);
-    return this.issueTokenPair(record.userId, record.familyId);
+    const { session } = consumeResult;
+    try {
+      const tokens = await this.issueTokenPair(session.record.userId, session.record.familyId);
+      await this.refreshTokenService.commitConsume(session);
+      return tokens;
+    } catch (err) {
+      await this.refreshTokenService.rollbackConsume(session);
+      throw err;
+    }
   }
 
   @HandleAuthErrors()

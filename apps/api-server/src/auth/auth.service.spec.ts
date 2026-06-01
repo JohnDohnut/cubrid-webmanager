@@ -20,8 +20,11 @@ describe('AuthService', () => {
     jwt = { signAsync: jest.fn().mockResolvedValue('access-token') } as any;
     refreshTokenService = {
       create: jest.fn().mockResolvedValue({ token: 'refresh-token', familyId: 'family-1' }),
-      find: jest.fn(),
+      consumeForRotation: jest.fn(),
+      commitConsume: jest.fn().mockResolvedValue(undefined),
+      rollbackConsume: jest.fn().mockResolvedValue(undefined),
       revoke: jest.fn().mockResolvedValue(undefined),
+      revokeFamily: jest.fn().mockResolvedValue(undefined),
     } as any;
     tokenBlacklistService = {
       add: jest.fn().mockResolvedValue(undefined),
@@ -64,24 +67,41 @@ describe('AuthService', () => {
   });
 
   it('rotates refresh token on refresh', async () => {
-    refreshTokenService.find.mockResolvedValue({
-      userId: 'user1',
-      familyId: 'family-1',
-      expiresAt: new Date(Date.now() + 60_000).toISOString(),
-      createdAt: new Date().toISOString(),
+    refreshTokenService.consumeForRotation.mockResolvedValue({
+      kind: 'ok',
+      session: {
+        token: 'old-refresh',
+        tokenHash: 'hash',
+        lockPath: '/tmp/lock',
+        record: {
+          userId: 'user1',
+          familyId: 'family-1',
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+          createdAt: new Date().toISOString(),
+        },
+      },
     });
     refreshTokenService.create.mockResolvedValue({ token: 'new-refresh', familyId: 'family-1' });
 
     const result = await service.refresh('old-refresh');
 
-    expect(refreshTokenService.revoke).toHaveBeenCalledWith('old-refresh');
     expect(refreshTokenService.create).toHaveBeenCalledWith('user1', 'family-1');
+    expect(refreshTokenService.commitConsume).toHaveBeenCalled();
     expect(result.refreshToken).toBe('new-refresh');
   });
 
   it('rejects invalid refresh token', async () => {
-    refreshTokenService.find.mockResolvedValue(null);
+    refreshTokenService.consumeForRotation.mockResolvedValue({ kind: 'invalid' });
     await expect(service.refresh('bad')).rejects.toBeInstanceOf(AuthError);
+  });
+
+  it('revokes family when refresh token is reused', async () => {
+    refreshTokenService.consumeForRotation.mockResolvedValue({
+      kind: 'reused',
+      familyId: 'family-1',
+    });
+    await expect(service.refresh('reused-token')).rejects.toBeInstanceOf(AuthError);
+    expect(refreshTokenService.revokeFamily).toHaveBeenCalledWith('family-1');
   });
 
   it('blacklists access token and revokes refresh on logout', async () => {

@@ -12,6 +12,22 @@ export type RefreshTokenRecord = {
   createdAt: string;
 };
 
+type ConsumedRefreshTokenRecord = RefreshTokenRecord & {
+  consumedAt: string;
+};
+
+export type RefreshConsumeSession = {
+  token: string;
+  tokenHash: string;
+  lockPath: string;
+  record: RefreshTokenRecord;
+};
+
+export type RefreshConsumeResult =
+  | { kind: 'ok'; session: RefreshConsumeSession }
+  | { kind: 'reused'; familyId: string }
+  | { kind: 'invalid' };
+
 @Injectable()
 export class RefreshTokenService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RefreshTokenService.name);
@@ -27,6 +43,22 @@ export class RefreshTokenService implements OnModuleInit, OnModuleDestroy {
 
   private tokenPath(token: string): string {
     return path.join(this.root(), `${this.hashToken(token)}.json`);
+  }
+
+  private tokenPathByHash(tokenHash: string): string {
+    return path.join(this.root(), `${tokenHash}.json`);
+  }
+
+  private consumingPath(tokenHash: string, nonce: string): string {
+    return path.join(this.root(), `${tokenHash}.consuming.${nonce}.json`);
+  }
+
+  private consumedRoot(): string {
+    return path.join(getStoragePath(), 'refresh-tokens-consumed');
+  }
+
+  private consumedPathByHash(tokenHash: string): string {
+    return path.join(this.consumedRoot(), `${tokenHash}.json`);
   }
 
   onModuleInit(): void {
@@ -70,6 +102,69 @@ export class RefreshTokenService implements OnModuleInit, OnModuleDestroy {
       if (err?.code === 'ENOENT') return null;
       throw err;
     }
+  }
+
+  async consumeForRotation(token: string): Promise<RefreshConsumeResult> {
+    const tokenHash = this.hashToken(token);
+    const activePath = this.tokenPathByHash(tokenHash);
+    const consumedPath = this.consumedPathByHash(tokenHash);
+    const lockPath = this.consumingPath(tokenHash, crypto.randomUUID());
+
+    await fs.mkdir(this.root(), { recursive: true });
+    await fs.mkdir(this.consumedRoot(), { recursive: true });
+
+    try {
+      await fs.rename(activePath, lockPath);
+    } catch (err: any) {
+      if (err?.code !== 'ENOENT') {
+        throw err;
+      }
+
+      const consumed = await this.readConsumed(consumedPath);
+      if (consumed && Date.now() < Date.parse(consumed.expiresAt)) {
+        return { kind: 'reused', familyId: consumed.familyId };
+      }
+      return { kind: 'invalid' };
+    }
+
+    try {
+      const raw = await fs.readFile(lockPath, 'utf8');
+      const record = JSON.parse(raw) as RefreshTokenRecord;
+
+      if (Date.now() >= Date.parse(record.expiresAt)) {
+        await fs.unlink(lockPath).catch(() => undefined);
+        return { kind: 'invalid' };
+      }
+
+      return {
+        kind: 'ok',
+        session: {
+          token,
+          tokenHash,
+          lockPath,
+          record,
+        },
+      };
+    } catch {
+      await fs.unlink(lockPath).catch(() => undefined);
+      return { kind: 'invalid' };
+    }
+  }
+
+  async commitConsume(session: RefreshConsumeSession): Promise<void> {
+    const consumedPath = this.consumedPathByHash(session.tokenHash);
+    const consumedRecord: ConsumedRefreshTokenRecord = {
+      ...session.record,
+      consumedAt: new Date().toISOString(),
+    };
+
+    await fs.writeFile(consumedPath, JSON.stringify(consumedRecord), 'utf8');
+    await fs.unlink(session.lockPath).catch(() => undefined);
+  }
+
+  async rollbackConsume(session: RefreshConsumeSession): Promise<void> {
+    const targetPath = this.tokenPathByHash(session.tokenHash);
+    await fs.rename(session.lockPath, targetPath).catch(() => undefined);
   }
 
   async revoke(token: string): Promise<void> {
@@ -127,9 +222,46 @@ export class RefreshTokenService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
+    let consumedFiles: string[];
+    try {
+      consumedFiles = await fs.readdir(this.consumedRoot());
+    } catch (err: any) {
+      if (err?.code === 'ENOENT') {
+        consumedFiles = [];
+      } else {
+        throw err;
+      }
+    }
+
+    for (const file of consumedFiles) {
+      if (!file.endsWith('.json')) continue;
+      const filePath = path.join(this.consumedRoot(), file);
+      try {
+        const raw = await fs.readFile(filePath, 'utf8');
+        const record = JSON.parse(raw) as ConsumedRefreshTokenRecord;
+        if (now >= Date.parse(record.expiresAt)) {
+          await fs.unlink(filePath);
+          removed += 1;
+        }
+      } catch {
+        await fs.unlink(filePath).catch(() => undefined);
+        removed += 1;
+      }
+    }
+
     if (removed > 0) {
       this.logger.debug(`Purged ${removed} expired refresh tokens`);
     }
     return removed;
+  }
+
+  private async readConsumed(consumedPath: string): Promise<ConsumedRefreshTokenRecord | null> {
+    try {
+      const raw = await fs.readFile(consumedPath, 'utf8');
+      return JSON.parse(raw) as ConsumedRefreshTokenRecord;
+    } catch (err: any) {
+      if (err?.code === 'ENOENT') return null;
+      throw err;
+    }
   }
 }
