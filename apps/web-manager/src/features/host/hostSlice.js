@@ -38,6 +38,22 @@ function applyHostGroupsResponse(state, hostGroups) {
   syncHaInfoStorage(state);
 }
 
+/** Keep selected host/group in sync after host_groups map changes (move, delete, etc.). */
+function syncHostSelection(state) {
+  if (state.selectedHostUid) {
+    const groupId = findGroupIdForHost(state.hostGroups, state.selectedHostUid);
+    if (groupId) {
+      state.selectedGroupUid = groupId;
+    } else {
+      state.selectedHostUid = null;
+    }
+  }
+
+  if (state.selectedGroupUid && !state.hostGroups[state.selectedGroupUid]) {
+    state.selectedGroupUid = null;
+  }
+}
+
 // Async thunk to fetch hosts from API
 export const fetchHosts = createAsyncThunk(
   'host/fetchHosts',
@@ -591,11 +607,8 @@ const hostSlice = createSlice({
         state.loading = false;
         const { hostUid, hostGroups } = action.payload;
         applyHostGroupsResponse(state, hostGroups);
-        if (state.selectedHostUid === hostUid) {
-          state.selectedHostUid = null;
-          state.selectedGroupUid = null;
-        }
         purgeHostClientState(state, hostUid);
+        syncHostSelection(state);
         syncHaInfoStorage(state);
         state.isDeleteHostModalOpen = false;
         state.hostToDeleteUid = null;
@@ -623,6 +636,7 @@ const hostSlice = createSlice({
       .addCase(moveHost.fulfilled, (state, action) => {
         state.loading = false;
         applyHostGroupsResponse(state, action.payload);
+        syncHostSelection(state);
       })
       .addCase(moveHost.rejected, (state, action) => {
         state.loading = false;
@@ -712,9 +726,7 @@ const hostSlice = createSlice({
         if (removedSet.has(state.selectedHostUid)) {
           state.selectedHostUid = null;
         }
-        if (state.selectedGroupUid === groupId || !state.hostGroups[state.selectedGroupUid]) {
-          state.selectedGroupUid = null;
-        }
+        syncHostSelection(state);
         removedHostUids.forEach((uid) => purgeHostClientState(state, uid));
         syncHaInfoStorage(state);
         state.isDeleteGroupModalOpen = false;
