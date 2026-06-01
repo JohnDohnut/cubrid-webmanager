@@ -16,6 +16,7 @@ import {
   findDuplicateHost,
   findHostRef,
   getHost,
+  moveHostToGroup,
   removeHostFromUser,
   sanitizeHostGroups,
   updateGroup,
@@ -197,6 +198,26 @@ export class HostService {
       return user;
     });
 
+    return sanitizeHostGroups(updatedUser);
+  }
+
+  @HandleHostErrors()
+  async moveHost(
+    userId: string,
+    hostUid: string,
+    targetGroupId: string
+  ): Promise<SafeHostGroupsMap> {
+    const updatedUser = await this.repository.atomicUpdateUser(userId, async (user: User) => {
+      const ok = moveHostToGroup(user, hostUid, targetGroupId);
+      if (!ok) {
+        const ref = findHostRef(user, hostUid);
+        if (!ref) {
+          throw HostError.NoSuchHost({ hostUid });
+        }
+        throw HostError.InvalidFormat({ field: 'targetGroupId', reason: 'GROUP_NOT_FOUND' });
+      }
+      return user;
+    });
     return sanitizeHostGroups(updatedUser);
   }
 

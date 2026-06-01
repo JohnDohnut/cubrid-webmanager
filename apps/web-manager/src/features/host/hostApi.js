@@ -28,6 +28,9 @@ export const hostApi = {
   editHost: (hostUid, payload) => {
     return apiClient.put(`/host/${hostUid}`, payload);
   },
+  moveHost: (hostUid, targetGroupId) => {
+    return apiClient.post(`/host/${hostUid}/move`, { targetGroupId });
+  },
   getHostConfig: (hostUid, confname) => {
     return apiClient.get(`/${hostUid}/cms-config/all-sys-param?confname=${confname}`);
   },

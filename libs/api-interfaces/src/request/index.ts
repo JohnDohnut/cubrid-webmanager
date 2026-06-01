@@ -69,3 +69,4 @@ export * from './delete-dbmt-user-request';
 export * from './set-dbmt-passwd-request';
 export * from './refresh-token-request';
 export * from './logout-request';
+export * from './move-host-request';
