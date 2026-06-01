@@ -86,7 +86,7 @@ export default function ImportExportHostModal() {
     if (selectedHosts.length === selectable.length) {
       setSelectedHosts([]);
     } else {
-      setSelectedHosts(selectable.map(h => h.uid));
+      setSelectedHosts(selectable.map(h => h.rowId));
     }
   };
 
@@ -109,7 +109,7 @@ export default function ImportExportHostModal() {
         const listWithStatus = buildImportPreviewList(parsed, hosts);
 
         setImportList(listWithStatus);
-        setSelectedHosts(listWithStatus.filter(h => h.isSelectable).map(h => h.uid));
+        setSelectedHosts(listWithStatus.filter(h => h.isSelectable).map(h => h.rowId));
       } catch (err) {
         dispatch(showStatusModal({
           type: 'error',
@@ -138,7 +138,7 @@ export default function ImportExportHostModal() {
         exportHostsToXml(hostsToExport, finalFileName);
         dispatch(closeImportExportModal());
       } else {
-        const hostsToImport = importList.filter((h) => selectedHosts.includes(h.uid));
+        const hostsToImport = importList.filter((h) => selectedHosts.includes(h.rowId));
         const hostsToAdd = hostsToImport.filter((row) => row.isSelectable);
 
         const preflight = validateSelectedImportRows(hostsToAdd);
@@ -478,13 +478,13 @@ export default function ImportExportHostModal() {
                       header: '',
                       width: '48px',
                       render: (_, host) => {
-                        const id = host.uid;
-                        const isSelected = selectedHosts.includes(id);
+                        const rowId = host.rowId;
+                        const isSelected = selectedHosts.includes(rowId);
                         return (
                           <div className="flex justify-center">
                             <Checkbox
                               checked={isSelected}
-                              onChange={() => host.isSelectable && handleToggleHost(id)}
+                              onChange={() => host.isSelectable && handleToggleHost(rowId)}
                               disabled={!host.isSelectable}
                             />
                           </div>
@@ -520,10 +520,10 @@ export default function ImportExportHostModal() {
                   ]}
                   data={importList}
                   onRowClick={(host) => {
-                    if (host.isSelectable) handleToggleHost(host.uid);
+                    if (host.isSelectable) handleToggleHost(host.rowId);
                   }}
                   rowClassName={(host) => {
-                    const isSelected = selectedHosts.includes(host.uid);
+                    const isSelected = selectedHosts.includes(host.rowId);
                     return `
                       ${isSelected ? 'bg-bk-yellow/3' : ''}
                       ${host.isSelectable ? 'cursor-pointer' : 'opacity-60 grayscale-[0.35]'}

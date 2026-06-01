@@ -212,7 +212,7 @@ export function validateImportHostEntry(entry, { existingHosts = [], batchPeers 
   }
 
   for (const peer of batchPeers) {
-    if (peer.uid === entry.uid) continue;
+    if (peer.rowId != null && peer.rowId === entry.rowId) continue;
     if (sameConnection(normalized, peer)) {
       return 'Duplicate address + port in import file';
     }
@@ -225,11 +225,11 @@ export function validateImportHostEntry(entry, { existingHosts = [], batchPeers 
 }
 
 export function buildImportPreviewList(parsedHosts, existingHosts) {
-  const baseRows = parsedHosts.map((host) => {
+  const baseRows = parsedHosts.map((host, index) => {
     const portResult = parseImportPort(host.port);
     return {
       ...host,
-      uid: `${host.address}:${host.port}:${host.id}`,
+      rowId: `import-row-${index}`,
       portNumber: portResult.valid ? portResult.port : null,
       port: portResult.valid ? String(portResult.port) : String(host.port ?? ''),
       password: host.password ?? '',
@@ -238,11 +238,11 @@ export function buildImportPreviewList(parsedHosts, existingHosts) {
 
   return baseRows.map((row) => {
     const batchPeers = baseRows
-      .filter((other) => other.uid !== row.uid)
+      .filter((other) => other.rowId !== row.rowId)
       .map((other) => {
         const peerPort = parseImportPort(other.port);
         return {
-          uid: other.uid,
+          rowId: other.rowId,
           alias: String(other.alias ?? '').trim(),
           address: String(other.address ?? '').trim(),
           port: peerPort.valid ? peerPort.port : other.port,
@@ -270,7 +270,7 @@ export function validateSelectedImportRows(rows) {
   }
 
   const messages = invalid.map((row) =>
-    `${row.alias || row.address || row.uid}: ${row.validationError}`
+    `${row.alias || row.address || row.rowId}: ${row.validationError}`
   );
   return { ok: false, messages };
 }
