@@ -240,6 +240,9 @@ const Component = function ServiceDashboard() {
                     {row.hostCount} nodes
                   </span>
                 </div>
+                <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 truncate mt-0.5">
+                  {row.defaultHostUid ? `default: ${row.defaultHostUid}` : 'no default node'}
+                </span>
               </div>
             </div>
           );
