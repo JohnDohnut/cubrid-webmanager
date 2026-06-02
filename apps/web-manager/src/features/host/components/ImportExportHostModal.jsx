@@ -6,17 +6,13 @@ import {
   createHostGroup,
   deleteHostGroup,
   editHost,
-  loginToHost,
-  setSelectedHost,
-  fetchHostEnv,
+  loginHostsBatch,
+  setSkipAutoHostLogin,
 } from '../hostSlice';
 import { showStatusModal } from '../../layout/layoutSlice';
-import { fetchDatabaseStartInfo } from '../../database/databaseSlice';
-import { fetchBrokerList } from '../../broker/brokerSlice';
-import { setActiveMainTab } from '../../layout/layoutSlice';
 import {
   exportHostsToXml,
-  parseHostsXml,
+  parseHostsImportFile,
   buildImportPreviewList,
   validateSelectedImportRows,
 } from '../hostImportExport';
@@ -32,18 +28,6 @@ import { Typography } from '../../../components/ds/foundation/Typography';
 import { Checkbox } from '../../../components/ds/forms/Checkbox';
 
 import { useCM } from '../../../constants/useCM';
-
-async function loginImportedHost(dispatch, hostUid) {
-  await dispatch(loginToHost(hostUid)).unwrap();
-}
-
-function activateImportedHost(dispatch, hostUid) {
-  dispatch(setSelectedHost(hostUid));
-  dispatch(setActiveMainTab(`host:${hostUid}`));
-  dispatch(fetchDatabaseStartInfo(hostUid));
-  dispatch(fetchBrokerList(hostUid));
-  dispatch(fetchHostEnv(hostUid));
-}
 
 export default function ImportExportHostModal() {
   const CM = useCM();
@@ -104,8 +88,10 @@ export default function ImportExportHostModal() {
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
-        setImportGroupName(deriveImportGroupName(file.name));
-        const parsed = parseHostsXml(event.target.result);
+        const parsed = parseHostsImportFile(event.target.result);
+        if (!parsed.groups?.length) {
+          setImportGroupName(deriveImportGroupName(file.name));
+        }
         const listWithStatus = buildImportPreviewList(parsed, hosts);
 
         setImportList(listWithStatus);
@@ -122,9 +108,39 @@ export default function ImportExportHostModal() {
     reader.readAsText(file);
   };
 
-  const rollbackImportGroup = async (importGroupId) => {
-    if (!importGroupId) return;
-    await dispatch(deleteHostGroup(importGroupId)).unwrap().catch(() => {});
+  const rollbackImportGroups = async (groupIds) => {
+    for (const groupId of [...groupIds].reverse()) {
+      if (!groupId) continue;
+      await dispatch(deleteHostGroup(groupId)).unwrap().catch(() => {});
+    }
+  };
+
+  const createImportGroup = async (name) => {
+    const previousGroups = store.getState().host.hostGroups;
+    const groupsAfterCreate = await dispatch(createHostGroup({ name })).unwrap();
+    const groupId = findNewGroupId(previousGroups, groupsAfterCreate);
+    if (!groupId) {
+      throw new Error(`Failed to create import group "${name}".`);
+    }
+    return groupId;
+  };
+
+  const addImportedHost = async (hostData, groupId) => {
+    const hostGroups = await dispatch(addHost({
+      alias: hostData.alias,
+      address: hostData.address,
+      id: hostData.id,
+      password: '',
+      port: hostData.portNumber,
+      groupId,
+    })).unwrap();
+
+    const addedHosts = flattenHostsFromGroups(hostGroups);
+    return addedHosts.find((h) =>
+      h.address === hostData.address &&
+      h.port === hostData.portNumber &&
+      h.id === hostData.id
+    ) ?? null;
   };
 
   const handleAction = async () => {
@@ -162,42 +178,51 @@ export default function ImportExportHostModal() {
 
         const skippedCount = hostsToImport.length - hostsToAdd.length;
         const importedWithoutPassword = [];
-        let importGroupId = null;
+        const createdGroupIds = [];
+        const importedGroupNames = [];
+
+        const hostsByGroup = new Map();
+        const unassignedHosts = [];
+        for (const hostData of hostsToAdd) {
+          const groupName = hostData.importGroupName?.trim();
+          if (groupName) {
+            if (!hostsByGroup.has(groupName)) hostsByGroup.set(groupName, []);
+            hostsByGroup.get(groupName).push(hostData);
+          } else {
+            unassignedHosts.push(hostData);
+          }
+        }
 
         try {
-          const groupName = importGroupName.trim() || 'Imported';
-          const previousGroups = store.getState().host.hostGroups;
-          const groupsAfterCreate = await dispatch(createHostGroup({ name: groupName })).unwrap();
-          importGroupId = findNewGroupId(previousGroups, groupsAfterCreate);
+          dispatch(setSkipAutoHostLogin(true));
 
-          if (!importGroupId) {
-            throw new Error('Failed to create import group.');
+          for (const [groupName, rows] of hostsByGroup) {
+            const groupId = await createImportGroup(groupName);
+            createdGroupIds.push(groupId);
+            importedGroupNames.push(groupName);
+
+            for (const hostData of rows) {
+              const addedHost = await addImportedHost(hostData, groupId);
+              if (addedHost) importedWithoutPassword.push(addedHost);
+            }
           }
 
-          for (const hostData of hostsToAdd) {
-            const hostGroups = await dispatch(addHost({
-              alias: hostData.alias,
-              address: hostData.address,
-              id: hostData.id,
-              password: hostData.password || '',
-              port: hostData.portNumber,
-              groupId: importGroupId,
-            })).unwrap();
+          if (unassignedHosts.length > 0) {
+            const fallbackName = importGroupName.trim() || 'Imported';
+            const groupId = await createImportGroup(fallbackName);
+            createdGroupIds.push(groupId);
+            importedGroupNames.push(fallbackName);
 
-            if (!hostData.password) {
-              const addedHosts = flattenHostsFromGroups(hostGroups);
-              const addedHost = addedHosts.find((h) =>
-                h.address === hostData.address &&
-                h.port === hostData.portNumber &&
-                h.id === hostData.id
-              );
-              if (addedHost) {
-                importedWithoutPassword.push(addedHost);
-              }
+            for (const hostData of unassignedHosts) {
+              const addedHost = await addImportedHost(hostData, groupId);
+              if (addedHost) importedWithoutPassword.push(addedHost);
             }
           }
 
           const addedCount = hostsToAdd.length;
+          const groupSummary = importedGroupNames.length > 0
+            ? importedGroupNames.map((name) => `"${name}"`).join(', ')
+            : '"Imported"';
 
           if (importedWithoutPassword.length > 0) {
             const draft = {};
@@ -207,23 +232,25 @@ export default function ImportExportHostModal() {
             dispatch(showStatusModal({
               type: 'info',
               title: 'Set imported passwords',
-              message: `Imported ${addedCount} host(s) into "${groupName}". Add passwords for ${importedWithoutPassword.length} host(s), or skip.`,
+              message: `Imported ${addedCount} host(s) into ${groupSummary}. Add passwords for ${importedWithoutPassword.length} host(s), or skip.`,
             }));
           } else {
             dispatch(showStatusModal({
               type: 'success',
               title: 'Import Result',
-              message: `Imported ${addedCount} host(s) into "${groupName}". ${skippedCount} item(s) were skipped.`,
+              message: `Imported ${addedCount} host(s) into ${groupSummary}. ${skippedCount} item(s) were skipped.`,
             }));
             dispatch(closeImportExportModal());
           }
         } catch (err) {
-          await rollbackImportGroup(importGroupId);
+          await rollbackImportGroups(createdGroupIds);
           dispatch(showStatusModal({
             type: 'error',
             title: 'Import failed',
             message: err?.message || 'Import was rolled back. No hosts were added.',
           }));
+        } finally {
+          dispatch(setSkipAutoHostLogin(false));
         }
       }
     } catch (err) {
@@ -248,14 +275,14 @@ export default function ImportExportHostModal() {
     }
 
     setIsProcessing(true);
-    let updatedCount = 0;
-    let firstLoggedInUid = null;
-    const loginFailures = [];
 
     try {
+      const passwordSaveFailed = [];
+      let updatedCount = 0;
+
       for (const host of pendingPasswordHosts) {
-        const password = String(passwordDrafts[host.uid] || '');
-        if (!password) continue;
+        const password = passwordDrafts[host.uid] ?? '';
+        if (password === '') continue;
 
         const payload = {
           id: host.id,
@@ -268,35 +295,33 @@ export default function ImportExportHostModal() {
         try {
           await dispatch(editHost({ hostUid: host.uid, payload })).unwrap();
           updatedCount += 1;
-          try {
-            await loginImportedHost(dispatch, host.uid);
-            if (!firstLoggedInUid) {
-              firstLoggedInUid = host.uid;
-            }
-          } catch (loginErr) {
-            loginFailures.push(host.alias || host.id);
-          }
         } catch {
-          // Continue for remaining hosts.
+          passwordSaveFailed.push(host.alias || host.id || host.uid);
         }
       }
 
-      let message = `Password updated for ${updatedCount} host(s).`;
-      if (firstLoggedInUid) {
-        message += ' First successful host was connected.';
+      const messageParts = [];
+      if (updatedCount > 0) {
+        messageParts.push(`Password saved for ${updatedCount} host(s). Log in from the sidebar when ready.`);
       }
-      if (loginFailures.length > 0) {
-        message += ` Login failed for: ${loginFailures.join(', ')}.`;
+      if (passwordSaveFailed.length > 0) {
+        messageParts.push(`Password not saved: ${passwordSaveFailed.join(', ')}.`);
+      }
+      if (messageParts.length === 0) {
+        messageParts.push('No passwords were entered.');
       }
 
-      if (firstLoggedInUid) {
-        activateImportedHost(dispatch, firstLoggedInUid);
+      let statusType = 'success';
+      if (updatedCount === 0) {
+        statusType = passwordSaveFailed.length > 0 ? 'error' : 'info';
+      } else if (passwordSaveFailed.length > 0) {
+        statusType = 'info';
       }
 
       dispatch(showStatusModal({
-        type: updatedCount > 0 ? 'success' : 'info',
+        type: statusType,
         title: 'Import Result',
-        message,
+        message: messageParts.join(' '),
       }));
       dispatch(closeImportExportModal());
     } finally {
@@ -306,7 +331,93 @@ export default function ImportExportHostModal() {
     }
   };
 
+  const handleLoginAllImported = async () => {
+    const hostsWithPassword = pendingPasswordHosts.filter(
+      (host) => (passwordDrafts[host.uid] ?? '') !== ''
+    );
+    if (hostsWithPassword.length === 0) return;
+
+    setIsProcessing(true);
+    dispatch(setSkipAutoHostLogin(true));
+
+    try {
+      const savedUids = [];
+      const passwordSaveFailed = [];
+
+      for (const host of hostsWithPassword) {
+        const password = passwordDrafts[host.uid] ?? '';
+        const payload = {
+          id: host.id,
+          address: host.address,
+          port: Number(host.port),
+          alias: host.alias,
+          password,
+        };
+        try {
+          await dispatch(editHost({ hostUid: host.uid, payload })).unwrap();
+          savedUids.push(host.uid);
+        } catch {
+          passwordSaveFailed.push(host.alias || host.id || host.uid);
+        }
+      }
+
+      let successCount = 0;
+      let loginFailed = [];
+      if (savedUids.length > 0) {
+        const loginResult = await dispatch(loginHostsBatch(savedUids)).unwrap();
+        successCount = loginResult.successCount;
+        loginFailed = loginResult.failed;
+      }
+
+      const messageParts = [];
+      if (savedUids.length > 0) {
+        messageParts.push(`Password saved for ${savedUids.length} host(s).`);
+      }
+      if (passwordSaveFailed.length > 0) {
+        messageParts.push(`Password not saved: ${passwordSaveFailed.join(', ')}.`);
+      }
+      if (savedUids.length > 0) {
+        messageParts.push(`Connected ${successCount} host(s).`);
+        if (loginFailed.length > 0) {
+          messageParts.push(`Login failed: ${loginFailed.join(', ')}.`);
+        }
+      }
+
+      const hasSaveFailures = passwordSaveFailed.length > 0;
+      const hasLoginFailures = loginFailed.length > 0;
+      let statusType = 'success';
+      if (savedUids.length === 0) {
+        statusType = 'error';
+      } else if (hasSaveFailures || (hasLoginFailures && successCount === 0)) {
+        statusType = 'error';
+      } else if (hasLoginFailures) {
+        statusType = 'info';
+      }
+
+      dispatch(showStatusModal({
+        type: statusType,
+        title: CM.loginAll,
+        message: messageParts.join(' '),
+      }));
+      dispatch(closeImportExportModal());
+    } catch {
+      dispatch(showStatusModal({
+        type: 'error',
+        title: CM.loginAll,
+        message: 'Failed to log in to imported hosts.',
+      }));
+    } finally {
+      dispatch(setSkipAutoHostLogin(false));
+      setIsProcessing(false);
+      setPendingPasswordHosts([]);
+      setPasswordDrafts({});
+    }
+  };
+
   const isPasswordStep = importExportMode === 'import' && pendingPasswordHosts.length > 0;
+  const hasPasswordDrafts = pendingPasswordHosts.some(
+    (host) => (passwordDrafts[host.uid] ?? '') !== ''
+  );
   const title = isPasswordStep
     ? 'Set Passwords for Imported Hosts'
     : (importExportMode === 'export' ? CM.exportHosts : CM.importHosts);
@@ -319,6 +430,7 @@ export default function ImportExportHostModal() {
   const isAllSelected = selectable.length > 0 && selectedHosts.length === selectable.length;
   const isSomeSelected = selectedHosts.length > 0 && selectedHosts.length < selectable.length;
   const hasValidationErrors = importList.some((h) => h.validationError && !h.isDuplicate);
+  const fileHasPrefsGroups = importList.some((row) => row.hasPrefsGroups);
 
   return (
     <Modal
@@ -380,6 +492,17 @@ export default function ImportExportHostModal() {
             >
               {isPasswordStep ? 'Skip' : 'Discard'}
             </Button>
+            {isPasswordStep && (
+              <Button
+                variant="secondary"
+                onClick={handleLoginAllImported}
+                disabled={isProcessing || !hasPasswordDrafts}
+                loading={isProcessing}
+                icon="login"
+              >
+                {CM.loginAll}
+              </Button>
+            )}
             <Button
               variant="primary"
               onClick={isPasswordStep ? handleApplyImportedPasswords : handleAction}
@@ -422,17 +545,42 @@ export default function ImportExportHostModal() {
                   handleFileChange(event);
                 }}
               />
-              <Typography variant="p" className="text-slate-500 mt-4 text-center text-[11px] max-w-[280px] mx-auto">
-                Select a CUBRID hosts XML file or legacy desktop .prefs / .properties file.
+              <Typography variant="p" className="text-slate-500 mt-4 text-center text-[11px] max-w-[320px] mx-auto">
+                CUBRID hosts XML or legacy desktop .prefs / .properties (CUBRID_SERVERS and host groups).
+                Encrypted passwords in .prefs are not imported.
               </Typography>
             </div>
         ) : (
           <>
             <div className="px-4 py-2 bg-slate-50/50 dark:bg-bk-main/20 flex flex-col gap-2 border-b border-slate-100 dark:border-slate-800">
               {importExportMode === 'import' && (
+                fileHasPrefsGroups ? (
+                  <Typography variant="caption" className="text-slate-500 text-[10px]">
+                    Host groups from the .prefs file are preserved. Hosts not in any group use the name below.
+                  </Typography>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Typography variant="caption" className="font-bold text-slate-400 uppercase tracking-tight shrink-0">
+                      Group
+                    </Typography>
+                    <div className="flex-1 max-w-xs">
+                      <Input
+                        size="sm"
+                        value={importGroupName}
+                        onChange={(e) => setImportGroupName(e.target.value)}
+                        placeholder="Imported"
+                      />
+                    </div>
+                    <Typography variant="caption" className="text-slate-400 text-[10px]">
+                      All selected hosts go into this group
+                    </Typography>
+                  </div>
+                )
+              )}
+              {importExportMode === 'import' && fileHasPrefsGroups && (
                 <div className="flex items-center gap-2">
                   <Typography variant="caption" className="font-bold text-slate-400 uppercase tracking-tight shrink-0">
-                    Group
+                    Fallback group
                   </Typography>
                   <div className="flex-1 max-w-xs">
                     <Input
@@ -442,9 +590,6 @@ export default function ImportExportHostModal() {
                       placeholder="Imported"
                     />
                   </div>
-                  <Typography variant="caption" className="text-slate-400 text-[10px]">
-                    All selected hosts go into this group
-                  </Typography>
                 </div>
               )}
               {hasValidationErrors && (
@@ -519,7 +664,16 @@ export default function ImportExportHostModal() {
                       )
                     },
                     { accessor: 'address', header: 'Address' },
-                    { accessor: 'port', header: 'Port' }
+                    { accessor: 'port', header: 'Port' },
+                    ...(fileHasPrefsGroups ? [{
+                      accessor: 'importGroupName',
+                      header: 'Group',
+                      render: (groupName) => (
+                        <Typography variant="caption" className="text-slate-600 dark:text-slate-300">
+                          {groupName || '—'}
+                        </Typography>
+                      ),
+                    }] : []),
                   ]}
                   data={importList}
                   onRowClick={(host) => {

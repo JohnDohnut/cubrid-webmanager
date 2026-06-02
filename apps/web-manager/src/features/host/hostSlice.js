@@ -5,6 +5,14 @@ import { brokerApi } from '../broker/brokerApi';
 import { fetchDatabaseStartInfo } from '../database/databaseSlice';
 import { fetchBrokerList } from '../broker/brokerSlice';
 import { flattenHostsFromGroups, findGroupIdForHost } from './hostGroupUtils';
+import {
+  findHaPeersNeedingMerge,
+  findRegisteredHaPeersInSameGroup,
+  findUndiscoveredHaPeers,
+  isHaPostLoginModalOpen,
+} from './haPeerUtils';
+
+export { isHaPostLoginModalOpen, clearHaClusterLinkSessionNotices } from './haPeerUtils';
 
 function purgeHostClientState(state, hostUid) {
   state.authorizedHosts = state.authorizedHosts.filter((uid) => uid !== hostUid);
@@ -114,6 +122,20 @@ export const moveHost = createAsyncThunk(
       return response.host_groups || {};
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.response?.data?.error || 'Failed to move host');
+    }
+  }
+);
+
+export const mergeHaPeers = createAsyncThunk(
+  'host/mergeHaPeers',
+  async ({ targetGroupId, peers }, { dispatch, rejectWithValue }) => {
+    try {
+      for (const peer of peers) {
+        await dispatch(moveHost({ hostUid: peer.hostUid, targetGroupId })).unwrap();
+      }
+      return { mergedCount: peers.length, targetGroupId };
+    } catch (err) {
+      return rejectWithValue(typeof err === 'string' ? err : err?.message || 'Failed to merge HA peers');
     }
   }
 );
@@ -372,8 +394,12 @@ const initialState = {
   suggestedHaNodes: [],
   suggestedHaGroupId: null,
   isDiscoveryModalOpen: false, // Visibility of the discovery modal
+  pendingHaMerge: null,
+  isHaMergeModalOpen: false,
+  haClusterLinkNotice: null,
+  isHaClusterLinkModalOpen: false,
+  hostsAwaitingHaLogin: [], // Host UIDs pending first HA post-login side effects (import/add batch)
   initialHostData: null, // Data to pre-fill AddHostModal
-  lastAddedHostUid: null, // Tracks newly added host to trigger discovery ONLY on first login
   selectedHostUid: null,
   selectedGroupUid: null,
   loading: false,
@@ -384,6 +410,8 @@ const initialState = {
   hostAuthErrors: {}, // { [hostUid]: errorMessage }
   isImportExportModalOpen: false,
   importExportMode: 'export', // 'import' or 'export'
+  skipAutoHostLogin: false, // import batch: do not auto CMS-login on selectedHostUid change
+  isBatchHostLogin: false,
   isChangePasswordModalOpen: false,
   changePasswordHostUid: null,
   cmsUsers: {}, // { [hostUid]: [] }
@@ -501,6 +529,32 @@ const hostSlice = createSlice({
     closeDiscoveryModal: (state) => {
       state.isDiscoveryModalOpen = false;
     },
+    setPendingHaMerge: (state, action) => {
+      state.pendingHaMerge = action.payload;
+      state.isHaMergeModalOpen = !!action.payload?.peers?.length;
+    },
+    clearPendingHaMerge: (state) => {
+      state.pendingHaMerge = null;
+      state.isHaMergeModalOpen = false;
+    },
+    setHaClusterLinkNotice: (state, action) => {
+      state.haClusterLinkNotice = action.payload;
+      state.isHaClusterLinkModalOpen = !!action.payload?.peers?.length;
+    },
+    clearHaClusterLinkNotice: (state) => {
+      state.haClusterLinkNotice = null;
+      state.isHaClusterLinkModalOpen = false;
+    },
+    queueHostAwaitingHaLogin: (state, action) => {
+      const uid = action.payload;
+      if (uid && !state.hostsAwaitingHaLogin.includes(uid)) {
+        state.hostsAwaitingHaLogin.push(uid);
+      }
+    },
+    removeHostAwaitingHaLogin: (state, action) => {
+      const uid = action.payload;
+      state.hostsAwaitingHaLogin = state.hostsAwaitingHaLogin.filter((id) => id !== uid);
+    },
     closeServerVersionModal: (state) => {
       state.isServerVersionModalOpen = false;
       state.serverVersionHostUid = null;
@@ -511,6 +565,10 @@ const hostSlice = createSlice({
     },
     closeImportExportModal: (state) => {
       state.isImportExportModalOpen = false;
+      state.skipAutoHostLogin = false;
+    },
+    setSkipAutoHostLogin: (state, action) => {
+      state.skipAutoHostLogin = Boolean(action.payload);
     },
     openChangePasswordModal: (state, action) => {
       state.isChangePasswordModalOpen = true;
@@ -522,9 +580,6 @@ const hostSlice = createSlice({
     },
     clearHostError: (state) => {
       state.error = null;
-    },
-    clearLastAddedHostUid: (state) => {
-      state.lastAddedHostUid = null;
     },
     openCmsUserManagementModal: (state) => {
       state.isCmsUserManagementModalOpen = true;
@@ -565,9 +620,13 @@ const hostSlice = createSlice({
         applyHostGroupsResponse(state, action.payload);
         const newHost = state.hosts.find((h) => !prevUids.has(h.uid));
         if (newHost) {
-          state.lastAddedHostUid = newHost.uid;
-          state.selectedHostUid = newHost.uid;
-          state.selectedGroupUid = findGroupIdForHost(state.hostGroups, newHost.uid);
+          if (!state.hostsAwaitingHaLogin.includes(newHost.uid)) {
+            state.hostsAwaitingHaLogin.push(newHost.uid);
+          }
+          if (!state.skipAutoHostLogin) {
+            state.selectedHostUid = newHost.uid;
+            state.selectedGroupUid = findGroupIdForHost(state.hostGroups, newHost.uid);
+          }
         }
         state.isAddHostModalOpen = false;
       })
@@ -576,16 +635,20 @@ const hostSlice = createSlice({
         state.error = action.payload; // AddHostModal can also show this
       })
       .addCase(loginToHost.pending, (state, action) => {
-        state.isLoggingIntoHost = true;
-        state.loading = true;
+        if (!state.isBatchHostLogin) {
+          state.isLoggingIntoHost = true;
+          state.loading = true;
+        }
         // Clean up previous error for this host if any
         if (state.hostAuthErrors[action.meta.arg]) {
           delete state.hostAuthErrors[action.meta.arg];
         }
       })
       .addCase(loginToHost.fulfilled, (state, action) => {
-        state.isLoggingIntoHost = false;
-        state.loading = false;
+        if (!state.isBatchHostLogin) {
+          state.isLoggingIntoHost = false;
+          state.loading = false;
+        }
         const { hostUid, ...haInfo } = action.payload;
         if (!state.authorizedHosts.includes(hostUid)) {
           state.authorizedHosts.push(hostUid);
@@ -594,11 +657,33 @@ const hostSlice = createSlice({
         localStorage.setItem('cubrid_ha_info', JSON.stringify(state.haInfo));
       })
       .addCase(loginToHost.rejected, (state, action) => {
-        state.isLoggingIntoHost = false;
-        state.loading = false;
+        if (!state.isBatchHostLogin) {
+          state.isLoggingIntoHost = false;
+          state.loading = false;
+        }
         state.hostAuthErrors[action.meta.arg] = action.payload;
-        state.error = action.payload;
+        if (!state.isBatchHostLogin) {
+          state.error = action.payload;
+        }
       })
+      .addMatcher(
+        (action) => action.type === 'host/loginHostsBatch/pending',
+        (state) => {
+          state.isBatchHostLogin = true;
+          state.isLoggingIntoHost = true;
+          state.loading = true;
+        }
+      )
+      .addMatcher(
+        (action) =>
+          action.type === 'host/loginHostsBatch/fulfilled'
+          || action.type === 'host/loginHostsBatch/rejected',
+        (state) => {
+          state.isBatchHostLogin = false;
+          state.isLoggingIntoHost = false;
+          state.loading = false;
+        }
+      )
       .addCase(deleteHost.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -639,6 +724,17 @@ const hostSlice = createSlice({
         syncHostSelection(state);
       })
       .addCase(moveHost.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(mergeHaPeers.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(mergeHaPeers.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(mergeHaPeers.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
@@ -809,19 +905,159 @@ export const {
   closeServerVersionModal,
   setSuggestedHaNodes,
   clearSuggestedHaNodes,
+  setPendingHaMerge,
+  clearPendingHaMerge,
+  setHaClusterLinkNotice,
+  clearHaClusterLinkNotice,
+  queueHostAwaitingHaLogin,
+  removeHostAwaitingHaLogin,
   openDiscoveryModal,
   closeDiscoveryModal,
   openImportExportModal,
   closeImportExportModal,
+  setSkipAutoHostLogin,
   openChangePasswordModal,
   closeChangePasswordModal,
   clearHostError,
-  setServiceProgressMessage,
-  clearLastAddedHostUid,
   openCmsUserManagementModal,
   closeCmsUserManagementModal,
   openEditCmsUserModal,
   closeEditCmsUserModal,
 } = hostSlice.actions;
+
+/** HA merge / discovery / alias updates after loginToHost stores haInfo. */
+export const processHaLoginSideEffects = createAsyncThunk(
+  'host/processHaLoginSideEffects',
+  async (hostUid, { dispatch, getState }) => {
+    const state = getState().host;
+    const response = state.haInfo[hostUid];
+    if (!response) return { hostUid };
+
+    const hosts = state.hosts;
+    const awaitingFirstHaLogin = state.hostsAwaitingHaLogin.includes(hostUid);
+    const isHa = response.isHA === true || String(response.isHA).toLowerCase() === 'true';
+    let showedHaModal = false;
+
+    if (isHa) {
+      await dispatch(markGroupHa({ hostUid })).unwrap().catch(() => {});
+    }
+
+    if (isHa && response.haNodes?.length > 0) {
+      const hostGroups = getState().host.hostGroups;
+      const undiscovered = findUndiscoveredHaPeers(hosts, response.haNodes);
+
+      if (undiscovered.length > 0) {
+        const hostState = getState().host;
+        const staleDiscoveryOpen =
+          hostState.isDiscoveryModalOpen
+          && findUndiscoveredHaPeers(hosts, hostState.suggestedHaNodes).length === 0;
+        if (staleDiscoveryOpen) {
+          dispatch(hostSlice.actions.clearSuggestedHaNodes());
+        }
+        if (!getState().host.isDiscoveryModalOpen) {
+          dispatch(hostSlice.actions.setSuggestedHaNodes({
+            nodes: undiscovered,
+            groupId: findGroupIdForHost(hostGroups, hostUid),
+          }));
+          showedHaModal = true;
+        }
+      }
+
+      if (!showedHaModal && !getState().host.isHaMergeModalOpen) {
+        const mergePlan = findHaPeersNeedingMerge(hostGroups, response.haNodes, hostUid);
+        if (mergePlan) {
+          dispatch(hostSlice.actions.setPendingHaMerge(mergePlan));
+          showedHaModal = true;
+        }
+      }
+
+      if (!showedHaModal && !getState().host.isHaClusterLinkModalOpen) {
+        const sameGroupPeers = findRegisteredHaPeersInSameGroup(hostGroups, response.haNodes, hostUid);
+        const noticeKey = `ha_cluster_linked_${hostUid}`;
+        let alreadyNoticed = false;
+        try {
+          alreadyNoticed = sessionStorage.getItem(noticeKey) === '1';
+        } catch {
+          // ignore
+        }
+        if (sameGroupPeers.length > 0 && !alreadyNoticed) {
+          const targetGroupId = findGroupIdForHost(hostGroups, hostUid);
+          dispatch(hostSlice.actions.setHaClusterLinkNotice({
+            anchorHostUid: hostUid,
+            targetGroupId,
+            targetGroupName: hostGroups[targetGroupId]?.name || 'Group',
+            peers: sameGroupPeers,
+          }));
+          try {
+            sessionStorage.setItem(noticeKey, '1');
+          } catch {
+            // ignore
+          }
+        }
+      }
+    }
+
+    if (awaitingFirstHaLogin) {
+      dispatch(hostSlice.actions.removeHostAwaitingHaLogin(hostUid));
+    }
+
+    const host = hosts.find((h) => h.uid === hostUid);
+    if (
+      host &&
+      isHa &&
+      response.currentNodeType === 'master' &&
+      !host.alias?.toLowerCase().includes('(master)')
+    ) {
+      const newAlias = `${host.alias || host.id} (master)`;
+      await dispatch(editHost({ hostUid, payload: { ...host, alias: newAlias } })).unwrap().catch(() => {});
+    }
+
+    return { hostUid };
+  }
+);
+
+/** Login + HA side effects — use instead of bare loginToHost for user-initiated logins. */
+export const loginToHostWithSideEffects = createAsyncThunk(
+  'host/loginToHostWithSideEffects',
+  async (hostUid, { dispatch, rejectWithValue }) => {
+    try {
+      await dispatch(loginToHost(hostUid)).unwrap();
+      await dispatch(processHaLoginSideEffects(hostUid)).unwrap();
+      return hostUid;
+    } catch (err) {
+      return rejectWithValue(err);
+    }
+  }
+);
+
+/** CMS-login for multiple hosts (sequential), then HA side effects per successful login. */
+export const loginHostsBatch = createAsyncThunk(
+  'host/loginHostsBatch',
+  async (hostUids, { dispatch, getState }) => {
+    const pending = (hostUids || []).filter(
+      (uid) => uid && !getState().host.authorizedHosts.includes(uid)
+    );
+    const failed = [];
+    const succeededUids = [];
+    let successCount = 0;
+
+    for (const uid of pending) {
+      try {
+        await dispatch(loginToHost(uid)).unwrap();
+        succeededUids.push(uid);
+        successCount += 1;
+      } catch {
+        const host = getState().host.hosts.find((h) => h.uid === uid);
+        failed.push(host?.alias || host?.id || uid);
+      }
+    }
+
+    for (const uid of succeededUids) {
+      await dispatch(processHaLoginSideEffects(uid)).unwrap().catch(() => {});
+    }
+
+    return { successCount, failed, attempted: pending.length };
+  }
+);
 
 export default hostSlice.reducer;

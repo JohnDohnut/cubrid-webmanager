@@ -75,6 +75,8 @@ import DatabasePropertyModal from '../features/database/components/DatabasePrope
 import RenameDatabaseModal from '../features/database/components/RenameDatabaseModal';
 import AddVolumeModal from '../features/database/components/AddVolumeModal';
 import SuggestedHaNodesModal from '../features/host/components/SuggestedHaNodesModal';
+import HaPeerMergeModal from '../features/host/components/HaPeerMergeModal';
+import HaClusterLinkedModal from '../features/host/components/HaClusterLinkedModal';
 
 import { Icon } from '../components/ds/foundation/Icon';
 import { useCM } from '../constants/useCM';
@@ -199,7 +201,7 @@ function DashboardLayout() {
         {/* Flash Overlay */}
         <div className={`fixed inset-0 bg-white/20 dark:bg-white/5 pointer-events-none z-[9999] transition-opacity duration-300 ${isFlashing ? 'opacity-100' : 'opacity-0'}`} />
         
-        <SplitPane split="vertical" defaultSize={320} minSize={240} maxSize={600} className="h-full w-full">
+        <SplitPane split="vertical" defaultSize={400} minSize={280} maxSize={640} className="h-full w-full">
           <Sidebar
             isCollapsed={isSidebarCollapsed}
             onToggleCollapse={() => dispatch(toggleSidebar())}
@@ -395,6 +397,8 @@ function DashboardLayout() {
         </SplitPane>
 
         <SuggestedHaNodesModal />
+        <HaPeerMergeModal />
+        <HaClusterLinkedModal />
 
         <HostGroupNameModal />
         <AddHostModal

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { editHost, loginToHost, closeEditHostModal, clearHostError, setSelectedHost, fetchHostEnv } from '../hostSlice';
+import { editHost, loginToHostWithSideEffects, closeEditHostModal, clearHostError, setSelectedHost, fetchHostEnv } from '../hostSlice';
 import { fetchDatabaseStartInfo } from '../../database/databaseSlice';
 import { fetchBrokerList } from '../../broker/brokerSlice';
 import { setActiveMainTab } from '../../layout/layoutSlice';
@@ -89,7 +89,7 @@ export default function EditHostModal() {
         dispatch(clearHostError());
 
         // 4. Perform Login as follow-up
-        dispatch(loginToHost(targetUid))
+        dispatch(loginToHostWithSideEffects(targetUid))
           .unwrap()
           .then(() => {
             // 5. Success -> refetch data, show server content
