@@ -13,7 +13,10 @@ import { SuccessResponseInterceptor, LoggingInterceptor } from '@common'; // Upd
 async function bootstrap() {
   loadRuntimeEnv();
   const httpsOptions = getHttpsOptions();
-  const app = await NestFactory.create(AppModule, { httpsOptions });
+  const app = await NestFactory.create(AppModule, {
+    httpsOptions,
+    logger: ['error', 'warn'],
+  });
   app.getHttpAdapter().getInstance().set('trust proxy', true);
   const configService = app.get(ConfigService);
   const port: string = configService.getPort();
