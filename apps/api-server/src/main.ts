@@ -71,6 +71,19 @@ async function bootstrap() {
     : path.join(__dirname, 'public');
   if (fs.existsSync(publicDir)) {
     const expressApp = app.getHttpAdapter().getInstance();
+
+    // PWA Service Worker registration requires a trusted SSL cert.
+    // When ENABLE_PWA is not explicitly set to 'true' in cwm.conf,
+    // intercept /registerSW.js with an empty script so SW is never registered.
+    // This prevents SecurityError on self-signed certificates.
+    const enablePwa = (process.env.ENABLE_PWA ?? '').trim() === 'true';
+    if (!enablePwa) {
+      expressApp.get('/registerSW.js', (_req: express.Request, res: express.Response) => {
+        res.setHeader('Content-Type', 'application/javascript');
+        res.send('');
+      });
+    }
+
     expressApp.use(express.static(publicDir));
     expressApp.get(/^\/(?!api\/).*/, (_req: express.Request, res: express.Response) => {
       res.sendFile(path.join(publicDir, 'index.html'));
