@@ -11,7 +11,6 @@ export type HttpsKeyCert = { key: Buffer; cert: Buffer };
 export function getHttpsOptions(): HttpsKeyCert {
   const certPath = process.env.SSL_CERT_PATH?.trim();
   const keyPath = process.env.SSL_KEY_PATH?.trim();
-  const env = (process.env.ENVIRONMENT || '').toLowerCase();
 
   if (certPath && keyPath) {
     return {
@@ -20,12 +19,7 @@ export function getHttpsOptions(): HttpsKeyCert {
     };
   }
 
-  if (env === 'production') {
-    throw new Error(
-      'Production requires SSL_CERT_PATH and SSL_KEY_PATH (PEM files, e.g. under /etc).'
-    );
-  }
-
+  // 경로 미지정 시 자동 생성 (production 포함)
   return getOrCreateSSLCert();
 }
 

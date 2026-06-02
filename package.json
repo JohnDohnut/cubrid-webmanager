@@ -125,16 +125,24 @@
   "scripts": {
     "nx": "nx",
     "graph": "nx graph",
-    "build": "nx run-many -t build --all",
-    "build:web-manager": "nx build web-manager",
-    "build:api-server": "nx build api-server",
+
     "dev": "nx dev web-manager",
     "dev:web-manager": "nx dev web-manager",
     "dev:api-server": "nx serve api-server",
-    "preview:web-manager": "nx preview web-manager",
-    "serve:web-manager:dist": "node tools/serve-web-manager.js",
-    "serve:web-manager:dist:4200": "node tools/serve-web-manager.js 4200",
-    "serve:web-manager:dist:8080": "node tools/serve-web-manager.js 8080",
+    "dev:stack": "node tools/run-web-manager-https-stack.js",
+
+    "build:web-manager": "nx build web-manager",
+    "build:api-server": "nx build api-server",
+    "build:server": "npm run build:web-manager && npm run build:api-server && node scripts/copy-web-to-api.mjs",
+    "build": "nx run-many -t build --all",
+
+    "start": "node dist/apps/api-server/main.js",
+
+    "package:linux": "npm run build:server && nx run api-server:build:exe:linux && node scripts/assemble-package.mjs linux",
+    "package:windows": "npm run build:server && nx run api-server:build:exe:windows && node scripts/assemble-package.mjs windows",
+    "package:macos": "npm run build:server && nx run api-server:build:exe:macos && node scripts/assemble-package.mjs macos",
+    "package:all": "npm run build:server && nx run api-server:build:exe:all && node scripts/assemble-package.mjs all",
+
     "lint": "nx run-many -t lint --all",
     "lint:web-manager": "nx lint web-manager",
     "lint:api-server": "nx lint api-server",
@@ -143,13 +151,14 @@
     "test:api-server": "nx test api-server",
     "typecheck:api-server": "npx tsc -p apps/api-server/tsconfig.app.json --noEmit",
     "ci": "npm run typecheck:api-server && npm run build",
+
     "ssl:local-prod": "bash scripts/generate-local-production-ssl.sh",
     "migrate-storage-master-key": "node scripts/migrate-storage-master-key.mjs",
-    "pkg:api-server": "nx run api-server:build:exe",
-    "pkg:api-server:linux": "nx run api-server:build:exe:linux",
-    "pkg:api-server:windows": "nx run api-server:build:exe:windows",
-    "pkg:api-server:macos": "nx run api-server:build:exe:macos",
-    "pkg:api-server:all": "nx run api-server:build:exe:all"
+
+    "preview:web-manager": "nx preview web-manager",
+    "serve:web-manager:dist": "node tools/serve-web-manager.js",
+    "serve:web-manager:dist:4200": "node tools/serve-web-manager.js 4200",
+    "serve:web-manager:dist:8080": "node tools/serve-web-manager.js 8080"
   },
   "pkg": {
     "scripts": [
