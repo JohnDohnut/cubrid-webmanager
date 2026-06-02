@@ -9,7 +9,7 @@ import React, {
 } from 'react';
 import { useSelector, shallowEqual } from 'react-redux';
 import { databaseJobApi } from '../../features/database/databaseJobApi';
-import { runCmsJobInBackground, isCmsJobPolling } from '../services/cmsJobRunner';
+import { runCmsJobInBackground, isCmsJobPolling, cancelAllCmsJobPolls } from '../services/cmsJobRunner';
 import { useToast } from '../hooks/useToast';
 import { useCM } from '../../constants/useCM';
 import {
@@ -74,7 +74,6 @@ export function CmsJobProvider({ children }) {
 
       if (trackingRef.current.has(jobId) || isCmsJobPolling(jobId)) {
         return runCmsJobInBackground(jobId, {
-          intervalMs: 3000,
           onUpdate: (serverJob) => {
             const normalized = normalizeTrackedJob(serverJob);
             upsertJob(jobId, normalized);
@@ -115,11 +114,7 @@ export function CmsJobProvider({ children }) {
         }
       }
 
-      const existing = isCmsJobPolling(jobId);
-      const pollPromise = runCmsJobInBackground(jobId, {
-        intervalMs: 3000,
-        onUpdate,
-      });
+      const pollPromise = runCmsJobInBackground(jobId, { onUpdate });
 
       try {
         const result = await pollPromise;
@@ -174,6 +169,7 @@ export function CmsJobProvider({ children }) {
 
   useEffect(() => {
     if (!isAuthenticated) {
+      cancelAllCmsJobPolls();
       setJobs([]);
       trackingRef.current.clear();
       return;

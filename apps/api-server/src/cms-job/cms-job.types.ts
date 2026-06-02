@@ -39,7 +39,7 @@ export type CmsJobRecord = {
 };
 
 export function buildOperationKey(userId: string, hostUid: string, dbname: string): string {
-  return `${userId}:${hostUid}:${dbname}`;
+  return JSON.stringify([userId, hostUid, dbname]);
 }
 
 export function resolveJobDbname(type: CmsJobType, dbname: string, payload: CmsJobPayload): string {

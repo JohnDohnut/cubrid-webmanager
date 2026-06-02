@@ -7,7 +7,7 @@ const activePolls = new Map();
  * Poll a job until terminal state. Survives React component unmount.
  * @returns {Promise<object>} Resolves with final job record.
  */
-export function runCmsJobInBackground(jobId, { intervalMs = 3000, onUpdate } = {}) {
+export function runCmsJobInBackground(jobId, { onUpdate } = {}) {
   const existing = activePolls.get(jobId);
   if (existing?.promise) {
     return existing.promise;
@@ -15,10 +15,7 @@ export function runCmsJobInBackground(jobId, { intervalMs = 3000, onUpdate } = {
 
   let cancelPoll = null;
   const promise = new Promise((resolve, reject) => {
-    const { promise: pollPromise, cancel } = pollCmsJob(jobId, {
-      intervalMs,
-      onUpdate,
-    });
+    const { promise: pollPromise, cancel } = pollCmsJob(jobId, { onUpdate });
     cancelPoll = cancel;
 
     pollPromise
@@ -45,4 +42,11 @@ export function cancelCmsJobPoll(jobId) {
 
 export function isCmsJobPolling(jobId) {
   return activePolls.has(jobId);
+}
+
+export function cancelAllCmsJobPolls() {
+  for (const entry of activePolls.values()) {
+    entry.cancel();
+  }
+  activePolls.clear();
 }
