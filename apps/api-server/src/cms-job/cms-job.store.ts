@@ -52,9 +52,16 @@ export class CmsJobStore {
         jsonFiles.map((f) => fs.readFile(path.join(dir, f), 'utf8'))
       );
       const jobs: CmsJobRecord[] = [];
-      for (const result of results) {
-        if (result.status === 'fulfilled') {
+      for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        if (result.status !== 'fulfilled') continue;
+        try {
           jobs.push(JSON.parse(result.value) as CmsJobRecord);
+        } catch {
+          // Corrupt or partially-written file — delete it so it does not
+          // permanently block /jobs/active or startup orphan recovery.
+          const filePath = path.join(dir, jsonFiles[i]);
+          await fs.unlink(filePath).catch(() => undefined);
         }
       }
       return jobs.sort((a, b) => b.createdAt.localeCompare(a.createdAt));

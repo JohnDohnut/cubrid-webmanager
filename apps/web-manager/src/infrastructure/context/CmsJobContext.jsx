@@ -123,6 +123,10 @@ export function CmsJobProvider({ children }) {
         notifyTerminal(final, { notify, successMessage, errorMessage });
         return result;
       } catch (err) {
+        // Cancelled polls (logout / unmount) are not job failures — skip UI update and toast.
+        if (err?.cancelled) {
+          throw err;
+        }
         setJobs((prev) => {
           const cur = prev.find((j) => j.jobId === jobId);
           const failed = normalizeTrackedJob(
