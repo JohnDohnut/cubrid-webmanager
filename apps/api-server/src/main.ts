@@ -77,6 +77,7 @@ async function bootstrap() {
       res.sendFile(path.join(publicDir, 'index.html'));
     });
     console.log('\t@ serving web-manager from:', publicDir);
+  }
 
   const unixSocket = configService.getListenUnixSocket();
   if (unixSocket) {
@@ -90,7 +91,6 @@ async function bootstrap() {
     await app.listen(port, listenHost);
     console.log('\t@ server running on', `${listenHost}:${port}`);
     return;
-  }
   }
 
   await app.listen(port);
