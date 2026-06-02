@@ -112,6 +112,8 @@ Desktop.ini
 *.bak
 *.swp
 *.swo
+*.xlsx
+~$*.xlsx
 docs/
 local-e2e/.env
 local-e2e/playwright-report/
