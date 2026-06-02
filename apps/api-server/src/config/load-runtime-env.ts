@@ -47,6 +47,7 @@ function loadCwmConf(baseDir: string): void {
 
   if (dirty) {
     try {
+      fs.mkdirSync(baseDir, { recursive: true });
       writeCwmConf(confPath, conf);
       console.log(`[cwm.conf] saved: ${confPath}`);
     } catch (err) {
