@@ -60,8 +60,13 @@ describe('hostnameMatches (via hostMatchesHaPeer)', () => {
       expect(hostMatchesHaPeer(prodHost, shortPeer)).toBe(false);
       expect(hostMatchesHaPeer(devHost,  shortPeer)).toBe(false);
     });
-    it('matches when host alias is the same plain label (explicit user mapping)', () => {
-      expect(hostMatchesHaPeer(host('node1.prod.example.com', 'node1'), peer('node1'))).toBe(true);
+    it('does NOT match even when alias equals peer short name — alias is display name, not identity', () => {
+      expect(hostMatchesHaPeer(host('node1.prod.example.com', 'node1'), peer('node1'))).toBe(false);
+    });
+    it('alias matching cannot be exploited cross-cluster', () => {
+      // Both prod and dev hosts have alias "node1", but neither should match short peer without IP
+      expect(hostMatchesHaPeer(host('node1.prod.example.com', 'node1'), peer('node1'))).toBe(false);
+      expect(hostMatchesHaPeer(host('node1.dev.example.com',  'node1'), peer('node1'))).toBe(false);
     });
     it('FQDN stored + short peer + IP match → still matches via IP', () => {
       expect(hostMatchesHaPeer(host('10.0.0.1'), peer('node1', '10.0.0.1'))).toBe(true);

@@ -64,10 +64,10 @@ export function hostMatchesHaPeer(host, peer) {
   // the first label is too coarse — node1.prod.example.com and node1.dev.example.com
   // both reduce to "node1", so a first-label match is meaningless without IP evidence.
   // IP evidence was checked above; if we reach here it did not confirm identity.
-  // Allow the match only when the host alias is itself a plain label that directly
-  // names the peer (explicit user-managed short alias → explicit peer name).
+  // Alias is a UI display name, not an endpoint identifier — it must not be used
+  // as a substitute for IP-level confirmation.
   if (hAddr.includes('.') && nHost.length > 0 && !nHost.includes('.')) {
-    return hAlias.length > 0 && !hAlias.includes('.') && hAlias === nHost;
+    return false;
   }
 
   return hostnameMatches(hAddr, nHost) || hostnameMatches(hAlias, nHost);
