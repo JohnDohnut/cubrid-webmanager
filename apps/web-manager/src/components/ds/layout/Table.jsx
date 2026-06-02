@@ -7,6 +7,7 @@ export const Table = ({
   columns = [],
   data = [],
   onRowClick,
+  onRowContextMenu,
   emptyMessage = 'No data available',
   headersVisible = true,
   sortable = true,
@@ -52,7 +53,7 @@ export const Table = ({
   }
 
   return (
-    <div className={`w-full overflow-x-auto ${className} ${bordered ? 'border-b border-slate-200 dark:border-white/[0.08]' : ''}`}>
+    <div className={`w-full overflow-x-auto select-none ${className} ${bordered ? 'border-b border-slate-200 dark:border-white/[0.08]' : ''}`}>
       <table className="w-full text-left border-collapse">
 
         {/* ── Header ── */}
@@ -102,14 +103,26 @@ export const Table = ({
         <tbody className="divide-y divide-slate-100 dark:divide-white/4">
           {sortedData.map((row, rowIdx) => {
             const isEven = rowIdx % 2 === 0;
+            const rowKey =
+              row.rowKey ??
+              (row._type === 'host' ? row.uid : null) ??
+              row.uid ??
+              row.id ??
+              rowIdx;
             return (
               <tr
-                key={row.id || rowIdx}
+                key={rowKey}
                 className={`group transition-colors duration-100
                   ${zebra && isEven ? 'bg-slate-50/60 dark:bg-white/[0.012]' : ''}
                   hover:bg-amber-500/4 dark:hover:bg-amber-500/5
                   ${onRowClick ? 'cursor-pointer' : ''}`}
                 onClick={() => onRowClick && onRowClick(row)}
+                onContextMenu={(e) => {
+                  if (!onRowContextMenu) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onRowContextMenu(e, row);
+                }}
               >
                 {columns.map((col, colIdx) => {
                   const isFirst = colIdx === 0;

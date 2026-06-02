@@ -27,11 +27,9 @@ import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.servic
 import { DatabaseInfoService } from '@database/info/database-info.service';
 import {
   BaseService,
+  HandleCmsErrors,
   checkCmsStatusError,
-  checkCmsTokenError,
-  HandleDatabaseErrors,
 } from '@common';
-import { CmsError } from '@error/cms/cms-error';
 import { DatabaseError } from '@error/database/database-error';
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
@@ -92,12 +90,22 @@ export class DatabaseManagementService extends BaseService {
    * @param request Client request (srcdbname, destdbname, destdbpath, exvolpath, logpath, overwrite, move, advanced, volume?)
    * @returns Empty object on success
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async copyDb(
     userId: string,
     hostUid: string,
     request: CopyDbRequest
   ): Promise<CmsSuccessClientResponse> {
+    const response = await this.copyDbCmsResponse(userId, hostUid, request);
+    checkCmsStatusError(response);
+    return { success: true };
+  }
+
+  async copyDbCmsResponse(
+    userId: string,
+    hostUid: string,
+    request: CopyDbRequest
+  ): Promise<CopyDbCmsResponse> {
     const cmsRequest: CopyDbCmsRequest = {
       task: 'copydb',
       srcdbname: request.srcdbname,
@@ -115,20 +123,16 @@ export class DatabaseManagementService extends BaseService {
       }
     }
 
-    const response = await this.executeCmsRequest<
-      CopyDbCmsRequest,
-      CopyDbCmsResponse
-    >(userId, hostUid, cmsRequest);
+    return this.executeLongRunningCmsRequest<CopyDbCmsRequest, CopyDbCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest,
+      { skipStatusCheck: true }
+    );
+  }
 
-    if (response.status !== 'success') {
-      throw CmsError.RequestFailed({
-        response,
-        srcdbname: request.srcdbname,
-        destdbname: request.destdbname,
-      });
-    }
-
-    return { success: true };
+  async getDatabaseStartInfo(userId: string, hostUid: string): Promise<StartInfoClientResponse> {
+    return this.databaseInfoService.startInfo(userId, hostUid);
   }
 
   /**
@@ -142,14 +146,27 @@ export class DatabaseManagementService extends BaseService {
    * @returns Empty object on success
    * @throws DatabaseError If request fails or parameters are invalid
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async unloadDatabase(
     userId: string,
     hostUid: string,
     dbname: string,
     request: UnloadDatabaseRequest
   ): Promise<{}> {
-    // Determine target based on isSchemaIncluded and isDataIncluded
+    const response = await this.unloadDatabaseCmsResponse(userId, hostUid, dbname, request);
+    checkCmsStatusError(response);
+    return response.result;
+  }
+
+  /**
+   * Full CMS response for background jobs (caller checks CMS `status`, not WM error codes).
+   */
+  async unloadDatabaseCmsResponse(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    request: UnloadDatabaseRequest
+  ): Promise<UnloadDatabaseCmsResponse> {
     let target: 'schema' | 'object' | 'both';
 
     if (request.isSchemaIncluded && request.isDataIncluded) {
@@ -168,7 +185,6 @@ export class DatabaseManagementService extends BaseService {
       );
     }
 
-    // Build CMS request from client request
     const cmsRequest: UnloadDatabaseCmsRequest = {
       task: 'unloaddb',
       dbname: dbname,
@@ -191,12 +207,12 @@ export class DatabaseManagementService extends BaseService {
       lofile: request.lofile,
     };
 
-    const response = await this.executeCmsRequest<
-      UnloadDatabaseCmsRequest,
-      UnloadDatabaseCmsResponse
-    >(userId, hostUid, cmsRequest);
-
-    return response.result;
+    return this.executeLongRunningCmsRequest<UnloadDatabaseCmsRequest, UnloadDatabaseCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest,
+      { skipStatusCheck: true }
+    );
   }
 
   /**
@@ -208,7 +224,7 @@ export class DatabaseManagementService extends BaseService {
    * @returns UnloadInfoClientResponse Unload information without CMS envelope fields
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async getUnloadInfo(
     userId: string,
     hostUid: string
@@ -240,20 +256,35 @@ export class DatabaseManagementService extends BaseService {
    * @returns LoadDatabaseResponse Empty object on success
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async loadDatabase(
     userId: string,
     hostUid: string,
     dbname: string,
     request: LoadDatabaseRequest
   ): Promise<LoadDatabaseResponse> {
-    // Build CMS request from client request
+    const response = await this.loadDatabaseCmsResponse(userId, hostUid, dbname, request);
+    checkCmsStatusError(response);
+    return { success: true };
+  }
+
+  /**
+   * Full CMS response for background jobs (caller checks CMS `status`, not WM error codes).
+   */
+  async loadDatabaseCmsResponse(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    request: LoadDatabaseRequest
+  ): Promise<LoadDatabaseCmsResponse> {
     const cmsRequest: LoadDatabaseCmsRequest = {
       task: 'loaddb',
       dbname: dbname,
       checkoption: request.checkoption,
       period: request.period,
       user: request.user,
+      _DBID: request._DBID ?? request.user,
+      _DBPASSWD: request._DBPASSWD ?? '',
       estimated: request.estimated,
       oiduse: request.oiduse,
       statisticsuse: request.statisticsuse,
@@ -265,42 +296,12 @@ export class DatabaseManagementService extends BaseService {
       ignoreclassfile: request.ignoreclassfile,
     };
 
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const requestWithToken = { ...cmsRequest, token: host.token || '' };
-
-    const response = await this.cmsClient.postAuthenticated<
-      LoadDatabaseCmsRequest,
-      LoadDatabaseCmsResponse
-    >(url, requestWithToken);
-
-    checkCmsTokenError(response);
-    
-    try {
-      checkCmsStatusError(response);
-    } catch (error) {
-      if (error instanceof CmsError) {
-        // Join line array with newline characters
-        const lines = response.line || [];
-        const lineMessage = lines.join('\n');
-
-        // Update error message with line information
-        const updatedMessage = error.additionalData?.message
-          ? `${error.additionalData.message}\n${lineMessage}`
-          : lineMessage || 'Error occurred during database loading';
-
-        throw CmsError.RequestFailed(
-          {
-            message: updatedMessage,
-            response: response,
-          },
-          error
-        );
-      }
-      throw error;
-    }
-
-    return { success: true };
+    return this.executeLongRunningCmsRequest<LoadDatabaseCmsRequest, LoadDatabaseCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest,
+      { skipStatusCheck: true }
+    );
   }
 
   /**
@@ -314,27 +315,36 @@ export class DatabaseManagementService extends BaseService {
    * @returns OptimizeDatabaseResponse Empty object on success
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async optimizeDatabase(
     userId: string,
     hostUid: string,
     dbname: string,
     request: OptimizeDatabaseRequest
   ): Promise<OptimizeDatabaseResponse> {
-    // Build CMS request from client request
+    const response = await this.optimizeDatabaseCmsResponse(userId, hostUid, dbname, request);
+    checkCmsStatusError(response);
+    return { success: true };
+  }
+
+  async optimizeDatabaseCmsResponse(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    request: OptimizeDatabaseRequest
+  ): Promise<OptimizeDatabaseCmsResponse> {
     const cmsRequest: OptimizeDatabaseCmsRequest = {
       task: 'optimizedb',
       dbname: dbname,
       ...(request.class && { class: request.class }),
     };
 
-    await this.executeCmsRequest<OptimizeDatabaseCmsRequest, OptimizeDatabaseCmsResponse>(
+    return this.executeLongRunningCmsRequest<OptimizeDatabaseCmsRequest, OptimizeDatabaseCmsResponse>(
       userId,
       hostUid,
-      cmsRequest
+      cmsRequest,
+      { skipStatusCheck: true }
     );
-
-    return { success: true };
   }
 
   /**
@@ -348,26 +358,36 @@ export class DatabaseManagementService extends BaseService {
    * @returns CheckDatabaseResponse Empty object on success
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async checkDatabase(
     userId: string,
     hostUid: string,
     dbname: string,
     request: CheckDatabaseRequest
   ): Promise<CheckDatabaseResponse> {
+    const response = await this.checkDatabaseCmsResponse(userId, hostUid, dbname, request);
+    checkCmsStatusError(response);
+    return { success: true };
+  }
+
+  async checkDatabaseCmsResponse(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    request: CheckDatabaseRequest
+  ): Promise<CheckDatabaseCmsResponse> {
     const cmsRequest: CheckDatabaseCmsRequest = {
       task: 'checkdb',
       dbname: dbname,
       repairdb: request.repairdb,
     };
 
-    await this.executeCmsRequest<CheckDatabaseCmsRequest, CheckDatabaseCmsResponse>(
+    return this.executeLongRunningCmsRequest<CheckDatabaseCmsRequest, CheckDatabaseCmsResponse>(
       userId,
       hostUid,
-      cmsRequest
+      cmsRequest,
+      { skipStatusCheck: true }
     );
-
-    return { success: true };
   }
 
   /**
@@ -381,32 +401,39 @@ export class DatabaseManagementService extends BaseService {
    * @returns CompactDatabaseResponse Log output if verbose is 'y', otherwise empty object
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async compactDatabase(
     userId: string,
     hostUid: string,
     dbname: string,
     request: CompactDatabaseRequest
   ): Promise<CompactDatabaseResponse> {
+    const response = await this.compactDatabaseCmsResponse(userId, hostUid, dbname, request);
+    checkCmsStatusError(response);
+    if (response.log) {
+      return { success: true, log: response.log };
+    }
+    return { success: true };
+  }
+
+  async compactDatabaseCmsResponse(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    request: CompactDatabaseRequest
+  ): Promise<CompactDatabaseCmsResponse> {
     const cmsRequest: CompactDatabaseCmsRequest = {
       task: 'compactdb',
       dbname: dbname,
       verbose: request.verbose,
     };
 
-    const response = await this.executeCmsRequest<
-      CompactDatabaseCmsRequest,
-      CompactDatabaseCmsResponse
-    >(userId, hostUid, cmsRequest);
-
-    if (response.log) {
-      return {
-        success: true,
-        log: response.log,
-      };
-    }
-
-    return { success: true };
+    return this.executeLongRunningCmsRequest<CompactDatabaseCmsRequest, CompactDatabaseCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest,
+      { skipStatusCheck: true }
+    );
   }
 
   /**
@@ -420,14 +447,24 @@ export class DatabaseManagementService extends BaseService {
    * @returns StartInfoClientResponse Latest database list (start-info) on success
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async renameDatabase(
     userId: string,
     hostUid: string,
     dbname: string,
     request: RenameDatabaseRequest
   ): Promise<StartInfoClientResponse> {
-    // Build CMS request from client request
+    const response = await this.renameDatabaseCmsResponse(userId, hostUid, dbname, request);
+    checkCmsStatusError(response);
+    return await this.getDatabaseStartInfo(userId, hostUid);
+  }
+
+  async renameDatabaseCmsResponse(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    request: RenameDatabaseRequest
+  ): Promise<RenameDatabaseCmsResponse> {
     const cmsRequest: RenameDatabaseCmsRequest = {
       task: 'renamedb',
       dbname: dbname,
@@ -437,10 +474,7 @@ export class DatabaseManagementService extends BaseService {
       forcedel: request.forcedel,
     };
 
-    // Include volume only when advanced is 'on'
-    // Parse client volume format [{oldPath, newPath}, ...] to CMS format [{oldPath: newPath, ...}]
     if (request.advanced === 'on' && request.volume && request.volume.length > 0) {
-      // Convert array of {oldPath, newPath} to single object with {oldPath: newPath} mappings
       const volumeMapping: { [oldPath: string]: string } = {};
       for (const item of request.volume) {
         volumeMapping[item.oldPath] = item.newPath;
@@ -448,13 +482,12 @@ export class DatabaseManagementService extends BaseService {
       cmsRequest.volume = [volumeMapping];
     }
 
-    await this.executeCmsRequest<
-      RenameDatabaseCmsRequest,
-      RenameDatabaseCmsResponse
-    >(userId, hostUid, cmsRequest);
-
-    // Return latest db list (start-info)
-    return await this.databaseInfoService.startInfo(userId, hostUid);
+    return this.executeLongRunningCmsRequest<RenameDatabaseCmsRequest, RenameDatabaseCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest,
+      { skipStatusCheck: true }
+    );
   }
 
   /**
@@ -467,7 +500,7 @@ export class DatabaseManagementService extends BaseService {
    * @returns GetAddVolStatusResponse Volume status information
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async getAddVolStatus(
     userId: string,
     hostUid: string,
@@ -500,13 +533,27 @@ export class DatabaseManagementService extends BaseService {
    * @returns AddVolDbResponse Volume addition result
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async addVolDb(
     userId: string,
     hostUid: string,
     dbname: string,
     request: AddVolDbRequest
   ): Promise<AddVolDbResponse> {
+    const response = await this.addVolDbCmsResponse(userId, hostUid, dbname, request);
+    checkCmsStatusError(response);
+    return {
+      dbname: response.dbname,
+      purpose: response.purpose,
+    };
+  }
+
+  async addVolDbCmsResponse(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    request: AddVolDbRequest
+  ): Promise<AddVolDbCmsResponse> {
     const cmsRequest: AddVolDbCmsRequest = {
       task: 'addvoldb',
       dbname: dbname,
@@ -517,15 +564,12 @@ export class DatabaseManagementService extends BaseService {
       size_need_mb: request.size_need_mb,
     };
 
-    const response = await this.executeCmsRequest<
-      AddVolDbCmsRequest,
-      AddVolDbCmsResponse
-    >(userId, hostUid, cmsRequest);
-
-    return {
-      dbname: response.dbname,
-      purpose: response.purpose,
-    };
+    return this.executeLongRunningCmsRequest<AddVolDbCmsRequest, AddVolDbCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest,
+      { skipStatusCheck: true }
+    );
   }
 
   /**
@@ -539,7 +583,7 @@ export class DatabaseManagementService extends BaseService {
    * @returns LockDatabaseResponse Lock information
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async lockDatabase(
     userId: string,
     hostUid: string,
@@ -575,7 +619,7 @@ export class DatabaseManagementService extends BaseService {
    * @returns GetTransactionInfoResponse Transaction information
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async getTransactionInfo(
     userId: string,
     hostUid: string,
@@ -616,7 +660,7 @@ export class DatabaseManagementService extends BaseService {
    * @returns KillTransactionResponse Transaction information
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async killTransaction(
     userId: string,
     hostUid: string,

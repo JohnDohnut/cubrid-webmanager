@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeCompactDatabaseModal } from '../databaseSlice';
-import { databaseApi } from '../databaseApi';
+import { databaseJobApi } from '../databaseJobApi';
+import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
+import { getCmsJobLoadingSubtitle } from '../../../infrastructure/cmsJob/cmsJobUi';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
 import { Button } from '../../../components/ds/foundation/Button';
-import { Input } from '../../../components/ds/forms/Input';
 import { Toggle } from '../../../components/ds/forms/Toggle';
 import { Typography } from '../../../components/ds/foundation/Typography';
 import { SectionHeader } from '../../../components/ds/foundation/SectionHeader';
@@ -16,20 +17,15 @@ import {
   ModalStatusSuccess, 
   ModalStatusError 
 } from '../../../components/ds/feedback/ActionStatus';
-
-// view states
-const VIEW_FORM    = 'form';
-const VIEW_LOADING = 'loading';
-const VIEW_SUCCESS = 'success';
-const VIEW_ERROR   = 'error';
+import { useCM } from '../../../constants/useCM';
 
 export default function CompactDatabaseModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isCompactDatabaseModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
   const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
   const { 
-    state, 
     error, 
     startAction, 
     endSuccess, 
@@ -39,8 +35,16 @@ export default function CompactDatabaseModal() {
     isSuccess,
     isError
   } = useActionState();
+  const { runJob } = useCmsJob();
+  const [jobStatus, setJobStatus] = useState(null);
 
   const [verbose, setVerbose] = useState(false);
+
+  const pipelineSteps = useMemo(() => [
+    { label: 'OID Truncation', desc: 'Remove unused object references', icon: 'auto_fix_normal' },
+    { label: 'Metadata Pruning', desc: 'Clean stale internal metadata', icon: 'dataset' },
+    { label: 'Block Consolidation', desc: 'Merge fragmented disk pages', icon: 'grid_view' },
+  ], []);
 
   useEffect(() => {
     if (isCompactDatabaseModalOpen) {
@@ -59,75 +63,72 @@ export default function CompactDatabaseModal() {
       const payload = {
         verbose: verbose ? 'y' : 'n'
       };
-      const response = await databaseApi.compactDatabase(selectedHostUid, selectedDatabase, payload);
-      endSuccess(response.note || 'Database compaction completed successfully.');
+      const job = await runJob(
+        () => databaseJobApi.submitCompact(selectedHostUid, selectedDatabase, payload),
+        { onProgress: (j) => setJobStatus(j.jobStatus ?? j.status) }
+      );
+      const log = job?.result?.log;
+      endSuccess(log || CM.optimizationComplete);
     } catch (err) {
-      endError(err.response?.data?.note || err.response?.data?.message || 'Database compaction failed. Ensure no other maintenance tasks are running.');
+      endError(typeof err === 'string' ? err : err.message || CM.compactionFailed);
     }
   };
 
-  const handleClose = () => dispatch(closeCompactDatabaseModal());
+  const handleClose = () => {
+    dispatch(closeCompactDatabaseModal());
+    resetAction();
+  };
 
-  const pipelineSteps = [
-    { label: 'OID Truncation', desc: 'Remove unused object references', icon: 'auto_fix_normal' },
-    { label: 'Metadata Pruning', desc: 'Clean stale internal metadata', icon: 'dataset' },
-    { label: 'Block Consolidation', desc: 'Merge fragmented disk pages', icon: 'grid_view' },
-  ];
-
-  /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title="Dynamic Storage Compaction" icon="compress" onClose={handleClose} maxWidth="480px">
-        <ModalStatusLoading 
-          title="Consolidating Blocks" 
-          subtitle={`The system is merging fragmented disk pages and pruning stale metadata for ${selectedDatabase}.`} 
+      <Modal isOpen title={CM.dynamicCompaction} icon="compress" onClose={handleClose} maxWidth="480px">
+        <ModalStatusLoading
+          title={CM.consolidatingBlocks}
+          subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
         />
       </Modal>
     );
   }
 
-  /* ─── SUCCESS view ─── */
   if (isSuccess) {
     return (
-      <Modal isOpen title="Dynamic Storage Compaction" icon="compress" iconVariant="success" onClose={handleClose} maxWidth="480px">
+      <Modal isOpen title={CM.dynamicCompaction} icon="compress" iconVariant="success" onClose={handleClose} maxWidth="480px">
         <ModalStatusSuccess 
-          title="Optimization Complete"
-          message={`Dynamic storage optimization for ${selectedDatabase} finished successfully.`}
+          title={CM.optimizationComplete}
+          message={selectedDatabase}
           onConfirm={handleClose}
-          confirmText="Acknowledge"
+          confirmText={CM.ok}
         />
       </Modal>
     );
   }
 
-  /* ─── ERROR view ─── */
   if (isError) {
     return (
-      <Modal isOpen title="Dynamic Storage Compaction" icon="compress" iconVariant="danger" onClose={resetAction} maxWidth="480px">
+      <Modal isOpen title={CM.dynamicCompaction} icon="compress" iconVariant="danger" onClose={resetAction} maxWidth="480px">
         <ModalStatusError 
-          title="Compaction Failed"
+          title={CM.compactionFailed}
           error={error}
           onRetry={handleCompact}
           onCancel={resetAction}
-          retryText="Retry Optimization"
-          cancelText="Dismiss"
+          retryText={CM.retryOptimization}
+          cancelText={CM.dismiss}
         />
       </Modal>
     );
   }
 
-  /* ─── FORM view ─── */
   return (
     <Modal
       isOpen={isCompactDatabaseModalOpen}
       onClose={handleClose}
-      title="Dynamic Storage Compaction"
+      title={CM.dynamicCompaction}
       icon="compress"
       maxWidth="480px"
       footer={
         <div className="flex justify-end gap-3 w-full">
           <Button variant="secondary" onClick={handleClose}>
-            Discard
+            {CM.discard}
           </Button>
           <Button 
             variant="primary" 
@@ -135,27 +136,27 @@ export default function CompactDatabaseModal() {
             icon="play_circle"
             className="min-w-[140px]"
           >
-            Execute Compaction
+            {CM.executeCompaction}
           </Button>
         </div>
       }
     >
       <div className="space-y-6">
         <div>
-          <SectionHeader title="Maintenance Target" icon="database" />
+          <SectionHeader title={CM.maintenanceTarget} icon="database" />
           <div className="flex items-center gap-4 p-4 bg-slate-50/50 dark:bg-white/3 border border-slate-200 dark:border-white/5 rounded-2xl">
             <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
               <Icon name="database" size="sm" weight={300} className="text-amber-500" />
             </div>
             <div className="flex-1 min-w-0">
-              <Typography variant="caption" className="text-slate-400 dark:text-slate-500 font-medium uppercase tracking-widest">Database</Typography>
+              <Typography variant="caption" className="text-slate-400 dark:text-slate-500 font-medium uppercase tracking-widest">{CM.database}</Typography>
               <Typography variant="h4" className="text-slate-900 dark:text-white font-bold text-[14px] tracking-tight leading-none mt-0.5">{selectedDatabase}</Typography>
             </div>
           </div>
         </div>
 
         <div>
-          <SectionHeader title="Optimization Pipeline" icon="terminal" />
+          <SectionHeader title={CM.optimizationPipeline} icon="terminal" />
 
           <div className="bg-slate-50/50 dark:bg-white/2 border border-slate-100 dark:border-white/5 rounded-2xl p-4 space-y-0">
             {pipelineSteps.map((step, i) => (
@@ -181,7 +182,7 @@ export default function CompactDatabaseModal() {
         </div>
 
         <div>
-          <SectionHeader title="Execution Options" icon="tune" />
+          <SectionHeader title={CM.executionOptions} icon="tune" />
 
           <div 
             className={`flex items-center gap-4 p-4 border rounded-2xl transition-all cursor-pointer select-none ${verbose ? 'bg-amber-500/4 border-amber-500/20 shadow-[0_2px_16px_rgba(245,158,11,0.06)]' : 'bg-white dark:bg-white/2 border-slate-100 dark:border-white/5 hover:border-slate-200 dark:hover:border-white/10'}`}
@@ -192,10 +193,10 @@ export default function CompactDatabaseModal() {
             </div>
             <div className="flex-1 min-w-0">
               <Typography variant="p" className={`font-bold text-[11.5px] tracking-tight transition-colors ${verbose ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white'}`}>
-                Verbose Monitoring
+                {CM.verboseMonitoring}
               </Typography>
               <Typography variant="caption" className="text-slate-400 dark:text-slate-500 font-medium mt-0.5 leading-snug">
-                Stream real-time OID transformation logs for post-mortem auditing
+                {CM.verboseMonitoringDesc}
               </Typography>
             </div>
             <div className="shrink-0" onClick={(e) => e.stopPropagation()}>

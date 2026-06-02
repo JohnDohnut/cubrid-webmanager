@@ -1,7 +1,8 @@
-import { Body, Controller, Delete, Get, Logger, Param, Post, Request } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Logger, Param, Post, Request, HttpCode, HttpStatus } from '@nestjs/common';
 import {
   CreateDatabaseWithConfigRequest,
   CreateDatabaseWithConfigResponse,
+  CreateCmsJobResponse,
   DatabaseVolumeInfoClientResponse,
   DeleteDatabaseRequest,
   GetCreatedbInfoClientResponse,
@@ -10,6 +11,7 @@ import {
 } from '@api-interfaces';
 import { validateRequiredFields } from '@util';
 import { DatabaseLifecycleService } from './database-lifecycle.service';
+import { CmsJobService } from '@cms-job/cms-job.service';
 
 /**
  * Controller for handling database lifecycle operations.
@@ -25,7 +27,10 @@ import { DatabaseLifecycleService } from './database-lifecycle.service';
 export class DatabaseLifecycleController {
   private readonly logger = new Logger(DatabaseLifecycleController.name);
 
-  constructor(private readonly lifecycleService: DatabaseLifecycleService) {}
+  constructor(
+    private readonly lifecycleService: DatabaseLifecycleService,
+    private readonly cmsJobService: CmsJobService
+  ) {}
 
   /**
    * Get start information for databases on a host.
@@ -155,11 +160,11 @@ export class DatabaseLifecycleController {
    * @param req Express request (contains authenticated user)
    * @param hostUid Host unique identifier from path parameter
    * @param dbname Database name from path parameter
-   * @param body Request body containing `id`, `password`
+   * @param body Request body: `id` required; `password` optional (omitted → `""`)
    * @returns StartInfoClientResponse Latest database start information
    * @example
    * // POST /host-uid/database/register/demodb
-   * // Body: { "id": "user", "password": "pass" }
+   * // Body: { "id": "user" } or { "id": "user", "password": "pass" }
    */
   @Post('register/:dbname')
   async saveDatabaseProfile(
@@ -170,14 +175,14 @@ export class DatabaseLifecycleController {
   ): Promise<StartInfoClientResponse> {
     const userId = req.user.sub;
 
-    validateRequiredFields(body, ['id', 'password'], 'database/register', this.logger);
+    validateRequiredFields(body, ['id'], 'database/register', this.logger);
 
     return await this.lifecycleService.saveDatabaseProfile(
       userId,
       hostUid,
       dbname,
       body.id,
-      body.password
+      body.password ?? ''
     );
   }
 
@@ -201,11 +206,12 @@ export class DatabaseLifecycleController {
    * // }
    */
   @Post('create')
+  @HttpCode(HttpStatus.ACCEPTED)
   async createDatabase(
     @Request() req,
     @Param('hostUid') hostUid: string,
     @Body() body: CreateDatabaseWithConfigRequest
-  ): Promise<CreateDatabaseWithConfigResponse> {
+  ): Promise<CreateCmsJobResponse> {
     const userId = req.user.sub;
 
     validateRequiredFields(
@@ -225,8 +231,8 @@ export class DatabaseLifecycleController {
       this.logger
     );
 
-    this.logger.log(`Creating database: ${body.dbname} on host: ${hostUid}`);
-    return await this.lifecycleService.createDatabase(userId, hostUid, body);
+    this.logger.log(`Enqueue create database job: ${body.dbname} on host: ${hostUid}`);
+    return await this.cmsJobService.createJob(userId, hostUid, 'create', body.dbname, body);
   }
 
   /**

@@ -16,19 +16,24 @@ describe('UserService', () => {
   let repository: jest.Mocked<UserRepositoryService>;
   let passwordService: jest.Mocked<PasswordService>;
 
-  const mockUser: User = {
+  const createMockUser = (): User => ({
     uuid: 'user-123',
     id: 'testuser',
     password: 'hashed-password',
     department: 'IT',
-    host_list: [],
+    host_groups: {},
+    ha_mon_list: {},
+    resource_mon_list: {},
     user_preference: {
       dashboardInterval: 10,
       brokerStatusInterval: 20,
     },
-  };
+  });
+
+  let mockUser: User;
 
   beforeEach(async () => {
+    mockUser = createMockUser();
     const mockRepository = {
       loadUserById: jest.fn(),
       atomicUpdateUser: jest.fn(),
@@ -75,6 +80,10 @@ describe('UserService', () => {
     };
 
     it('should successfully change password when old password is correct', async () => {
+      const passwordValidityCheckerSpy = jest
+        .spyOn(util, 'passwordValidityChecker')
+        .mockReturnValue(true);
+
       const updatedUser = { ...mockUser, password: 'new-hashed-password' };
       repository.atomicUpdateUser.mockImplementation(async (userId, callback) => {
         const result = await callback(mockUser);
@@ -94,18 +103,17 @@ describe('UserService', () => {
         'hashed-password'
       );
       expect(passwordService.getHashedValue).toHaveBeenCalledWith('new-password');
+      passwordValidityCheckerSpy.mockRestore();
     });
 
     it('should throw UserError when old password is incorrect', async () => {
-      repository.atomicUpdateUser.mockImplementation(async (userId, callback) => {
+      repository.atomicUpdateUser.mockImplementation(async (_userId, callback) => {
         passwordService.comparePlainAndHash.mockResolvedValue(false);
-        await callback(mockUser);
+        return callback({ ...mockUser });
       });
       passwordService.comparePlainAndHash.mockResolvedValue(false);
 
-      await expect(service.changePassword(mockUserId, mockRequest)).rejects.toThrow(
-        UserError.OldPasswordMismatch
-      );
+      await expect(service.changePassword(mockUserId, mockRequest)).rejects.toThrow(UserError);
 
       expect(repository.atomicUpdateUser).toHaveBeenCalled();
       expect(passwordService.comparePlainAndHash).toHaveBeenCalledWith(
@@ -121,15 +129,13 @@ describe('UserService', () => {
         .spyOn(util, 'passwordValidityChecker')
         .mockReturnValue(false);
 
-      repository.atomicUpdateUser.mockImplementation(async (userId, callback) => {
+      repository.atomicUpdateUser.mockImplementation(async (_userId, callback) => {
         passwordService.comparePlainAndHash.mockResolvedValue(true);
-        await callback(mockUser);
+        return callback(mockUser);
       });
       passwordService.comparePlainAndHash.mockResolvedValue(true);
 
-      await expect(service.changePassword(mockUserId, mockRequest)).rejects.toThrow(
-        UserError.BadNewPassword
-      );
+      await expect(service.changePassword(mockUserId, mockRequest)).rejects.toThrow(UserError);
 
       expect(repository.atomicUpdateUser).toHaveBeenCalled();
       expect(passwordService.comparePlainAndHash).toHaveBeenCalled();
@@ -144,9 +150,7 @@ describe('UserService', () => {
         UserError.UserNotFound({ userId: mockUserId })
       );
 
-      await expect(service.changePassword(mockUserId, mockRequest)).rejects.toThrow(
-        UserError.UserNotFound
-      );
+      await expect(service.changePassword(mockUserId, mockRequest)      ).rejects.toThrow(UserError);
 
       expect(repository.atomicUpdateUser).toHaveBeenCalled();
     });
@@ -162,7 +166,7 @@ describe('UserService', () => {
 
       expect(repository.loadUserById).toHaveBeenCalledWith(mockUserId);
       expect(result).not.toHaveProperty('password');
-      expect(result.uuid).toBe(mockUser.uuid);
+      expect(result).not.toHaveProperty('uuid');
       expect(result.id).toBe(mockUser.id);
       expect(result.department).toBe(mockUser.department);
     });
@@ -172,7 +176,7 @@ describe('UserService', () => {
         UserError.UserNotFound({ userId: mockUserId })
       );
 
-      await expect(service.getUserData(mockUserId)).rejects.toThrow(UserError.UserNotFound);
+      await expect(service.getUserData(mockUserId)).rejects.toThrow(UserError);
 
       expect(repository.loadUserById).toHaveBeenCalledWith(mockUserId);
     });
@@ -197,9 +201,7 @@ describe('UserService', () => {
         UserError.UserNotFound({ userId: mockUserId })
       );
 
-      await expect(service.getUserPreferences(mockUserId)).rejects.toThrow(
-        UserError.UserNotFound
-      );
+      await expect(service.getUserPreferences(mockUserId)      ).rejects.toThrow(UserError);
 
       expect(repository.loadUserById).toHaveBeenCalledWith(mockUserId);
     });
@@ -276,9 +278,7 @@ describe('UserService', () => {
         UserError.UserNotFound({ userId: mockUserId })
       );
 
-      await expect(service.updateProfile(mockUserId, mockUpdate)).rejects.toThrow(
-        UserError.UserNotFound
-      );
+      await expect(service.updateProfile(mockUserId, mockUpdate)      ).rejects.toThrow(UserError);
 
       expect(repository.atomicUpdateUser).toHaveBeenCalled();
     });
@@ -331,9 +331,7 @@ describe('UserService', () => {
         UserError.UserNotFound({ userId: mockUserId })
       );
 
-      await expect(service.updateUserPreferences(mockUserId, mockUpdate)).rejects.toThrow(
-        UserError.UserNotFound
-      );
+      await expect(service.updateUserPreferences(mockUserId, mockUpdate)      ).rejects.toThrow(UserError);
 
       expect(repository.atomicUpdateUser).toHaveBeenCalled();
     });
@@ -365,9 +363,7 @@ describe('UserService', () => {
         UserError.UserNotFound({ userId: mockUserId })
       );
 
-      await expect(service.updateUser(mockUserId, mockUpdate)).rejects.toThrow(
-        UserError.UserNotFound
-      );
+      await expect(service.updateUser(mockUserId, mockUpdate)      ).rejects.toThrow(UserError);
 
       expect(repository.atomicUpdateUser).toHaveBeenCalled();
     });

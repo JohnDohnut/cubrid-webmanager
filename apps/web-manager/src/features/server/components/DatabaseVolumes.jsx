@@ -6,6 +6,7 @@ import { Table } from '../../../components/ds/layout/Table';
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Typography } from '../../../components/ds/foundation/Typography';
 import { Spinner } from '../../../components/ds/foundation/Spinner';
+import { useCM } from '../../../constants/useCM';
 
 const getSizeFormat = (size) => {
   if (size >= 1024 ** 3) return `${(size / 1024 ** 3).toFixed(1)}GB`;
@@ -66,6 +67,7 @@ const BarCell = ({ val }) => {
 };
 
 export default function DatabaseVolumes({ hostUid }) {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { authorizedHosts } = useSelector((state) => state.host, shallowEqual);
   const { activeDatabases } = useSelector((state) => state.database, shallowEqual);
@@ -93,23 +95,23 @@ export default function DatabaseVolumes({ hostUid }) {
 
   const columns = React.useMemo(() => [
     {
-      header: 'Database',
+      header: CM.database,
       accessor: 'db',
       render: (val) => <span className="font-mono text-[12px] font-semibold text-slate-700 dark:text-slate-200">{val}</span>
     },
-    { header: 'Permanent', accessor: 'permanent', render: (val) => <BarCell val={val} /> },
-    { header: 'Temporary', accessor: 'temporary', render: (val) => <BarCell val={val} /> },
-    { header: 'Active Log', accessor: 'activeLog', render: (val) => <span className="font-mono text-[12px] text-slate-500">{val}</span> },
-    { header: 'Archive Log', accessor: 'archiveLog', render: (val) => <span className="font-mono text-[12px] text-slate-500">{val}</span> },
-    { header: 'Free Storage', accessor: 'storageFree', render: (val) => <span className="font-mono text-[12px] text-emerald-600 dark:text-emerald-400 font-semibold">{val}</span> },
-  ], []);
+    { header: CM.permanent, accessor: 'permanent', render: (val) => <BarCell val={val} /> },
+    { header: CM.temporary, accessor: 'temporary', render: (val) => <BarCell val={val} /> },
+    { header: CM.activeLog, accessor: 'activeLog', render: (val) => <span className="font-mono text-[12px] text-slate-500">{val}</span> },
+    { header: CM.archiveLog, accessor: 'archiveLog', render: (val) => <span className="font-mono text-[12px] text-slate-500">{val}</span> },
+    { header: CM.freeStorage, accessor: 'storageFree', render: (val) => <span className="font-mono text-[12px] text-emerald-600 dark:text-emerald-400 font-semibold">{val}</span> },
+  ], [CM]);
 
   return (
     <Card
       title={
         <div className="flex items-center gap-2">
           <Icon name="storage" size="sm" weight={300} className="text-amber-500" />
-          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Storage Volumes</span>
+          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{CM.storageVolumes}</span>
           {loading && <Spinner size="xs" className="ml-1" />}
         </div>
       }

@@ -1,8 +1,11 @@
 import { HostService } from '@host';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
-import { checkCmsStatusError, checkCmsTokenError } from '@common';
+import { checkCmsStatusError } from './decorators/handle-cms-status-errors.decorator';
+import { checkCmsTokenError } from './decorators/handle-cms-token-errors.decorator';
 import { Logger } from '@nestjs/common';
 import { BaseCmsRequest } from '@type/cms-request/base-cms-request';
+import { formatAuditLog } from '@util';
+import { getLongJobCmsTimeoutMs } from '../cms-job/cms-job.constants';
 
 /**
  * Base service class for CMS API communication.
@@ -45,14 +48,108 @@ export abstract class BaseService {
 
     // Add token to request if not already present
     const requestWithToken = { ...cmsRequest, token: host.token || '' };
+    const startedAt = Date.now();
+
+    this.logger.log(
+      formatAuditLog('cms_request', {
+        user: userId,
+        method: 'POST',
+        address: url,
+        hostUid,
+        task: cmsRequest.task,
+        body: requestWithToken,
+      })
+    );
 
     const response = await this.cmsClient.postAuthenticated<TRequest, TResponse>(
       url,
       requestWithToken
     );
-    this.logger.debug.apply(JSON.stringify(response));
+    const cmsResponse = response as {
+      status?: string;
+      task?: string;
+      __EXEC_TIME?: string;
+    };
+
+    this.logger.log(
+      formatAuditLog('cms_response', {
+        user: userId,
+        method: 'POST',
+        address: url,
+        hostUid,
+        task: cmsRequest.task,
+        status: cmsResponse.status ?? 'unknown',
+        execTime: cmsResponse.__EXEC_TIME,
+        durationMs: Date.now() - startedAt,
+        payload: response,
+      })
+    );
+
     checkCmsTokenError(response);
     checkCmsStatusError(response);
+
+    return response;
+  }
+
+  /** CMS calls that may run for hours (unload/load). Does not hold user-file locks. */
+  protected async executeLongRunningCmsRequest<
+    TRequest extends Omit<BaseCmsRequest, 'token'>,
+    TResponse
+  >(
+    userId: string,
+    hostUid: string,
+    cmsRequest: TRequest,
+    options?: { skipStatusCheck?: boolean }
+  ): Promise<TResponse> {
+    const host = await this.hostService.findHostInternal(userId, hostUid);
+    const url = `https://${host.address}:${host.port}/cm_api`;
+    const requestWithToken = { ...cmsRequest, token: host.token || '' };
+    const timeoutMs = getLongJobCmsTimeoutMs();
+    const startedAt = Date.now();
+
+    this.logger.log(
+      formatAuditLog('cms_request', {
+        user: userId,
+        method: 'POST',
+        address: url,
+        hostUid,
+        task: cmsRequest.task,
+        longRunning: true,
+        body: requestWithToken,
+      })
+    );
+
+    const response = await this.cmsClient.postAuthenticated<TRequest, TResponse>(
+      url,
+      requestWithToken,
+      { timeoutMs }
+    );
+
+    const cmsResponse = response as {
+      status?: string;
+      task?: string;
+      __EXEC_TIME?: string;
+    };
+
+    this.logger.log(
+      formatAuditLog('cms_response', {
+        user: userId,
+        method: 'POST',
+        address: url,
+        hostUid,
+        task: cmsRequest.task,
+        longRunning: true,
+        status: cmsResponse.status ?? 'unknown',
+        execTime: cmsResponse.__EXEC_TIME,
+        durationMs: Date.now() - startedAt,
+        payload: response,
+      })
+    );
+
+    checkCmsTokenError(response);
+    if (!options?.skipStatusCheck) {
+      checkCmsStatusError(response);
+    }
 
     return response;
   }

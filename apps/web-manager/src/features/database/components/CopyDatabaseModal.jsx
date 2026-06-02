@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { closeCopyDatabaseModal, copyDatabase, fetchDatabaseStartInfo } from '../databaseSlice';
+import { closeCopyDatabaseModal, fetchDatabaseStartInfo } from '../databaseSlice';
+import { databaseJobApi } from '../databaseJobApi';
+import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
+import { getCmsJobLoadingSubtitle } from '../../../infrastructure/cmsJob/cmsJobUi';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -15,6 +18,7 @@ import {
   ModalStatusSuccess, 
   ModalStatusError 
 } from '../../../components/ds/feedback/ActionStatus';
+import { useCM } from '../../../constants/useCM';
 
 // view states
 const VIEW_FORM    = 'form';
@@ -57,6 +61,7 @@ function FlagCard({ icon, label, description, checked, onChange, variant = 'prim
 }
 
 export default function CopyDatabaseModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isCopyDatabaseModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
@@ -73,6 +78,8 @@ export default function CopyDatabaseModal() {
     isSuccess,
     isError
   } = useActionState();
+  const { runJob } = useCmsJob();
+  const [jobStatus, setJobStatus] = useState(null);
 
   const [formData, setFormData] = useState({
     destName: '',
@@ -120,7 +127,10 @@ export default function CopyDatabaseModal() {
     };
 
     try {
-      await dispatch(copyDatabase({ hostUid: selectedHostUid, payload })).unwrap();
+      await runJob(
+        () => databaseJobApi.submitCopy(selectedHostUid, payload),
+        { onProgress: (j) => setJobStatus(j.jobStatus ?? j.status) }
+      );
       dispatch(fetchDatabaseStartInfo(selectedHostUid));
       endSuccess(`Clone "${formData.destName}" has been established and registered successfully.`);
     } catch (err) {
@@ -128,15 +138,18 @@ export default function CopyDatabaseModal() {
     }
   };
 
-  const handleClose = () => dispatch(closeCopyDatabaseModal());
+  const handleClose = () => {
+    dispatch(closeCopyDatabaseModal());
+    resetAction();
+  };
 
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title="Instance Duplication" icon="content_copy" onClose={handleClose} maxWidth="580px">
-        <ModalStatusLoading 
-          title="Synchronizing Volumes" 
-          subtitle={`The system is duplicating block storage and environment registry for ${formData.destName}.`} 
+      <Modal isOpen title={CM.copyDatabase} icon="content_copy" onClose={handleClose} maxWidth="580px">
+        <ModalStatusLoading
+          title={CM.synchronizingVolumes}
+          subtitle={getCmsJobLoadingSubtitle(formData.destName, jobStatus, CM)}
         />
       </Modal>
     );
@@ -145,12 +158,12 @@ export default function CopyDatabaseModal() {
   /* ─── SUCCESS view ─── */
   if (isSuccess) {
     return (
-      <Modal isOpen title="Cloning Complete" icon="content_copy" iconVariant="success" onClose={handleClose} maxWidth="580px">
+      <Modal isOpen title={CM.cloningComplete} icon="content_copy" iconVariant="success" onClose={handleClose} maxWidth="580px">
         <ModalStatusSuccess 
-          title="Instance Duplicated"
+          title={CM.copyCompleted}
           message={`Clone ${formData.destName} has been established and registered successfully.`}
           onConfirm={handleClose}
-          confirmText="Acknowledge"
+          confirmText={CM.ok}
         />
       </Modal>
     );
@@ -159,14 +172,14 @@ export default function CopyDatabaseModal() {
   /* ─── ERROR view ─── */
   if (isError) {
     return (
-      <Modal isOpen title="Cloning Failed" icon="content_copy" iconVariant="danger" onClose={resetAction} maxWidth="580px">
+      <Modal isOpen title={CM.cloningFailed} icon="content_copy" iconVariant="danger" onClose={resetAction} maxWidth="580px">
         <ModalStatusError 
-          title="Action Interrupted"
+          title={CM.operationInterrupted}
           error={error}
           onRetry={handleCopy}
           onCancel={resetAction}
-          retryText="Retry Clone"
-          cancelText="Dismiss"
+          retryText={CM.retryClone}
+          cancelText={CM.dismiss}
         />
       </Modal>
     );
@@ -177,20 +190,20 @@ export default function CopyDatabaseModal() {
     <Modal
       isOpen={isCopyDatabaseModalOpen}
       onClose={handleClose}
-      title="Clone Database"
-      subtitle="Duplicate volumes and environment registry"
+      title={CM.cloneDatabase}
+      subtitle={CM.cloneSubtitle}
       icon="content_copy"
       maxWidth="580px"
       footer={
         <div className="flex justify-end gap-3 w-full">
-          <Button variant="ghost" onClick={handleClose}>Discard</Button>
+          <Button variant="ghost" onClick={handleClose}>{CM.discard}</Button>
           <Button 
             variant="primary" 
             onClick={handleCopy} 
             icon="content_copy"
             className="min-w-[140px]"
           >
-            Initiate Copy
+            {CM.initiateCopy}
           </Button>
         </div>
       }
@@ -198,7 +211,7 @@ export default function CopyDatabaseModal() {
       <div className="space-y-6">
         {/* Source -> Destination */}
         <div>
-          <SectionHeader title="Cloning Context" icon="swap_horiz" />
+          <SectionHeader title={CM.cloningContext} icon="swap_horiz" />
           <div className="flex items-end gap-2">
             <div className="flex items-center gap-3 px-4 h-[52px] bg-slate-50 dark:bg-white/4 border border-slate-100 dark:border-white/8 rounded-2xl">
               <div className="w-8 h-8 rounded-xl bg-slate-200 dark:bg-white/8 flex items-center justify-center shrink-0">
@@ -217,7 +230,7 @@ export default function CopyDatabaseModal() {
           {/* Destination Column */}
           <div className="flex-1">
             <Input
-              label="Clone Identifier"
+              label={CM.cloneIdentifier}
               value={formData.destName}
               onChange={e => handleInputChange('destName', e.target.value)}
               placeholder="e.g. clone_db"
@@ -231,7 +244,7 @@ export default function CopyDatabaseModal() {
 
         {/* Path configuration */}
         <div>
-          <SectionHeader title="Target Environment" icon="folder_open" />
+          <SectionHeader title={CM.targetEnvironment} icon="folder_open" />
           <div className="bg-white dark:bg-white/2 border border-slate-100 dark:border-white/5 rounded-2xl p-4">
           <div className="grid grid-cols-1 gap-3">
             {[
@@ -255,18 +268,18 @@ export default function CopyDatabaseModal() {
 
         {/* Action Flags */}
         <div>
-          <SectionHeader title="Execution Strategy" icon="tune" />
+          <SectionHeader title={CM.executionStrategy} icon="tune" />
           <div className="space-y-3">
           <FlagCard
             icon="sync"
-            label="Overwrite Existing Environment"
+            label={CM.overwriteExistingEnvironment}
             description="Replace destination files if a database with this name already exists."
             checked={formData.replaceExisting}
             onChange={v => handleInputChange('replaceExisting', v)}
           />
           <FlagCard
             icon="move_up"
-            label="Transform to Move Operation"
+            label={CM.transformToMove}
             description="Remove source files after the clone is successfully finalized."
             checked={formData.deleteSource}
             onChange={v => handleInputChange('deleteSource', v)}

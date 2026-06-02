@@ -1,6 +1,5 @@
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import { BaseService, HandleCmsErrors } from '@common';
-import { CmsError } from '@error/cms/cms-error';
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import {
@@ -53,7 +52,7 @@ export class CmsUserService extends BaseService {
    * @param request targetid, password, casauth, dbcreate, statusmonitorauth
    * @returns AddDbmtUserClientResponse dblist and userlist
    */
-  @HandleCmsErrors({ appErrorFallback: 'cms' })
+  @HandleCmsErrors()
   async addDbmtUser(
     userId: string,
     hostUid: string,
@@ -73,10 +72,6 @@ export class CmsUserService extends BaseService {
       AddDbmtUserCmsResponse
     >(userId, hostUid, cmsRequest);
 
-    if (response.status !== 'success') {
-      throw CmsError.RequestFailed({ response });
-    }
-
     return {
       dblist: response.dblist ?? [],
       userlist: response.userlist ?? [],
@@ -86,7 +81,7 @@ export class CmsUserService extends BaseService {
   /**
    * Get DBMT user info (dblist, userlist). CMS task: getdbmtuserinfo.
    */
-  @HandleCmsErrors({ appErrorFallback: 'cms' })
+  @HandleCmsErrors()
   async getDbmtUserInfo(
     userId: string,
     hostUid: string
@@ -97,10 +92,6 @@ export class CmsUserService extends BaseService {
       GetDbmtUserInfoCmsResponse
     >(userId, hostUid, cmsRequest);
 
-    if (response.status !== 'success') {
-      throw CmsError.RequestFailed({ response });
-    }
-
     return {
       dblist: response.dblist ?? [],
       userlist: response.userlist ?? [],
@@ -110,7 +101,7 @@ export class CmsUserService extends BaseService {
   /**
    * Update DBMT user. CMS task: updatedbmtuser.
    */
-  @HandleCmsErrors({ appErrorFallback: 'cms' })
+  @HandleCmsErrors()
   async updateDbmtUser(
     userId: string,
     hostUid: string,
@@ -130,10 +121,6 @@ export class CmsUserService extends BaseService {
       UpdateDbmtUserCmsResponse
     >(userId, hostUid, cmsRequest);
 
-    if (response.status !== 'success') {
-      throw CmsError.RequestFailed({ response });
-    }
-
     return {
       dblist: response.dblist ?? [],
       userlist: response.userlist ?? [],
@@ -143,7 +130,7 @@ export class CmsUserService extends BaseService {
   /**
    * Delete DBMT user. CMS task: deletedbmtuser.
    */
-  @HandleCmsErrors({ appErrorFallback: 'cms' })
+  @HandleCmsErrors()
   async deleteDbmtUser(
     userId: string,
     hostUid: string,
@@ -159,10 +146,6 @@ export class CmsUserService extends BaseService {
       DeleteDbmtUserCmsResponse
     >(userId, hostUid, cmsRequest);
 
-    if (response.status !== 'success') {
-      throw CmsError.RequestFailed({ response, targetid });
-    }
-
     return {
       dblist: response.dblist ?? [],
       userlist: response.userlist ?? [],
@@ -172,7 +155,7 @@ export class CmsUserService extends BaseService {
   /**
    * Set DBMT user password. CMS task: setdbmtpasswd.
    */
-  @HandleCmsErrors({ appErrorFallback: 'cms' })
+  @HandleCmsErrors()
   async setDbmtPasswd(
     userId: string,
     hostUid: string,
@@ -189,10 +172,6 @@ export class CmsUserService extends BaseService {
       SetDbmtPasswdCmsRequest,
       SetDbmtPasswdCmsResponse
     >(userId, hostUid, cmsRequest);
-
-    if (response.status !== 'success') {
-      throw CmsError.RequestFailed({ response, targetid });
-    }
 
     return { success: true };
   }

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Logger, Param, Post, Request } from '@nestjs/common';
+import { Body, Controller, Get, Logger, Param, Post, Query, Request } from '@nestjs/common';
 import {
   SetAutoExecQueryClientRequest,
   SetAutoExecQueryClientResponse,
@@ -15,6 +15,7 @@ import {
   ClassInfoResponse,
   GetAutoExecQueryErrLogRequest,
   GetAutoExecQueryErrLogResponse,
+  GetAutoAddVolLogResponse,
 } from '@api-interfaces';
 import { validateRequiredFields } from '@util';
 import { DatabaseConfigService } from './database-config.service';
@@ -122,23 +123,26 @@ export class DatabaseConfigController {
   /**
    * Disable auto-start for a database.
    * Removes database name from the server parameter in configuration file.
+   * Uses POST so request bodies are reliably delivered (Electron fetch, proxies).
    *
-   * @route DELETE /:hostUid/database/auto-start
+   * @route POST /:hostUid/database/auto-start/remove
    * @param req Express request (contains authenticated user)
    * @param hostUid Host unique identifier from path parameter
    * @param body Request body containing confname and dbname
    * @returns RemoveAutoStartResponse Empty object on success
    * @example
-   * // DELETE /host-uid/database/auto-start
+   * // POST /host-uid/database/auto-start/remove
    * // Body: { "confname": "cubridconf", "dbname": "testdb" }
    */
-  @Delete('auto-start/remove')
+  @Post('auto-start/remove')
   async removeAutoStart(
     @Request() req,
     @Param('hostUid') hostUid: string,
     @Body() body: RemoveAutoStartRequest
   ): Promise<RemoveAutoStartResponse> {
     const userId = req.user.sub;
+
+    validateRequiredFields(body, ['dbname'], 'database/auto-start/remove', this.logger);
 
     this.logger.log(
       `Disabling auto-start for database: ${body.dbname} on host: ${hostUid}`
@@ -280,5 +284,26 @@ export class DatabaseConfigController {
       `Getting auto-exec query error log on host: ${hostUid}`
     );
     return await this.configService.getAutoExecQueryErrLog(userId, hostUid, body);
+  }
+
+  /**
+   * Get auto-add volume log entries. CMS task: getautoaddvollog.
+   *
+   * @route GET /:hostUid/database/auto-add-vol-log?start_time=...&end_time=...
+   */
+  @Get('auto-add-vol-log')
+  async getAutoAddVolLog(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Query('start_time') startTime?: string,
+    @Query('end_time') endTime?: string
+  ): Promise<GetAutoAddVolLogResponse> {
+    const userId = req.user.sub;
+
+    this.logger.log(`Getting auto-add volume log on host: ${hostUid}`);
+    return await this.configService.getAutoAddVolLog(userId, hostUid, {
+      start_time: startTime,
+      end_time: endTime,
+    });
   }
 }

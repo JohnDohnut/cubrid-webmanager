@@ -20,7 +20,7 @@ import {
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import {
   BaseService,
-  HandleDatabaseErrors,
+  HandleCmsErrors,
 } from '@common';
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
@@ -75,7 +75,7 @@ export class DatabaseBackupService extends BaseService {
    * @returns AddBackupInfoClientResponse Empty object on success
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async addBackupSchedule(
     userId: string,
     hostUid: string,
@@ -121,7 +121,7 @@ export class DatabaseBackupService extends BaseService {
    * @returns SetBackupInfoClientResponse Empty object on success
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async setBackupSchedule(
     userId: string,
     hostUid: string,
@@ -167,7 +167,7 @@ export class DatabaseBackupService extends BaseService {
    * @returns DeleteBackupInfoClientResponse Response with execution details
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async deleteBackupSchedule(
     userId: string,
     hostUid: string,
@@ -199,7 +199,7 @@ export class DatabaseBackupService extends BaseService {
    * @returns GetBackupInfoClientResponse Backup information
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async getBackupSchedule(
     userId: string,
     hostUid: string,
@@ -239,7 +239,7 @@ export class DatabaseBackupService extends BaseService {
    * @returns BackupDbInfoClientResponse dbdir, freespace, level0, level1, level2
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async getBackupDbInfo(
     userId: string,
     hostUid: string,
@@ -276,7 +276,7 @@ export class DatabaseBackupService extends BaseService {
    * @returns BackupDbListClientResponse level0/1/2, note, status, task
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async getBackupList(
     userId: string,
     hostUid: string,
@@ -311,7 +311,7 @@ export class DatabaseBackupService extends BaseService {
    * @returns BackupDbClientResponse empty body on success (CMS envelope omitted)
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async backupDb(
     userId: string,
     hostUid: string,
@@ -353,7 +353,7 @@ export class DatabaseBackupService extends BaseService {
    * @returns RestoreDbClientResponse empty body on success (CMS envelope omitted)
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async restoreDb(
     userId: string,
     hostUid: string,
@@ -391,7 +391,7 @@ export class DatabaseBackupService extends BaseService {
    * @returns GetAutoBackupDbErrLogResponse Error log entries
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async getAutoBackupDbErrLog(
     userId: string,
     hostUid: string,

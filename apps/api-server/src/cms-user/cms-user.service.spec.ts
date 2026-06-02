@@ -3,7 +3,6 @@ import { CmsUserService } from './cms-user.service';
 import { HostService } from '@host';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import { CmsError } from '@error/cms/cms-error';
-import * as common from '@common';
 
 jest.mock('@common', () => ({
   ...jest.requireActual('@common'),
@@ -23,6 +22,8 @@ describe('CmsUserService', () => {
     port: 8001,
     password: 'host-password',
     token: 'test-token',
+    initialLogin: false,
+    alias: 'host-1',
     dbProfiles: {},
   };
 
@@ -46,8 +47,6 @@ describe('CmsUserService', () => {
     cmsClient = module.get(CmsHttpsClientService);
 
     hostService.findHostInternal.mockResolvedValue(mockHost as any);
-    (common.checkCmsTokenError as jest.Mock).mockImplementation(() => {});
-    (common.checkCmsStatusError as jest.Mock).mockImplementation(() => {});
   });
 
   afterEach(() => {

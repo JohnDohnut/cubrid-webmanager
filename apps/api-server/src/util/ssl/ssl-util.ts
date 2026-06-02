@@ -12,14 +12,14 @@ export function getHttpsOptions(): HttpsKeyCert {
   const certPath = process.env.SSL_CERT_PATH?.trim();
   const keyPath = process.env.SSL_KEY_PATH?.trim();
 
-  if (certPath && keyPath) {
+  if (certPath && keyPath && fs.existsSync(certPath) && fs.existsSync(keyPath)) {
     return {
       cert: fs.readFileSync(certPath),
       key: fs.readFileSync(keyPath),
     };
   }
 
-  // 경로 미지정 시 자동 생성 (production 포함)
+  // 경로 미지정 또는 파일 없을 때 자동 생성 (production 포함)
   return getOrCreateSSLCert();
 }
 
@@ -31,16 +31,23 @@ export function getHttpsOptions(): HttpsKeyCert {
  * @category Utilities
  * @since 1.0.0
  */
-export function getOrCreateSSLCert(): HttpsKeyCert {
+function resolveSslDir(): string {
+  const configured = process.env.CWM_SSL_DIR?.trim();
+  if (configured) {
+    return path.resolve(configured);
+  }
+
+
   const isPkg = !!(process as any).pkg;
   const baseDir = isPkg ? path.dirname(process.execPath) : path.resolve(__dirname, '..', '..');
+  return path.join(baseDir, 'ssl');
+}
 
-  const sslDir = path.join(baseDir, 'ssl');
+export function getOrCreateSSLCert(): HttpsKeyCert {
+  const sslDir = resolveSslDir();
   const certPath = path.join(sslDir, 'cert.pem');
   const keyPath = path.join(sslDir, 'key.pem');
 
-  console.log('is running pack : ', isPkg);
-  console.log('\t@ baseDir : ', baseDir);
   console.log('\t@ sslDir : ', sslDir);
   console.log('\t@ certPath : ', certPath);
   console.log('\t@ keyPath : ', keyPath);

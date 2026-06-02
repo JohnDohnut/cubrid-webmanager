@@ -9,14 +9,17 @@ import { fetchBrokerList } from '../../broker/brokerSlice';
 import DatabaseVolumes from './DatabaseVolumes';
 import Brokers from './Brokers';
 import SystemInfo from './SystemInfo';
+import { fetchDatabaseVolumes } from '../../database/databaseMonitoringSlice';
 
 import SystemStatusSection from './server/SystemStatusSection';
 import DatabaseListSection from './server/DatabaseListSection';
 import MonitoringSettingsPopover from '../../user/components/MonitoringSettingsPopover';
 import { Typography } from '../../../components/ds/foundation/Typography';
 import { Icon } from '../../../components/ds/foundation/Icon';
+import { useCM } from '../../../constants/useCM';
 
 const Component = function ServerContent({ hostUid }) {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { databases, activeDatabases } = useSelector((state) => state.database, shallowEqual);
   const { hosts, authorizedHosts } = useSelector((state) => state.host, shallowEqual);
@@ -25,16 +28,22 @@ const Component = function ServerContent({ hostUid }) {
   const [autoStartDBs, setAutoStartDBs] = useState([]);
   
   const currentHost = hosts.find(h => h.uid === hostUid);
-  const hostLabel = currentHost ? (currentHost.alias || currentHost.id) : 'Unknown Host';
+  const hostLabel = currentHost ? (currentHost.alias || currentHost.id) : CM.unknownHost;
   const { isManualRefreshing: isRefreshing, lastRefreshed, handleRefresh } = usePollingRefresh({
     hostUid,
     tabId: `host:${hostUid}`,
     pollingIntervalSeconds: preferences.dashboardInterval,
-    onFetch: (silent) => async (dispatch) => {
+    onFetch: (silent) => async (dispatch, getState) => {
+      // 1. First fetch database status to get the current active list
+      await dispatch(fetchDatabaseStartInfo(silent ? { hostUid, isBackground: true } : hostUid));
+      
+      // 2. Then fetch other data, ensuring we use the updated active databases list
+      const { activeDatabases } = getState().database;
+      
       await Promise.all([
-        dispatch(fetchDatabaseStartInfo(silent ? { hostUid, isBackground: true } : hostUid)),
         dispatch(fetchBrokerList(silent ? { hostUid, isBackground: true } : hostUid)),
         dispatch(fetchHostEnv(hostUid)),
+        dispatch(fetchDatabaseVolumes({ hostUid, activeDatabases })),
         fetchAutoStartInfo()
       ]);
     }
@@ -80,7 +89,7 @@ const Component = function ServerContent({ hostUid }) {
   const dbListDisplay = databases.map(db => ({
     db: db.dbname,
     autoStart: autoStartDBs.includes(db.dbname),
-    status: activeDatabases.includes(db.dbname) ? 'On' : 'Off'
+    status: activeDatabases.includes(db.dbname) ? CM.statusOn : CM.statusOff
   }));
 
   return (
@@ -95,12 +104,12 @@ const Component = function ServerContent({ hostUid }) {
           <div>
             <div className="flex items-center gap-2">
               <Typography variant="h1" className="text-[13px] font-bold text-slate-800 dark:text-slate-100 leading-tight">
-                Server Dashboard
+                {CM.serverDashboard}
               </Typography>
               <div className={`px-2 py-0.5 rounded-full border flex items-center gap-1.5 shrink-0 transition-all duration-300 ${preferences?.dashboardInterval > 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10'}`}>
                 <div className={`w-1 h-1 rounded-full ${preferences?.dashboardInterval > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
                 <span className={`text-[9px] font-bold ${preferences?.dashboardInterval > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
-                  {preferences?.dashboardInterval > 0 ? 'Live' : 'Paused'}
+                  {preferences?.dashboardInterval > 0 ? CM.live : CM.paused}
                 </span>
               </div>
             </div>
@@ -110,7 +119,7 @@ const Component = function ServerContent({ hostUid }) {
 
         <div className="flex items-center gap-1.5 text-[12px]">
           <Typography variant="label" className="text-[10px] text-slate-400 font-mono tracking-tight hidden lg:block mr-2">
-            Synced {lastRefreshed.toLocaleTimeString('en-US', { hour12: true })}
+            {CM.syncedAt(lastRefreshed.toLocaleTimeString())}
           </Typography>
 
           <button
@@ -120,7 +129,7 @@ const Component = function ServerContent({ hostUid }) {
               ${isRefreshing
                 ? 'bg-slate-100 dark:bg-white/5 text-slate-300 dark:text-slate-600 border-slate-200 dark:border-white/5 cursor-not-allowed opacity-50'
                 : 'bg-slate-50 dark:bg-white/[0.03] border-slate-200 dark:border-white/10 text-slate-400 hover:text-amber-600 dark:hover:text-amber-500 hover:border-amber-500/50 hover:bg-white dark:hover:bg-white/5 shadow-sm'}`}
-            title="Refresh dashboard"
+            title={CM.refreshDashboard}
           >
             <Icon 
               name="refresh" 

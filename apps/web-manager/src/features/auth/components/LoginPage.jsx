@@ -7,8 +7,10 @@ import { Icon } from '../../../components/ds/foundation/Icon';
 import { Toggle } from '../../../components/ds/forms/Toggle';
 import { Input } from '../../../components/ds/forms/Input';
 import { InfoBanner } from '../../../components/ds/foundation/InfoBanner';
+import { useCM } from '../../../constants/useCM';
 
 export default function LoginPage() {
+  const CM = useCM();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -21,8 +23,8 @@ export default function LoginPage() {
 
   const validate = () => {
     const errs = {};
-    if (!username.trim()) errs.username = 'Username is required';
-    if (!password) errs.password = 'Password is required';
+    if (!username.trim()) errs.username = CM.usernameRequired;
+    if (!password) errs.password = CM.passwordRequired;
     return errs;
   };
 
@@ -35,9 +37,15 @@ export default function LoginPage() {
     dispatch(loginStart());
     try {
       const response = await authApi.login(username, password);
-      const token = response?.token;
-      dispatch(loginSuccess({ token, user: { id: username } }));
-      navigate('/');
+      if (!response?.token || !response?.refreshToken) {
+        throw new Error('Login response missing access/refresh token');
+      }
+      dispatch(loginSuccess({
+        token: response.token,
+        refreshToken: response.refreshToken,
+        user: { id: username },
+      }));
+      navigate('/home', { replace: true });
     } catch (err) {
       const msg = err.response?.data?.message || err.response?.data?.error || 'Login failed. Please check your credentials.';
       dispatch(loginFailure(msg));
@@ -174,15 +182,15 @@ export default function LoginPage() {
               <div className="w-1.5 h-5 bg-amber-500 rounded-full" />
               <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 font-mono">Authentication</span>
             </div>
-            <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none mb-2">Sign In</h2>
-            <p className="text-[13px] text-slate-500 dark:text-slate-400">Access your database management console.</p>
+            <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none mb-2">{CM.signIn}</h2>
+            <p className="text-[13px] text-slate-500 dark:text-slate-400">{CM.authorizeAccess}</p>
           </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
 
             <Input
-              label="Username"
+              label={CM.username}
               icon="account_circle"
               placeholder="Enter username"
               value={username}
@@ -192,7 +200,7 @@ export default function LoginPage() {
             />
 
             <Input
-              label="Password"
+              label={CM.password}
               labelExtra={<Link to="/forgot-password" title="Recover your password" className="text-amber-500 hover:text-amber-400 transition-colors">Forgot?</Link>}
               icon="lock"
               type={showPassword ? 'text' : 'password'}
@@ -205,7 +213,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors p-1"
+                  className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors p-1 flex items-center justify-center"
                 >
                   <Icon name={showPassword ? 'visibility_off' : 'visibility'} size="sm" weight={300} />
                 </button>
@@ -214,7 +222,7 @@ export default function LoginPage() {
 
             {/* Remember me */}
             <Toggle
-              label="Remember this device"
+              label={CM.rememberDevice}
               checked={remember}
               onChange={setRemember}
               className="py-1"
@@ -249,6 +257,17 @@ export default function LoginPage() {
             New to CUBRID?{' '}
             <Link to="/register" className="font-bold text-slate-900 dark:text-amber-500 hover:underline underline-offset-4">Create Account</Link>
           </p>
+
+          {typeof window !== 'undefined' &&
+            (window.location.protocol === 'app:' ||
+              window.desktopConfig?.isDesktop ||
+              window.desktopBridge) && (
+            <p className="mt-3 text-center text-[12px] text-slate-500 dark:text-slate-400">
+              <Link to="/desktop/workspace" className="font-semibold text-slate-700 dark:text-slate-300 hover:text-amber-500">
+                Workspace settings
+              </Link>
+            </p>
+          )}
 
           {/* Legal footer */}
           <div className="mt-12 flex items-center justify-center gap-1 opacity-30 hover:opacity-60 transition-opacity">

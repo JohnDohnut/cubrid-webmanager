@@ -22,6 +22,7 @@ import { DatabaseModule } from '@database/database.module';
 import { CmsHttpsClientModule } from '@cms-https-client/cms-https-client.module';
 import { LogModule } from './log/log.module';
 import { HaModule } from '@ha';
+import { CmsJobModule } from '@cms-job/cms-job.module';
 
 /**
  * Root application module that configures all feature modules and global providers.
@@ -51,6 +52,7 @@ import { HaModule } from '@ha';
     CmsUserModule,
     FileModule,
     DatabaseModule,
+    CmsJobModule,
     CmsHttpsClientModule,
     LogModule,
     HaModule,

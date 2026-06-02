@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { addHost, clearHostError } from '../hostSlice';
+import { addHost, clearHostError, openDiscoveryModal } from '../hostSlice';
 import { Modal } from '../../../components/ds/layout/Modal';
 import { Input } from '../../../components/ds/forms/Input';
 import { Button } from '../../../components/ds/foundation/Button';
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { SectionHeader } from '../../../components/ds/foundation/SectionHeader';
+import { useCM } from '../../../constants/useCM';
 
 export default function AddHostModal({ isOpen, onClose }) {
+  const CM = useCM();
   const [formData, setFormData] = useState({
     id: '',
     address: '',
@@ -17,14 +19,24 @@ export default function AddHostModal({ isOpen, onClose }) {
   });
   const [errors, setErrors] = useState({});
   const dispatch = useDispatch();
-  const { loading, error: apiError } = useSelector((state) => state.host, shallowEqual);
+  const { loading, error: apiError, initialHostData } = useSelector((state) => state.host, shallowEqual);
 
   useEffect(() => {
     if (isOpen) {
-      setFormData({ id: '', address: '', port: '8001', password: '', alias: '' });
+      if (initialHostData) {
+        setFormData({
+          id: initialHostData.id || '',
+          address: initialHostData.address || '',
+          port: String(initialHostData.port || '8001'),
+          password: initialHostData.password || '',
+          alias: initialHostData.alias || '',
+        });
+      } else {
+        setFormData({ id: '', address: '', port: '8001', password: '', alias: '' });
+      }
       setErrors({});
     }
-  }, [isOpen]);
+  }, [isOpen, initialHostData]);
 
   if (!isOpen) return null;
 
@@ -37,11 +49,11 @@ export default function AddHostModal({ isOpen, onClose }) {
 
   const validate = () => {
     const errs = {};
-    if (!formData.alias.trim()) errs.alias = 'Host name is required';
-    if (!formData.address.trim()) errs.address = 'Address is required';
-    if (!formData.port.trim()) errs.port = 'Port is required';
-    if (!formData.id.trim()) errs.id = 'Username is required';
-    if (!formData.password) errs.password = 'Password is required';
+    if (!formData.alias.trim()) errs.alias = CM.hostNameRequired;
+    if (!formData.address.trim()) errs.address = CM.addressRequired;
+    if (!formData.port.trim()) errs.port = CM.portRequired;
+    if (!formData.id.trim()) errs.id = CM.usernameRequired;
+    if (!formData.password) errs.password = CM.passwordRequired;
     return errs;
   };
 
@@ -51,13 +63,27 @@ export default function AddHostModal({ isOpen, onClose }) {
       setErrors(errs);
       return;
     }
-    const payload = { ...formData, port: Number(formData.port) };
-    dispatch(addHost(payload));
+    const payload = {
+      ...formData,
+      port: Number(formData.port),
+      ...(initialHostData?.groupId ? { groupId: initialHostData.groupId } : {}),
+    };
+    try {
+      await dispatch(addHost(payload)).unwrap();
+      if (initialHostData) {
+        dispatch(openDiscoveryModal());
+      }
+    } catch (e) {
+      // Error handled by slice
+    }
   };
 
   const handleClose = () => {
     onClose();
     dispatch(clearHostError());
+    if (initialHostData) {
+      dispatch(openDiscoveryModal());
+    }
   };
 
   const connectionPreview = formData.address
@@ -68,14 +94,14 @@ export default function AddHostModal({ isOpen, onClose }) {
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="New Connection"
+      title={CM.newConnection}
       icon="add_link"
       maxWidth="max-w-[500px]"
       loading={loading}
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={loading}>
-            Discard
+            {CM.discard}
           </Button>
           <Button
             variant="primary"
@@ -84,7 +110,7 @@ export default function AddHostModal({ isOpen, onClose }) {
             icon="bolt"
             className="min-w-[140px]"
           >
-            Connect
+            {CM.connect}
           </Button>
         </>
       }
@@ -106,10 +132,10 @@ export default function AddHostModal({ isOpen, onClose }) {
         )}
 
         {/* Section 1: Identity */}
-        <SectionHeader title="Identity" icon="badge" />
+        <SectionHeader title={CM.identity} icon="badge" />
         <div className="px-1">
           <Input
-            label="Friendly Name"
+            label={CM.friendlyName}
             name="alias"
             value={formData.alias}
             onChange={handleChange}
@@ -122,7 +148,7 @@ export default function AddHostModal({ isOpen, onClose }) {
 
         {/* Section 2: Host Connection */}
         <SectionHeader 
-          title="Host" 
+          title={CM.host} 
           icon="lan" 
           className="mt-8"
         />
@@ -130,7 +156,7 @@ export default function AddHostModal({ isOpen, onClose }) {
           <div className="grid grid-cols-4 gap-3">
             <div className="col-span-3">
               <Input
-                label="IP Address / Domain"
+                label={CM.ipAddressDomain}
                 name="address"
                 value={formData.address}
                 onChange={handleChange}
@@ -142,7 +168,7 @@ export default function AddHostModal({ isOpen, onClose }) {
             </div>
             <div className="col-span-1">
               <Input
-                label="Port"
+                label={CM.port}
                 name="port"
                 type="number"
                 value={formData.port}
@@ -156,11 +182,11 @@ export default function AddHostModal({ isOpen, onClose }) {
         </div>
 
         {/* Section 3: Credentials */}
-        <SectionHeader title="Credentials" icon="lock" className="mt-8" />
+        <SectionHeader title={CM.credentials} icon="lock" className="mt-8" />
         <div className="px-1">
           <div className="grid grid-cols-2 gap-3">
             <Input
-              label="Username"
+              label={CM.username}
               name="id"
               value={formData.id}
               onChange={handleChange}
@@ -170,7 +196,7 @@ export default function AddHostModal({ isOpen, onClose }) {
               disabled={loading}
             />
             <Input
-              label="Password"
+              label={CM.password}
               type="password"
               name="password"
               value={formData.password}

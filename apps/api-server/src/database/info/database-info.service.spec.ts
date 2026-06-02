@@ -5,7 +5,6 @@ import { DatabaseInfoService } from './database-info.service';
 import { HostService } from '@host';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import { CmsConfigService } from '@cms-config/cms-config.service';
-import * as common from '@common';
 import { CmsError } from '@error/cms/cms-error';
 
 // Real GetEnv values (e.g. BROKERVER, CUBRIDVER) vary by host; tests use fixed mock data only.
@@ -41,6 +40,8 @@ describe('DatabaseInfoService', () => {
     port: 8001,
     password: 'host-password',
     token: 'test-token',
+    initialLogin: false,
+    alias: 'host-1',
     dbProfiles: {},
   };
 
@@ -71,8 +72,6 @@ describe('DatabaseInfoService', () => {
     cmsConfigService = module.get(CmsConfigService);
 
     hostService.findHostInternal.mockResolvedValue(mockHost);
-    (common.checkCmsTokenError as jest.Mock).mockImplementation(() => {});
-    (common.checkCmsStatusError as jest.Mock).mockImplementation(() => {});
   });
 
   afterEach(() => {

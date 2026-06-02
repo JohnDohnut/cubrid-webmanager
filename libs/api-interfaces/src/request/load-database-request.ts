@@ -7,7 +7,9 @@
 export type LoadDatabaseRequest = {
   /**
    * Check option
-   * Values: "both" | "none" | other values
+   * - "syntax": CMS maps to --check-only
+   * - "load": CMS maps to --load-only
+   * - others (e.g. "both", "none"): default loaddb behavior
    */
   checkoption: string;
 
@@ -21,6 +23,16 @@ export type LoadDatabaseRequest = {
    * Database user
    */
   user: string;
+
+  /**
+   * CMS loaddb database user id (same as `user` when provided from UI).
+   */
+  _DBID: string;
+
+  /**
+   * CMS loaddb database password.
+   */
+  _DBPASSWD: string;
 
   /**
    * Estimated

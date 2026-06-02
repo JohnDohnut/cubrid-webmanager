@@ -14,16 +14,16 @@ import {
   ClassInfoResponse,
   GetAutoExecQueryErrLogRequest,
   GetAutoExecQueryErrLogResponse,
+  GetAutoAddVolLogRequest,
+  GetAutoAddVolLogResponse,
 } from '@api-interfaces';
 import { CmsConfigService } from '@cms-config/cms-config.service';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import {
   BaseService,
   HandleCmsErrors,
-  HandleDatabaseErrors,
 } from '@common';
 import { ConfigError } from '@error/config/config-error';
-import { CmsError } from '@error/cms/cms-error';
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import {
@@ -34,6 +34,7 @@ import {
   GetDbSizeCmsRequest,
   ClassInfoCmsRequest,
   GetAutoExecQueryErrLogCmsRequest,
+  GetAutoAddVolLogCmsRequest,
 } from '@type/cms-request';
 import {
   GetAutoExecQueryCmsResponse,
@@ -43,6 +44,7 @@ import {
   GetDbSizeCmsResponse,
   ClassInfoCmsResponse,
   GetAutoExecQueryErrLogCmsResponse,
+  GetAutoAddVolLogCmsResponse,
 } from '@type/cms-response';
 import { GetAllSysParamCmsResponse } from '@type/cms-response/get-all-sys-param-cms-response';
 import { parseConfigParams } from '@util';
@@ -76,7 +78,7 @@ export class DatabaseConfigService extends BaseService {
    * @returns SetAutoExecQueryClientResponse Empty object on success
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async setAutoExecQuery(
     userId: string,
     hostUid: string,
@@ -108,7 +110,7 @@ export class DatabaseConfigService extends BaseService {
    * @returns GetAutoExecQueryClientResponse Auto-execution query information
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async getAutoExecQuery(
     userId: string,
     hostUid: string,
@@ -126,8 +128,10 @@ export class DatabaseConfigService extends BaseService {
 
     const dataOnly = this.extractDomainData(response);
 
-    const planlist = dataOnly.planlist.map((plan) => {
-      const queryplan = plan.queryplan.map((query) => {
+    const rawPlanlist = Array.isArray(dataOnly.planlist) ? dataOnly.planlist : [];
+    const planlist = rawPlanlist.map((plan) => {
+      const rawQueryplan = Array.isArray(plan.queryplan) ? plan.queryplan : [];
+      const queryplan = rawQueryplan.map((query) => {
         // Handle @username field (from XML) and convert to username
         // Client response requires username to be non-optional
         if ('@username' in query && query['@username'] !== undefined) {
@@ -146,7 +150,7 @@ export class DatabaseConfigService extends BaseService {
       });
 
       return {
-        dbname: plan.dbname,
+        dbname: plan.dbname ?? '',
         queryplan: queryplan,
       };
     });
@@ -168,7 +172,7 @@ export class DatabaseConfigService extends BaseService {
    * @returns SetAutoStartResponse Configuration response on success
    * @throws ConfigError If request fails, [service] section not found, or server parameter cannot be added
    */
-  @HandleCmsErrors({ appErrorFallback: 'config' })
+  @HandleCmsErrors()
   async setAutoStart(
     userId: string,
     hostUid: string,
@@ -283,7 +287,7 @@ export class DatabaseConfigService extends BaseService {
    * @returns RemoveAutoStartResponse Empty object on success
    * @throws ConfigError If request fails, server parameter not found in [service] section, or dbname does not exist
    */
-  @HandleCmsErrors({ appErrorFallback: 'config' })
+  @HandleCmsErrors()
   async removeAutoStart(
     userId: string,
     hostUid: string,
@@ -361,7 +365,7 @@ export class DatabaseConfigService extends BaseService {
    * @returns SetAutoAddVolResponse Empty object on success
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async setAutoAddVol(
     userId: string,
     hostUid: string,
@@ -397,7 +401,7 @@ export class DatabaseConfigService extends BaseService {
    * @param dbname Database name
    * @returns GetDbSizeClientResponse dbsize (bytes as string)
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async getDbSize(
     userId: string,
     hostUid: string,
@@ -413,10 +417,6 @@ export class DatabaseConfigService extends BaseService {
       GetDbSizeCmsResponse
     >(userId, hostUid, cmsRequest);
 
-    if (response.status !== 'success') {
-      throw CmsError.RequestFailed({ response, dbname });
-    }
-
     return {
       dbsize: response.dbsize ?? '0',
     };
@@ -430,7 +430,7 @@ export class DatabaseConfigService extends BaseService {
    * @param dbname Database name
    * @returns GetAutoAddVolClientResponse volume fields only (CMS envelope omitted)
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async getAutoAddVol(
     userId: string,
     hostUid: string,
@@ -446,19 +446,15 @@ export class DatabaseConfigService extends BaseService {
       GetAutoAddVolCmsResponse
     >(userId, hostUid, cmsRequest);
 
-    if (response.status === 'success') {
-      const cms = response as GetAutoAddVolCmsResponse;
-      return {
-        data: cms.data,
-        data_ext_page: cms.data_ext_page,
-        data_warn_outofspace: cms.data_warn_outofspace,
-        index: cms.index,
-        index_ext_page: cms.index_ext_page,
-        index_warn_outofspace: cms.index_warn_outofspace,
-      };
-    }
-
-    throw CmsError.RequestFailed({ response, dbname });
+    const cms = response as GetAutoAddVolCmsResponse;
+    return {
+      data: cms.data,
+      data_ext_page: cms.data_ext_page,
+      data_warn_outofspace: cms.data_warn_outofspace,
+      index: cms.index,
+      index_ext_page: cms.index_ext_page,
+      index_warn_outofspace: cms.index_warn_outofspace,
+    };
   }
 
   /**
@@ -472,7 +468,7 @@ export class DatabaseConfigService extends BaseService {
    * @returns ClassInfoResponse Class information (system classes and user classes)
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async getClassInfo(
     userId: string,
     hostUid: string,
@@ -504,7 +500,7 @@ export class DatabaseConfigService extends BaseService {
    * @returns GetAutoExecQueryErrLogResponse Error log entries
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async getAutoExecQueryErrLog(
     userId: string,
     hostUid: string,
@@ -522,5 +518,57 @@ export class DatabaseConfigService extends BaseService {
     >(userId, hostUid, cmsRequest);
 
     return this.extractDomainData(response);
+  }
+
+  /**
+   * Get auto-add volume log entries for a time range. CMS task: getautoaddvollog.
+   */
+  @HandleCmsErrors()
+  async getAutoAddVolLog(
+    userId: string,
+    hostUid: string,
+    request: GetAutoAddVolLogRequest
+  ): Promise<GetAutoAddVolLogResponse> {
+    const { start_time, end_time } = this.resolveAutoAddVolLogRange(request);
+    const cmsRequest: GetAutoAddVolLogCmsRequest = {
+      task: 'getautoaddvollog',
+      start_time,
+      end_time,
+    };
+
+    const response = await this.executeCmsRequest<
+      GetAutoAddVolLogCmsRequest,
+      GetAutoAddVolLogCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    const domain = this.extractDomainData(response);
+    return domain.log ?? [];
+  }
+
+  private resolveAutoAddVolLogRange(request: GetAutoAddVolLogRequest): {
+    start_time: string;
+    end_time: string;
+  } {
+    const now = new Date();
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(now);
+    end.setHours(23, 59, 59, 999);
+
+    return {
+      start_time: request.start_time ?? this.formatCmsLogDateTime(start),
+      end_time: request.end_time ?? this.formatCmsLogDateTime(end),
+    };
+  }
+
+  private formatCmsLogDateTime(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    const seconds = date.getSeconds();
+
+    return `${year}-${month}-${day},${hours}:${minutes}:${seconds}`;
   }
 }

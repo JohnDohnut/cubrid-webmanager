@@ -1,5 +1,7 @@
 // Request exports
 export * from './add-host-request';
+export * from './create-host-group-request';
+export * from './update-host-group-request';
 export * from './add-db-request';
 export * from './change-password-request';
 export * from './delete-user-request';
@@ -53,6 +55,7 @@ export * from './get-add-vol-status-request';
 export * from './add-vol-db-request';
 export * from './lock-database-request';
 export * from './get-auto-exec-query-err-log-request';
+export * from './get-auto-add-vol-log-request';
 export * from './get-auto-backup-db-err-log-request';
 export * from './get-transaction-info-request';
 export * from './kill-transaction-request';
@@ -64,3 +67,6 @@ export * from './add-dbmt-user-request';
 export * from './update-dbmt-user-request';
 export * from './delete-dbmt-user-request';
 export * from './set-dbmt-passwd-request';
+export * from './refresh-token-request';
+export * from './logout-request';
+export * from './move-host-request';

@@ -7,12 +7,19 @@ export { HandleLockFsErrors } from './decorators/handle-lock-fs-errors.decorator
 export { HandleStorageFsErrors } from './decorators/handle-storage-fs-errors.decorator';
 export { HandleUserRepoErrors } from './decorators/handle-user-repo-errors.decorator';
 export { checkCmsTokenError } from './decorators/handle-cms-token-errors.decorator';
-export { checkCmsStatusError } from './decorators/handle-cms-status-errors.decorator';
+export {
+  checkCmsStatusError,
+  extractCmsFailureMessage,
+  extractCmsLongJobFailureMessage,
+  getCmsErrorLines,
+  hasCmsLineFailure,
+  isCmsLongJobFailure,
+  isCmsStatusFailure,
+} from './decorators/handle-cms-status-errors.decorator';
 export { HandleCmsErrors } from './decorators/handle-cms-errors.decorator';
 export type { HandleCmsErrorsOptions } from './decorators/handle-cms-errors.decorator';
 export { HandleDatabaseErrors } from './decorators/handle-database-errors.decorator';
 export { HandleResourceMonitoringErrors } from './decorators/handle-resource-monitoring-errors.decorator';
-export { HandleBrokerErrors } from './decorators/handle-broker-errors.decorator';
 
 // Export interceptors
 export { SuccessResponseInterceptor } from './interceptors/success-response.interceptor';

@@ -2,14 +2,12 @@ import {
   CreateDbUserResponse,
   DeleteDbUserResponse,
   UpdateDbUserResponse,
+  UserInfoClientResponse,
 } from '@api-interfaces';
 import {
   BaseService,
   HandleCmsErrors,
-  HandleDatabaseErrors,
-  HandleHostErrors,
 } from '@common';
-import { CmsError } from '@error/cms/cms-error';
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import { UserRepositoryService } from '@repository';
@@ -49,29 +47,21 @@ export class DatabaseUserService extends BaseService {
   }
 
   /**
-   * Get list of database users for a specific host.
-   *
-   * @param userId User ID from JWT
-   * @returns Database users list
+   * Get list of database users for a database on a host. CMS task: userinfo.
    */
-  async getDatabaseUsers(_userId: string) {
-    return [];
+  @HandleCmsErrors()
+  async getDatabaseUsers(
+    userId: string,
+    hostUid: string,
+    dbname: string
+  ): Promise<UserInfoClientResponse> {
+    return this.getUserInfo(userId, hostUid, dbname);
   }
 
   /**
    * Login to a database using profile or client-provided credentials.
-   *
-   * @param userId User ID from JWT
-   * @param hostUid Host UID
-   * @param dbname Database name
-   * @param clientId Client-provided DB user ID (required if profile doesn't exist)
-   * @param clientPassword Client-provided DB password (required if profile doesn't exist)
-   * @returns true on success
-   * @throws CmsError If CMS status is fail or profile doesn't exist and credentials are not provided
    */
-  @HandleHostErrors()
   @HandleCmsErrors()
-  @HandleDatabaseErrors()
   async loginDatabase(
     userId: string,
     hostUid: string,
@@ -90,36 +80,19 @@ export class DatabaseUserService extends BaseService {
       dbpasswd: dbAuth.password,
     };
 
-    const response = await this.executeCmsRequest<LoginDBCmsRequest, BaseCmsResponse>(
+    await this.executeCmsRequest<LoginDBCmsRequest, BaseCmsResponse>(
       userId,
       hostUid,
       cmsRequest
     );
 
-    if (response.status === 'success') {
-      return true;
-    }
-
-    throw CmsError.RequestFailed({ response, dbname });
+    return true;
   }
 
   /**
    * Update a database user.
-   * Returns empty object on success.
-   *
-   * @param userId User ID from JWT
-   * @param hostUid Host UID
-   * @param dbname Database name
-   * @param username Username to update
-   * @param userpass User password
-   * @param groups Groups object containing group array
-   * @param authorization Authorization array
-   * @returns Empty object on success
-   * @throws CmsError If CMS status is fail
    */
-  @HandleHostErrors()
   @HandleCmsErrors()
-  @HandleDatabaseErrors()
   async updateUser(
     userId: string,
     hostUid: string,
@@ -138,14 +111,11 @@ export class DatabaseUserService extends BaseService {
       authorization,
     };
 
-    const response = await this.executeCmsRequest<
-      UpdateUserCmsRequest,
-      UpdateUserCmsResponse
-    >(userId, hostUid, cmsRequest);
-
-    if (response.status !== 'success') {
-      throw CmsError.RequestFailed({ response, dbname, username });
-    }
+    await this.executeCmsRequest<UpdateUserCmsRequest, UpdateUserCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
 
     return { success: true };
   }
@@ -153,9 +123,7 @@ export class DatabaseUserService extends BaseService {
   /**
    * Get user info (list of users) for a database. CMS task: userinfo.
    */
-  @HandleHostErrors()
   @HandleCmsErrors()
-  @HandleDatabaseErrors()
   async getUserInfo(
     userId: string,
     hostUid: string,
@@ -163,14 +131,11 @@ export class DatabaseUserService extends BaseService {
   ): Promise<{ dbname: string; user: Array<Record<string, unknown>> }> {
     const cmsRequest: UserInfoCmsRequest = { task: 'userinfo', dbname };
 
-    const response = await this.executeCmsRequest<
-      UserInfoCmsRequest,
-      UserInfoCmsResponse
-    >(userId, hostUid, cmsRequest);
-
-    if (response.status !== 'success') {
-      throw CmsError.RequestFailed({ response, dbname });
-    }
+    const response = await this.executeCmsRequest<UserInfoCmsRequest, UserInfoCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
 
     return {
       dbname: response.dbname ?? dbname,
@@ -181,9 +146,7 @@ export class DatabaseUserService extends BaseService {
   /**
    * Create a database user. CMS task: createuser.
    */
-  @HandleHostErrors()
   @HandleCmsErrors()
-  @HandleDatabaseErrors()
   async createUser(
     userId: string,
     hostUid: string,
@@ -202,14 +165,11 @@ export class DatabaseUserService extends BaseService {
       authorization,
     };
 
-    const response = await this.executeCmsRequest<
-      CreateUserCmsRequest,
-      CreateUserCmsResponse
-    >(userId, hostUid, cmsRequest);
-
-    if (response.status !== 'success') {
-      throw CmsError.RequestFailed({ response, dbname, username });
-    }
+    await this.executeCmsRequest<CreateUserCmsRequest, CreateUserCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
 
     return { success: true };
   }
@@ -217,9 +177,7 @@ export class DatabaseUserService extends BaseService {
   /**
    * Delete a database user. CMS task: deleteuser.
    */
-  @HandleHostErrors()
   @HandleCmsErrors()
-  @HandleDatabaseErrors()
   async deleteUser(
     userId: string,
     hostUid: string,
@@ -232,14 +190,11 @@ export class DatabaseUserService extends BaseService {
       username,
     };
 
-    const response = await this.executeCmsRequest<
-      DeleteUserCmsRequest,
-      DeleteUserCmsResponse
-    >(userId, hostUid, cmsRequest);
-
-    if (response.status !== 'success') {
-      throw CmsError.RequestFailed({ response, dbname, username });
-    }
+    await this.executeCmsRequest<DeleteUserCmsRequest, DeleteUserCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
 
     return { success: true };
   }
@@ -247,9 +202,7 @@ export class DatabaseUserService extends BaseService {
   /**
    * Verify database user credentials. CMS task: userverify.
    */
-  @HandleHostErrors()
   @HandleCmsErrors()
-  @HandleDatabaseErrors()
   async userVerify(
     userId: string,
     hostUid: string,
@@ -264,14 +217,11 @@ export class DatabaseUserService extends BaseService {
       dbpasswd,
     };
 
-    const response = await this.executeCmsRequest<
-      UserVerifyCmsRequest,
-      UserVerifyCmsResponse
-    >(userId, hostUid, cmsRequest);
-
-    if (response.status !== 'success') {
-      throw CmsError.RequestFailed({ response, dbname, dbuser });
-    }
+    await this.executeCmsRequest<UserVerifyCmsRequest, UserVerifyCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
 
     return { verified: true };
   }

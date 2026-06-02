@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeEditBackupPlanModal, editBackupSchedule, fetchBackupSchedule } from '../databaseSlice';
+import { useCM } from '../../../constants/useCM';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -31,6 +32,7 @@ const LEVEL_PRESETS = [
 ];
 
 export default function EditBackupPlanModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isEditBackupPlanModalOpen, selectedBackupId } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
@@ -190,7 +192,7 @@ export default function EditBackupPlanModal() {
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title="Committing Updates" icon="edit" onClose={handleClose} maxWidth="700px">
+      <Modal isOpen title="Committing Updates" icon="edit" onClose={handleClose} maxWidth="700px" showCloseButton={false}>
         <ModalStatusLoading 
           title="Syncing Registry" 
           subtitle={`Patching automation configuration for ${formData.backupId}.`}
@@ -202,12 +204,12 @@ export default function EditBackupPlanModal() {
   /* ─── SUCCESS view ─── */
   if (isSuccess) {
     return (
-      <Modal isOpen title="Update Successful" icon="verified" iconVariant="success" onClose={handleClose} maxWidth="700px">
+      <Modal isOpen title={CM.updateSuccessful} icon="verified" iconVariant="success" onClose={handleClose} maxWidth="700px">
         <ModalStatusSuccess 
           title="Schedule Patched"
           message={`Changes to the backup plan for ${selectedDatabase} have been committed and re-indexed.`}
           onConfirm={handleClose}
-          confirmText="Acknowledge"
+          confirmText="OK"
         />
       </Modal>
     );
@@ -234,14 +236,14 @@ export default function EditBackupPlanModal() {
     <Modal
       isOpen={isEditBackupPlanModalOpen}
       onClose={handleClose}
-      title="Edit Backup Plan"
+      title={CM.editBackupPlanTitle}
       subtitle={`Modify automated scheduled backup for ${selectedDatabase}`}
       icon="edit_calendar"
       maxWidth="700px"
       footer={
         <div className="flex justify-end gap-3 w-full">
-          <Button variant="ghost" onClick={handleClose}>Discard</Button>
-          <Button variant="primary" onClick={handleSave} icon="save" className="min-w-[140px]">Commit Changes</Button>
+          <Button variant="ghost" onClick={handleClose}>{CM.discard}</Button>
+          <Button variant="primary" onClick={handleSave} icon="save" className="min-w-[140px]">{CM.saveChanges}</Button>
         </div>
       }
     >
@@ -249,7 +251,7 @@ export default function EditBackupPlanModal() {
         
         {/* Level Presets */}
         <div className="space-y-4">
-           <SectionHeader title="Abstraction Level" icon="architecture" />
+           <SectionHeader title={CM.abstractionLevel} icon="architecture" />
           <div className="grid grid-cols-3 gap-3">
             {LEVEL_PRESETS.map(item => (
               <button
@@ -284,17 +286,17 @@ export default function EditBackupPlanModal() {
         {/* Identity & Path */}
         <div className="grid grid-cols-2 gap-4">
           <Input label="Registry Identifier" value={formData.backupId} disabled icon="badge" size="sm" className="opacity-60 bg-slate-50!" />
-          <Input label="Payload Path" value={formData.backupPath} onChange={(e) => handleInputChange('backupPath', e.target.value)} placeholder="/var/backups" icon="folder_zip" size="sm" className="font-mono!" />
+          <Input label={CM.payloadPath} value={formData.backupPath} onChange={(e) => handleInputChange('backupPath', e.target.value)} placeholder="/var/backups" icon="folder_zip" size="sm" className="font-mono!" />
         </div>
 
         {/* Recurrence */}
         <div className="space-y-4">
-           <SectionHeader title="Execution Schedule" icon="schedule" />
+           <SectionHeader title={CM.executionSchedule} icon="schedule" />
           <div className="p-5 bg-slate-50/50 dark:bg-white/1 border border-slate-100 dark:border-white/4 rounded-2xl space-y-6 shadow-xs">
             <div className="flex gap-4">
               <div className="flex-1">
                 <Select 
-                  label="Rotation Logic"
+                  label={CM.rotationLogic}
                   value={formData.periodType}
                   onChange={(e) => handleInputChange('periodType', e.target.value)}
                   options={[
@@ -307,7 +309,7 @@ export default function EditBackupPlanModal() {
                 />
               </div>
               <div className="w-[140px]">
-                <Input label="Target Time" type="time" value={formData.backupTime} onChange={(e) => handleInputChange('backupTime', e.target.value)} icon="nest_clock_farsight_analog" size="sm" />
+                <Input label={CM.targetTime} type="time" value={formData.backupTime} onChange={(e) => handleInputChange('backupTime', e.target.value)} icon="nest_clock_farsight_analog" size="sm" />
               </div>
             </div>
 
@@ -369,13 +371,13 @@ export default function EditBackupPlanModal() {
               )}
 
               {formData.periodType === 'Daily' && (
-                <InfoBanner title="Standard 24h cycle">
+                <InfoBanner title={CM.standard24hCycle}>
                   Instance synchronized daily at exactly <span className="font-bold text-amber-500 font-mono italic non-block">{formData.backupTime}</span>.
                 </InfoBanner>
               )}
 
               {formData.periodType === 'Specific days' && (
-                <Input type="date" label="Registry Date" value={formData.periodDetail} onChange={(e) => handleInputChange('periodDetail', e.target.value)} icon="event" size="sm" />
+                <Input type="date" label={CM.registryDate} value={formData.periodDetail} onChange={(e) => handleInputChange('periodDetail', e.target.value)} icon="event" size="sm" />
               )}
             </div>
           </div>
@@ -383,7 +385,7 @@ export default function EditBackupPlanModal() {
 
         {/* Operational Options */}
         <div className="space-y-4">
-           <SectionHeader title="Optimization Matrix" icon="settings_input_component" />
+           <SectionHeader title={CM.optimizationMatrix} icon="settings_input_component" />
           <div className="grid grid-cols-2 gap-3">
             {[
               { label: 'Delete archive volumes', field: 'deleteArchive', icon: 'auto_delete', desc: 'Automatic log purging' },
@@ -422,8 +424,8 @@ export default function EditBackupPlanModal() {
 
         {/* Resources */}
         <div className="grid grid-cols-2 gap-6">
-          <Input type="number" label="Concurrent Threads" value={formData.threads} onChange={(e) => handleInputChange('threads', parseInt(e.target.value) || 0)} icon="speed" suffix="CORES" size="sm" />
-          <Input type="number" label="Rotation Retention" value={formData.backupsToKeep} onChange={(e) => handleInputChange('backupsToKeep', parseInt(e.target.value) || 0)} icon="history" suffix="SETS" size="sm" />
+          <Input type="number" label={CM.concurrentThreads} value={formData.threads} onChange={(e) => handleInputChange('threads', parseInt(e.target.value) || 0)} icon="speed" suffix="CORES" size="sm" />
+          <Input type="number" label={CM.rotationRetention} value={formData.backupsToKeep} onChange={(e) => handleInputChange('backupsToKeep', parseInt(e.target.value) || 0)} icon="history" suffix="SETS" size="sm" />
         </div>
 
         {/* Mode Selector */}

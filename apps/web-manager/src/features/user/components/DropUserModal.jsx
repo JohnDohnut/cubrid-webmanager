@@ -52,7 +52,7 @@ export default function DropUserModal() {
 
   if (isLoading) {
     return (
-      <Modal isOpen title="Purging Identity" icon="person_remove" onClose={handleClose} maxWidth="400px">
+      <Modal isOpen title="Purging Identity" icon="person_remove" onClose={handleClose} maxWidth="400px" showCloseButton={false}>
         <ModalStatusLoading 
           title="Executing Purge" 
           subtitle={`Synchronizing recursive deletion for @${dropUserData.userName} with target namespace.`}
@@ -68,7 +68,7 @@ export default function DropUserModal() {
           title="Identity Purged"
           message={`The account @${dropUserData.userName} has been completely removed from the registry.`}
           onConfirm={handleClose}
-          confirmText="Acknowledge"
+          confirmText="OK"
         />
       </Modal>
     );
@@ -99,7 +99,7 @@ export default function DropUserModal() {
       footer={
         <div className="flex gap-3 w-full">
           <Button variant="ghost" onClick={handleClose} className="flex-1">Discard</Button>
-          <Button variant="danger" onClick={handleDrop} className="flex-1">Drop User</Button>
+          <Button variant="danger" onClick={handleDrop} icon="delete_forever" className="flex-1">Drop User</Button>
         </div>
       }
     >

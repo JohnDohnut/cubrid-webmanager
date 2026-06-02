@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeAutoQueryLogModal, fetchQueryPlanLog } from '../databaseSlice';
+import { useCM } from '../../../constants/useCM';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -11,6 +12,7 @@ import { Typography } from '../../../components/ds/foundation/Typography';
 import { StatusBadge } from '../../../components/ds/foundation/StatusBadge';
 
 export default function AutoQueryLogModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isAutoQueryLogModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
   const { queryPlanLogs, logsLoading } = useSelector((state) => state.databaseOperation, shallowEqual);
@@ -75,7 +77,7 @@ export default function AutoQueryLogModal() {
       className: 'w-[180px]'
     },
     {
-      header: 'Description',
+      header: CM.description,
       accessor: 'error_desc',
       render: (val) => {
         const isSuccess = val?.toLowerCase().includes('success');
@@ -136,8 +138,6 @@ export default function AutoQueryLogModal() {
       <div className="flex items-center gap-2.5">
         <Button
           variant="secondary"
-          size="sm"
-          icon="close"
           onClick={() => dispatch(closeAutoQueryLogModal())}
           className="min-w-[100px]"
         >
@@ -145,7 +145,6 @@ export default function AutoQueryLogModal() {
         </Button>
         <Button
           variant="primary"
-          size="sm"
           onClick={() => dispatch(fetchQueryPlanLog({ hostUid: selectedHostUid }))}
           loading={logsLoading}
           icon="refresh"
@@ -161,7 +160,7 @@ export default function AutoQueryLogModal() {
     <Modal
       isOpen={isAutoQueryLogModalOpen}
       onClose={() => dispatch(closeAutoQueryLogModal())}
-      title="Auto Query Log"
+      title={CM.autoQueryLog}
       subtitle={selectedDatabase ? `History for database: ${selectedDatabase}` : 'Global Query Execution History'}
       icon="history"
       iconVariant="info"

@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Logger, Param, Post, Request } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Logger,
+  Param,
+  Post,
+  Request,
+} from '@nestjs/common';
 import {
   AddVolDbRequest,
   AddVolDbResponse,
@@ -9,8 +19,8 @@ import {
   CopyDbRequest,
   CmsSuccessClientResponse,
   GetAddVolStatusResponse,
+  CreateCmsJobResponse,
   LoadDatabaseRequest,
-  LoadDatabaseResponse,
   LockDatabaseRequest,
   LockDatabaseResponse,
   GetTransactionInfoRequest,
@@ -26,6 +36,7 @@ import {
 } from '@api-interfaces';
 import { ValidationError } from '@error/validation/validation-error';
 import { validateRequiredFields } from '@util';
+import { CmsJobService } from '@cms-job/cms-job.service';
 import { DatabaseManagementService } from './database-management.service';
 
 /**
@@ -42,7 +53,10 @@ import { DatabaseManagementService } from './database-management.service';
 export class DatabaseManagementController {
   private readonly logger = new Logger(DatabaseManagementController.name);
 
-  constructor(private readonly managementService: DatabaseManagementService) {}
+  constructor(
+    private readonly managementService: DatabaseManagementService,
+    private readonly cmsJobService: CmsJobService
+  ) {}
 
   /**
    * Copy a database. CMS task: copydb.
@@ -51,11 +65,12 @@ export class DatabaseManagementController {
    * @route POST /:hostUid/database/copy
    */
   @Post('copy')
+  @HttpCode(HttpStatus.ACCEPTED)
   async copyDb(
     @Request() req,
     @Param('hostUid') hostUid: string,
     @Body() body: CopyDbRequest
-  ): Promise<CmsSuccessClientResponse> {
+  ): Promise<CreateCmsJobResponse> {
     const userId = req.user.sub;
     validateRequiredFields(
       body,
@@ -73,9 +88,9 @@ export class DatabaseManagementController {
       this.logger
     );
     this.logger.log(
-      `Copying database: ${body.srcdbname} -> ${body.destdbname} on host: ${hostUid}`
+      `Enqueue copy job: ${body.srcdbname} -> ${body.destdbname} on host: ${hostUid}`
     );
-    return await this.managementService.copyDb(userId, hostUid, body);
+    return await this.cmsJobService.createJob(userId, hostUid, 'copy', body.destdbname, body);
   }
 
   /**
@@ -93,12 +108,13 @@ export class DatabaseManagementController {
    * // Body: { "targetdir": "/path/to/backup", "isSchemaIncluded": true, "isDataIncluded": true, "dbuser": "user", "dbpasswd": "pass" }
    */
   @Post('unload/:dbname')
+  @HttpCode(HttpStatus.ACCEPTED)
   async unloadDatabase(
     @Request() req,
     @Param('hostUid') hostUid: string,
     @Param('dbname') dbname: string,
     @Body() body: UnloadDatabaseRequest
-  ): Promise<{}> {
+  ): Promise<CreateCmsJobResponse> {
     const userId = req.user.sub;
 
     validateRequiredFields(
@@ -108,8 +124,8 @@ export class DatabaseManagementController {
       this.logger
     );
 
-    this.logger.log(`Unloading database: ${dbname} on host: ${hostUid}`);
-    return await this.managementService.unloadDatabase(userId, hostUid, dbname, body);
+    this.logger.log(`Enqueue unload job: ${dbname} on host: ${hostUid}`);
+    return await this.cmsJobService.createUnloadJob(userId, hostUid, dbname, body);
   }
 
   /**
@@ -149,12 +165,13 @@ export class DatabaseManagementController {
    * // Body: { "checkoption": "both", "period": "none", "user": "dba", "estimated": "none", "oiduse": "yes", "statisticsuse": "yes", "nolog": "no", "schema": "/path/to/schema", "object": "/path/to/object", "index": "none", "errorcontrolfile": "none", "ignoreclassfile": "none" }
    */
   @Post('load/:dbname')
+  @HttpCode(HttpStatus.ACCEPTED)
   async loadDatabase(
     @Request() req,
     @Param('hostUid') hostUid: string,
     @Param('dbname') dbname: string,
     @Body() body: LoadDatabaseRequest
-  ): Promise<LoadDatabaseResponse> {
+  ): Promise<CreateCmsJobResponse> {
     const userId = req.user.sub;
 
     validateRequiredFields(
@@ -163,6 +180,8 @@ export class DatabaseManagementController {
         'checkoption',
         'period',
         'user',
+        '_DBID',
+        '_DBPASSWD',
         'estimated',
         'oiduse',
         'statisticsuse',
@@ -177,8 +196,8 @@ export class DatabaseManagementController {
       this.logger
     );
 
-    this.logger.log(`Loading database: ${dbname} on host: ${hostUid}`);
-    return await this.managementService.loadDatabase(userId, hostUid, dbname, body);
+    this.logger.log(`Enqueue load job: ${dbname} on host: ${hostUid}`);
+    return await this.cmsJobService.createLoadJob(userId, hostUid, dbname, body);
   }
 
   /**
@@ -196,16 +215,17 @@ export class DatabaseManagementController {
    * // Body: { "class": [{ "classname": "dba.test4" }] } (optional - if not provided, optimizes entire database)
    */
   @Post('optimize/:dbname')
+  @HttpCode(HttpStatus.ACCEPTED)
   async optimizeDatabase(
     @Request() req,
     @Param('hostUid') hostUid: string,
     @Param('dbname') dbname: string,
     @Body() body: OptimizeDatabaseRequest
-  ): Promise<OptimizeDatabaseResponse> {
+  ): Promise<CreateCmsJobResponse> {
     const userId = req.user.sub;
 
-    this.logger.log(`Optimizing database: ${dbname} on host: ${hostUid}`);
-    return await this.managementService.optimizeDatabase(userId, hostUid, dbname, body);
+    this.logger.log(`Enqueue optimize job: ${dbname} on host: ${hostUid}`);
+    return await this.cmsJobService.createJob(userId, hostUid, 'optimize', dbname, body);
   }
 
   /**
@@ -223,18 +243,19 @@ export class DatabaseManagementController {
    * // Body: { "repairdb": "n" } (n = check only, y = check and repair)
    */
   @Post('check/:dbname')
+  @HttpCode(HttpStatus.ACCEPTED)
   async checkDatabase(
     @Request() req,
     @Param('hostUid') hostUid: string,
     @Param('dbname') dbname: string,
     @Body() body: CheckDatabaseRequest
-  ): Promise<CheckDatabaseResponse> {
+  ): Promise<CreateCmsJobResponse> {
     const userId = req.user.sub;
 
     validateRequiredFields(body, ['repairdb'], 'database/check', this.logger);
 
-    this.logger.log(`Checking database: ${dbname} on host: ${hostUid}`);
-    return await this.managementService.checkDatabase(userId, hostUid, dbname, body);
+    this.logger.log(`Enqueue check job: ${dbname} on host: ${hostUid}`);
+    return await this.cmsJobService.createJob(userId, hostUid, 'check', dbname, body);
   }
 
   /**
@@ -252,18 +273,19 @@ export class DatabaseManagementController {
    * // Body: { "verbose": "y" } (y = include log output, n = exclude log output)
    */
   @Post('compact/:dbname')
+  @HttpCode(HttpStatus.ACCEPTED)
   async compactDatabase(
     @Request() req,
     @Param('hostUid') hostUid: string,
     @Param('dbname') dbname: string,
     @Body() body: CompactDatabaseRequest
-  ): Promise<CompactDatabaseResponse> {
+  ): Promise<CreateCmsJobResponse> {
     const userId = req.user.sub;
 
     validateRequiredFields(body, ['verbose'], 'database/compact', this.logger);
 
-    this.logger.log(`Compacting database: ${dbname} on host: ${hostUid}`);
-    return await this.managementService.compactDatabase(userId, hostUid, dbname, body);
+    this.logger.log(`Enqueue compact job: ${dbname} on host: ${hostUid}`);
+    return await this.cmsJobService.createJob(userId, hostUid, 'compact', dbname, body);
   }
 
   /**
@@ -281,12 +303,13 @@ export class DatabaseManagementController {
    * // Body: { "rename": "renamed_db", "exvolpath": "none", "advanced": "on", "volume": [{ "/old/path": "/new/path" }], "forcedel": "n" }
    */
   @Post('rename/:dbname')
+  @HttpCode(HttpStatus.ACCEPTED)
   async renameDatabase(
     @Request() req,
     @Param('hostUid') hostUid: string,
     @Param('dbname') dbname: string,
     @Body() body: RenameDatabaseRequest
-  ): Promise<StartInfoClientResponse> {
+  ): Promise<CreateCmsJobResponse> {
     const userId = req.user.sub;
 
     validateRequiredFields(
@@ -304,8 +327,8 @@ export class DatabaseManagementController {
       });
     }
 
-    this.logger.log(`Renaming database: ${dbname} to ${body.rename} on host: ${hostUid}`);
-    return await this.managementService.renameDatabase(userId, hostUid, dbname, body);
+    this.logger.log(`Enqueue rename job: ${dbname} to ${body.rename} on host: ${hostUid}`);
+    return await this.cmsJobService.createJob(userId, hostUid, 'rename', dbname, body);
   }
 
   /**
@@ -349,12 +372,13 @@ export class DatabaseManagementController {
    * // Body: { "volname": "", "purpose": "generic", "path": "/path/to/vol", "numberofpages": "32768", "size_need_mb": "512.000(MB)" }
    */
   @Post('add-vol/:dbname')
+  @HttpCode(HttpStatus.ACCEPTED)
   async addVolDb(
     @Request() req,
     @Param('hostUid') hostUid: string,
     @Param('dbname') dbname: string,
     @Body() body: AddVolDbRequest
-  ): Promise<AddVolDbResponse> {
+  ): Promise<CreateCmsJobResponse> {
     const userId = req.user.sub;
 
     validateRequiredFields(
@@ -364,10 +388,8 @@ export class DatabaseManagementController {
       this.logger
     );
 
-    this.logger.log(
-      `Adding volume to database: ${dbname} on host: ${hostUid}`
-    );
-    return await this.managementService.addVolDb(userId, hostUid, dbname, body);
+    this.logger.log(`Enqueue add-vol job: ${dbname} on host: ${hostUid}`);
+    return await this.cmsJobService.createJob(userId, hostUid, 'addvol', dbname, body);
   }
 
   /**
@@ -474,5 +496,4 @@ export class DatabaseManagementController {
     );
     return await this.managementService.killTransaction(userId, hostUid, dbname, body);
   }
-
 }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeDeleteBackupPlanModal, deleteBackupSchedule, fetchBackupSchedule } from '../databaseSlice';
+import { useCM } from '../../../constants/useCM';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -21,6 +22,7 @@ const VIEW_SUCCESS = 'success';
 const VIEW_ERROR   = 'error';
 
 export default function DeleteBackupPlanModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isDeleteBackupPlanModalOpen, selectedBackupId } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
@@ -75,7 +77,7 @@ export default function DeleteBackupPlanModal() {
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title="Deleting Plan" icon="delete_forever" onClose={handleClose} maxWidth="440px" iconVariant="danger">
+      <Modal isOpen title="Deleting Plan" icon="delete_forever" onClose={handleClose} maxWidth="440px" iconVariant="danger" showCloseButton={false}>
         <ModalStatusLoading 
           title="Removing Registry" 
           subtitle={`Discarding automation handle "${selectedBackupId}".`}
@@ -93,7 +95,7 @@ export default function DeleteBackupPlanModal() {
           title="Registry Purged"
           message="The plan has been removed from the system scheduler."
           onConfirm={handleClose}
-          confirmText="Acknowledge"
+          confirmText="OK"
         />
       </Modal>
     );
@@ -126,7 +128,7 @@ export default function DeleteBackupPlanModal() {
       maxWidth="440px"
       footer={
         <div className="flex justify-end gap-3 w-full">
-          <Button variant="ghost" onClick={handleClose}>Discard</Button>
+          <Button variant="ghost" onClick={handleClose}>{CM.discard}</Button>
           <Button variant="danger" onClick={handleDelete} icon="delete" className="min-w-[140px]">Execute Discard</Button>
         </div>
       }

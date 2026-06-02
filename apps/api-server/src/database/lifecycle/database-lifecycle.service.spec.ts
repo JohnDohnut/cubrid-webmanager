@@ -15,14 +15,7 @@ import { HostError } from '@error/index';
 import { CmsError } from '@error/cms/cms-error';
 import { CreateDatabaseClientResponse, DeleteDatabaseRequest } from '@api-interfaces';
 import { DeleteDatabaseCmsResponse } from '@type/cms-response';
-import * as common from '@common';
 
-// Mock the checkCmsTokenError and checkCmsStatusError functions
-jest.mock('@common', () => ({
-  ...jest.requireActual('@common'),
-  checkCmsTokenError: jest.fn(),
-  checkCmsStatusError: jest.fn(),
-}));
 
 describe('DatabaseLifecycleService', () => {
   let service: DatabaseLifecycleService;
@@ -42,12 +35,26 @@ describe('DatabaseLifecycleService', () => {
     port: 8001,
     password: 'host-password',
     token: 'test-token',
+    initialLogin: false,
+    alias: 'host-1',
     dbProfiles: {},
   };
 
   const mockUserId = 'user-123';
   const mockHostUid = 'host-uid-1';
   const mockDbname = 'testdb';
+
+  const mockGroupId = 'group-host-uid-1';
+  const hostInGroups = (host: typeof mockHost, groupId = mockGroupId) => ({
+    host_groups: {
+      [groupId]: {
+        name: host.alias || host.id,
+        hosts: { [host.uid]: host },
+      },
+    },
+  });
+  const getMockHostFromUser = (user: { host_groups?: Record<string, { hosts: Record<string, typeof mockHost> }> }) =>
+    user.host_groups?.[mockGroupId]?.hosts[mockHostUid];
 
   beforeEach(async () => {
     const mockHostService = {
@@ -128,8 +135,6 @@ describe('DatabaseLifecycleService', () => {
 
     // Setup default mocks
     hostService.findHostInternal.mockResolvedValue(mockHost);
-    (common.checkCmsTokenError as jest.Mock).mockImplementation(() => {});
-    (common.checkCmsStatusError as jest.Mock).mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -209,7 +214,7 @@ describe('DatabaseLifecycleService', () => {
       expect(result).toEqual(mockStartInfoClientResponse);
     });
 
-    it('should throw DatabaseError when CMS status is fail', async () => {
+    it('should throw CmsError when CMS status is fail', async () => {
       const failedResponse = {
         __EXEC_TIME: '0 ms',
         note: 'Failed',
@@ -218,7 +223,7 @@ describe('DatabaseLifecycleService', () => {
       };
       cmsClient.postAuthenticated.mockResolvedValue(failedResponse);
 
-      await expect(service.startInfo(mockUserId, mockHostUid)).rejects.toThrow(DatabaseError);
+      await expect(service.startInfo(mockUserId, mockHostUid)).rejects.toThrow(CmsError);
     });
   });
 
@@ -336,7 +341,7 @@ describe('DatabaseLifecycleService', () => {
       );
     });
 
-    it('should throw DatabaseError when CMS status is fail', async () => {
+    it('should throw CmsError when CMS status is fail', async () => {
       const failedResponse = {
         ...mockBaseResponse,
         status: 'fail',
@@ -345,7 +350,7 @@ describe('DatabaseLifecycleService', () => {
       cmsClient.postAuthenticated.mockResolvedValue(failedResponse);
 
       await expect(service.stopDatabase(mockUserId, mockHostUid, mockDbname)).rejects.toThrow(
-        DatabaseError
+        CmsError
       );
     });
   });
@@ -448,9 +453,7 @@ describe('DatabaseLifecycleService', () => {
     it('should successfully save database profile', async () => {
       const mockUser = {
         id: mockUserId,
-        host_list: {
-          [mockHostUid]: mockHost,
-        },
+        ...hostInGroups(mockHost),
       };
 
       repository.atomicUpdateUser.mockImplementation(async (userId, callback) => {
@@ -469,7 +472,7 @@ describe('DatabaseLifecycleService', () => {
       expect(result).toEqual(mockStartInfoResponse);
     });
 
-    it('should throw ValidationError when credentials are missing', async () => {
+    it('should throw ValidationError when dbname or id is missing', async () => {
       await expect(
         service.saveDatabaseProfile(mockUserId, mockHostUid, '', 'dba', 'password')
       ).rejects.toThrow();
@@ -477,10 +480,23 @@ describe('DatabaseLifecycleService', () => {
       await expect(
         service.saveDatabaseProfile(mockUserId, mockHostUid, mockDbname, '', 'password')
       ).rejects.toThrow();
+    });
 
-      await expect(
-        service.saveDatabaseProfile(mockUserId, mockHostUid, mockDbname, 'dba', '')
-      ).rejects.toThrow();
+    it('should save empty password when password is omitted or null', async () => {
+      const mockUser = {
+        id: mockUserId,
+        ...hostInGroups({ ...mockHost, dbProfiles: {} }),
+      };
+
+      repository.atomicUpdateUser.mockImplementation(async (userId, callback) => {
+        return await callback(mockUser as any);
+      });
+
+      await service.saveDatabaseProfile(mockUserId, mockHostUid, mockDbname, 'dba', '');
+      expect(getMockHostFromUser(mockUser)!.dbProfiles[mockDbname].password).toBe('');
+
+      await service.saveDatabaseProfile(mockUserId, mockHostUid, mockDbname, 'dba', null as any);
+      expect(getMockHostFromUser(mockUser)!.dbProfiles[mockDbname].password).toBe('');
     });
 
     it('should overwrite existing database profile', async () => {
@@ -490,9 +506,7 @@ describe('DatabaseLifecycleService', () => {
       };
       const mockUser = {
         id: mockUserId,
-        host_list: {
-          [mockHostUid]: hostWithProfile,
-        },
+        ...hostInGroups(hostWithProfile),
       };
 
       repository.atomicUpdateUser.mockImplementation(async (userId, callback) => {
@@ -501,7 +515,7 @@ describe('DatabaseLifecycleService', () => {
 
       await service.saveDatabaseProfile(mockUserId, mockHostUid, mockDbname, 'dba', 'newpass');
 
-      expect(mockUser.host_list[mockHostUid].dbProfiles[mockDbname]).toEqual({
+      expect(getMockHostFromUser(mockUser)!.dbProfiles[mockDbname]).toEqual({
         dbname: mockDbname,
         id: 'dba',
         password: 'newpass',
@@ -512,7 +526,7 @@ describe('DatabaseLifecycleService', () => {
     it('should throw HostError when host is not found', async () => {
       const mockUser = {
         id: mockUserId,
-        host_list: {},
+        host_groups: {},
       };
 
       repository.atomicUpdateUser.mockImplementation(async (userId, callback) => {
@@ -558,7 +572,6 @@ describe('DatabaseLifecycleService', () => {
       const result = await service.getDBSpaceInfo(mockUserId, mockHostUid, mockDbname);
 
       expect(cmsClient.postAuthenticated).toHaveBeenCalledTimes(2);
-      expect(common.checkCmsTokenError).toHaveBeenCalled();
       expect(result).toEqual({
         dbname: 'testdb',
         pagesize: '16384',
@@ -602,6 +615,7 @@ describe('DatabaseLifecycleService', () => {
     });
 
     it('should successfully create database without optional configuration', async () => {
+      const startDatabaseSpy = jest.spyOn(service, 'startDatabase');
       const request = {
         ...mockCreateDbRequest,
       };
@@ -618,11 +632,8 @@ describe('DatabaseLifecycleService', () => {
           success: true,
           data: mockCreateDatabaseResponse,
         },
-        startDatabase: {
-          success: true,
-          data: mockStartInfoForCreate,
-        },
       });
+      expect(startDatabaseSpy).not.toHaveBeenCalled();
       expect(databaseUserService.updateUser).not.toHaveBeenCalled();
       expect(databaseConfigService.setAutoAddVol).not.toHaveBeenCalled();
       expect(databaseConfigService.setAutoStart).not.toHaveBeenCalled();
@@ -683,15 +694,15 @@ describe('DatabaseLifecycleService', () => {
         },
         updateUser: {
           success: true,
-          data: {},
+          data: { success: true },
         },
         setAutoAddVol: {
           success: true,
-          data: {},
+          data: { success: true },
         },
         setAutoStart: {
           success: true,
-          data: {},
+          data: { success: true },
         },
       });
     });
@@ -1026,11 +1037,6 @@ describe('DatabaseLifecycleService', () => {
     });
 
     it('should throw CmsError if CMS status is fail', async () => {
-      const actualCommon = jest.requireActual<typeof import('@common')>('@common');
-      (common.checkCmsStatusError as jest.Mock).mockImplementation(
-        actualCommon.checkCmsStatusError as (...args: unknown[]) => void
-      );
-
       cmsClient.postAuthenticated.mockResolvedValue({
         __EXEC_TIME: '0 ms',
         note: 'operation failed',

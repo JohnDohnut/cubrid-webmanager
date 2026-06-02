@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { closeOptimizeDatabaseModal, optimizeDatabase } from '../databaseSlice';
+import { closeOptimizeDatabaseModal } from '../databaseSlice';
 import { databaseApi } from '../databaseApi';
+import { databaseJobApi } from '../databaseJobApi';
+import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
+import { getCmsJobLoadingSubtitle } from '../../../infrastructure/cmsJob/cmsJobUi';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -13,6 +16,7 @@ import { Spinner } from '../../../components/ds/foundation/Spinner';
 import { SectionHeader } from '../../../components/ds/foundation/SectionHeader';
 import { InfoBanner } from '../../../components/ds/foundation/InfoBanner';
 import { EmptyState } from '../../../components/ds/feedback/EmptyState';
+import { useCM } from '../../../constants/useCM';
 
 // view states
 const VIEW_FORM    = 'form';
@@ -24,6 +28,7 @@ const VIEW_ERROR   = 'error';
  * Custom Dropdown for Class Selection
  */
 const ClassSelect = ({ value, userClasses, onChange, disabled, isLoading }) => {
+  const CM = useCM();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef(null);
@@ -87,11 +92,11 @@ const ClassSelect = ({ value, userClasses, onChange, disabled, isLoading }) => {
         type="button"
         disabled={disabled || isLoading}
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full h-11 px-4 flex items-center justify-between bg-white dark:bg-white/3 border border-slate-200 dark:border-white/10 rounded-2xl shadow-xs transition-all text-left outline-hidden ${
+        className={`w-full h-11 px-3 flex items-center justify-between bg-white dark:bg-white/3 border border-slate-200 dark:border-white/10 rounded-2xl shadow-xs transition-all text-left outline-hidden ${
           isOpen ? 'ring-2 ring-amber-500/20 border-amber-500/60' : 'hover:border-amber-500/40'
         } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
       >
-        <div className="flex items-center gap-3 overflow-hidden">
+        <div className="flex items-center gap-2.5 overflow-hidden">
           <Icon 
             name={value ? 'table_view' : 'database'} 
             size="sm" 
@@ -143,7 +148,7 @@ const ClassSelect = ({ value, userClasses, onChange, disabled, isLoading }) => {
               <div className="py-8">
                 <EmptyState
                   icon="search_off"
-                  title="No Matches"
+                  title={CM.noMatches}
                   subtitle={`No tables matching "${search}" were found.`}
                 />
               </div>
@@ -184,14 +189,17 @@ const ClassSelect = ({ value, userClasses, onChange, disabled, isLoading }) => {
 };
 
 export default function OptimizeDatabaseModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isOptimizeDatabaseModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase, activeDatabases } = useSelector((state) => state.database, shallowEqual);
   const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
   
+  const { runJob } = useCmsJob();
   const [view, setView] = useState(VIEW_FORM);
   const [selectedClassName, setSelectedClassName] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [jobStatus, setJobStatus] = useState(null);
 
   // Direct state for classes to follow user requirement for direct getClassInfo usage
   const [classesData, setClassesData] = useState({ userclass: [] });
@@ -239,12 +247,11 @@ export default function OptimizeDatabaseModal() {
         ? { class: [{ classname: selectedClassName }] }
         : {};
         
-      await dispatch(optimizeDatabase({ 
-        hostUid: selectedHostUid, 
-        dbname: selectedDatabase, 
-        payload 
-      })).unwrap();
-      
+      await runJob(
+        () => databaseJobApi.submitOptimize(selectedHostUid, selectedDatabase, payload),
+        { onProgress: (j) => setJobStatus(j.jobStatus ?? j.status) }
+      );
+
       setView(VIEW_SUCCESS);
     } catch (err) {
       setErrorMsg(typeof err === 'string' ? err : (err.message || 'The optimization sequence was interrupted. Please verify database connectivity and state.'));
@@ -252,14 +259,16 @@ export default function OptimizeDatabaseModal() {
     }
   };
 
-  const handleClose = () => dispatch(closeOptimizeDatabaseModal());
+  const handleClose = () => {
+    dispatch(closeOptimizeDatabaseModal());
+  };
 
   const totalTables = classesData.userclass.length;
 
   /* ─── LOADING view ─── */
   if (view === VIEW_LOADING) {
     return (
-      <Modal isOpen title="Executing Heuristics" icon="auto_fix_high" onClose={handleClose} maxWidth="460px">
+      <Modal isOpen title={CM.executingHeuristics} icon="auto_fix_high" onClose={handleClose} maxWidth="460px">
         <div className="flex flex-col items-center justify-center py-12 space-y-6 animate-in fade-in duration-200">
           <div className="relative w-16 h-16">
             <div className="absolute inset-0 rounded-full border-2 border-slate-100 dark:border-white/5" />
@@ -272,7 +281,7 @@ export default function OptimizeDatabaseModal() {
           <div className="text-center space-y-1.5 px-8">
             <Typography variant="h4" className="text-[14px] font-black text-slate-800 dark:text-white tracking-tight">Regenerating Statistics</Typography>
             <Typography variant="p" className="text-[11px] text-slate-500 font-medium leading-relaxed max-w-[280px] mx-auto">
-              Updating the cost-based optimizer for <span className="font-black text-slate-900 dark:text-white">{selectedClassName || selectedDatabase}</span>.
+              {getCmsJobLoadingSubtitle(selectedClassName || selectedDatabase, jobStatus, CM)}
             </Typography>
           </div>
           <div className="w-32 h-[2px] bg-slate-100 dark:bg-white/4 rounded-full overflow-hidden">
@@ -293,7 +302,7 @@ export default function OptimizeDatabaseModal() {
   /* ─── SUCCESS view ─── */
   if (view === VIEW_SUCCESS) {
     return (
-      <Modal isOpen title="Optimization Complete" icon="auto_fix_high" iconVariant="success" onClose={handleClose} maxWidth="460px">
+      <Modal isOpen title={CM.optimizationComplete} icon="auto_fix_high" iconVariant="success" onClose={handleClose} maxWidth="460px">
         <div className="flex flex-col items-center justify-center py-12 gap-7 text-center animate-in fade-in duration-200">
           <div className="relative">
             <div className="absolute inset-0 bg-emerald-500/10 rounded-full animate-ping" style={{ animationDuration: '2s' }} />
@@ -311,7 +320,7 @@ export default function OptimizeDatabaseModal() {
             </Typography>
           </div>
 
-          <Button variant="secondary" onClick={handleClose} className="min-w-[140px]">Acknowledge</Button>
+          <Button variant="secondary" onClick={handleClose} className="min-w-[140px]">{CM.close}</Button>
         </div>
       </Modal>
     );
@@ -320,7 +329,7 @@ export default function OptimizeDatabaseModal() {
   /* ─── ERROR view ─── */
   if (view === VIEW_ERROR) {
     return (
-      <Modal isOpen title="Execution Interrupted" icon="auto_fix_high" iconVariant="danger" onClose={handleClose} maxWidth="460px">
+      <Modal isOpen title={CM.executionInterrupted} icon="auto_fix_high" iconVariant="danger" onClose={handleClose} maxWidth="460px">
         <div className="flex flex-col items-center justify-center py-10 gap-6 text-center animate-in fade-in duration-200">
           <div className="relative">
             <div className="absolute inset-0 bg-rose-500/10 rounded-full animate-ping" style={{ animationDuration: '2s' }} />
@@ -349,9 +358,9 @@ export default function OptimizeDatabaseModal() {
           </div>
 
           <div className="flex items-center gap-3">
-            <Button variant="secondary" onClick={handleClose}>Dismiss</Button>
+            <Button variant="secondary" onClick={handleClose}>{CM.dismiss}</Button>
             <Button variant="primary" icon="refresh" onClick={() => { setView(VIEW_FORM); setErrorMsg(''); }}>
-              Retry Task
+              {CM.retryExecution}
             </Button>
           </div>
         </div>
@@ -364,14 +373,14 @@ export default function OptimizeDatabaseModal() {
     <Modal
       isOpen={isOptimizeDatabaseModalOpen}
       onClose={handleClose}
-      title="Performance Tuning"
-      subtitle="Optimize query execution plans"
+      title={CM.performanceTuning}
+      subtitle={CM.performanceTuningSubtitle}
       icon="auto_fix_high"
       maxWidth="460px"
       footer={
         <div className="flex justify-end gap-3 w-full">
           <Button variant="ghost" onClick={handleClose}>
-            Discard
+            {CM.discard}
           </Button>
           <Button 
             variant="primary" 
@@ -380,14 +389,14 @@ export default function OptimizeDatabaseModal() {
             disabled={isLoadingClasses}
             className="min-w-[140px]"
           >
-            Execute Tuning
+            {CM.executeOptimization}
           </Button>
         </div>
       }
     >
       <div className="space-y-6">
-        <div className="px-1">
-          <SectionHeader title="Target Instance" icon="database" />
+        <div className="px-1.5">
+          <SectionHeader title={CM.targetInstanceSection} icon="database" />
           <Input 
             value={selectedDatabase}
             disabled
@@ -397,13 +406,13 @@ export default function OptimizeDatabaseModal() {
         </div>
 
         <div className="space-y-5">
-          <InfoBanner title="Optimizer Intel" icon="insights">
+          <InfoBanner title={CM.optimizerIntel} icon="insights">
             Regenerating statistics allows the query optimizer to choose the most efficient execution paths for complex JOIN and SELECT operations.
           </InfoBanner>
 
-          <div className="space-y-2">
+          <div className="space-y-2 px-1.5">
             <SectionHeader 
-              title="Optimization Scope" 
+              title={CM.optimizationScope} 
               icon="tune" 
               badge={isLoadingClasses ? 'Traversing' : `${totalTables.toLocaleString()} objects`}
             />
@@ -416,9 +425,9 @@ export default function OptimizeDatabaseModal() {
             />
 
             {!isLoadingClasses && totalTables > 0 && (
-              <p className="text-[9.5px] text-slate-400 font-medium px-1 flex items-center gap-1.5">
+              <p className="text-[9.5px] text-slate-400 font-medium px-3 flex items-center gap-2">
                 <Icon name="lock_clock" size="10px" weight={400} />
-                Global scans may briefly locking schema metadata during analysis.
+                Global scans may briefly lock schema metadata during analysis.
               </p>
             )}
           </div>

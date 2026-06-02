@@ -28,10 +28,6 @@ function injectIntoEnv(conf: CwmConf): void {
   }
 }
 
-/**
- * cwm.conf를 읽고 SEED/SALT가 없으면 자동 생성 후 저장.
- * 값은 process.env에 주입 (이미 설정된 값은 덮어쓰지 않음).
- */
 function loadCwmConf(baseDir: string): void {
   const confPath = path.join(baseDir, CWM_CONF_FILENAME);
   const conf = readCwmConf(confPath);
@@ -64,12 +60,16 @@ function loadCwmConf(baseDir: string): void {
 /**
  * Loads env before Nest bootstrap (pkg-aware base dir).
  *
- * Priority (highest → lowest):
- *   1. process.env 기존 값 (systemd EnvironmentFile 등)
- *   2. cwm.conf (JSON, 실행파일 옆 / 프로젝트 루트)
- *   3. .env 파일 (로컬 개발 / 레거시)
+ * Priority (highest to lowest):
+ *   1. process.env already set (systemd EnvironmentFile etc.)
+ *   2. cwm.conf (JSON, next to executable / project root)
+ *   3. .env file (dotenv, for local dev / legacy)
  */
 export function loadRuntimeEnv(): void {
+  if ((process.env.CWM_DESKTOP ?? '').trim() === '1') {
+    return;
+  }
+
   const args = parseCliArgs(process.argv.slice(2));
   const rawMode = (
     args.ENV ??
@@ -81,13 +81,11 @@ export function loadRuntimeEnv(): void {
   const isPkg = !!(process as any).pkg;
   const baseDir = isPkg ? path.dirname(process.execPath) : process.cwd();
 
-  // cwm.conf: pkg 실행파일 옆 or 프로젝트 루트에 파일이 있을 때 로드
   const confPath = path.join(baseDir, CWM_CONF_FILENAME);
   if (isPkg || fs.existsSync(confPath)) {
     loadCwmConf(baseDir);
   }
 
-  // .env fallback (로컬 개발 / 레거시)
   const candidates: string[] = [];
   if (isProduction) {
     candidates.push('/etc/cubrid-webmanager.env');

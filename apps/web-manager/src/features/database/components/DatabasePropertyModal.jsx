@@ -3,6 +3,7 @@ import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeDatabasePropertyModal } from '../databaseSlice';
 import { hostApi } from '../../host/hostApi';
 import { brokerApi } from '../../broker/brokerApi';
+import { useCM } from '../../../constants/useCM';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -275,6 +276,7 @@ function AdvancedRow({ param, value, isModified, onValueChange }) {
 }
 
 export default function DatabasePropertyModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isDatabasePropertyModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
@@ -445,21 +447,23 @@ export default function DatabasePropertyModal() {
     { id: 'Advanced', label: 'Advanced Parameters', icon: 'settings_applications' },
   ];
 
+  if (!isDatabasePropertyModalOpen) return null;
+
   /* ─── LOADING VIEW ─── */
   if (isLoading) return (
-    <Modal isOpen title="Syncing Configuration" icon="settings" onClose={handleClose} maxWidth="900px">
+    <Modal isOpen title={CM.syncingConfiguration} icon="settings" onClose={handleClose} maxWidth="900px" showCloseButton={false}>
       <ModalStatusLoading 
-        title="Updating Registry" 
-        subtitle="The system is patching cubrid.conf on host runtime and synchronizing indices." 
+        title={CM.updatingRegistry} 
+        subtitle={CM.syncingRegistrySubtitle} 
       />
     </Modal>
   );
 
   /* ─── SUCCESS VIEW ─── */
   if (isSuccess) return (
-    <Modal isOpen title="Update Successful" icon="check_circle" iconVariant="success" onClose={handleClose} maxWidth="900px">
+    <Modal isOpen title={CM.updateSuccessful} icon="check_circle" iconVariant="success" onClose={handleClose} maxWidth="900px">
       <ModalStatusSuccess 
-        title="Configuration Re-Indexed"
+        title={CM.configurationReIndexed}
         message={`Changes to the ${selectedDatabase || 'kernel'} configuration have been committed and synchronized.`}
         onConfirm={handleClose}
         confirmText="Confirm & Return"
@@ -469,9 +473,9 @@ export default function DatabasePropertyModal() {
 
   /* ─── ERROR VIEW ─── */
   if (isError) return (
-    <Modal isOpen title="Update Rejected" icon="error" iconVariant="danger" onClose={resetAction} maxWidth="900px">
+    <Modal isOpen title={CM.updateRejected} icon="error" iconVariant="danger" onClose={resetAction} maxWidth="900px">
       <ModalStatusError 
-        title="Synchronization Halted"
+        title={CM.synchronizationHalted}
         error={actionError}
         onRetry={handleApply}
         onCancel={resetAction}
@@ -513,8 +517,8 @@ export default function DatabasePropertyModal() {
             )}
           </div>
           <div className="flex gap-2.5">
-            <Button variant="ghost" onClick={handleClose}>Discard</Button>
-            <Button variant="primary" onClick={handleApply} icon="save" className="min-w-[140px]">Apply Changes</Button>
+            <Button variant="ghost" onClick={handleClose}>{CM.discard}</Button>
+            <Button variant="primary" onClick={handleApply} icon="save" className="min-w-[140px]">{CM.applyChanges}</Button>
           </div>
         </div>
       }
@@ -524,7 +528,7 @@ export default function DatabasePropertyModal() {
         {/* ─── Sidebar ─── */}
         <div className="w-[180px] bg-slate-900/60 dark:bg-black/40 border-r border-white/6 flex flex-col shrink-0">
           <div className="px-4 py-4 border-b border-white/5">
-            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Navigation</p>
+            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">{CM.navigation}</p>
           </div>
           <div className="py-2 flex-1">
             {navItems.map(({ id, icon, label }) => (
@@ -553,7 +557,7 @@ export default function DatabasePropertyModal() {
           {/* Bottom context info */}
           {selectedDatabase && (
             <div className="px-4 py-3 border-t border-white/5">
-              <p className="text-[8.5px] uppercase tracking-widest text-slate-600 font-bold mb-1">Context</p>
+              <p className="text-[8.5px] uppercase tracking-widest text-slate-600 font-bold mb-1">{CM.context}</p>
               <p className="text-[10px] font-mono font-black text-amber-500/80 truncate">{selectedDatabase}</p>
             </div>
           )}
@@ -584,8 +588,8 @@ export default function DatabasePropertyModal() {
               <div className="h-full flex flex-col items-center justify-center gap-5">
                 <div className="w-10 h-10 border-2 border-amber-500/10 border-t-amber-500 rounded-full animate-spin" />
                 <div className="text-center">
-                  <p className="text-[9.5px] uppercase tracking-[0.2em] text-slate-400 font-black mb-1">Loading</p>
-                  <p className="text-[10.5px] text-slate-400 dark:text-slate-500 italic font-medium">Querying host runtime registry…</p>
+                  <p className="text-[9.5px] uppercase tracking-[0.2em] text-slate-400 font-black mb-1">{CM.loadingLabel}</p>
+                  <p className="text-[10.5px] text-slate-400 dark:text-slate-500 italic font-medium">{CM.queryingHostRegistry}</p>
                 </div>
               </div>
 
@@ -593,15 +597,15 @@ export default function DatabasePropertyModal() {
               /* ─── CONNECTION INFO ─── */
               <div className="p-6 space-y-5">
                 {/* Header Banner */}
-                <InfoBanner title="Broker Connection">
+                <InfoBanner title={CM.brokerConnection}>
                   Configure how Web Manager connects to {selectedDatabase}. These parameters define how the Web Manager communicates with the CUBRID Broker.
                 </InfoBanner>
 
                 <div className="space-y-3 p-5 bg-slate-50 dark:bg-white/2 border border-slate-100 dark:border-white/6 rounded-xl">
                   <div className="flex items-center gap-4">
                     <div className="w-[140px] shrink-0">
-                      <p className="text-[9px] uppercase tracking-widest text-slate-400 font-black mb-0.5">Broker IP</p>
-                      <p className="text-[8.5px] font-mono text-slate-400 dark:text-slate-600">Public address</p>
+                      <p className="text-[9px] uppercase tracking-widest text-slate-400 font-black mb-0.5">{CM.brokerIp}</p>
+                      <p className="text-[8.5px] font-mono text-slate-400 dark:text-slate-600">{CM.publicAddress}</p>
                     </div>
                     <div className="flex-1">
                       <Input
@@ -615,8 +619,8 @@ export default function DatabasePropertyModal() {
                   <div className="h-px bg-slate-100 dark:bg-white/5" />
                   <div className="flex items-center gap-4">
                     <div className="w-[140px] shrink-0">
-                      <p className="text-[9px] uppercase tracking-widest text-slate-400 font-black mb-0.5">Service Port</p>
-                      <p className="text-[8.5px] font-mono text-slate-400 dark:text-slate-600">Active broker</p>
+                      <p className="text-[9px] uppercase tracking-widest text-slate-400 font-black mb-0.5">{CM.servicePort}</p>
+                      <p className="text-[8.5px] font-mono text-slate-400 dark:text-slate-600">{CM.activeBroker}</p>
                     </div>
                     <div className="flex-1">
                       <Select
@@ -630,8 +634,8 @@ export default function DatabasePropertyModal() {
                   <div className="h-px bg-slate-100 dark:bg-white/5" />
                   <div className="flex items-center gap-4">
                     <div className="w-[140px] shrink-0">
-                      <p className="text-[9px] uppercase tracking-widest text-slate-400 font-black mb-0.5">Text Encoding</p>
-                      <p className="text-[8.5px] font-mono text-slate-400 dark:text-slate-600">Charset</p>
+                      <p className="text-[9px] uppercase tracking-widest text-slate-400 font-black mb-0.5">{CM.textEncoding}</p>
+                      <p className="text-[8.5px] font-mono text-slate-400 dark:text-slate-600">{CM.charset}</p>
                     </div>
                     <div className="flex-1">
                       <Select
@@ -644,7 +648,7 @@ export default function DatabasePropertyModal() {
                   </div>
                 </div>
 
-                <InfoBanner title="Synchronization Notice">
+                <InfoBanner title={CM.synchronizationNotice}>
                   Broker parameters define how the Web Manager communicates with the CUBRID Broker. Changes only impact <span className="text-amber-500 font-bold non-italic">Manager-to-Host</span> synchronization logic.
                 </InfoBanner>
               </div>
@@ -673,12 +677,12 @@ export default function DatabasePropertyModal() {
 
                 {/* Standard Parameters */}
                 <div className="space-y-2">
-                  <SectionHeader title="Standard Parameters" icon="settings" />
+                  <SectionHeader title={CM.standardParameters} icon="settings" />
 
                   <div className="rounded-xl border border-slate-100 dark:border-white/6 overflow-hidden">
                     {/* Lock params */}
                     <div className="px-4 py-1 bg-slate-50/60 dark:bg-white/2 border-b border-slate-100 dark:border-white/5">
-                      <p className="text-[8.5px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-600">Locking</p>
+                      <p className="text-[8.5px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-600">{CM.lockingSection}</p>
                     </div>
                     <div className="px-4 py-1.5 divide-y divide-slate-50 dark:divide-white/4">
                       <ParamRow label="lock_escalation" value={params.lock_escalation} defaultValue={GENERAL_PARAMS_SCHEMA.lock_escalation} onChange={e => setParams({ ...params, lock_escalation: e.target.value })} />
@@ -688,7 +692,7 @@ export default function DatabasePropertyModal() {
 
                     {/* Checkpoint + isolation */}
                     <div className="px-4 py-1 bg-slate-50/60 dark:bg-white/2 border-y border-slate-100 dark:border-white/5">
-                      <p className="text-[8.5px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-600">Transaction</p>
+                      <p className="text-[8.5px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-600">{CM.transactionSection}</p>
                     </div>
                     <div className="px-4 py-1.5 divide-y divide-slate-50 dark:divide-white/4">
                       <ParamRow label="checkpoint_interval_in_mins" value={params.checkpoint_interval_in_mins} defaultValue={GENERAL_PARAMS_SCHEMA.checkpoint_interval_in_mins} onChange={e => setParams({ ...params, checkpoint_interval_in_mins: e.target.value })} />
@@ -705,7 +709,7 @@ export default function DatabasePropertyModal() {
 
                     {/* System */}
                     <div className="px-4 py-1 bg-slate-50/60 dark:bg-white/2 border-y border-slate-100 dark:border-white/5">
-                      <p className="text-[8.5px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-600">System</p>
+                      <p className="text-[8.5px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-600">{CM.systemSection}</p>
                     </div>
                     <div className="px-4 py-1.5 divide-y divide-slate-50 dark:divide-white/4">
                       <ParamRow label="max_clients" value={params.max_clients} defaultValue={GENERAL_PARAMS_SCHEMA.max_clients} onChange={e => setParams({ ...params, max_clients: e.target.value })} />
@@ -725,7 +729,7 @@ export default function DatabasePropertyModal() {
               /* ─── ADVANCED REGISTRY ─── */
               <div>
                 <div className="px-6 py-6">
-                  <InfoBanner title="Advanced Heuristics">
+                  <InfoBanner title={CM.advancedHeuristics}>
                     Advanced parameters — changes may affect server stability and performance. Exercise caution when modifying these values.
                   </InfoBanner>
                 </div>

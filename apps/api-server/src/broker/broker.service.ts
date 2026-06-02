@@ -1,6 +1,5 @@
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
-import { BaseService, HandleBrokerErrors } from '@common';
-import { BrokerError } from '@error/broker/broker-error';
+import { BaseService, HandleCmsErrors } from '@common';
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
 import {
@@ -53,13 +52,8 @@ export class BrokerService extends BaseService {
   /**
    * Add a DBMT (CMS) user on the host.
    * CMS task: adddbmtuser.
-   *
-   * @param userId User ID from JWT
-   * @param hostUid Host UID
-   * @param request targetid, password, casauth, dbcreate, statusmonitorauth
-   * @returns AddDbmtUserClientResponse dblist and userlist (domain data only)
    */
-  @HandleBrokerErrors()
+  @HandleCmsErrors()
   async addDbmtUser(
     userId: string,
     hostUid: string,
@@ -79,10 +73,6 @@ export class BrokerService extends BaseService {
       AddDbmtUserCmsResponse
     >(userId, hostUid, cmsRequest);
 
-    if (response.status !== 'success') {
-      throw BrokerError.AddDbmtUserFailed({ response });
-    }
-
     return {
       dblist: response.dblist ?? [],
       userlist: response.userlist ?? [],
@@ -92,13 +82,8 @@ export class BrokerService extends BaseService {
   /**
    * Update a DBMT (CMS) user on the host.
    * CMS task: updatedbmtuser.
-   *
-   * @param userId User ID from JWT
-   * @param hostUid Host UID
-   * @param request targetid, dbauth, casauth, dbcreate, statusmonitorauth (no password)
-   * @returns UpdateDbmtUserClientResponse dblist and userlist (domain data only)
    */
-  @HandleBrokerErrors()
+  @HandleCmsErrors()
   async updateDbmtUser(
     userId: string,
     hostUid: string,
@@ -118,17 +103,13 @@ export class BrokerService extends BaseService {
       UpdateDbmtUserCmsResponse
     >(userId, hostUid, cmsRequest);
 
-    if (response.status !== 'success') {
-      throw BrokerError.UpdateDbmtUserFailed({ response });
-    }
-
     return {
       dblist: response.dblist ?? [],
       userlist: response.userlist ?? [],
     };
   }
 
-  @HandleBrokerErrors()
+  @HandleCmsErrors()
   async getBrokers(userId: string, hostUid: string) {
     const cmsRequest: BaseCmsRequest = {
       task: 'getbrokersinfo',
@@ -139,13 +120,10 @@ export class BrokerService extends BaseService {
       cmsRequest
     );
 
-    if (response.status !== 'success') {
-      throw BrokerError.GetBrokersFailed();
-    }
     return response.brokersinfo;
   }
 
-  @HandleBrokerErrors()
+  @HandleCmsErrors()
   async stopBroker(
     userId: string,
     hostUid: string,
@@ -156,18 +134,15 @@ export class BrokerService extends BaseService {
       bname: bname,
     };
 
-    const response = await this.executeCmsRequest<
+    await this.executeCmsRequest<
       HandleBrokerCmsRequest,
-      import('@type/cms-response/base-cms-response').BaseCmsResponse
+      BaseCmsResponse
     >(userId, hostUid, cmsRequest);
 
-    if (response.status !== 'success') {
-      throw BrokerError.BrokerStopFailed();
-    }
     return { success: true };
   }
 
-  @HandleBrokerErrors()
+  @HandleCmsErrors()
   async startBroker(
     userId: string,
     hostUid: string,
@@ -178,58 +153,25 @@ export class BrokerService extends BaseService {
       bname: bname,
     };
 
-    const response = await this.executeCmsRequest<
+    await this.executeCmsRequest<
       HandleBrokerCmsRequest,
-      import('@type/cms-response/base-cms-response').BaseCmsResponse
+      BaseCmsResponse
     >(userId, hostUid, cmsRequest);
 
-    if (response.status !== 'success') {
-      throw BrokerError.BrokerStartFailed();
-    }
     return { success: true };
   }
 
-  @HandleBrokerErrors()
+  @HandleCmsErrors()
   async restartBroker(userId: string, hostUid: string, bname: string): Promise<boolean> {
-    const stopRequest: HandleBrokerCmsRequest = {
-      task: 'broker_stop',
-      bname: bname,
-    };
-
-    const stopResponse = await this.executeCmsRequest<
-      HandleBrokerCmsRequest,
-      BaseCmsResponse
-    >(userId, hostUid, stopRequest);
-    if (stopResponse.status === 'success') {
-      const startRequest: HandleBrokerCmsRequest = {
-        task: 'broker_start',
-        bname: bname,
-      };
-
-      const startResponse = await this.executeCmsRequest<
-        HandleBrokerCmsRequest,
-        BaseCmsResponse
-      >(userId, hostUid, startRequest);
-      if (startResponse.status === 'success') {
-        return true;
-      } else {
-        throw BrokerError.BrokerStartFailed();
-      }
-    } else {
-      throw BrokerError.BrokerStopFailed();
-    }
+    await this.stopBroker(userId, hostUid, bname);
+    await this.startBroker(userId, hostUid, bname);
+    return true;
   }
 
   /**
    * Get broker status including application server information.
-   *
-   * @param userId - User ID
-   * @param hostUid - Host unique identifier
-   * @param bname - Broker name
-   * @returns Broker status data without BaseCmsResponse fields
-   * @throws BrokerError if the request fails
    */
-  @HandleBrokerErrors()
+  @HandleCmsErrors()
   async getBrokerStatus(
     userId: string,
     hostUid: string,
@@ -245,14 +187,10 @@ export class BrokerService extends BaseService {
       GetBrokerStatusCmsResponse
     >(userId, hostUid, cmsRequest);
 
-    if (response.status === 'success') {
-      return this.extractDomainData(response);
-    }
-
-    throw BrokerError.GetBrokersFailed({ response });
+    return this.extractDomainData(response);
   }
 
-  @HandleBrokerErrors()
+  @HandleCmsErrors()
   async stopAllBrokers(
     userId: string,
     hostUid: string
@@ -260,19 +198,15 @@ export class BrokerService extends BaseService {
     const cmsRequest: StopAllBrokersCmsRequest = {
       task: 'stopbroker',
     };
-    const response = await this.executeCmsRequest<
+    await this.executeCmsRequest<
       StopAllBrokersCmsRequest,
       StopAllBrokersCmsResponse
     >(userId, hostUid, cmsRequest);
 
-    if (response.status === 'success') {
-      return { success: true };
-    }
-
-    throw BrokerError.BrokerStopFailed();
+    return { success: true };
   }
 
-  @HandleBrokerErrors()
+  @HandleCmsErrors()
   async startAllBrokers(
     userId: string,
     hostUid: string
@@ -280,15 +214,11 @@ export class BrokerService extends BaseService {
     const cmsRequest: StartBrokerCmsRequest = {
       task: 'startbroker',
     };
-    const response = await this.executeCmsRequest<
+    await this.executeCmsRequest<
       StartBrokerCmsRequest,
       StartBrokerCmsResponse
     >(userId, hostUid, cmsRequest);
 
-    if (response.status === 'success') {
-      return { success: true };
-    }
-
-    throw BrokerError.BrokerStartFailed();
+    return { success: true };
   }
 }

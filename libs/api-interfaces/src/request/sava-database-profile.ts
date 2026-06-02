@@ -2,5 +2,6 @@ import { BaseDatabaseRequest } from './base-database-request';
 
 export type SaveDatabaseProfileRequest = BaseDatabaseRequest & {
   id: string;
-  password: string;
+  /** Omitted or null → stored as empty string. */
+  password?: string | null;
 };

@@ -251,7 +251,7 @@ export default function CreateUserModal({ isOpen, onClose, dbname, editingUser }
   // ─── Lifecycle states ───────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <Modal isOpen title={isEditMode ? 'Updating User' : 'Creating User'} icon="person_add" onClose={onClose} maxWidth="max-w-[860px]">
+      <Modal isOpen title={isEditMode ? 'Updating User' : 'Creating User'} icon="person_add" onClose={onClose} maxWidth="max-w-[860px]" showCloseButton={false}>
         <ModalStatusLoading title={isEditMode ? 'Updating Registry' : 'Committing Identity'} subtitle={`Propagating changes for @${formData.name || editingUser} to ${dbname}.`} />
       </Modal>
     );
@@ -264,7 +264,7 @@ export default function CreateUserModal({ isOpen, onClose, dbname, editingUser }
           title={isEditMode ? 'User Updated' : 'User Created'}
           message={isEditMode ? `Credentials and permissions for @${editingUser} are now synchronized.` : `@${formData.name} is now active and ready for use.`}
           onConfirm={onClose}
-          confirmText="Acknowledge"
+          confirmText="OK"
         />
       </Modal>
     );

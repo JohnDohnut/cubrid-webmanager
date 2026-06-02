@@ -2,37 +2,33 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeUnloadDatabaseModal, openUnloadResultModal } from '../databaseSlice';
 import { databaseApi } from '../databaseApi';
+import { databaseJobApi } from '../databaseJobApi';
+import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
+import { getCmsJobLoadingSubtitle } from '../../../infrastructure/cmsJob/cmsJobUi';
+import { useCM } from '../../../constants/useCM';
 
 import UnloadConfigSection from './unload/UnloadConfigSection';
 import UnloadContentSection from './unload/UnloadContentSection';
 import UnloadAdvancedOptions from './unload/UnloadAdvancedOptions';
 
-import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
 import { Button } from '../../../components/ds/foundation/Button';
 import { Typography } from '../../../components/ds/foundation/Typography';
-import { InfoBanner } from '../../../components/ds/foundation/InfoBanner';
 import { useActionState } from '../../../infrastructure/hooks/useActionState';
-import { 
-  ModalStatusLoading, 
-  ModalStatusSuccess, 
-  ModalStatusError 
+import {
+  ModalStatusLoading,
+  ModalStatusError,
 } from '../../../components/ds/feedback/ActionStatus';
-import { Spinner } from '../../../components/ds/foundation/Spinner';
 
-// view states
-const VIEW_FORM    = 'form';
-const VIEW_LOADING = 'loading';
-const VIEW_SUCCESS = 'success';
-const VIEW_ERROR   = 'error';
+const VIEW_FORM = 'form';
 
 const INITIAL_FORM_DATA = {
   targetDbName: '',
   targetDirectory: '',
   dbUsername: '',
   dbPassword: '',
-  schemaOption: 'All', // All, Selected tables, Not include
-  dataOption: 'Selected tables', // Selected tables, Not include
+  schemaOption: 'All',
+  dataOption: 'Selected tables',
   selectedTables: [],
   asDba: false,
   splitSchema: false,
@@ -49,31 +45,30 @@ const INITIAL_FORM_DATA = {
   useEstimateInstances: false,
   estimateInstances: '',
   useLoFileDirectory: false,
-  loFileDirectory: ''
+  loFileDirectory: '',
 };
 
 export default function UnloadDatabaseModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isUnloadDatabaseModalOpen: isUnloadDBModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase, databases, activeDatabases } = useSelector((state) => state.database, shallowEqual);
   const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
-  
-  const currentDb = databases.find(db => db.dbname === selectedDatabase);
 
-  const { 
-    state, 
-    error: actionError, 
-    startAction, 
-    endSuccess, 
-    endError, 
+  const currentDb = databases.find((db) => db.dbname === selectedDatabase);
+
+  const {
+    error: actionError,
+    startAction,
+    endError,
     resetAction,
     isLoading,
-    isSuccess,
-    isError
+    isError,
   } = useActionState();
+  const { runJob } = useCmsJob();
+  const [jobStatus, setJobStatus] = useState(null);
 
   const [formData, setFormData] = useState(INITIAL_FORM_DATA);
-
   const [dynamicTables, setDynamicTables] = useState([]);
   const [isTablesLoading, setIsTablesLoading] = useState(false);
 
@@ -83,11 +78,9 @@ export default function UnloadDatabaseModal() {
     try {
       const status = activeDatabases.includes(selectedDatabase) ? 'on' : 'off';
       const res = await databaseApi.getClassInfo(selectedHostUid, selectedDatabase, status);
-      
-      const userTables = res.userclass?.[0]?.class?.map(c => c.classname) || [];
+      const userTables = res.userclass?.[0]?.class?.map((c) => c.classname) || [];
       setDynamicTables(userTables);
-      
-      setFormData(prev => {
+      setFormData((prev) => {
         if (prev.schemaOption === 'All') {
           return { ...prev, selectedTables: userTables };
         }
@@ -100,7 +93,6 @@ export default function UnloadDatabaseModal() {
     }
   }, [selectedHostUid, selectedDatabase, activeDatabases]);
 
-
   useEffect(() => {
     if (isUnloadDBModalOpen && selectedDatabase) {
       resetAction();
@@ -110,7 +102,9 @@ export default function UnloadDatabaseModal() {
         targetDirectory: currentDb?.dbdir || `/home/cubrid/databases/${selectedDatabase}`,
         dbUsername: 'dba',
         dbPassword: '',
-        fileForHash: currentDb?.dbdir ? `${currentDb.dbdir}/hashfile` : `/home/cubrid/databases/${selectedDatabase}/hashfile`
+        fileForHash: currentDb?.dbdir
+          ? `${currentDb.dbdir}/hashfile`
+          : `/home/cubrid/databases/${selectedDatabase}/hashfile`,
       });
       fetchTables();
     }
@@ -120,42 +114,41 @@ export default function UnloadDatabaseModal() {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === 'checkbox' ? checked : value,
     }));
   };
 
   const handleSchemaChange = (e) => {
     const { value } = e.target;
-    setFormData(prev => {
+    setFormData((prev) => {
       let newSelectedTables = prev.selectedTables;
       if (value === 'All') {
         newSelectedTables = [...dynamicTables];
       } else if (value === 'Selected tables' || value === 'Not include') {
         newSelectedTables = [];
       }
-      
       return {
         ...prev,
         schemaOption: value,
-        selectedTables: newSelectedTables
+        selectedTables: newSelectedTables,
       };
     });
   };
 
   const handleTableToggle = (table) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       selectedTables: prev.selectedTables.includes(table)
-        ? prev.selectedTables.filter(t => t !== table)
-        : [...prev.selectedTables, table]
+        ? prev.selectedTables.filter((t) => t !== table)
+        : [...prev.selectedTables, table],
     }));
   };
 
   const handleUnloadDatabase = async () => {
     if (!selectedHostUid || !selectedDatabase) return;
-    
+
     startAction();
     try {
       const payload = {
@@ -166,24 +159,28 @@ export default function UnloadDatabaseModal() {
         dbpasswd: formData.dbPassword,
         usehash: formData.useFileForHash ? 'yes' : 'no',
         hashdir: formData.useFileForHash ? formData.fileForHash : '',
-        class: formData.selectedTables.map(t => ({ classname: t })),
+        class: formData.selectedTables.map((t) => ({ classname: t })),
         ref: formData.includeReferencedTables ? 'yes' : 'no',
         classonly: formData.classOnly ? 'yes' : 'no',
-        "as-dba": formData.asDba ? 'yes' : 'no',
-        "skip-index-detail": formData.skipIndex ? 'yes' : 'no',
-        "split-schema-files": formData.splitSchema ? 'yes' : 'no',
+        'as-dba': formData.asDba ? 'yes' : 'no',
+        'skip-index-detail': formData.skipIndex ? 'yes' : 'no',
+        'split-schema-files': formData.splitSchema ? 'yes' : 'no',
         delimit: formData.useDelimitedIdentifier ? 'yes' : 'no',
         estimate: formData.useEstimateInstances ? String(formData.estimateInstances) : '',
         prefix: formData.usePrefixOutputFile ? formData.prefixOutputFile : '',
         cach: formData.useCachedPages ? String(formData.cachedPages) : '',
-        lofile: formData.useLoFileDirectory ? String(formData.loFileDirectory) : ''
+        lofile: formData.useLoFileDirectory ? String(formData.loFileDirectory) : '',
       };
 
-      const response = await databaseApi.unloadDatabase(selectedHostUid, selectedDatabase, payload);
+      const job = await runJob(
+        () => databaseJobApi.submitUnload(selectedHostUid, selectedDatabase, payload),
+        { onProgress: (j) => setJobStatus(j.jobStatus ?? j.status) }
+      );
+      resetAction();
       dispatch(closeUnloadDatabaseModal());
-      dispatch(openUnloadResultModal(response));
+      dispatch(openUnloadResultModal(job.result ?? {}));
     } catch (err) {
-      endError(typeof err === 'string' ? err : (err.message || 'The extraction process was interrupted. Ensure the target directory is writable.'));
+      endError(typeof err === 'string' ? err : (err.message || CM.failure));
     }
   };
 
@@ -194,121 +191,63 @@ export default function UnloadDatabaseModal() {
     resetAction();
   };
 
-  /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title="Extracting Instance" icon="upload" onClose={handleClose} maxWidth="740px">
-        <ModalStatusLoading 
-          title="Generating Export Payload" 
-          subtitle={`Serializing schema and data records for ${selectedDatabase}.`}
+      <Modal isOpen title={CM.unloadDatabase} icon="upload" onClose={handleClose} maxWidth="740px">
+        <ModalStatusLoading
+          title={CM.unloadDatabase}
+          subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
         />
       </Modal>
     );
   }
 
-  /* ─── ERROR view ─── */
   if (isError) {
     return (
-      <Modal isOpen title="Export Failed" icon="upload_file" iconVariant="danger" onClose={resetAction} maxWidth="700px">
-        <ModalStatusError 
-          title="Transaction Dropped"
+      <Modal isOpen title={CM.unloadDatabase} icon="upload_file" iconVariant="danger" onClose={resetAction} maxWidth="700px">
+        <ModalStatusError
+          title={CM.failure}
           error={actionError}
           onRetry={handleUnloadDatabase}
           onCancel={resetAction}
-          retryText="Retry Export"
-          cancelText="Dismiss"
+          cancelText={CM.close}
         />
       </Modal>
     );
   }
 
-  /* ─── FORM view ─── */
   return (
     <Modal
       isOpen={isUnloadDBModalOpen}
       onClose={handleClose}
-      title="Extract Database Assets"
-      subtitle="Export schema and records to portable flat files"
+      title={CM.unloadDatabase}
+      subtitle={CM.unloadDatabaseMsg}
       icon="upload"
       maxWidth="740px"
       footer={
-        <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500 text-[11px] font-black uppercase tracking-widest italic">
-            <Icon name="shield" size="14px" className="text-amber-500/50" />
-            <span>DBA credentials required for extraction</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" onClick={handleClose}>Discard</Button>
-            <Button 
-              onClick={handleUnloadDatabase}
-              icon="upload"
-              className="min-w-[140px]"
-            >
-              Initialize Export
-            </Button>
-          </div>
+        <div className="flex justify-end gap-2 w-full">
+          <Button variant="ghost" onClick={handleClose}>{CM.cancel}</Button>
+          <Button onClick={handleUnloadDatabase} icon="upload">
+            {CM.ok}
+          </Button>
         </div>
       }
     >
-      <div className="space-y-8 pb-4">
-        
-        {/* Source Instance Banner */}
-        <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-linear-to-r from-amber-500/8 to-transparent dark:from-amber-500/10 dark:to-transparent p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0 shadow-inner">
-                <Icon name="database" size="md" weight={300} className="text-amber-500" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <Typography variant="caption" className="font-black uppercase tracking-widest text-amber-600/70 dark:text-amber-400/60 mb-0.5">
-                  Extraction Source
-                </Typography>
-                <div className="flex items-center gap-2">
-                  <Typography variant="h4" className="text-[14px] font-black text-amber-700 dark:text-amber-400 font-mono truncate">
-                    {selectedDatabase}
-                  </Typography>
-                  <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${activeDatabases.includes(selectedDatabase) ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' : 'text-slate-400 bg-slate-500/10 border-slate-500/20'}`}>
-                    <div className={`w-1 h-1 rounded-full ${activeDatabases.includes(selectedDatabase) ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-                    <span className="text-[8px] font-black uppercase tracking-widest">
-                      {activeDatabases.includes(selectedDatabase) ? 'Active' : 'Standby'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/50 dark:bg-black/20 border border-slate-200 dark:border-white/5 backdrop-blur-xs">
-              <Icon name="description" size="sm" className="text-slate-400" />
-              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Target Type: .sql / .csv</span>
-            </div>
-          </div>
-        </div>
+      <div className="space-y-6 pb-2">
+        <Typography variant="caption" className="text-slate-500 font-mono block">
+          {CM.databaseName}: {selectedDatabase}
+        </Typography>
 
-        <div className="space-y-8">
-          <UnloadConfigSection 
-            formData={formData} 
-            handleInputChange={handleInputChange} 
-          />
-
-          <UnloadContentSection 
-            formData={formData}
-            handleInputChange={handleInputChange}
-            handleSchemaChange={handleSchemaChange}
-            handleTableToggle={handleTableToggle}
-            dynamicTables={dynamicTables}
-            isTablesLoading={isTablesLoading}
-          />
-
-          <UnloadAdvancedOptions 
-            formData={formData}
-            handleInputChange={handleInputChange}
-          />
-        </div>
-
-        {/* Action Disclaimer */}
-        <InfoBanner title="Resource Management">
-          Extraction is executed via the <span className="font-mono text-amber-500/80 italic font-bold">cubrid_unload</span> utility. High-volume datasets may consume significant I/O and CPU resources.
-        </InfoBanner>
-
+        <UnloadConfigSection formData={formData} handleInputChange={handleInputChange} />
+        <UnloadContentSection
+          formData={formData}
+          handleInputChange={handleInputChange}
+          handleSchemaChange={handleSchemaChange}
+          handleTableToggle={handleTableToggle}
+          dynamicTables={dynamicTables}
+          isTablesLoading={isTablesLoading}
+        />
+        <UnloadAdvancedOptions formData={formData} handleInputChange={handleInputChange} />
       </div>
     </Modal>
   );

@@ -15,7 +15,9 @@
     "axios": "^1.14.0",
     "bcryptjs": "^3.0.2",
     "dotenv": "^16.6.1",
+    "express": "^4.22.1",
     "framer-motion": "^12.23.24",
+    "http-proxy-middleware": "^3.0.5",
     "module-alias": "^2.2.3",
     "nanoid": "^5.1.6",
     "passport": "^0.7.0",
@@ -64,6 +66,8 @@
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^5.1.2",
     "@vitest/ui": "^4.0.0",
+    "electron": "^35.7.5",
+    "electron-builder": "^26.8.1",
     "eslint": "^9.8.0",
     "eslint-config-prettier": "^10.0.0",
     "eslint-plugin-prettier": "^5.2.2",
@@ -81,6 +85,7 @@
     "prettier": "~3.6.2",
     "source-map-support": "^0.5.21",
     "supertest": "^7.0.0",
+    "tree-kill": "^1.2.2",
     "ts-jest": "^29.4.0",
     "ts-loader": "^9.5.2",
     "ts-node": "10.9.1",
@@ -157,6 +162,12 @@
 
     "preview:web-manager": "nx preview web-manager",
     "serve:web-manager:dist": "node tools/serve-web-manager.js",
+
+    "pkg:api-server": "nx run api-server:build:exe",
+    "pkg:api-server:linux": "nx run api-server:build:exe:linux",
+    "pkg:api-server:windows": "nx run api-server:build:exe:windows",
+    "pkg:api-server:macos": "nx run api-server:build:exe:macos",
+    "pkg:api-server:all": "nx run api-server:build:exe:all"
     "serve:web-manager:dist:4200": "node tools/serve-web-manager.js 4200",
     "serve:web-manager:dist:8080": "node tools/serve-web-manager.js 8080"
   },

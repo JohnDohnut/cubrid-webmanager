@@ -10,7 +10,9 @@ import Header from '../features/layout/components/Header';
 import Breadcrumb from '../features/layout/components/Breadcrumb';
 import Footer from '../features/layout/components/Footer';
 import AddHostModal from '../features/host/components/AddHostModal';
+import HostGroupNameModal from '../features/host/components/HostGroupNameModal';
 import ChangeHostPasswordModal from '../features/host/components/ChangeHostPasswordModal';
+import DeleteHostGroupModal from '../features/host/components/DeleteHostGroupModal';
 import ServerContent from '../features/server/components/ServerContent';
 import DatabaseDashboard from '../features/database/components/DatabaseDashboard';
 import DatabaseSpaceMonitor from '../features/database/components/DatabaseSpaceMonitor';
@@ -52,12 +54,14 @@ import DeleteHostModal from '../features/host/components/DeleteHostModal';
 import EditHostModal from '../features/host/components/EditHostModal';
 import ServerVersionModal from '../features/host/components/ServerVersionModal';
 import LoginPage from '../features/auth/components/LoginPage';
+import DesktopWorkspaceSettingsPage from '../features/desktop/components/DesktopWorkspaceSettingsPage';
 import RegisterPage from '../features/auth/components/RegisterPage';
 import ForgotPasswordPage from '../features/auth/components/ForgotPasswordPage';
 import StatusModal from '../components/common/StatusModal';
 import LoadingOverlay from '../components/common/LoadingOverlay';
 import LogViewer from '../features/broker/components/LogViewer';
 import CMSLogViewer from '../features/broker/components/CMSLogViewer';
+import AllLogsViewer from '../features/broker/components/AllLogsViewer';
 import BrokerStatus from '../features/broker/components/BrokerStatus';
 import BrokerPropertyModal from '../features/broker/components/BrokerPropertyModal';
 import Brokers from '../features/server/components/Brokers';
@@ -70,10 +74,13 @@ import ImportExportHostModal from '../features/host/components/ImportExportHostM
 import DatabasePropertyModal from '../features/database/components/DatabasePropertyModal';
 import RenameDatabaseModal from '../features/database/components/RenameDatabaseModal';
 import AddVolumeModal from '../features/database/components/AddVolumeModal';
+import SuggestedHaNodesModal from '../features/host/components/SuggestedHaNodesModal';
 
 import { Icon } from '../components/ds/foundation/Icon';
+import { useCM } from '../constants/useCM';
 
 function DashboardLayout() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { loading: dbCoreLoading } = useSelector((state) => state.database, shallowEqual);
   const { actionLoading: dbUILoading } = useSelector((state) => state.databaseUI, shallowEqual);
@@ -106,31 +113,35 @@ function DashboardLayout() {
     } else if (tabId.startsWith('db:')) {
       acc[tabId] = tabId.split(':')[1];
     } else if (tabId.startsWith('edit_config:')) {
-      acc[tabId] = `Edit ${tabId.split(':')[2]}`;
+      acc[tabId] = CM.editConfigTab(tabId.split(':')[2]);
     } else if (tabId.startsWith('broker_config:')) {
-      acc[tabId] = 'Broker Config';
+      acc[tabId] = CM.brokerConfig;
     } else if (tabId.startsWith('log:')) {
       const parts = tabId.split(':');
       const path = parts[parts.length - 1];
       acc[tabId] = path.split('/').pop();
+    } else if (tabId.startsWith('all_logs:')) {
+      acc[tabId] = CM.allLogsTab(tabId.split(':')[2]);
+    } else if (tabId.startsWith('all_db_logs:')) {
+      acc[tabId] = CM.allServerLogsTab(tabId.split(':')[2]);
     } else if (tabId.startsWith('cms-access:')) {
-      acc[tabId] = 'Manager Access';
+      acc[tabId] = CM.managerAccess;
     } else if (tabId.startsWith('cms-error:')) {
-      acc[tabId] = 'Manager Error';
+      acc[tabId] = CM.managerError;
     } else if (tabId.startsWith('broker_status:')) {
-      acc[tabId] = `Status: ${tabId.split(':')[2]}`;
+      acc[tabId] = CM.statusTab(tabId.split(':')[2]);
     } else if (tabId.startsWith('brokers_status:')) {
-      acc[tabId] = 'Brokers Status';
+      acc[tabId] = CM.brokerStatus;
     } else if (tabId.startsWith('db_space:')) {
-      acc[tabId] = `Space: ${tabId.split(':')[2]}`;
+      acc[tabId] = CM.spaceTab(tabId.split(':')[2]);
     } else if (tabId.startsWith('vol_info:')) {
       const fullPath = tabId.split(':')[3];
-      acc[tabId] = `Volume: ${fullPath.split(/[\\/]/).pop()}`;
+      acc[tabId] = CM.volumeTab(fullPath.split(/[\\/]/).pop());
     } else if (tabId.startsWith('vol_category:')) {
       const category = tabId.split(':')[3];
-      acc[tabId] = `Volumes: ${category.replace(/_/g, ' ')}`;
+      acc[tabId] = CM.volumesTab(category);
     } else if (tabId === 'service_dashboard') {
-      acc[tabId] = 'Service Dashboard';
+      acc[tabId] = CM.serviceDashboard;
     }
 
     return acc;
@@ -149,7 +160,7 @@ function DashboardLayout() {
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'F5') {
+      if (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R'))) {
         e.preventDefault();
         dispatch(triggerRefreshActiveTab());
       }
@@ -171,17 +182,15 @@ function DashboardLayout() {
   // Construct dynamic loading message
   const getLoadingSubtitle = () => {
     if (isServiceOperating) {
-      return serviceProgressMessage || `Please wait while we ${serviceOperationType === 'start' ? 'start' : 'stop'} all brokers and databases...`;
+      return serviceProgressMessage || (serviceOperationType === 'start' ? CM.serviceStartWait : CM.serviceStopWait);
     }
     if (brokerActionLoading && brokerActionName) {
-      const action = brokerActionType === 'start' ? 'Start' : 'Stop';
-      return `${action} broker : ${brokerActionName}`;
+      return brokerActionType === 'start' ? CM.startBrokerLine(brokerActionName) : CM.stopBrokerLine(brokerActionName);
     }
     if (dbActionLoading) {
-      // Fallback for generic DB actions if no specific message is provided
-      return "Processing database request...";
+      return CM.processingDbRequest;
     }
-    return "Processing your request, please wait...";
+    return CM.processingRequest;
   };
 
   return (
@@ -190,7 +199,7 @@ function DashboardLayout() {
         {/* Flash Overlay */}
         <div className={`fixed inset-0 bg-white/20 dark:bg-white/5 pointer-events-none z-[9999] transition-opacity duration-300 ${isFlashing ? 'opacity-100' : 'opacity-0'}`} />
         
-        <SplitPane split="vertical" defaultSize={288} minSize={200} maxSize={600} className="h-full w-full">
+        <SplitPane split="vertical" defaultSize={320} minSize={240} maxSize={600} className="h-full w-full">
           <Sidebar
             isCollapsed={isSidebarCollapsed}
             onToggleCollapse={() => dispatch(toggleSidebar())}
@@ -253,20 +262,20 @@ function DashboardLayout() {
                 {/* Text */}
                 <div className="text-center space-y-2">
                   <h2 className="text-base font-bold text-slate-800 dark:text-slate-100 tracking-tight uppercase">
-                    CUBRID Manager
+                    {CM.appName}
                   </h2>
                   <p className="text-[12px] text-slate-400 dark:text-slate-500 max-w-[260px] leading-relaxed">
-                    Select a host from the sidebar to start monitoring databases, brokers, and logs.
+                    {CM.selectHostHint}
                   </p>
                 </div>
 
                 {/* Feature pills */}
                 <div className="flex flex-wrap items-center justify-center gap-2">
                   {[
-                    { icon: 'dns', label: 'Host Management' },
-                    { icon: 'storage', label: 'Volume Monitor' },
-                    { icon: 'analytics', label: 'Performance' },
-                    { icon: 'lock', label: 'Lock Info' },
+                    { icon: 'dns', label: CM.hostManagement },
+                    { icon: 'storage', label: CM.volumeMonitor },
+                    { icon: 'analytics', label: CM.performance },
+                    { icon: 'lock', label: CM.lockInfo },
                   ].map(f => (
                     <div key={f.label} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-white/4 border border-slate-200 dark:border-white/6">
                       <Icon name={f.icon} size="13px" weight={300} className="text-slate-400 dark:text-slate-500" />
@@ -278,7 +287,7 @@ function DashboardLayout() {
                 {/* Status bar */}
                 <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-slate-200 dark:border-white/6 bg-slate-50 dark:bg-white/2">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">System Ready</span>
+                  <span className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">{CM.systemReady}</span>
                 </div>
 
               </div>
@@ -292,6 +301,8 @@ function DashboardLayout() {
               const isEditConfig = tabId.startsWith('edit_config:');
               const isBrokerConfig = tabId.startsWith('broker_config:');
               const isLogViewer = tabId.startsWith('log:');
+              const isAllLogs = tabId.startsWith('all_logs:');
+              const isAllDbLogs = tabId.startsWith('all_db_logs:');
               const isCmsAccessLog = tabId.startsWith('cms-access:');
               const isCmsErrorLog = tabId.startsWith('cms-error:');
               const isBrokerStatus = tabId.startsWith('broker_status:');
@@ -337,6 +348,20 @@ function DashboardLayout() {
                       path={tabId.split(':').slice(2).join(':')}
                     />
                   )}
+                  {isAllLogs && (
+                    <AllLogsViewer
+                      type="broker"
+                      hostUid={tabId.split(':')[1]}
+                      targetName={tabId.split(':')[2]}
+                    />
+                  )}
+                  {isAllDbLogs && (
+                    <AllLogsViewer
+                      type="database"
+                      hostUid={tabId.split(':')[1]}
+                      targetName={tabId.split(':')[2]}
+                    />
+                  )}
                   {isCmsAccessLog && (
                     <CMSLogViewer
                       hostUid={tabId.split(':')[1]}
@@ -369,11 +394,15 @@ function DashboardLayout() {
           </main>
         </SplitPane>
 
+        <SuggestedHaNodesModal />
+
+        <HostGroupNameModal />
         <AddHostModal
           isOpen={isAddHostModalOpen}
           onClose={() => dispatch(closeAddHostModal())}
         />
         <DeleteHostModal />
+        <DeleteHostGroupModal />
         <EditHostModal />
         <ChangeHostPasswordModal />
         <ServerVersionModal />
@@ -428,8 +457,8 @@ function DashboardLayout() {
           isVisible={isServiceOperating || dbActionLoading || brokerActionLoading} 
           title={
             isServiceOperating 
-              ? (serviceOperationType === 'start' ? 'Service Action' : 'Service Action')
-              : (dbActionLoading ? 'Database Action' : 'Broker Action')
+              ? CM.service
+              : (dbActionLoading ? CM.databaseAction : CM.brokerAction)
           }
           subtitle={getLoadingSubtitle()}
         />
@@ -443,10 +472,30 @@ function ProtectedRoute({ children }) {
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 }
 
+function RootRedirect() {
+  const { isAuthenticated } = useSelector((state) => state.auth, shallowEqual);
+  return <Navigate to={isAuthenticated ? '/home' : '/login'} replace />;
+}
+
 function App() {
+  useEffect(() => {
+    if (window.desktopBridge?.onCloseActiveTab) {
+      const unsubscribe = window.desktopBridge.onCloseActiveTab(() => {
+        const event = new CustomEvent('in-app:close-active-tab', { cancelable: true });
+        window.dispatchEvent(event);
+        if (!event.defaultPrevented) {
+          window.desktopBridge.closeWindow();
+        }
+      });
+      return unsubscribe;
+    }
+  }, []);
+
   return (
     <Routes>
+      <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/desktop/workspace" element={<DesktopWorkspaceSettingsPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route

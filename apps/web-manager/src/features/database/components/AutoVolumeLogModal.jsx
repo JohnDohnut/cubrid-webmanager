@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { fetchAutoVolumeLog, closeAutoVolumeLogModal } from '../databaseSlice';
+import { useCM } from '../../../constants/useCM';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -11,12 +12,13 @@ import { Typography } from '../../../components/ds/foundation/Typography';
 import { StatusBadge } from '../../../components/ds/foundation/StatusBadge';
 
 export default function AutoVolumeLogModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isAutoVolumeLogModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
   const { autoVolumeLogs, logsLoading } = useSelector((state) => state.databaseConfiguration, shallowEqual);
   const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [showAll, setShowAll] = useState(false);
@@ -61,18 +63,18 @@ export default function AutoVolumeLogModal() {
   if (!isAutoVolumeLogModalOpen) return null;
 
   const columns = [
-    { 
-      header: 'Database', 
+    {
+      header: 'Database',
       accessor: 'dbname',
       className: 'w-[120px]'
     },
-    { 
-      header: 'Volume Name', 
+    {
+      header: 'Volume Name',
       accessor: 'volname',
       render: (val) => <span className="text-amber-600 dark:text-amber-500 font-mono italic">{val}</span>
     },
-    { 
-      header: 'Purpose', 
+    {
+      header: 'Purpose',
       accessor: 'purpose',
       render: (val) => (
         <span className="px-1.5 py-0.5 rounded-sm bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/5 text-[9px] font-bold text-slate-500">
@@ -83,13 +85,13 @@ export default function AutoVolumeLogModal() {
     },
     { header: 'Pages', accessor: 'page', className: 'w-[80px]' },
     { header: 'Time', accessor: 'time', className: 'w-[160px]' },
-    { 
-      header: 'Outcome', 
+    {
+      header: 'Outcome',
       accessor: 'outcome',
       render: (val) => {
         const isSuccess = val?.toLowerCase().includes('success');
         const isStart = val?.toLowerCase().includes('start');
-        
+
         return (
           <div className={`flex items-center gap-2 text-[11px] font-bold ${isSuccess ? 'text-emerald-500' : isStart ? 'text-amber-500' : 'text-rose-500'}`}>
             <Icon name={isSuccess ? 'check_circle' : isStart ? 'play_circle' : 'report'} size="sm" weight={300} />
@@ -111,7 +113,7 @@ export default function AutoVolumeLogModal() {
             <StatusBadge label="Synchronized" variant="emerald" pulse={false} className="rounded-full" />
           )}
         </div>
-        
+
         <div className="flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500 font-bold">
           <div className="w-1 h-1 rounded-full bg-slate-300 dark:bg-white/10" />
           {showAll ? (
@@ -121,10 +123,10 @@ export default function AutoVolumeLogModal() {
           )}
         </div>
       </div>
-      
+
       <div className="flex items-center gap-2.5">
-        <Button 
-          variant="secondary" 
+        <Button
+          variant="secondary"
           size="sm"
           icon="close"
           onClick={() => dispatch(closeAutoVolumeLogModal())}
@@ -132,7 +134,7 @@ export default function AutoVolumeLogModal() {
         >
           Close
         </Button>
-        <Button 
+        <Button
           variant="primary"
           size="sm"
           onClick={() => dispatch(fetchAutoVolumeLog({ hostUid: selectedHostUid }))}
@@ -150,7 +152,7 @@ export default function AutoVolumeLogModal() {
     <Modal
       isOpen={isAutoVolumeLogModalOpen}
       onClose={() => dispatch(closeAutoVolumeLogModal())}
-      title="Auto Volume Log"
+      title={CM.autoVolumeLog}
       subtitle={selectedDatabase ? `Audit history for: ${selectedDatabase}` : 'Global automation history'}
       icon="history_edu"
       iconVariant="warning"
@@ -161,7 +163,7 @@ export default function AutoVolumeLogModal() {
         {/* Toolbar matches LogViewer style */}
         <div className="mb-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <SearchInput 
+            <SearchInput
               placeholder="Filter logs..."
               value={searchTerm}
               onChange={setSearchTerm}
@@ -192,11 +194,10 @@ export default function AutoVolumeLogModal() {
               <div className="w-px h-4 bg-slate-200 dark:bg-white/10 mx-1" />
               <button
                 onClick={() => setShowAll(!showAll)}
-                className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all whitespace-nowrap transition-colors ${
-                  showAll 
-                  ? 'bg-amber-500 text-white shadow-sm shadow-amber-500/20' 
-                  : 'text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-white/5 hover:text-amber-600 dark:hover:text-amber-400'
-                }`}
+                className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all whitespace-nowrap transition-colors ${showAll
+                    ? 'bg-amber-500 text-white shadow-sm shadow-amber-500/20'
+                    : 'text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-white/5 hover:text-amber-600 dark:hover:text-amber-400'
+                  }`}
               >
                 {showAll ? 'Paginated' : 'View All'}
               </button>
@@ -211,7 +212,7 @@ export default function AutoVolumeLogModal() {
         </div>
 
         <div className="flex-1 min-h-0 border border-slate-100 dark:border-white/5 rounded-xl overflow-hidden bg-white/50 dark:bg-bk-side/50">
-          <Table 
+          <Table
             columns={columns}
             data={paginatedLogs}
             loading={logsLoading}

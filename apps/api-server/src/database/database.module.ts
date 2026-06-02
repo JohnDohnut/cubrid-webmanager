@@ -18,6 +18,7 @@ import { DatabaseManagementController } from './management/database-management.c
 import { DatabaseManagementService } from './management/database-management.service';
 import { DatabaseConfigController } from './config/database-config.controller';
 import { DatabaseConfigService } from './config/database-config.service';
+import { CmsJobModule } from '@cms-job/cms-job.module';
 
 /**
  * Module for managing database functionalities.
@@ -51,6 +52,7 @@ import { DatabaseConfigService } from './config/database-config.service';
     FileModule,
     DatabaseInfoModule,
     HaModule,
+    CmsJobModule,
   ],
 })
 export class DatabaseModule {}

@@ -2,8 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BrokerService } from './broker.service';
 import { HostService } from '@host';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
-import { BrokerError } from '@error/broker/broker-error';
-import * as common from '@common';
+import { CmsError } from '@error/cms/cms-error';
 
 jest.mock('@common', () => ({
   ...jest.requireActual('@common'),
@@ -23,6 +22,8 @@ describe('BrokerService', () => {
     port: 8001,
     password: 'host-password',
     token: 'test-token',
+    initialLogin: false,
+    alias: 'host-1',
     dbProfiles: {},
   };
 
@@ -46,8 +47,6 @@ describe('BrokerService', () => {
     cmsClient = module.get(CmsHttpsClientService);
 
     hostService.findHostInternal.mockResolvedValue(mockHost);
-    (common.checkCmsTokenError as jest.Mock).mockImplementation(() => {});
-    (common.checkCmsStatusError as jest.Mock).mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -84,7 +83,7 @@ describe('BrokerService', () => {
       expect(result).toEqual({ success: true });
     });
 
-    it('should throw BrokerError when CMS status is not success', async () => {
+    it('should throw CmsError when CMS status is not success', async () => {
       cmsClient.postAuthenticated.mockResolvedValue({
         __EXEC_TIME: '0 ms',
         note: 'failed',
@@ -94,7 +93,7 @@ describe('BrokerService', () => {
 
       await expect(
         service.startAllBrokers(mockUserId, mockHostUid)
-      ).rejects.toThrow(BrokerError);
+      ).rejects.toThrow(CmsError);
     });
   });
 
@@ -120,7 +119,7 @@ describe('BrokerService', () => {
       expect(result).toEqual({ success: true });
     });
 
-    it('should throw BrokerError when CMS status is not success', async () => {
+    it('should throw CmsError when CMS status is not success', async () => {
       cmsClient.postAuthenticated.mockResolvedValue({
         __EXEC_TIME: '0 ms',
         note: 'failed',
@@ -130,7 +129,7 @@ describe('BrokerService', () => {
 
       await expect(
         service.stopAllBrokers(mockUserId, mockHostUid)
-      ).rejects.toThrow(BrokerError);
+      ).rejects.toThrow(CmsError);
     });
   });
 
@@ -173,7 +172,7 @@ describe('BrokerService', () => {
       });
     });
 
-    it('should throw BrokerError when CMS status is not success', async () => {
+    it('should throw CmsError when CMS status is not success', async () => {
       cmsClient.postAuthenticated.mockResolvedValue({
         __EXEC_TIME: '0 ms',
         note: 'failed',
@@ -183,7 +182,7 @@ describe('BrokerService', () => {
 
       await expect(
         service.addDbmtUser(mockUserId, mockHostUid, mockRequest)
-      ).rejects.toThrow(BrokerError);
+      ).rejects.toThrow(CmsError);
     });
   });
 
@@ -226,7 +225,7 @@ describe('BrokerService', () => {
       });
     });
 
-    it('should throw BrokerError when CMS status is not success', async () => {
+    it('should throw CmsError when CMS status is not success', async () => {
       cmsClient.postAuthenticated.mockResolvedValue({
         __EXEC_TIME: '0 ms',
         note: 'failed',
@@ -236,7 +235,7 @@ describe('BrokerService', () => {
 
       await expect(
         service.updateDbmtUser(mockUserId, mockHostUid, mockRequest)
-      ).rejects.toThrow(BrokerError);
+      ).rejects.toThrow(CmsError);
     });
   });
 });

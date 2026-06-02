@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { closeRenameDatabaseModal, renameDatabase, fetchDatabaseStartInfo } from '../databaseSlice';
+import { closeRenameDatabaseModal, fetchDatabaseStartInfo } from '../databaseSlice';
+import { databaseJobApi } from '../databaseJobApi';
+import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
+import { getCmsJobLoadingSubtitle } from '../../../infrastructure/cmsJob/cmsJobUi';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -16,6 +19,7 @@ import {
   ModalStatusSuccess, 
   ModalStatusError 
 } from '../../../components/ds/feedback/ActionStatus';
+import { useCM } from '../../../constants/useCM';
 
 // view states
 const VIEW_FORM    = 'form';
@@ -24,6 +28,7 @@ const VIEW_SUCCESS = 'success';
 const VIEW_ERROR   = 'error';
 
 export default function RenameDatabaseModal() {
+  const CM = useCM();
   const dispatch = useDispatch();
   const { isRenameDatabaseModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
@@ -39,6 +44,8 @@ export default function RenameDatabaseModal() {
     isSuccess,
     isError
   } = useActionState();
+  const { runJob } = useCmsJob();
+  const [jobStatus, setJobStatus] = useState(null);
 
   const [newDbName, setNewDbName] = useState('');
   const [forcedel, setForcedel] = useState(false);
@@ -63,7 +70,10 @@ export default function RenameDatabaseModal() {
         advanced: 'off',
         forcedel: forcedel ? 'y' : 'n',
       };
-      await dispatch(renameDatabase({ hostUid: selectedHostUid, dbname: selectedDatabase, payload })).unwrap();
+      await runJob(
+        () => databaseJobApi.submitRename(selectedHostUid, selectedDatabase, payload),
+        { onProgress: (j) => setJobStatus(j.jobStatus ?? j.status) }
+      );
       dispatch(fetchDatabaseStartInfo(selectedHostUid));
       endSuccess(`Database "${selectedDatabase}" has been renamed to "${newDbName.trim()}".`);
     } catch (err) {
@@ -74,7 +84,10 @@ export default function RenameDatabaseModal() {
     }
   };
 
-  const handleClose = () => dispatch(closeRenameDatabaseModal());
+  const handleClose = () => {
+    dispatch(closeRenameDatabaseModal());
+    resetAction();
+  };
 
   const hasNewName = newDbName.trim().length > 0;
   const isNameChanged = newDbName.trim() !== selectedDatabase;
@@ -82,10 +95,10 @@ export default function RenameDatabaseModal() {
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title="Renaming Database" icon="drive_file_rename_outline" onClose={handleClose} maxWidth="480px">
-        <ModalStatusLoading 
-          title="Updating Identity" 
-          subtitle={`The system is migrating volumes and updating configuration files for ${selectedDatabase}.`} 
+      <Modal isOpen title={CM.renamingDatabase} icon="drive_file_rename_outline" onClose={handleClose} maxWidth="480px">
+        <ModalStatusLoading
+          title={CM.updatingIdentity}
+          subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
         />
       </Modal>
     );
@@ -94,12 +107,12 @@ export default function RenameDatabaseModal() {
   /* ─── SUCCESS view ─── */
   if (isSuccess) {
     return (
-      <Modal isOpen title="Rename Complete" icon="drive_file_rename_outline" iconVariant="success" onClose={handleClose} maxWidth="480px">
+      <Modal isOpen title={CM.renameComplete} icon="drive_file_rename_outline" iconVariant="success" onClose={handleClose} maxWidth="480px">
         <ModalStatusSuccess 
-          title="Rename Successful"
+          title={CM.renameSuccessful}
           message={`Database ${selectedDatabase} has been renamed to ${newDbName.trim()}.`}
           onConfirm={handleClose}
-          confirmText="Acknowledge"
+          confirmText={CM.ok}
         />
       </Modal>
     );
@@ -108,14 +121,14 @@ export default function RenameDatabaseModal() {
   /* ─── ERROR view ─── */
   if (isError) {
     return (
-      <Modal isOpen title="Rename Failed" icon="drive_file_rename_outline" iconVariant="danger" onClose={handleClose} maxWidth="480px">
+      <Modal isOpen title={CM.renameFailed} icon="drive_file_rename_outline" iconVariant="danger" onClose={handleClose} maxWidth="480px">
         <ModalStatusError 
-          title="Operation Failed"
+          title={CM.operationFailed}
           error={error}
           onRetry={handleRename}
           onCancel={handleClose}
-          retryText="Retry Rename"
-          cancelText="Dismiss"
+          retryText={CM.retryRename}
+          cancelText={CM.dismiss}
         />
       </Modal>
     );
@@ -126,12 +139,12 @@ export default function RenameDatabaseModal() {
     <Modal
       isOpen={isRenameDatabaseModalOpen}
       onClose={handleClose}
-      title="Rename Database"
+      title={CM.renameDatabase}
       icon="drive_file_rename_outline"
       maxWidth="480px"
       footer={
         <div className="flex justify-end gap-3 w-full">
-          <Button variant="secondary" onClick={handleClose}>Discard</Button>
+          <Button variant="secondary" onClick={handleClose}>{CM.discard}</Button>
           <Button
             variant="primary"
             onClick={handleRename}
@@ -139,7 +152,7 @@ export default function RenameDatabaseModal() {
             disabled={!hasNewName || !isNameChanged}
             className="min-w-[140px]"
           >
-            Execute Rename
+            {CM.executeRename}
           </Button>
         </div>
       }
@@ -148,17 +161,17 @@ export default function RenameDatabaseModal() {
 
         {/* Source identity */}
         <div className="space-y-3">
-          <SectionHeader title="Source Database" icon="database" />
+          <SectionHeader title={CM.sourceDatabase} icon="database" />
           <div className="flex items-center gap-4 p-4 bg-slate-50/50 dark:bg-white/3 border border-slate-200 dark:border-white/5 rounded-2xl">
             <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
               <Icon name="database" size="sm" weight={300} className="text-amber-500" />
             </div>
             <div className="flex-1 min-w-0">
-              <Typography variant="caption" className="text-slate-400 dark:text-slate-500 font-medium uppercase tracking-widest">Current Identifier</Typography>
+              <Typography variant="caption" className="text-slate-400 dark:text-slate-500 font-medium uppercase tracking-widest">{CM.currentIdentifier}</Typography>
               <Typography variant="h4" className="text-slate-900 dark:text-white font-bold text-[14px] tracking-tight leading-none mt-0.5">{selectedDatabase}</Typography>
             </div>
             <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-2.5 py-1 rounded-full shrink-0">
-              Active
+              {CM.active}
             </span>
           </div>
         </div>
@@ -174,9 +187,9 @@ export default function RenameDatabaseModal() {
 
         {/* Target identifier */}
         <div className="space-y-3">
-          <SectionHeader title="Target Identifier" icon="label" />
+          <SectionHeader title={CM.targetIdentifier} icon="label" />
           <Input
-            label="New Database Name"
+            label={CM.newDatabaseName}
             value={newDbName}
             onChange={(e) => setNewDbName(e.target.value)}
             placeholder={`${selectedDatabase}_v2`}
@@ -189,7 +202,7 @@ export default function RenameDatabaseModal() {
 
         {/* Overwrite option */}
         <div className="space-y-3">
-          <SectionHeader title="Destructive Options" icon="warning" />
+          <SectionHeader title={CM.destructiveOptions} icon="warning" />
 
           <div
             className={`flex items-center gap-4 p-4 border rounded-2xl transition-all cursor-pointer select-none ${forcedel ? 'bg-rose-500/4 border-rose-500/20 shadow-[0_2px_16px_rgba(244,63,94,0.06)]' : 'bg-white dark:bg-white/2 border-slate-100 dark:border-white/5 hover:border-slate-200 dark:hover:border-white/10'}`}
@@ -200,10 +213,10 @@ export default function RenameDatabaseModal() {
             </div>
             <div className="flex-1 min-w-0">
               <Typography variant="p" className={`font-bold text-[11.5px] tracking-tight transition-colors ${forcedel ? 'text-rose-500' : 'text-slate-900 dark:text-white'}`}>
-                Overwrite Existing Target
+                {CM.overwriteExistingTarget}
               </Typography>
               <Typography variant="caption" className="text-slate-400 dark:text-slate-500 font-medium mt-0.5 leading-snug">
-                Force-delete target path directories if they already exist
+                {CM.overwriteTargetDesc}
               </Typography>
             </div>
             <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -215,12 +228,12 @@ export default function RenameDatabaseModal() {
             <div className="flex items-start gap-2.5 px-3 py-2.5 bg-rose-500/5 border border-rose-500/15 rounded-xl animate-in fade-in duration-200">
               <Icon name="warning" size="xs" weight={300} className="text-rose-400 shrink-0 mt-0.5" />
               <Typography variant="caption" className="text-rose-400 font-medium leading-relaxed">
-                This will permanently delete any existing directory at the target path before migration begins.
+                {CM.overwriteTargetWarning}
               </Typography>
             </div>
           ) : (
-            <InfoBanner title="Downtime Required">
-              Ensure the database service is fully stopped before renaming to prevent binary corruption.
+            <InfoBanner title={CM.downtimeRequired}>
+              {CM.renameDowntimeHint}
             </InfoBanner>
           )}
         </div>

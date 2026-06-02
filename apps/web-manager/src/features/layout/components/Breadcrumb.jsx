@@ -4,6 +4,7 @@ import { MenuItem, MenuDivider } from '../../../components/common/DropdownMenu';
 import { ConfirmDialog } from '../../../components/ds/layout/ConfirmDialog';
 import ContextMenuWrapper from '../../../components/common/ContextMenuWrapper';
 import TabItem from './TabItem';
+import { useCM } from '../../../constants/useCM';
 
 export default function Breadcrumb({ 
   activeTab, 
@@ -14,20 +15,10 @@ export default function Breadcrumb({
   onCloseAll, 
   labels = {} 
 }) {
+  const CM = useCM();
   const [contextMenu, setContextMenu] = useState(null);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, onConfirm: null, title: '', message: '' });
   const { dirtyTabs } = useSelector((state) => state.layout, shallowEqual);
-
-  useEffect(() => {
-    const handleClickOutside = () => setContextMenu(null);
-    window.addEventListener('click', handleClickOutside);
-    window.addEventListener('scroll', handleClickOutside, true);
-    return () => {
-      window.removeEventListener('click', handleClickOutside);
-      window.removeEventListener('scroll', handleClickOutside, true);
-    };
-  }, []);
-
   const handleCloseTab = (tabId, queue = []) => {
     if (dirtyTabs.includes(tabId)) {
       onTabChange(tabId);
@@ -52,6 +43,39 @@ export default function Breadcrumb({
       }
     }
   };
+
+  useEffect(() => {
+    const handleClickOutside = () => setContextMenu(null);
+    window.addEventListener('click', handleClickOutside);
+    window.addEventListener('scroll', handleClickOutside, true);
+    return () => {
+      window.removeEventListener('click', handleClickOutside);
+      window.removeEventListener('scroll', handleClickOutside, true);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'w' || e.key === 'W')) {
+        if (activeTab) {
+          e.preventDefault();
+          handleCloseTab(activeTab);
+        }
+      }
+    };
+    const handleCloseActiveTabEvent = (e) => {
+      if (activeTab) {
+        e.preventDefault();
+        handleCloseTab(activeTab);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('in-app:close-active-tab', handleCloseActiveTabEvent);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('in-app:close-active-tab', handleCloseActiveTabEvent);
+    };
+  }, [activeTab, handleCloseTab]);
 
   const others = React.useMemo(() => openTabs.filter(tid => tid !== activeTab), [openTabs, activeTab]);
   const dirtyOthers = React.useMemo(() => others.filter(tid => dirtyTabs.includes(tid)), [others, dirtyTabs]);
@@ -125,7 +149,7 @@ export default function Breadcrumb({
         >
           <MenuItem 
             icon="close" 
-            label="Close Tab" 
+            label={CM.closeTab} 
             onClick={() => {
               handleCloseTab(contextMenu.tabId);
               setContextMenu(null);
@@ -133,7 +157,7 @@ export default function Breadcrumb({
           />
           <MenuItem 
             icon="close_fullscreen" 
-            label="Close Other Tabs" 
+            label={CM.closeOtherTabs} 
             onClick={() => {
               handleCloseOthers(contextMenu.tabId);
               setContextMenu(null);
@@ -141,7 +165,7 @@ export default function Breadcrumb({
           />
           <MenuItem 
             icon="tab_close" 
-            label="Close All Tabs" 
+            label={CM.closeAllTabs} 
             onClick={() => {
               handleCloseAll();
               setContextMenu(null);
@@ -150,7 +174,7 @@ export default function Breadcrumb({
           <MenuDivider />
           <MenuItem 
             icon="refresh" 
-            label="Reload Tab" 
+            label={CM.reloadTab} 
             onClick={() => setContextMenu(null)}
           />
         </ContextMenuWrapper>
@@ -162,7 +186,7 @@ export default function Breadcrumb({
         message={confirmModal.message}
         onConfirm={confirmModal.onConfirm}
         onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
-        confirmText="Discard Changes"
+        confirmText={CM.discard}
         type="warning"
       />
     </div>

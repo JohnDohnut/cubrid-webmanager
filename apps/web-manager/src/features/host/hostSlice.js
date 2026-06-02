@@ -4,6 +4,55 @@ import { databaseApi } from '../database/databaseApi';
 import { brokerApi } from '../broker/brokerApi';
 import { fetchDatabaseStartInfo } from '../database/databaseSlice';
 import { fetchBrokerList } from '../broker/brokerSlice';
+import { flattenHostsFromGroups, findGroupIdForHost } from './hostGroupUtils';
+
+function purgeHostClientState(state, hostUid) {
+  state.authorizedHosts = state.authorizedHosts.filter((uid) => uid !== hostUid);
+  delete state.haInfo[hostUid];
+  delete state.hostEnvs[hostUid];
+  delete state.hostAuthErrors[hostUid];
+}
+
+function syncHaInfoStorage(state) {
+  try {
+    localStorage.setItem('cubrid_ha_info', JSON.stringify(state.haInfo));
+  } catch {
+    // Storage may be blocked
+  }
+}
+
+function applyHostGroupsResponse(state, hostGroups) {
+  state.hostGroups = hostGroups || {};
+  state.hosts = flattenHostsFromGroups(state.hostGroups);
+  const validUids = new Set(state.hosts.map((h) => h.uid));
+  state.authorizedHosts = state.authorizedHosts.filter((uid) => validUids.has(uid));
+  for (const uid of Object.keys(state.haInfo)) {
+    if (!validUids.has(uid)) delete state.haInfo[uid];
+  }
+  for (const uid of Object.keys(state.hostEnvs)) {
+    if (!validUids.has(uid)) delete state.hostEnvs[uid];
+  }
+  for (const uid of Object.keys(state.hostAuthErrors)) {
+    if (!validUids.has(uid)) delete state.hostAuthErrors[uid];
+  }
+  syncHaInfoStorage(state);
+}
+
+/** Keep selected host/group in sync after host_groups map changes (move, delete, etc.). */
+function syncHostSelection(state) {
+  if (state.selectedHostUid) {
+    const groupId = findGroupIdForHost(state.hostGroups, state.selectedHostUid);
+    if (groupId) {
+      state.selectedGroupUid = groupId;
+    } else {
+      state.selectedHostUid = null;
+    }
+  }
+
+  if (state.selectedGroupUid && !state.hostGroups[state.selectedGroupUid]) {
+    state.selectedGroupUid = null;
+  }
+}
 
 // Async thunk to fetch hosts from API
 export const fetchHosts = createAsyncThunk(
@@ -11,9 +60,7 @@ export const fetchHosts = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await hostApi.getHosts();
-      const hostMap = response.host_list || {};
-      // Convert object map to array
-      return Object.values(hostMap);
+      return response.host_groups || {};
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || 'Failed to fetch hosts');
     }
@@ -26,10 +73,7 @@ export const addHost = createAsyncThunk(
   async (payload, { rejectWithValue }) => {
     try {
       const response = await hostApi.addHost(payload);
-      // Backend returns the updated host_list object map.
-      // So we can extract the new host values and return them to update Redux.
-      const hostMap = response.host_list || {};
-      return Object.values(hostMap);
+      return response.host_groups || {};
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.response?.data?.error || 'Failed to add host');
     }
@@ -41,8 +85,8 @@ export const deleteHost = createAsyncThunk(
   'host/deleteHost',
   async (hostUid, { rejectWithValue }) => {
     try {
-      await hostApi.deleteHost(hostUid);
-      return hostUid;
+      const response = await hostApi.deleteHost(hostUid);
+      return { hostUid, hostGroups: response.host_groups || {} };
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.response?.data?.error || 'Failed to delete host');
     }
@@ -55,10 +99,71 @@ export const editHost = createAsyncThunk(
   async ({ hostUid, payload }, { rejectWithValue }) => {
     try {
       const response = await hostApi.editHost(hostUid, payload);
-      const hostMap = response.host_list || {};
-      return Object.values(hostMap);
+      return response.host_groups || {};
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.response?.data?.error || 'Failed to edit host');
+    }
+  }
+);
+
+export const moveHost = createAsyncThunk(
+  'host/moveHost',
+  async ({ hostUid, targetGroupId }, { rejectWithValue }) => {
+    try {
+      const response = await hostApi.moveHost(hostUid, targetGroupId);
+      return response.host_groups || {};
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.response?.data?.error || 'Failed to move host');
+    }
+  }
+);
+
+export const markGroupHa = createAsyncThunk(
+  'host/markGroupHa',
+  async ({ hostUid, groupName }, { rejectWithValue }) => {
+    try {
+      const response = await hostApi.markGroupHa(hostUid, groupName);
+      return response.host_groups || {};
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || 'Failed to mark HA group');
+    }
+  }
+);
+
+export const createHostGroup = createAsyncThunk(
+  'host/createHostGroup',
+  async ({ name }, { rejectWithValue }) => {
+    try {
+      const response = await hostApi.createGroup({ name });
+      return response.host_groups || {};
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.response?.data?.error || 'Failed to create group');
+    }
+  }
+);
+
+export const updateHostGroup = createAsyncThunk(
+  'host/updateHostGroup',
+  async ({ groupId, payload }, { rejectWithValue }) => {
+    try {
+      const response = await hostApi.updateGroup(groupId, payload);
+      return response.host_groups || {};
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.response?.data?.error || 'Failed to update group');
+    }
+  }
+);
+
+export const deleteHostGroup = createAsyncThunk(
+  'host/deleteHostGroup',
+  async (groupId, { rejectWithValue, getState }) => {
+    try {
+      const group = getState().host.hostGroups[groupId];
+      const removedHostUids = Object.keys(group?.hosts || {});
+      const response = await hostApi.deleteGroup(groupId);
+      return { groupId, hostGroups: response.host_groups || {}, removedHostUids };
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.response?.data?.error || 'Failed to delete group');
     }
   }
 );
@@ -164,7 +269,7 @@ export const loginToHost = createAsyncThunk(
   async (hostUid, { rejectWithValue }) => {
     try {
       const response = await hostApi.loginToHost(hostUid);
-      // The API returns { data: false } or just false on failure
+      // The API returns { success: true, isHA: boolean, ... }
       if (
         response === false ||
         response?.data === false ||
@@ -172,7 +277,7 @@ export const loginToHost = createAsyncThunk(
       ) {
         return rejectWithValue('Host login failed (bad credentials or unavailable)');
       }
-      return hostUid;
+      return { hostUid, ...response };
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.response?.data?.error || `Failed to login to host ${hostUid}`);
     }
@@ -192,19 +297,85 @@ export const fetchHostEnv = createAsyncThunk(
   }
 );
 
+export const fetchCmsUsers = createAsyncThunk(
+  'host/fetchCmsUsers',
+  async (hostUid, { rejectWithValue }) => {
+    try {
+      const response = await hostApi.getCmsUsers(hostUid);
+      // Flatten the nested [ { user: [...] } ] structure from CMS
+      const userlist = (response.userlist || []).flatMap(item => item.user || item);
+      return { hostUid, userlist };
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || 'Failed to fetch CMS users');
+    }
+  }
+);
+
+export const addCmsUser = createAsyncThunk(
+  'host/addCmsUser',
+  async ({ hostUid, payload }, { rejectWithValue }) => {
+    try {
+      const response = await hostApi.addCmsUser(hostUid, payload);
+      const userlist = (response.userlist || []).flatMap(item => item.user || item);
+      return { hostUid, userlist };
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || 'Failed to add CMS user');
+    }
+  }
+);
+
+export const updateCmsUser = createAsyncThunk(
+  'host/updateCmsUser',
+  async ({ hostUid, payload }, { rejectWithValue }) => {
+    try {
+      const response = await hostApi.updateCmsUser(hostUid, payload);
+      const userlist = (response.userlist || []).flatMap(item => item.user || item);
+      return { hostUid, userlist };
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || 'Failed to update CMS user');
+    }
+  }
+);
+
+export const deleteCmsUser = createAsyncThunk(
+  'host/deleteCmsUser',
+  async ({ hostUid, targetid }, { rejectWithValue }) => {
+    try {
+      const response = await hostApi.deleteCmsUser(hostUid, targetid);
+      const userlist = (response.userlist || []).flatMap(item => item.user || item);
+      return { hostUid, userlist };
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || 'Failed to delete CMS user');
+    }
+  }
+);
+
 const initialState = {
   isAddHostModalOpen: false,
   isDeleteHostModalOpen: false,
   isEditHostModalOpen: false,
+  isCreateGroupModalOpen: false,
+  isRenameGroupModalOpen: false,
+  isDeleteGroupModalOpen: false,
+  groupToEditId: null,
+  groupToEditName: null,
   hostToDeleteUid: null,
   hostToDeleteAlias: null,
   hostToEditUid: null,
   isServerVersionModalOpen: false,
   serverVersionHostUid: null,
   hosts: [],
+  hostGroups: {},
   authorizedHosts: [], // Array of hostUids that have active forwarded sessions
   hostEnvs: {}, // Cache of environment info (version, paths, etc) indexed by hostUid
+  haInfo: JSON.parse(localStorage.getItem('cubrid_ha_info') || '{}'), // Cache of HA info (isHA, currentNodeType, haNodes) indexed by hostUid
+  suggestedHaNodes: [],
+  suggestedHaGroupId: null,
+  isDiscoveryModalOpen: false, // Visibility of the discovery modal
+  initialHostData: null, // Data to pre-fill AddHostModal
+  lastAddedHostUid: null, // Tracks newly added host to trigger discovery ONLY on first login
   selectedHostUid: null,
+  selectedGroupUid: null,
   loading: false,
   isLoggingIntoHost: false,
   isServiceOperating: false,
@@ -215,6 +386,11 @@ const initialState = {
   importExportMode: 'export', // 'import' or 'export'
   isChangePasswordModalOpen: false,
   changePasswordHostUid: null,
+  cmsUsers: {}, // { [hostUid]: [] }
+  cmsUsersLoading: {}, // { [hostUid]: boolean }
+  isCmsUserManagementModalOpen: false,
+  isEditCmsUserModalOpen: false,
+  cmsUserToEdit: null, // { hostUid, user }
   error: null,
 };
 
@@ -222,14 +398,27 @@ const hostSlice = createSlice({
   name: 'host',
   initialState,
   reducers: {
-    openAddHostModal: (state) => {
+    openAddHostModal: (state, action) => {
       state.isAddHostModalOpen = true;
+      state.initialHostData = action.payload || null;
     },
     closeAddHostModal: (state) => {
       state.isAddHostModalOpen = false;
+      state.initialHostData = null;
     },
     setSelectedHost: (state, action) => {
       state.selectedHostUid = action.payload;
+      const gid = findGroupIdForHost(state.hostGroups, action.payload);
+      if (gid) state.selectedGroupUid = gid;
+    },
+    setSelectedGroup: (state, action) => {
+      const { groupId, hostUid } = action.payload;
+      state.selectedGroupUid = groupId;
+      if (hostUid) {
+        state.selectedHostUid = hostUid;
+      } else {
+        state.selectedHostUid = null;
+      }
     },
     setServiceProgressMessage: (state, action) => {
       state.serviceProgressMessage = action.payload;
@@ -261,9 +450,56 @@ const hostSlice = createSlice({
       state.isEditHostModalOpen = false;
       state.hostToEditUid = null;
     },
+    openCreateGroupModal: (state) => {
+      state.isCreateGroupModalOpen = true;
+      state.groupToEditId = null;
+      state.groupToEditName = null;
+    },
+    closeCreateGroupModal: (state) => {
+      state.isCreateGroupModalOpen = false;
+    },
+    openRenameGroupModal: (state, action) => {
+      state.isRenameGroupModalOpen = true;
+      state.groupToEditId = action.payload.groupId;
+      state.groupToEditName = action.payload.name;
+    },
+    closeRenameGroupModal: (state) => {
+      state.isRenameGroupModalOpen = false;
+      state.groupToEditId = null;
+      state.groupToEditName = null;
+    },
+    openDeleteGroupModal: (state, action) => {
+      state.isDeleteGroupModalOpen = true;
+      state.groupToEditId = action.payload.groupId;
+      state.groupToEditName = action.payload.name;
+    },
+    closeDeleteGroupModal: (state) => {
+      state.isDeleteGroupModalOpen = false;
+      state.groupToEditId = null;
+      state.groupToEditName = null;
+    },
     openServerVersionModal: (state, action) => {
       state.isServerVersionModalOpen = true;
       state.serverVersionHostUid = action.payload;
+    },
+    setSuggestedHaNodes: (state, action) => {
+      const payload = Array.isArray(action.payload)
+        ? { nodes: action.payload, groupId: null }
+        : action.payload;
+      state.suggestedHaNodes = payload.nodes || [];
+      state.suggestedHaGroupId = payload.groupId ?? null;
+      state.isDiscoveryModalOpen = (payload.nodes || []).length > 0;
+    },
+    clearSuggestedHaNodes: (state) => {
+      state.suggestedHaNodes = [];
+      state.suggestedHaGroupId = null;
+      state.isDiscoveryModalOpen = false;
+    },
+    openDiscoveryModal: (state) => {
+      state.isDiscoveryModalOpen = true;
+    },
+    closeDiscoveryModal: (state) => {
+      state.isDiscoveryModalOpen = false;
     },
     closeServerVersionModal: (state) => {
       state.isServerVersionModalOpen = false;
@@ -287,6 +523,23 @@ const hostSlice = createSlice({
     clearHostError: (state) => {
       state.error = null;
     },
+    clearLastAddedHostUid: (state) => {
+      state.lastAddedHostUid = null;
+    },
+    openCmsUserManagementModal: (state) => {
+      state.isCmsUserManagementModalOpen = true;
+    },
+    closeCmsUserManagementModal: (state) => {
+      state.isCmsUserManagementModalOpen = false;
+    },
+    openEditCmsUserModal: (state, action) => {
+      state.isEditCmsUserModalOpen = true;
+      state.cmsUserToEdit = action.payload; // { hostUid, user } (user is null for add)
+    },
+    closeEditCmsUserModal: (state) => {
+      state.isEditCmsUserModalOpen = false;
+      state.cmsUserToEdit = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -296,7 +549,7 @@ const hostSlice = createSlice({
       })
       .addCase(fetchHosts.fulfilled, (state, action) => {
         state.loading = false;
-        state.hosts = action.payload;
+        applyHostGroupsResponse(state, action.payload);
       })
       .addCase(fetchHosts.rejected, (state, action) => {
         state.loading = false;
@@ -308,8 +561,15 @@ const hostSlice = createSlice({
       })
       .addCase(addHost.fulfilled, (state, action) => {
         state.loading = false;
-        state.hosts = action.payload; // Payload is the full updated host list array
-        state.isAddHostModalOpen = false; // Auto close modal on success
+        const prevUids = new Set(state.hosts.map((h) => h.uid));
+        applyHostGroupsResponse(state, action.payload);
+        const newHost = state.hosts.find((h) => !prevUids.has(h.uid));
+        if (newHost) {
+          state.lastAddedHostUid = newHost.uid;
+          state.selectedHostUid = newHost.uid;
+          state.selectedGroupUid = findGroupIdForHost(state.hostGroups, newHost.uid);
+        }
+        state.isAddHostModalOpen = false;
       })
       .addCase(addHost.rejected, (state, action) => {
         state.loading = false;
@@ -326,9 +586,12 @@ const hostSlice = createSlice({
       .addCase(loginToHost.fulfilled, (state, action) => {
         state.isLoggingIntoHost = false;
         state.loading = false;
-        if (!state.authorizedHosts.includes(action.payload)) {
-          state.authorizedHosts.push(action.payload);
+        const { hostUid, ...haInfo } = action.payload;
+        if (!state.authorizedHosts.includes(hostUid)) {
+          state.authorizedHosts.push(hostUid);
         }
+        state.haInfo[hostUid] = haInfo;
+        localStorage.setItem('cubrid_ha_info', JSON.stringify(state.haInfo));
       })
       .addCase(loginToHost.rejected, (state, action) => {
         state.isLoggingIntoHost = false;
@@ -342,11 +605,11 @@ const hostSlice = createSlice({
       })
       .addCase(deleteHost.fulfilled, (state, action) => {
         state.loading = false;
-        state.hosts = state.hosts.filter(h => h.uid !== action.payload);
-        if (state.selectedHostUid === action.payload) {
-          state.selectedHostUid = null;
-        }
-        state.authorizedHosts = state.authorizedHosts.filter(uid => uid !== action.payload);
+        const { hostUid, hostGroups } = action.payload;
+        applyHostGroupsResponse(state, hostGroups);
+        purgeHostClientState(state, hostUid);
+        syncHostSelection(state);
+        syncHaInfoStorage(state);
         state.isDeleteHostModalOpen = false;
         state.hostToDeleteUid = null;
       })
@@ -360,9 +623,22 @@ const hostSlice = createSlice({
       })
       .addCase(editHost.fulfilled, (state, action) => {
         state.loading = false;
-        state.hosts = action.payload; // Payload is the full updated host list array
+        applyHostGroupsResponse(state, action.payload);
       })
       .addCase(editHost.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(moveHost.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(moveHost.fulfilled, (state, action) => {
+        state.loading = false;
+        applyHostGroupsResponse(state, action.payload);
+        syncHostSelection(state);
+      })
+      .addCase(moveHost.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
@@ -407,10 +683,109 @@ const hostSlice = createSlice({
         state.serviceOperationType = null;
         state.error = action.payload;
       })
+      .addCase(markGroupHa.fulfilled, (state, action) => {
+        applyHostGroupsResponse(state, action.payload);
+      })
+      .addCase(createHostGroup.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createHostGroup.fulfilled, (state, action) => {
+        state.loading = false;
+        applyHostGroupsResponse(state, action.payload);
+        state.isCreateGroupModalOpen = false;
+      })
+      .addCase(createHostGroup.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(updateHostGroup.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateHostGroup.fulfilled, (state, action) => {
+        state.loading = false;
+        applyHostGroupsResponse(state, action.payload);
+        state.isRenameGroupModalOpen = false;
+        state.groupToEditId = null;
+        state.groupToEditName = null;
+      })
+      .addCase(updateHostGroup.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(deleteHostGroup.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteHostGroup.fulfilled, (state, action) => {
+        state.loading = false;
+        const { groupId, hostGroups, removedHostUids = [] } = action.payload;
+        applyHostGroupsResponse(state, hostGroups);
+        const removedSet = new Set(removedHostUids);
+        if (removedSet.has(state.selectedHostUid)) {
+          state.selectedHostUid = null;
+        }
+        syncHostSelection(state);
+        removedHostUids.forEach((uid) => purgeHostClientState(state, uid));
+        syncHaInfoStorage(state);
+        state.isDeleteGroupModalOpen = false;
+        state.groupToEditId = null;
+        state.groupToEditName = null;
+      })
+      .addCase(deleteHostGroup.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
       .addCase(fetchHostEnv.fulfilled, (state, action) => {
         const { hostUid, env } = action.payload;
         state.hostEnvs[hostUid] = env;
-      });
+      })
+      // CMS Users fetching
+      .addCase(fetchCmsUsers.pending, (state, action) => {
+        state.cmsUsersLoading[action.meta.arg] = true;
+      })
+      .addCase(fetchCmsUsers.fulfilled, (state, action) => {
+        const { hostUid, userlist } = action.payload;
+        state.cmsUsersLoading[hostUid] = false;
+        state.cmsUsers[hostUid] = userlist;
+      })
+      .addCase(fetchCmsUsers.rejected, (state, action) => {
+        state.cmsUsersLoading[action.meta.arg] = false;
+        state.error = action.payload;
+      })
+      // CMS Users CRUD operations (all return the updated userlist)
+      .addMatcher(
+        (action) =>
+          [addCmsUser.fulfilled, updateCmsUser.fulfilled, deleteCmsUser.fulfilled].some(
+            (type) => action.type === type
+          ),
+        (state, action) => {
+          const { hostUid, userlist } = action.payload;
+          state.cmsUsers[hostUid] = userlist;
+          state.loading = false;
+        }
+      )
+      .addMatcher(
+        (action) =>
+          [addCmsUser.pending, updateCmsUser.pending, deleteCmsUser.pending].some(
+            (type) => action.type === type
+          ),
+        (state) => {
+          state.loading = true;
+          state.error = null;
+        }
+      )
+      .addMatcher(
+        (action) =>
+          [addCmsUser.rejected, updateCmsUser.rejected, deleteCmsUser.rejected].some(
+            (type) => action.type === type
+          ),
+        (state, action) => {
+          state.loading = false;
+          state.error = action.payload;
+        }
+      );
   },
 });
 
@@ -418,19 +793,35 @@ export const {
   openAddHostModal,
   closeAddHostModal,
   setSelectedHost,
+  setSelectedGroup,
   revokeHostLogin,
   openDeleteHostModal,
   closeDeleteHostModal,
   openEditHostModal,
   closeEditHostModal,
+  openCreateGroupModal,
+  closeCreateGroupModal,
+  openRenameGroupModal,
+  closeRenameGroupModal,
+  openDeleteGroupModal,
+  closeDeleteGroupModal,
   openServerVersionModal,
   closeServerVersionModal,
+  setSuggestedHaNodes,
+  clearSuggestedHaNodes,
+  openDiscoveryModal,
+  closeDiscoveryModal,
   openImportExportModal,
   closeImportExportModal,
   openChangePasswordModal,
   closeChangePasswordModal,
   clearHostError,
   setServiceProgressMessage,
+  clearLastAddedHostUid,
+  openCmsUserManagementModal,
+  closeCmsUserManagementModal,
+  openEditCmsUserModal,
+  closeEditCmsUserModal,
 } = hostSlice.actions;
 
 export default hostSlice.reducer;

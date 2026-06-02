@@ -2,8 +2,8 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { setAuthToken } from '../../api/apiClient';
 import { authApi } from './authApi';
 
-// Initialize from localStorage
 const token = localStorage.getItem('token');
+const refreshToken = localStorage.getItem('refreshToken');
 
 export const fetchUser = createAsyncThunk(
   'auth/fetchUser',
@@ -29,10 +29,26 @@ export const updateAccount = createAsyncThunk(
   }
 );
 
+export const logoutUser = createAsyncThunk(
+  'auth/logoutUser',
+  async (_, { getState, dispatch }) => {
+    const storedRefresh = getState().auth.refreshToken || localStorage.getItem('refreshToken');
+    try {
+      await authApi.logout(storedRefresh);
+    } catch {
+      // Clear client session even when server logout fails (e.g. expired access token).
+    } finally {
+      // Must trigger root reducer reset path (`auth/logout`) to clear all slices.
+      dispatch(logout());
+    }
+  }
+);
+
 const initialState = {
   isAuthenticated: !!token,
   token: token || null,
-  user: null, // Detailed user object from /user
+  refreshToken: refreshToken || null,
+  user: null,
   loading: false,
   error: null,
 };
@@ -46,12 +62,40 @@ const authSlice = createSlice({
       state.error = null;
     },
     loginSuccess: (state, action) => {
+      if (!action.payload?.token || !action.payload?.refreshToken) {
+        state.loading = false;
+        state.isAuthenticated = false;
+        state.token = null;
+        state.refreshToken = null;
+        state.user = null;
+        state.error = 'Login response missing required tokens';
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        setAuthToken(null);
+        return;
+      }
       state.loading = false;
       state.isAuthenticated = true;
       state.token = action.payload.token;
-      state.user = action.payload.user; // This might be partial from login
+      state.refreshToken = action.payload.refreshToken ?? null;
+      state.user = action.payload.user;
       state.error = null;
       localStorage.setItem('token', action.payload.token);
+      if (action.payload.refreshToken) {
+        localStorage.setItem('refreshToken', action.payload.refreshToken);
+      } else {
+        localStorage.removeItem('refreshToken');
+      }
+      setAuthToken(action.payload.token);
+    },
+    sessionRefreshed: (state, action) => {
+      state.token = action.payload.token;
+      state.refreshToken = action.payload.refreshToken ?? state.refreshToken;
+      state.isAuthenticated = true;
+      localStorage.setItem('token', action.payload.token);
+      if (action.payload.refreshToken) {
+        localStorage.setItem('refreshToken', action.payload.refreshToken);
+      }
       setAuthToken(action.payload.token);
     },
     loginFailure: (state, action) => {
@@ -61,9 +105,11 @@ const authSlice = createSlice({
     logout: (state) => {
       state.isAuthenticated = false;
       state.token = null;
+      state.refreshToken = null;
       state.user = null;
       state.error = null;
       localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
       setAuthToken(null);
     },
     clearError: (state) => {
@@ -97,5 +143,12 @@ const authSlice = createSlice({
   },
 });
 
-export const { loginStart, loginSuccess, loginFailure, logout, clearError } = authSlice.actions;
+export const {
+  loginStart,
+  loginSuccess,
+  loginFailure,
+  sessionRefreshed,
+  logout,
+  clearError,
+} = authSlice.actions;
 export default authSlice.reducer;

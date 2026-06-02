@@ -1,4 +1,5 @@
 // Response exports
+export * from './cms-job-response';
 export * from './cms-success-client-response';
 export * from './db-response';
 export * from './get-dbs-response';
@@ -64,6 +65,7 @@ export * from './add-vol-db-response';
 export * from './lock-database-response';
 export * from './get-auto-exec-query-err-log-response';
 export * from './get-auto-backup-db-err-log-response';
+export * from './get-auto-add-vol-log-response';
 export * from './get-transaction-info-response';
 export * from './kill-transaction-response';
 export * from './delete-database-response';

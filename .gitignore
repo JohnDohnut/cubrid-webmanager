@@ -4,6 +4,7 @@ node_modules/
 
 # Build outputs
 dist/
+dev-dist/
 out-tsc/
 *.tsbuildinfo
 
@@ -115,3 +116,8 @@ docs/
 local-e2e/
 playwright-report/
 test-results/
+cwm-workspace/
+
+# Desktop Local Runtime Data
+desktop-settings.json
+cwm-vault/
