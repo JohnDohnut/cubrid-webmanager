@@ -5,7 +5,8 @@
  * Output: dist/package/{platform}/
  *   ├── cwm-linux | cwm.exe | cwm-macos
  *   ├── public/
- *   └── cwm.conf.sample
+ *   └── conf/
+ *       └── cwm.conf.sample   (rename to cwm.conf before first run)
  *
  * Usage: node scripts/assemble-package.mjs <linux|windows|macos|all>
  */
@@ -61,15 +62,17 @@ function assemble(platform) {
   }
   fs.cpSync(PUBLIC_SRC, path.join(outDir, 'public'), { recursive: true });
 
-  // cwm.conf.sample
+  // conf/cwm.conf.sample
+  const confDir = path.join(outDir, 'conf');
+  fs.mkdirSync(confDir, { recursive: true });
   if (fs.existsSync(CONF_SAMPLE)) {
-    fs.copyFileSync(CONF_SAMPLE, path.join(outDir, 'cwm.conf.sample'));
+    fs.copyFileSync(CONF_SAMPLE, path.join(confDir, 'cwm.conf.sample'));
   }
 
   console.log(`\n✅ Package assembled: ${outDir}`);
   console.log(`   ${info.dest}`);
   console.log(`   public/`);
-  console.log(`   cwm.conf.sample`);
+  console.log(`   conf/cwm.conf.sample  ← rename to cwm.conf before first run`);
 }
 
 const arg = process.argv[2];

@@ -98,12 +98,15 @@ npm run package:all      # 전 플랫폼 동시
 dist/package/linux/
   ├── cwm-linux          # 실행파일 (Node.js 내장)
   ├── public/            # React 정적 파일
-  └── cwm.conf.sample    # 설정 파일 샘플
+  └── conf/
+      └── cwm.conf.sample  # 설정 파일 샘플 → cwm.conf로 복사 후 편집
 ```
+
+업데이트 시 `cwm-linux`와 `public/`만 교체하면 된다. `conf/`는 건드리지 않는다.
 
 #### cwm.conf 설정
 
-배포 폴더에 `cwm.conf.sample`을 `cwm.conf`로 복사 후 편집합니다:
+`conf/cwm.conf.sample`을 `conf/cwm.conf`로 복사 후 편집합니다:
 
 ```json
 {
