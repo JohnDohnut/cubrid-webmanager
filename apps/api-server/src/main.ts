@@ -36,12 +36,14 @@ async function bootstrap() {
     app.enableCors({
       origin: (origin, callback) => {
         if (!origin) {
-          // No Origin header = same-origin request (browser omits it) or
-          // non-browser client. Always allow — CORS only applies cross-origin.
+          // No Origin header = same-origin request or non-browser client.
           callback(null, true);
           return;
         }
-        if (whitelist.includes(origin)) {
+        // No explicit whitelist = single-server deployment (NestJS serves
+        // both API and static files). ES module <script> tags send Origin
+        // even for same-origin assets, so allow all when unconfigured.
+        if (whitelist.length === 0 || whitelist.includes(origin)) {
           callback(null, true);
           return;
         }
