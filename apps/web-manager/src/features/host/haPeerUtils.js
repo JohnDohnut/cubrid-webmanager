@@ -51,10 +51,26 @@ export function hostMatchesHaPeer(host, peer) {
   const nIp = normalizeIdent(peer?.ip);
   const nHost = normalizeIdent(peer?.hostname);
 
+  // Exact identity matches (always authoritative).
   if (hAddr === nIp || hAddr === nHost) return true;
-  if (hostnameMatches(hAddr, nHost) || hostnameMatches(hAlias, nHost)) return true;
+
+  // IP-confirmed hostname match.
   if (nIp && (hAddr === nIp || hostnameMatches(hAddr, nIp))) return true;
-  return isLoopback(hAddr) && (isLoopback(nIp) || isLoopback(nHost));
+
+  // Loopback special case.
+  if (isLoopback(hAddr) && (isLoopback(nIp) || isLoopback(nHost))) return true;
+
+  // Stored address is FQDN but peer exposes only a bare short hostname (no dot):
+  // the first label is too coarse — node1.prod.example.com and node1.dev.example.com
+  // both reduce to "node1", so a first-label match is meaningless without IP evidence.
+  // IP evidence was checked above; if we reach here it did not confirm identity.
+  // Allow the match only when the host alias is itself a plain label that directly
+  // names the peer (explicit user-managed short alias → explicit peer name).
+  if (hAddr.includes('.') && nHost.length > 0 && !nHost.includes('.')) {
+    return hAlias.length > 0 && !hAlias.includes('.') && hAlias === nHost;
+  }
+
+  return hostnameMatches(hAddr, nHost) || hostnameMatches(hAlias, nHost);
 }
 
 export function findHostMatchingHaPeer(hosts, peer, excludeHostUid) {
