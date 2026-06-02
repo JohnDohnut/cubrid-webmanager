@@ -30,7 +30,12 @@ export class CmsJobStore {
   async saveJob(userKey: string, record: CmsJobRecord): Promise<void> {
     const dir = this.userJobsDir(userKey);
     await fs.mkdir(dir, { recursive: true });
-    await fs.writeFile(this.jobPath(userKey, record.jobId), JSON.stringify(record), 'utf8');
+    const finalPath = this.jobPath(userKey, record.jobId);
+    const tmpPath = `${finalPath}.tmp`;
+    await fs.writeFile(tmpPath, JSON.stringify(record), 'utf8');
+    // Atomic replace: rename is POSIX-atomic on the same filesystem,
+    // so readers never observe a truncated or partially-written file.
+    await fs.rename(tmpPath, finalPath);
   }
 
   async getJob(userKey: string, jobId: string): Promise<CmsJobRecord | null> {
@@ -58,10 +63,12 @@ export class CmsJobStore {
         try {
           jobs.push(JSON.parse(result.value) as CmsJobRecord);
         } catch {
-          // Corrupt or partially-written file — delete it so it does not
-          // permanently block /jobs/active or startup orphan recovery.
-          const filePath = path.join(dir, jsonFiles[i]);
-          await fs.unlink(filePath).catch(() => undefined);
+          // Parse failure: skip this file. Do NOT delete it here —
+          // saveJob() writes atomically via tmp+rename, but a concurrent
+          // write could still produce a .tmp file that was renamed between
+          // readdir and readFile. Deleting on parse failure risks removing
+          // a live job file that a worker is about to overwrite correctly.
+          // Genuinely corrupt files are collected by the periodic purge.
         }
       }
       return jobs.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
