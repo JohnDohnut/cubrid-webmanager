@@ -141,7 +141,8 @@ describe('DatabaseManagementService', () => {
           target: 'both',
           dbuser: request.dbuser,
           dbpasswd: request.dbpasswd,
-        })
+        }),
+        expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
       expect(result).toEqual(mockSuccessResponse.result);
     });
@@ -161,7 +162,8 @@ describe('DatabaseManagementService', () => {
         expect.any(String),
         expect.objectContaining({
           target: 'schema',
-        })
+        }),
+        expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
       expect(result).toEqual(mockSuccessResponse.result);
     });
@@ -181,7 +183,8 @@ describe('DatabaseManagementService', () => {
         expect.any(String),
         expect.objectContaining({
           target: 'object',
-        })
+        }),
+          expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
       expect(result).toEqual(mockSuccessResponse.result);
     });
@@ -224,7 +227,8 @@ describe('DatabaseManagementService', () => {
           prefix: 'backup',
           cach: '100',
           lofile: '10',
-        })
+        }),
+          expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
     });
 
@@ -460,7 +464,8 @@ describe('DatabaseManagementService', () => {
           index: baseRequest.index,
           errorcontrolfile: baseRequest.errorcontrolfile,
           ignoreclassfile: baseRequest.ignoreclassfile,
-        })
+        }),
+        expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
       expect(result).toEqual({ success: true });
     });
@@ -504,7 +509,8 @@ describe('DatabaseManagementService', () => {
           index: fullRequest.index,
           errorcontrolfile: fullRequest.errorcontrolfile,
           ignoreclassfile: fullRequest.ignoreclassfile,
-        })
+        }),
+          expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
     });
 
@@ -648,7 +654,8 @@ describe('DatabaseManagementService', () => {
           token: mockHost.token,
           dbname: mockDbname,
           repairdb: 'n',
-        }
+        },
+        expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
       expect(result).toEqual({ success: true });
     });
@@ -668,7 +675,8 @@ describe('DatabaseManagementService', () => {
         expect.any(String),
         expect.objectContaining({
           repairdb: 'y',
-        })
+        }),
+        expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
       expect(result).toEqual({ success: true });
     });
@@ -760,7 +768,8 @@ describe('DatabaseManagementService', () => {
           token: mockHost.token,
           dbname: mockDbname,
           verbose: 'y',
-        }
+        },
+        expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
       expect(result).toEqual({
         success: true,
@@ -783,7 +792,8 @@ describe('DatabaseManagementService', () => {
         expect.any(String),
         expect.objectContaining({
           verbose: 'n',
-        })
+        }),
+        expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
       expect(result).toEqual({ success: true });
     });
@@ -888,7 +898,8 @@ describe('DatabaseManagementService', () => {
           advanced: 'on',
           volume: expectedCmsVolumeMapping,
           forcedel: 'n',
-        }
+        },
+        expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
       expect(result).toEqual(mockStartInfoResponse);
     });
@@ -914,13 +925,15 @@ describe('DatabaseManagementService', () => {
         expect.objectContaining({
           advanced: 'off',
           forcedel: 'n',
-        })
+        }),
+          expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
       expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
         expect.any(String),
         expect.not.objectContaining({
           volume: expect.anything(),
-        })
+        }),
+          expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
       expect(result).toEqual(mockStartInfoResponse);
     });
@@ -1111,7 +1124,8 @@ describe('DatabaseManagementService', () => {
           path: mockRequest.path,
           numberofpages: mockRequest.numberofpages,
           size_need_mb: mockRequest.size_need_mb,
-        }
+        },
+        expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
       expect(result).toEqual({
         dbname: 'test',
