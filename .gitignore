@@ -113,7 +113,9 @@ Desktop.ini
 *.swp
 *.swo
 docs/
-local-e2e/
+local-e2e/.env
+local-e2e/playwright-report/
+local-e2e/test-results/
 playwright-report/
 test-results/
 cwm-workspace/
