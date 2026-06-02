@@ -20,7 +20,6 @@ async function bootstrap() {
   const listenHost = configService.getListenHost();
   const allowedOrigins = configService.getAllowedOrigins();
   const desktopMode = (process.env.CWM_DESKTOP ?? '').trim() === '1';
-  const trustLocalProxy = (process.env.CWM_TRUST_LOCAL_PROXY ?? '').trim() === '1';
   console.log('[main.ts] Allowed Origins from ConfigService:', allowedOrigins);
 
   if (allowedOrigins.includes('*')) {
@@ -37,11 +36,9 @@ async function bootstrap() {
     app.enableCors({
       origin: (origin, callback) => {
         if (!origin) {
-          if (desktopMode || trustLocalProxy) {
-            callback(null, true);
-            return;
-          }
-          callback(new Error('Not allowed by CORS'));
+          // No Origin header = same-origin request (browser omits it) or
+          // non-browser client. Always allow — CORS only applies cross-origin.
+          callback(null, true);
           return;
         }
         if (whitelist.includes(origin)) {
