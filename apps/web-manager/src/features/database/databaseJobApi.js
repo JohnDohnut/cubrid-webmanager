@@ -33,8 +33,8 @@ export function formatCmsJobError(job) {
 /** Align with api-server CMS long job timeout (default 12h). */
 export const CMS_JOB_LONG_TIMEOUT_MS = 12 * 60 * 60 * 1000;
 
-/** Job submit must not use the default 15s client timeout. */
-const JOB_SUBMIT_TIMEOUT_MS = CMS_JOB_LONG_TIMEOUT_MS;
+/** Submit returns 202 immediately — 30s is generous for a queue enqueue. */
+const JOB_SUBMIT_TIMEOUT_MS = 30_000;
 /** Per status poll; each GET /jobs/:id should return quickly. */
 const JOB_POLL_TIMEOUT_MS = 120_000;
 
@@ -81,13 +81,33 @@ export const databaseJobApi = {
     submitJob(`/${hostUid}/database/rename/${encodeURIComponent(dbname)}`, payload),
 };
 
+const POLL_MAX_RETRIES = 3;
+const POLL_MIN_INTERVAL_MS = 2_000;
+const POLL_MAX_INTERVAL_MS = 30_000;
+
+/**
+ * Compute next poll interval using exponential back-off based on elapsed time.
+ * Starts at POLL_MIN_INTERVAL_MS and doubles every ~5 minutes up to POLL_MAX_INTERVAL_MS.
+ */
+function adaptiveInterval(startedAt) {
+  const elapsed = Date.now() - startedAt;
+  const steps = Math.floor(elapsed / (5 * 60 * 1000));
+  const interval = POLL_MIN_INTERVAL_MS * Math.pow(2, steps);
+  return Math.min(interval, POLL_MAX_INTERVAL_MS);
+}
+
 /**
  * Poll until job reaches succeeded or failed.
+ * - Interval adapts: starts at 2s, backs off to 30s over time.
+ * - Transient network errors are retried up to POLL_MAX_RETRIES times before
+ *   the poll is rejected.
  * @returns {{ promise: Promise<object>, cancel: () => void }}
  */
-export function pollCmsJob(jobId, { intervalMs = 3000, onUpdate } = {}) {
+export function pollCmsJob(jobId, { onUpdate } = {}) {
   let cancelled = false;
   let timerId = null;
+  let consecutiveErrors = 0;
+  const pollStartedAt = Date.now();
 
   const cancel = () => {
     cancelled = true;
@@ -108,6 +128,7 @@ export function pollCmsJob(jobId, { intervalMs = 3000, onUpdate } = {}) {
       try {
         const job = await databaseJobApi.getJob(jobId);
         if (cancelled) return;
+        consecutiveErrors = 0;
         if (onUpdate) {
           try {
             onUpdate(job);
@@ -126,9 +147,15 @@ export function pollCmsJob(jobId, { intervalMs = 3000, onUpdate } = {}) {
           return;
         }
 
-        timerId = setTimeout(tick, intervalMs);
+        timerId = setTimeout(tick, adaptiveInterval(pollStartedAt));
       } catch (err) {
-        finish(reject, err);
+        consecutiveErrors += 1;
+        if (consecutiveErrors >= POLL_MAX_RETRIES) {
+          finish(reject, err);
+          return;
+        }
+        // Transient error — retry after normal interval.
+        timerId = setTimeout(tick, adaptiveInterval(pollStartedAt));
       }
     };
     tick();

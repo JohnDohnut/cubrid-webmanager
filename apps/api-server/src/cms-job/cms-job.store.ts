@@ -47,11 +47,15 @@ export class CmsJobStore {
     const dir = this.userJobsDir(userKey);
     try {
       const files = await fs.readdir(dir);
+      const jsonFiles = files.filter((f) => f.endsWith('.json'));
+      const results = await Promise.allSettled(
+        jsonFiles.map((f) => fs.readFile(path.join(dir, f), 'utf8'))
+      );
       const jobs: CmsJobRecord[] = [];
-      for (const file of files) {
-        if (!file.endsWith('.json')) continue;
-        const raw = await fs.readFile(path.join(dir, file), 'utf8');
-        jobs.push(JSON.parse(raw) as CmsJobRecord);
+      for (const result of results) {
+        if (result.status === 'fulfilled') {
+          jobs.push(JSON.parse(result.value) as CmsJobRecord);
+        }
       }
       return jobs.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     } catch (err: any) {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Icon } from '../../components/ds/foundation/Icon';
 import { Typography } from '../../components/ds/foundation/Typography';
 import { useCM } from '../../constants/useCM';
@@ -7,6 +7,30 @@ import {
   getCmsJobStatusLabel,
   isTerminalCmsJobStatus,
 } from './cmsJobLabels';
+
+function formatElapsed(ms) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+function useElapsedTime(startedAt, active) {
+  const [elapsed, setElapsed] = useState(() =>
+    startedAt ? Date.now() - Date.parse(startedAt) : 0
+  );
+  useEffect(() => {
+    if (!active || !startedAt) return;
+    const id = setInterval(() => {
+      setElapsed(Date.now() - Date.parse(startedAt));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [active, startedAt]);
+  return elapsed;
+}
 
 function StatusBadge({ status, CM }) {
   const base = 'text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full';
@@ -41,6 +65,8 @@ function StatusBadge({ status, CM }) {
 function JobRow({ job, CM, onDismiss }) {
   const isActive = job.jobStatus === 'queued' || job.jobStatus === 'running';
   const op = getCmsJobTypeLabel(job.type, CM);
+  const anchorAt = job.startedAt || job.createdAt;
+  const elapsed = useElapsedTime(anchorAt, isActive);
 
   return (
     <li className="flex items-start gap-2 px-3 py-2 border-b border-slate-100 dark:border-white/5 last:border-0">
@@ -60,6 +86,11 @@ function JobRow({ job, CM, onDismiss }) {
         <Typography variant="p" className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
           {job.dbname || '—'}
         </Typography>
+        {isActive && anchorAt && (
+          <Typography variant="p" className="text-[10px] text-amber-600 dark:text-amber-400 tabular-nums">
+            {formatElapsed(elapsed)}
+          </Typography>
+        )}
         {job.jobStatus === 'failed' && job.error?.message && (
           <Typography variant="p" className="text-[10px] text-red-600 dark:text-red-400 mt-0.5 line-clamp-2">
             {job.error.message}

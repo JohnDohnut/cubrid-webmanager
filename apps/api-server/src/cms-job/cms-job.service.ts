@@ -140,7 +140,6 @@ export class CmsJobService implements OnModuleInit, OnModuleDestroy {
       payload,
     };
     await this.store.saveJob(uKey, record);
-    void this.runJobCleanup('create');
 
     setImmediate(() => {
       void this.runJob(uKey, jobId, operationKey).catch((err) => {
