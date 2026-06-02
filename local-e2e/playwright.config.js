@@ -24,25 +24,14 @@ module.exports = defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
-  webServer: [
-    {
-      // Frontend — Vite dev server
-      command: 'npm run dev:web-manager',
-      cwd: path.join(__dirname, '..'),
-      url: 'http://localhost:5173',
-      reuseExistingServer: true,
-      timeout: 60_000,
-    },
-    {
-      // API server — NestJS (dev mode, CORS allows *)
-      command: 'npm run dev:api-server',
-      cwd: path.join(__dirname, '..'),
-      url: 'https://localhost:8080',
-      reuseExistingServer: true,
-      timeout: 120_000,
-      ignoreHTTPSErrors: true,
-    },
-  ],
+  webServer: {
+    command: 'npm run start',
+    cwd: path.join(__dirname, '..'),
+    url: BASE_URL,
+    reuseExistingServer: true,
+    timeout: 30_000,
+    ignoreHTTPSErrors: true,
+  },
   use: {
     baseURL: BASE_URL,
     trace: 'on-first-retry',
