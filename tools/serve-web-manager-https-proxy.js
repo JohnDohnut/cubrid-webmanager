@@ -72,12 +72,15 @@ if (!fs.existsSync(BUILD_DIR)) {
 
 const app = express();
 
+// Mount at root so Express does not strip the /api prefix before proxy sees it.
+// pathFilter ensures only /api/* is forwarded; the full path (including /api)
+// reaches NestJS which owns the prefix via setGlobalPrefix('api').
 app.use(
-  '/api',
   createProxyMiddleware({
     target: API_TARGET,
     changeOrigin: true,
     secure: !proxyInsecureTls,
+    pathFilter: '/api',
   })
 );
 
