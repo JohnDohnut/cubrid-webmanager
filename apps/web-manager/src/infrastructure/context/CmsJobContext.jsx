@@ -114,7 +114,6 @@ export function CmsJobProvider({ children }) {
         }
       }
 
-      const existing = isCmsJobPolling(jobId);
       const pollPromise = runCmsJobInBackground(jobId, { onUpdate });
 
       try {
