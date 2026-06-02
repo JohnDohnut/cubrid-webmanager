@@ -56,7 +56,10 @@ async function bootstrap() {
     });
   }
 
-  app.setGlobalPrefix('api');
+  // Desktop mode uses UDS + Electron proxy that strips /api — no prefix needed.
+  if (!desktopMode) {
+    app.setGlobalPrefix('api');
+  }
   app.useGlobalFilters(new GlobalExceptionFilter());
   app.useGlobalInterceptors(new LoggingInterceptor(), new SuccessResponseInterceptor());
 
