@@ -135,6 +135,7 @@
     "dev:web-manager": "nx dev web-manager",
     "dev:api-server": "nx serve api-server",
     "dev:stack": "node tools/run-web-manager-https-stack.js",
+    "dev:electron": "nx run desktop:serve",
 
     "build:web-manager": "nx build web-manager",
     "build:api-server": "nx build api-server",
@@ -147,6 +148,11 @@
     "package:windows": "npm run build:server && nx run api-server:build:exe:windows && node scripts/assemble-package.mjs windows",
     "package:macos": "npm run build:server && nx run api-server:build:exe:macos && node scripts/assemble-package.mjs macos",
     "package:all": "npm run build:server && nx run api-server:build:exe:all && node scripts/assemble-package.mjs all",
+
+    "package:electron": "nx run desktop:package",
+    "package:electron:mac": "nx run desktop:package -- --mac",
+    "package:electron:win": "nx run desktop:package -- --win",
+    "package:electron:linux": "nx run desktop:package -- --linux",
 
     "lint": "nx run-many -t lint --all",
     "lint:web-manager": "nx lint web-manager",
