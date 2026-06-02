@@ -7,6 +7,11 @@ function isPackagedRuntime(): boolean {
   }
 
   // electron-builder dir output: .../MyApp.app/Contents/MacOS/MyApp
+  // Guard: dev mode uses npx/npm electron whose execPath is inside node_modules — not packaged.
+  if (process.execPath.includes('node_modules')) {
+    return false;
+  }
+
   return process.platform === 'darwin' && process.execPath.includes('.app/Contents/MacOS/');
 }
 
