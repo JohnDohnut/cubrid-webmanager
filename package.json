@@ -167,7 +167,7 @@
     "pkg:api-server:linux": "nx run api-server:build:exe:linux",
     "pkg:api-server:windows": "nx run api-server:build:exe:windows",
     "pkg:api-server:macos": "nx run api-server:build:exe:macos",
-    "pkg:api-server:all": "nx run api-server:build:exe:all"
+    "pkg:api-server:all": "nx run api-server:build:exe:all",
     "serve:web-manager:dist:4200": "node tools/serve-web-manager.js 4200",
     "serve:web-manager:dist:8080": "node tools/serve-web-manager.js 8080"
   },
