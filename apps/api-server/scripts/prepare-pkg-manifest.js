@@ -20,6 +20,7 @@ if (!rootPackage.pkg) {
 const target = readArg('--target');
 const setBin = process.argv.includes('--set-bin');
 
+distPackage.name = 'cubrid-web-manager';
 distPackage.pkg = target ? { ...rootPackage.pkg, targets: [target] } : rootPackage.pkg;
 if (setBin || target) {
   distPackage.bin = { 'cubrid-web-manager': 'main.js' };
