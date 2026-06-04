@@ -43,10 +43,11 @@ async function bootstrap() {
           callback(null, true);
           return;
         }
-        // No explicit whitelist = single-server deployment (NestJS serves
-        // both API and static files). ES module <script> tags send Origin
-        // even for same-origin assets, so allow all when unconfigured.
-        if (whitelist.length === 0 || whitelist.includes(origin)) {
+        // Cross-origin request with an Origin header.
+        // An empty whitelist means ALLOWED_ORIGINS was not configured —
+        // do NOT allow all: that would let any site call the API with the
+        // user's credentials (CSRF). Only explicitly listed origins pass.
+        if (whitelist.includes(origin)) {
           callback(null, true);
           return;
         }
@@ -78,14 +79,24 @@ async function bootstrap() {
     // This prevents SecurityError on self-signed certificates.
     const enablePwa = (process.env.ENABLE_PWA ?? '').trim() === 'true';
     if (!enablePwa) {
+      // Return a script that actively unregisters any previously installed SW.
+      // An empty response would leave stale service workers intercepting
+      // requests even after PWA is disabled.
       expressApp.get('/registerSW.js', (_req: express.Request, res: express.Response) => {
         res.setHeader('Content-Type', 'application/javascript');
-        res.send('');
+        res.send(
+          `if('serviceWorker'in navigator){` +
+          `navigator.serviceWorker.getRegistrations()` +
+          `.then(rs=>{for(const r of rs)r.unregister();});}`
+        );
       });
     }
 
     expressApp.use(express.static(publicDir));
-    expressApp.get(/^\/(?!api\/).*/, (_req: express.Request, res: express.Response) => {
+    // Exclude both /api and /api/* from SPA fallback.
+    // Without (?:/|$) the lookahead /api\/ misses the bare /api path,
+    // causing probes and readiness checks to receive index.html 200.
+    expressApp.get(/^\/(?!api(?:\/|$)).*/, (_req: express.Request, res: express.Response) => {
       res.sendFile(path.join(publicDir, 'index.html'));
     });
     console.log('\t@ serving web-manager from:', publicDir);
