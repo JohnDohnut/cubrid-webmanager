@@ -96,9 +96,9 @@ npm run package:server:mac       # macOS용
 출력물 (`dist/executables/`):
 ```
 dist/executables/
-  ├── cwm-linux          # Linux 실행파일 (Node.js + 프론트엔드 내장)
-  ├── cwm-macos          # macOS 실행파일
-  ├── cwm.exe            # Windows 실행파일
+  ├── cubrid-web-manager-linux          # Linux 실행파일 (Node.js + 프론트엔드 내장)
+  ├── cubrid-web-manager-macos          # macOS 실행파일
+  ├── cubrid-web-manager.exe            # Windows 실행파일
   └── conf/
       └── cwm.conf.sample  # 설정 파일 샘플 → cwm.conf로 복사 후 편집
 ```
@@ -151,7 +151,7 @@ cwm-vault/
 
 #### 첫 실행 동작
 
-1. `SEED` / `SALT` 없으면 자동 생성 후 `cwm.conf`에 저장
+1. `SEED` / `SALT` 없으면 자동 생성 후 `cwm-vault/secrets.json`에 저장
 2. `ssl/` 폴더에 자체 서명 인증서 자동 생성 (없을 때)
 3. 브라우저에서 `https://서버IP:PORT` 접속 → 인증서 한 번 신뢰 → 이후 정상 사용
 
@@ -164,13 +164,13 @@ cwm-vault/
 
 ```bash
 # Linux
-./cwm-linux
+./cubrid-web-manager-linux
 
 # Windows
-cwm.exe
+cubrid-web-manager.exe
 
 # macOS
-./cwm-macos
+./cubrid-web-manager-macos
 ```
 
 ### 방법 C — Electron 데스크톱 앱

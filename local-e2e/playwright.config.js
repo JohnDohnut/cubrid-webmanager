@@ -15,7 +15,9 @@ try {
 /**
  * @see https://playwright.dev/docs/test-configuration
  */
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
+// Default to the single-server URL (npm run start → https://localhost:8080).
+// Override via BASE_URL in local-e2e/.env for other setups.
+const BASE_URL = process.env.BASE_URL || 'https://localhost:8080';
 
 module.exports = defineConfig({
   testDir: './tests',
@@ -25,11 +27,13 @@ module.exports = defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   webServer: {
-    command: 'npm run start',
+    // build:server must run before e2e so that dist/apps/api-server/main.js exists.
+    // reuseExistingServer:true reuses a running server so repeated runs skip the build.
+    command: 'npm run build:server && npm run start',
     cwd: path.join(__dirname, '..'),
     url: BASE_URL,
     reuseExistingServer: true,
-    timeout: 30_000,
+    timeout: 180_000,
     ignoreHTTPSErrors: true,
   },
   use: {

@@ -4,7 +4,7 @@
  * public/ (frontend static files) is embedded inside the binary via pkg assets.
  *
  * Output: dist/executables/
- *   ├── cwm-linux | cwm.exe | cwm-macos   (public/ embedded)
+ *   ├── cubrid-web-manager-linux | cubrid-web-manager.exe | cubrid-web-manager-macos   (public/ embedded)
  *   └── conf/
  *       └── cwm.conf.sample   (rename to cwm.conf before first run)
  *

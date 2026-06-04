@@ -12,14 +12,28 @@ export function getHttpsOptions(): HttpsKeyCert {
   const certPath = process.env.SSL_CERT_PATH?.trim();
   const keyPath = process.env.SSL_KEY_PATH?.trim();
 
-  if (certPath && keyPath && fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+  // If either path is explicitly configured, both must be present and readable.
+  // Silently falling back to a self-signed cert would give operators a false
+  // sense of security — the server identity would be wrong and TLS would fail.
+  if (certPath || keyPath) {
+    if (!certPath || !keyPath) {
+      throw new Error(
+        `SSL misconfiguration: both SSL_CERT_PATH and SSL_KEY_PATH must be set (got cert=${certPath ?? '(unset)'}, key=${keyPath ?? '(unset)'}).`
+      );
+    }
+    if (!fs.existsSync(certPath)) {
+      throw new Error(`SSL_CERT_PATH file not found: ${certPath}`);
+    }
+    if (!fs.existsSync(keyPath)) {
+      throw new Error(`SSL_KEY_PATH file not found: ${keyPath}`);
+    }
     return {
       cert: fs.readFileSync(certPath),
       key: fs.readFileSync(keyPath),
     };
   }
 
-  // 경로 미지정 또는 파일 없을 때 자동 생성 (production 포함)
+  // Neither path configured — auto-generate self-signed cert.
   return getOrCreateSSLCert();
 }
 
