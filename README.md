@@ -87,16 +87,16 @@ node dist/apps/api-server/main.js
 Node.js 없이 실행 가능한 실행파일로 패키징합니다.
 
 ```bash
-npm run package:linux    # Linux용
-npm run package:windows  # Windows용
-npm run package:macos    # macOS용
-npm run package:all      # 전 플랫폼 동시
+npm run package:server           # 전 플랫폼 동시
+npm run package:server:linux     # Linux용
+npm run package:server:win       # Windows용
+npm run package:server:mac       # macOS용
 ```
 
-출력물 (`dist/package/{platform}/`):
+출력물 (`dist/executables/{platform}/`):
 ```
-dist/package/linux/
-  ├── cwm-linux          # 실행파일 (Node.js 내장)
+dist/executables/mac/
+  ├── cwm-macos          # 실행파일 (Node.js 내장)
   ├── public/            # React 정적 파일
   └── conf/
       └── cwm.conf.sample  # 설정 파일 샘플 → cwm.conf로 복사 후 편집

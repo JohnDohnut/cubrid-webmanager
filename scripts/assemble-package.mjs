@@ -2,13 +2,13 @@
 /**
  * Assembles the final distribution package after build:server + pkg.
  *
- * Output: dist/package/{platform}/
+ * Output: dist/executables/{platform}/
  *   ├── cwm-linux | cwm.exe | cwm-macos
  *   ├── public/
  *   └── conf/
  *       └── cwm.conf.sample   (rename to cwm.conf before first run)
  *
- * Usage: node scripts/assemble-package.mjs <linux|windows|macos|all>
+ * Usage: node scripts/assemble-package.mjs <linux|win|mac|all>
  */
 
 import fs from 'fs';
@@ -21,18 +21,17 @@ const ROOT = path.join(__dirname, '..');
 const EXECUTABLES_DIR = path.join(ROOT, 'dist', 'executables');
 const PUBLIC_SRC = path.join(ROOT, 'dist', 'apps', 'api-server', 'public');
 const CONF_SAMPLE = path.join(ROOT, 'cwm.conf.sample');
-const OUT_BASE = path.join(ROOT, 'dist', 'package');
 
 const PLATFORM_MAP = {
-  linux:   { src: 'api-server-linux',  dest: 'cwm-linux'  },
-  windows: { src: 'api-server.exe',    dest: 'cwm.exe'    },
-  macos:   { src: 'api-server-macos',  dest: 'cwm-macos'  },
+  linux: { src: 'api-server-linux',  dest: 'cwm-linux'  },
+  win:   { src: 'api-server.exe',    dest: 'cwm.exe'    },
+  mac:   { src: 'api-server-macos',  dest: 'cwm-macos'  },
 };
 
 function assemble(platform) {
   const info = PLATFORM_MAP[platform];
   if (!info) {
-    console.error(`Unknown platform: ${platform}. Use linux | windows | macos | all`);
+    console.error(`Unknown platform: ${platform}. Use linux | win | mac | all`);
     process.exit(1);
   }
 
@@ -43,14 +42,14 @@ function assemble(platform) {
     process.exit(1);
   }
 
-  const outDir = path.join(OUT_BASE, platform);
+  const outDir = path.join(EXECUTABLES_DIR, platform);
   fs.rmSync(outDir, { recursive: true, force: true });
   fs.mkdirSync(outDir, { recursive: true });
 
   // executable
   const exeDest = path.join(outDir, info.dest);
   fs.copyFileSync(exeSrc, exeDest);
-  if (platform !== 'windows') {
+  if (platform !== 'win') {
     fs.chmodSync(exeDest, 0o755);
   }
 
@@ -77,7 +76,7 @@ function assemble(platform) {
 
 const arg = process.argv[2];
 if (!arg) {
-  console.error('Usage: node scripts/assemble-package.mjs <linux|windows|macos|all>');
+  console.error('Usage: node scripts/assemble-package.mjs <linux|win|mac|all>');
   process.exit(1);
 }
 
