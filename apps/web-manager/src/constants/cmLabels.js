@@ -187,6 +187,7 @@ export const CM = {
   apply: 'Apply',
   discard: 'Discard',
   connect: 'Connect',
+  loginAll: 'Login All',
   disconnect: 'Disconnect',
   tryAgain: 'Try Again',
   add: 'Add',
@@ -755,9 +756,9 @@ export const CM = {
   permanentTemp: 'Permanent Temp',
   tempTemp: 'Temporary Temp',
   userLabel: 'User',
-  haMaster: 'MASTER',
-  haSlave: 'SLAVE',
-  haReplica: 'REPLICA',
+  haMaster: 'Master',
+  haSlave: 'Slave',
+  haReplica: 'Replica',
   clusterOverview: 'Cluster Overview',
 
   // Database dashboard

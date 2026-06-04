@@ -4,18 +4,14 @@ import { useSelector, useDispatch , shallowEqual } from 'react-redux';
 import {
   fetchHosts,
   setSelectedHost,
-  loginToHost,
-  markGroupHa,
+  loginToHostWithSideEffects,
+  loginHostsBatch,
   openDeleteHostModal,
   openEditHostModal,
   openChangePasswordModal,
   revokeHostLogin,
   openServerVersionModal,
   fetchHostEnv,
-  setSuggestedHaNodes,
-  setPendingHaMerge,
-  clearLastAddedHostUid,
-  editHost,
   openCmsUserManagementModal
 } from '../../host/hostSlice';
 import {
@@ -96,10 +92,8 @@ import DeleteQueryPlanModal from '../../database/components/DeleteQueryPlanModal
 import AutoVolumeLogModal from '../../database/components/AutoVolumeLogModal';
 import CMSUserManagementModal from '../../host/components/CMSUserManagementModal';
 import EditCMSUserModal from '../../host/components/EditCMSUserModal';
-import { findGroupIdForHost } from '../../host/hostGroupUtils';
-import { findHaPeersNeedingMerge, findUndiscoveredHaPeers } from '../../host/haPeerUtils';
-import { store } from '../../../app/store';
 import { openCreateGroupModal, openDeleteGroupModal, openRenameGroupModal } from '../../host/hostSlice';
+import { getUnauthorizedHostUids } from '../../host/hostGroupUtils';
 
 export default function Sidebar({ isCollapsed, onAddHost }) {
   const CM = useCM();
@@ -144,7 +138,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
 
   const [loadingText, setLoadingText] = useState(CM.processing);
 
-  const { hosts, hostGroups, selectedHostUid, selectedGroupUid, loading: hostsLoading, authorizedHosts, isLoggingIntoHost, hostAuthErrors, haInfo, lastAddedHostUid } = useSelector((state) => state.host, shallowEqual);
+  const { hosts, hostGroups, selectedHostUid, selectedGroupUid, loading: hostsLoading, authorizedHosts, isLoggingIntoHost, hostAuthErrors, haInfo, skipAutoHostLogin } = useSelector((state) => state.host, shallowEqual);
   const { databases, activeDatabases, loggedInDatabases } = useSelector((state) => state.database, shallowEqual);
   const { brokers } = useSelector((state) => state.broker, shallowEqual);
 
@@ -173,62 +167,61 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
 
   const handleHostLogin = useCallback((uid) => {
     if (!uid) return;
-    
-    dispatch(loginToHost(uid))
+
+    dispatch(loginToHostWithSideEffects(uid))
       .unwrap()
-      .then(async (response) => {
+      .then(() => {
         dispatch(setActiveMainTab('host:' + uid));
         dispatch(fetchDatabaseStartInfo(uid));
         dispatch(fetchBrokerList(uid));
         dispatch(fetchHostEnv(uid));
-
-        const isNewlyAdded = lastAddedHostUid === uid;
-
-        if (response.isHA) {
-          await dispatch(markGroupHa({ hostUid: uid })).unwrap().catch(() => {});
-        }
-
-        if (response.isHA && response.haNodes?.length > 0) {
-          const freshGroups = store.getState().host.hostGroups;
-          const mergePlan = findHaPeersNeedingMerge(freshGroups, response.haNodes, uid);
-          if (mergePlan) {
-            dispatch(setPendingHaMerge(mergePlan));
-          }
-
-          if (isNewlyAdded) {
-            const undiscovered = findUndiscoveredHaPeers(hosts, response.haNodes);
-            if (undiscovered.length > 0) {
-              dispatch(setSuggestedHaNodes({
-                nodes: undiscovered,
-                groupId: findGroupIdForHost(freshGroups, uid),
-              }));
-            }
-          }
-        }
-
-        if (isNewlyAdded) {
-          dispatch(clearLastAddedHostUid());
-        }
-
-        const host = hosts.find(h => h.uid === uid);
-        if (host && response.currentNodeType === 'master' && !host.alias?.toLowerCase().includes('(master)')) {
-          const newAlias = `${host.alias || host.id} (master)`;
-          dispatch(editHost({ hostUid: uid, payload: { ...host, alias: newAlias } }));
-        }
       })
       .catch((err) => {
         console.error('Failed to log into host:', err);
       });
-  }, [dispatch, hosts, lastAddedHostUid]);
+  }, [dispatch]);
+
+  const pendingLoginAllUids = getUnauthorizedHostUids(hostGroups, authorizedHosts, null);
+  const pendingLoginCount = pendingLoginAllUids.length;
+
+  const handleLoginAll = useCallback((groupId = null) => {
+    const uids = getUnauthorizedHostUids(hostGroups, authorizedHosts, groupId);
+    if (uids.length === 0) return;
+
+    dispatch(loginHostsBatch(uids))
+      .unwrap()
+      .then(({ successCount, failed }) => {
+        let message = `Connected ${successCount} host(s).`;
+        if (failed.length > 0) {
+          message += ` Failed: ${failed.join(', ')}.`;
+        }
+        dispatch(showStatusModal({
+          type: failed.length > 0 && successCount === 0 ? 'error' : 'success',
+          title: CM.loginAll,
+          message,
+        }));
+      })
+      .catch(() => {
+        dispatch(showStatusModal({
+          type: 'error',
+          title: CM.loginAll,
+          message: 'Failed to log in to hosts.',
+        }));
+      });
+  }, [dispatch, hostGroups, authorizedHosts, CM.loginAll]);
 
   useEffect(() => {
     if (selectedHostUid && selectedHostUid !== lastProcessedHostUid.current) {
-      handleHostLogin(selectedHostUid);
-      lastProcessedHostUid.current = selectedHostUid;
+      if (skipAutoHostLogin) {
+        lastProcessedHostUid.current = selectedHostUid;
+      } else {
+        handleHostLogin(selectedHostUid);
+        lastProcessedHostUid.current = selectedHostUid;
+      }
     } else if (!selectedHostUid) {
       lastProcessedHostUid.current = null;
     }
-  }, [selectedHostUid, handleHostLogin]);
+  }, [selectedHostUid, handleHostLogin, skipAutoHostLogin]);
 
   const handleContextMenu = (e, serverName, hostUid, alias) => {
     e.preventDefault();
@@ -356,8 +349,8 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
   }, [closeAllContextMenus]);
 
   const [isServerListCollapsed, setIsServerListCollapsed] = useState(false);
-  const [serverListSize, setServerListSize] = useState(320);
-  const [prevServerListSize, setPrevServerListSize] = useState(320);
+  const [serverListSize, setServerListSize] = useState(380);
+  const [prevServerListSize, setPrevServerListSize] = useState(380);
   const [isTreeCollapsed, setIsTreeCollapsed] = useState(false);
   const lastProcessedHostUid = useRef(null);
 
@@ -452,6 +445,28 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                   >
                     <Icon name="create_new_folder" size="12px" weight={400} />
                     <span className="text-[10px] font-semibold tracking-wide">New Group</span>
+                  </button>
+                )}
+                {!isServerListCollapsed && hosts.length > 0 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (pendingLoginCount === 0) {
+                        dispatch(showStatusModal({
+                          type: 'info',
+                          title: CM.loginAll,
+                          message: 'All hosts are already connected.',
+                        }));
+                        return;
+                      }
+                      handleLoginAll(null);
+                    }}
+                    disabled={isLoggingIntoHost}
+                    className="flex items-center gap-1 h-6 px-2 rounded-sm border border-slate-200 dark:border-white/10 bg-white dark:bg-white/4 text-slate-400 hover:text-amber-500 hover:border-amber-400/50 hover:bg-amber-500/5 dark:hover:bg-amber-500/10 transition-all active:scale-95 shadow-xs disabled:opacity-50 disabled:pointer-events-none"
+                    title={CM.loginAll}
+                  >
+                    <Icon name="login" size="12px" weight={400} />
+                    <span className="text-[10px] font-semibold tracking-wide">{CM.loginAll}</span>
                   </button>
                 )}
               </div>
@@ -701,8 +716,32 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
               setGroupContextMenu(null);
             }}
           />
+          {hosts.length > 0 && (
+            <MenuItem
+              icon="login"
+              label={CM.loginAll}
+              disabled={isLoggingIntoHost || pendingLoginCount === 0}
+              onClick={() => {
+                handleLoginAll(null);
+                setGroupContextMenu(null);
+              }}
+            />
+          )}
           {groupContextMenu.groupId && (
             <>
+            <MenuItem
+              icon="login"
+              label={CM.loginAll}
+              disabled={
+                isLoggingIntoHost
+                || getUnauthorizedHostUids(hostGroups, authorizedHosts, groupContextMenu.groupId).length === 0
+              }
+              onClick={() => {
+                handleLoginAll(groupContextMenu.groupId);
+                setGroupContextMenu(null);
+              }}
+            />
+            <MenuDivider />
             <MenuItem
             icon="add_link"
             label="Add Node"

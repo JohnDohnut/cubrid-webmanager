@@ -76,6 +76,7 @@ import RenameDatabaseModal from '../features/database/components/RenameDatabaseM
 import AddVolumeModal from '../features/database/components/AddVolumeModal';
 import SuggestedHaNodesModal from '../features/host/components/SuggestedHaNodesModal';
 import HaPeerMergeModal from '../features/host/components/HaPeerMergeModal';
+import HaClusterLinkedModal from '../features/host/components/HaClusterLinkedModal';
 
 import { Icon } from '../components/ds/foundation/Icon';
 import { useCM } from '../constants/useCM';
@@ -112,7 +113,8 @@ function DashboardLayout() {
       const host = hosts.find(h => h.uid === uid);
       acc[tabId] = host ? (host.alias || host.id) : uid;
     } else if (tabId.startsWith('db:')) {
-      acc[tabId] = tabId.split(':')[1];
+      const parts = tabId.split(':');
+      acc[tabId] = parts.length > 2 ? parts[2] : parts[1];
     } else if (tabId.startsWith('edit_config:')) {
       acc[tabId] = CM.editConfigTab(tabId.split(':')[2]);
     } else if (tabId.startsWith('broker_config:')) {
@@ -154,7 +156,13 @@ function DashboardLayout() {
       if (activeMainTab.startsWith('host:')) {
         dispatch(setSelectedHost(activeMainTab.split(':')[1]));
       } else if (activeMainTab.startsWith('db:')) {
-        dispatch(setSelectedDatabase(activeMainTab.split(':')[1]));
+        const parts = activeMainTab.split(':');
+        if (parts.length > 2) {
+          dispatch(setSelectedHost(parts[1]));
+          dispatch(setSelectedDatabase(parts[2]));
+        } else {
+          dispatch(setSelectedDatabase(parts[1]));
+        }
       }
     }
   }, [activeMainTab, dispatch]);
@@ -200,7 +208,7 @@ function DashboardLayout() {
         {/* Flash Overlay */}
         <div className={`fixed inset-0 bg-white/20 dark:bg-white/5 pointer-events-none z-[9999] transition-opacity duration-300 ${isFlashing ? 'opacity-100' : 'opacity-0'}`} />
         
-        <SplitPane split="vertical" defaultSize={320} minSize={240} maxSize={600} className="h-full w-full">
+        <SplitPane split="vertical" defaultSize={400} minSize={280} maxSize={640} className="h-full w-full">
           <Sidebar
             isCollapsed={isSidebarCollapsed}
             onToggleCollapse={() => dispatch(toggleSidebar())}
@@ -315,7 +323,12 @@ function DashboardLayout() {
               return (
                 <div key={tabId} className={`flex-1 flex flex-col overflow-hidden ${isActive ? '' : 'hidden'}`}>
                   {isHost && <ServerContent hostUid={resourceId} />}
-                  {isDb && <DatabaseDashboard dbname={resourceId} />}
+                  {isDb && (
+                    <DatabaseDashboard 
+                      hostUid={tabId.split(':').length > 2 ? tabId.split(':')[1] : undefined}
+                      dbname={tabId.split(':').length > 2 ? tabId.split(':')[2] : tabId.split(':')[1]} 
+                    />
+                  )}
                   {isDbSpace && (
                     <DatabaseSpaceMonitor 
                       hostUid={tabId.split(':')[1]} 
@@ -397,6 +410,7 @@ function DashboardLayout() {
 
         <SuggestedHaNodesModal />
         <HaPeerMergeModal />
+        <HaClusterLinkedModal />
 
         <HostGroupNameModal />
         <AddHostModal

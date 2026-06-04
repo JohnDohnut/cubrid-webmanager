@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { clearSuggestedHaNodes, openAddHostModal, closeDiscoveryModal } from '../hostSlice';
 import { findUndiscoveredHaPeers } from '../haPeerUtils';
@@ -16,6 +16,12 @@ export default function SuggestedHaNodesModal() {
 
   const filteredNodes = findUndiscoveredHaPeers(hosts, suggestedHaNodes);
 
+  useEffect(() => {
+    if (isDiscoveryModalOpen && filteredNodes.length === 0) {
+      dispatch(clearSuggestedHaNodes());
+    }
+  }, [dispatch, filteredNodes.length, isDiscoveryModalOpen]);
+
   if (filteredNodes.length === 0) return null;
 
   const handleAddNode = () => {
@@ -31,7 +37,10 @@ export default function SuggestedHaNodesModal() {
       ...(suggestedHaGroupId ? { groupId: suggestedHaGroupId } : {}),
     };
 
+    // Hide this modal so AddHostModal can take focus
     dispatch(closeDiscoveryModal());
+    
+    // Open the standardized Add Host Modal with pre-filled data
     dispatch(openAddHostModal(initialData));
   };
 
@@ -41,15 +50,16 @@ export default function SuggestedHaNodesModal() {
       onClose={() => dispatch(clearSuggestedHaNodes())}
       title={CM.haPeersDiscovered}
       icon="hub"
+      zIndexClass="z-[2200]"
       maxWidth="max-w-[450px]"
       footer={
         <>
           <Button variant="secondary" onClick={() => dispatch(clearSuggestedHaNodes())}>
             {CM.discard}
           </Button>
-          <Button
-            variant="primary"
-            onClick={handleAddNode}
+          <Button 
+            variant="primary" 
+            onClick={handleAddNode} 
             icon="add_link"
             className="min-w-[140px]"
           >
@@ -69,20 +79,20 @@ export default function SuggestedHaNodesModal() {
         <SectionHeader title={CM.peerNodes} icon="checklist" />
         <div className="space-y-2 max-h-[300px] overflow-y-auto px-1 custom-scrollbar">
           {filteredNodes.map((node, i) => (
-            <div
+            <div 
               key={i}
               onClick={() => setSelectedIndex(i)}
               className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer select-none group
-                ${selectedIndex === i
-                  ? 'bg-amber-500/5 border-amber-500/30 ring-1 ring-amber-500/10 shadow-sm'
+                ${selectedIndex === i 
+                  ? 'bg-amber-500/5 border-amber-500/30 ring-1 ring-amber-500/10 shadow-sm' 
                   : 'bg-white dark:bg-white/2 border-slate-200 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/4'}`}
             >
               <div className="flex items-center gap-3">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors
                   ${selectedIndex === i ? 'bg-amber-500/20 text-amber-600' : 'bg-slate-100 dark:bg-white/5 text-slate-400'}`}>
-                  <Icon
-                    name={node.state === 'master' ? 'star' : node.state === 'replica' ? 'copy_all' : 'settings_backup_restore'}
-                    size="16px"
+                  <Icon 
+                    name={node.state === 'master' ? 'star' : node.state === 'replica' ? 'copy_all' : 'settings_backup_restore'} 
+                    size="16px" 
                   />
                 </div>
                 <div className="min-w-0">
@@ -94,9 +104,9 @@ export default function SuggestedHaNodesModal() {
                   </p>
                 </div>
               </div>
-
+              
               <div className="flex items-center gap-2">
-                <div
+                <div 
                   className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all
                     ${selectedIndex === i ? 'border-amber-500' : 'border-slate-300 dark:border-white/10'}`}
                 >

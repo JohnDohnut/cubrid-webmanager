@@ -39,6 +39,7 @@ export default function HaPeerMergeModal() {
       onClose={() => dispatch(clearPendingHaMerge())}
       title="Merge HA cluster peers"
       icon="hub"
+      zIndexClass="z-[2200]"
       maxWidth="max-w-[480px]"
       loading={isMerging || loading}
       footer={
