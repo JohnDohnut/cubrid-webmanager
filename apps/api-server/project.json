@@ -72,7 +72,7 @@
           "commands": [
             "cd dist/apps/api-server && npm install --production",
             "node apps/api-server/scripts/prepare-pkg-manifest.js --target node18-win-x64",
-            "npx pkg dist/apps/api-server/package.json --targets node18-win-x64 --output dist/executables/api-server.exe"
+            "npx pkg dist/apps/api-server/package.json --targets node18-win-x64 --output dist/executables/cubrid-web-manager.exe"
           ],
           "parallel": false
         },
@@ -80,7 +80,7 @@
           "commands": [
             "cd dist/apps/api-server && npm install --production",
             "node apps/api-server/scripts/prepare-pkg-manifest.js --target node18-linux-x64",
-            "npx pkg dist/apps/api-server/package.json --targets node18-linux-x64 --output dist/executables/api-server-linux"
+            "npx pkg dist/apps/api-server/package.json --targets node18-linux-x64 --output dist/executables/cubrid-web-manager-linux"
           ],
           "parallel": false
         },
@@ -88,7 +88,7 @@
           "commands": [
             "cd dist/apps/api-server && npm install --production",
             "node apps/api-server/scripts/prepare-pkg-manifest.js --target node18-macos-x64",
-            "npx pkg dist/apps/api-server/package.json --targets node18-macos-x64 --output dist/executables/api-server-macos"
+            "npx pkg dist/apps/api-server/package.json --targets node18-macos-x64 --output dist/executables/cubrid-web-manager-macos"
           ],
           "parallel": false
         },

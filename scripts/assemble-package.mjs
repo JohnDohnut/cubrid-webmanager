@@ -22,9 +22,9 @@ const EXECUTABLES_DIR = path.join(ROOT, 'dist', 'executables');
 const CONF_SAMPLE = path.join(ROOT, 'cwm.conf.sample');
 
 const PLATFORM_MAP = {
-  linux: { src: 'api-server-linux',  dest: 'cwm-linux'  },
-  win:   { src: 'api-server.exe',    dest: 'cwm.exe'    },
-  mac:   { src: 'api-server-macos',  dest: 'cwm-macos'  },
+  linux: { src: 'cubrid-web-manager-linux',  dest: 'cubrid-web-manager-linux'  },
+  win:   { src: 'cubrid-web-manager.exe',    dest: 'cubrid-web-manager.exe'    },
+  mac:   { src: 'cubrid-web-manager-macos',  dest: 'cubrid-web-manager-macos'  },
 };
 
 function assemble(platform) {
@@ -43,11 +43,9 @@ function assemble(platform) {
 
   fs.mkdirSync(EXECUTABLES_DIR, { recursive: true });
 
-  // rename api-server-* → cwm-* in place
-  const exeDest = path.join(EXECUTABLES_DIR, info.dest);
-  fs.renameSync(exeSrc, exeDest);
+  // set executable permission (skip on windows)
   if (platform !== 'win') {
-    fs.chmodSync(exeDest, 0o755);
+    fs.chmodSync(exeSrc, 0o755);
   }
 
   // conf/cwm.conf.sample — shared across all platforms
@@ -57,7 +55,7 @@ function assemble(platform) {
     fs.copyFileSync(CONF_SAMPLE, path.join(confDir, 'cwm.conf.sample'));
   }
 
-  console.log(`\n✅ ${info.dest}  →  dist/executables/  (public/ embedded inside binary)`);
+  console.log(`\n✅ dist/executables/${info.dest}  (public/ embedded inside binary)`);
 }
 
 const arg = process.argv[2];
