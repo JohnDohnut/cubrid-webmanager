@@ -85,6 +85,10 @@ const POLL_MAX_RETRIES = 3;
 const POLL_MIN_INTERVAL_MS = 2_000;
 const POLL_MAX_INTERVAL_MS = 30_000;
 
+/**
+ * Compute next poll interval using exponential back-off based on elapsed time.
+ * Starts at POLL_MIN_INTERVAL_MS and doubles every ~5 minutes up to POLL_MAX_INTERVAL_MS.
+ */
 function adaptiveInterval(startedAt) {
   const elapsed = Date.now() - startedAt;
   const steps = Math.floor(elapsed / (5 * 60 * 1000));
@@ -95,7 +99,8 @@ function adaptiveInterval(startedAt) {
 /**
  * Poll until job reaches succeeded or failed.
  * - Interval adapts: starts at 2s, backs off to 30s over time.
- * - Transient network errors are retried up to POLL_MAX_RETRIES times.
+ * - Transient network errors are retried up to POLL_MAX_RETRIES times before
+ *   the poll is rejected.
  * @returns {{ promise: Promise<object>, cancel: () => void }}
  */
 export function pollCmsJob(jobId, { onUpdate } = {}) {
@@ -149,6 +154,7 @@ export function pollCmsJob(jobId, { onUpdate } = {}) {
           finish(reject, err);
           return;
         }
+        // Transient error — retry after normal interval.
         timerId = setTimeout(tick, adaptiveInterval(pollStartedAt));
       }
     };

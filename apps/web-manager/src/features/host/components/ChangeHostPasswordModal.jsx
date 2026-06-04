@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { setHostPassword, editHost, loginToHost, closeChangePasswordModal, clearHostError } from '../hostSlice';
+import { setHostPassword, editHost, loginToHostWithSideEffects, closeChangePasswordModal, clearHostError } from '../hostSlice';
 import { Modal } from '../../../components/ds/layout/Modal';
 import { Button } from '../../../components/ds/foundation/Button';
 import { Input } from '../../../components/ds/forms/Input';
@@ -84,7 +84,7 @@ export default function ChangeHostPasswordModal() {
           .then(() => {
             setIsSuccess(true);
             // 3. Finally revalidate host login so the session picks up the new credentials
-            dispatch(loginToHost(changePasswordHostUid));
+            dispatch(loginToHostWithSideEffects(changePasswordHostUid));
           });
       });
   };

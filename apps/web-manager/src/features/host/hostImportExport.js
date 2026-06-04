@@ -118,18 +118,94 @@ function joinPropertyContinuations(text) {
   return logical;
 }
 
-function extractPropertyValue(line) {
+export const PREFS_KEY_SERVERS = 'CUBRID_SERVERS';
+export const PREFS_KEY_HOSTGROUP = 'com.cubrid.manager.hostgroup';
+
+function isPropertyKeyTerminator(char) {
+  return char === ' ' || char === '\t' || char === '\f' || char === '=' || char === ':';
+}
+
+function isPropertyWhitespace(char) {
+  return char === ' ' || char === '\t' || char === '\f';
+}
+
+/**
+ * Splits a logical Java .properties line (value still escaped in file).
+ * Separator is the first unescaped whitespace, '=', or ':' (JDK Properties.load rules).
+ */
+export function parsePropertyLine(line) {
   const trimmed = line.trim();
   if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('!')) {
     return null;
   }
 
-  const match = trimmed.match(/^CUBRID_SERVERS\s*(?:\\?=|:)\s*(.*)$/);
-  if (!match) {
+  let keyEnd = -1;
+  for (let i = 0; i < trimmed.length; i += 1) {
+    if (trimmed[i] === '\\' && i + 1 < trimmed.length) {
+      i += 1;
+      continue;
+    }
+    if (isPropertyKeyTerminator(trimmed[i])) {
+      keyEnd = i;
+      break;
+    }
+  }
+
+  if (keyEnd < 0) {
+    return {
+      key: unescapeJavaProperties(trimmed),
+      rawValue: '',
+    };
+  }
+
+  let valueStart = keyEnd;
+  while (valueStart < trimmed.length) {
+    const char = trimmed[valueStart];
+    if (!isPropertyWhitespace(char)) {
+      if (char === '=' || char === ':') {
+        valueStart += 1;
+      }
+      break;
+    }
+    valueStart += 1;
+  }
+
+  while (valueStart < trimmed.length && isPropertyWhitespace(trimmed[valueStart])) {
+    valueStart += 1;
+  }
+
+  return {
+    key: unescapeJavaProperties(trimmed.slice(0, keyEnd)),
+    rawValue: trimmed.slice(valueStart),
+  };
+}
+
+function extractPropertyValueForKey(line, propertyKey) {
+  const parsed = parsePropertyLine(line);
+  if (!parsed || parsed.key !== propertyKey) {
     return null;
   }
 
-  return match[1] ?? '';
+  return parsed.rawValue;
+}
+
+/** @returns {string|null} unescaped XML from a Java .properties / .prefs entry */
+export function extractXmlPropertyFromPrefs(rawText, propertyKey) {
+  const text = stripBom(rawText);
+  const trimmed = text.trim();
+  if (trimmed.startsWith('<')) {
+    return null;
+  }
+
+  const logicalLines = joinPropertyContinuations(text);
+  for (const line of logicalLines) {
+    const rawValue = extractPropertyValueForKey(line, propertyKey);
+    if (rawValue == null) continue;
+    const xml = unescapeJavaProperties(rawValue).trim();
+    if (xml) return xml;
+  }
+
+  return null;
 }
 
 function extractHostsXmlFromPrefs(rawText) {
@@ -139,15 +215,7 @@ function extractHostsXmlFromPrefs(rawText) {
     return trimmed;
   }
 
-  const logicalLines = joinPropertyContinuations(text);
-  for (const line of logicalLines) {
-    const rawValue = extractPropertyValue(line);
-    if (rawValue == null) continue;
-    const xml = unescapeJavaProperties(rawValue).trim();
-    if (xml) return xml;
-  }
-
-  return null;
+  return extractXmlPropertyFromPrefs(text, PREFS_KEY_SERVERS);
 }
 
 /**
@@ -224,15 +292,31 @@ export function validateImportHostEntry(entry, { existingHosts = [], batchPeers 
   return null;
 }
 
-export function buildImportPreviewList(parsedHosts, existingHosts) {
-  const baseRows = parsedHosts.map((host, index) => {
+export function buildImportPreviewList(parsed, existingHosts) {
+  const hosts = Array.isArray(parsed) ? parsed : (parsed?.hosts ?? []);
+  const groups = Array.isArray(parsed) ? [] : (parsed?.groups ?? []);
+  const hasPrefsGroups = groups.length > 0;
+
+  const legacyIdToGroup = new Map();
+  for (const group of groups) {
+    const groupName = String(group.name ?? '').trim();
+    if (!groupName) continue;
+    for (const legacyId of group.legacyHostIds ?? []) {
+      const id = String(legacyId ?? '').trim();
+      if (id) legacyIdToGroup.set(id, groupName);
+    }
+  }
+
+  const baseRows = hosts.map((host, index) => {
     const portResult = parseImportPort(host.port);
     return {
       ...host,
       rowId: `import-row-${index}`,
       portNumber: portResult.valid ? portResult.port : null,
       port: portResult.valid ? String(portResult.port) : String(host.port ?? ''),
-      password: host.password ?? '',
+      password: '',
+      importGroupName: legacyIdToGroup.get(String(host.legacyId ?? '').trim()) || '',
+      hasPrefsGroups,
     };
   });
 
@@ -275,26 +359,20 @@ export function validateSelectedImportRows(rows) {
   return { ok: false, messages };
 }
 
-/**
- * Parses host XML or legacy CUBRID desktop prefs/properties text.
- */
-export const parseHostsXml = (rawInput) => {
-  const input = stripBom(String(rawInput || '')).trim();
-  const xmlString = input.startsWith('<')
-    ? input
-    : extractHostsXmlFromPrefs(input);
-
-  if (!xmlString) {
-    throw new Error('No CUBRID host XML found. Provide a <hosts> XML or .prefs/.properties with CUBRID_SERVERS.');
-  }
-
+function parseXmlDocument(xmlString, contextLabel) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlString, 'application/xml');
 
   const errorNode = doc.querySelector('parsererror');
   if (errorNode) {
-    throw new Error('Invalid XML format. Please select a valid CUBRID Host export file.');
+    throw new Error(`Invalid XML in ${contextLabel}. Please select a valid CUBRID Manager file.`);
   }
+
+  return doc;
+}
+
+function parseHostsFromXmlString(xmlString) {
+  const doc = parseXmlDocument(xmlString, 'host list');
 
   if (doc.documentElement.nodeName !== 'hosts') {
     throw new Error('Incorrect file format. Expected <hosts> root element.');
@@ -312,6 +390,7 @@ export const parseHostsXml = (rawInput) => {
     if (!address) continue;
 
     parsedHosts.push({
+      legacyId: (node.getAttribute('id') || '').trim(),
       alias: (node.getAttribute('name') || node.getAttribute('id') || address).trim(),
       address,
       port: node.getAttribute('port') || String(DEFAULT_IMPORT_PORT),
@@ -325,4 +404,57 @@ export const parseHostsXml = (rawInput) => {
   }
 
   return parsedHosts;
-};
+}
+
+function parseHostGroupsFromXmlString(xmlString) {
+  const doc = parseXmlDocument(xmlString, 'host groups');
+
+  const groupNodes = doc.getElementsByTagName('group');
+  const groups = [];
+
+  for (let i = 0; i < groupNodes.length; i++) {
+    const node = groupNodes[i];
+    const name = (node.getAttribute('name') || node.getAttribute('id') || '').trim();
+    if (!name) continue;
+
+    const itemNodes = node.getElementsByTagName('item');
+    const legacyHostIds = [];
+    for (let j = 0; j < itemNodes.length; j++) {
+      const legacyId = (itemNodes[j].getAttribute('id') || '').trim();
+      if (legacyId) legacyHostIds.push(legacyId);
+    }
+
+    groups.push({ name, legacyHostIds });
+  }
+
+  return groups;
+}
+
+/**
+ * Parses host XML or legacy CUBRID desktop .prefs / .properties (servers + host groups).
+ * @returns {{ hosts: object[], groups: { name: string, legacyHostIds: string[] }[] }}
+ */
+export function parseHostsImportFile(rawInput) {
+  const input = stripBom(String(rawInput || '')).trim();
+
+  if (input.startsWith('<')) {
+    return { hosts: parseHostsFromXmlString(input), groups: [] };
+  }
+
+  const hostsXml = extractHostsXmlFromPrefs(input);
+  const groupsXml = extractXmlPropertyFromPrefs(input, PREFS_KEY_HOSTGROUP);
+
+  if (!hostsXml) {
+    throw new Error(
+      'No CUBRID host XML found. Provide a <hosts> XML or .prefs/.properties with CUBRID_SERVERS.'
+    );
+  }
+
+  const hosts = parseHostsFromXmlString(hostsXml);
+  const groups = groupsXml ? parseHostGroupsFromXmlString(groupsXml) : [];
+
+  return { hosts, groups };
+}
+
+/** @returns {object[]} host rows only (legacy callers) */
+export const parseHostsXml = (rawInput) => parseHostsImportFile(rawInput).hosts;

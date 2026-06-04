@@ -10,9 +10,11 @@ import DatabaseVolumes from './DatabaseVolumes';
 import Brokers from './Brokers';
 import SystemInfo from './SystemInfo';
 import { fetchDatabaseVolumes } from '../../database/databaseMonitoringSlice';
+import { fetchMonitoringData } from '../monitoringSlice';
 
 import SystemStatusSection from './server/SystemStatusSection';
 import DatabaseListSection from './server/DatabaseListSection';
+import HaClusterStatusSection from './server/HaClusterStatusSection';
 import MonitoringSettingsPopover from '../../user/components/MonitoringSettingsPopover';
 import { Typography } from '../../../components/ds/foundation/Typography';
 import { Icon } from '../../../components/ds/foundation/Icon';
@@ -22,13 +24,17 @@ const Component = function ServerContent({ hostUid }) {
   const CM = useCM();
   const dispatch = useDispatch();
   const { databases, activeDatabases } = useSelector((state) => state.database, shallowEqual);
-  const { hosts, authorizedHosts } = useSelector((state) => state.host, shallowEqual);
+  const { hosts, authorizedHosts, haInfo } = useSelector((state) => state.host, shallowEqual);
   const { preferences } = useSelector((state) => state.user, shallowEqual);
   const { refreshCounter } = useSelector((state) => state.layout, shallowEqual);
   const [autoStartDBs, setAutoStartDBs] = useState([]);
   
   const currentHost = hosts.find(h => h.uid === hostUid);
+  const hostHaInfo = haInfo[hostUid] || {};
+  const isHA = hostHaInfo.isHA;
   const hostLabel = currentHost ? (currentHost.alias || currentHost.id) : CM.unknownHost;
+  const hostData = useSelector((state) => state.monitoring.hostsData[hostUid] || {});
+
   const { isManualRefreshing: isRefreshing, lastRefreshed, handleRefresh } = usePollingRefresh({
     hostUid,
     tabId: `host:${hostUid}`,
@@ -44,7 +50,8 @@ const Component = function ServerContent({ hostUid }) {
         dispatch(fetchBrokerList(silent ? { hostUid, isBackground: true } : hostUid)),
         dispatch(fetchHostEnv(hostUid)),
         dispatch(fetchDatabaseVolumes({ hostUid, activeDatabases })),
-        fetchAutoStartInfo()
+        fetchAutoStartInfo(),
+        isHA ? dispatch(fetchMonitoringData(hostUid)) : Promise.resolve()
       ]);
     }
   });
@@ -86,10 +93,58 @@ const Component = function ServerContent({ hostUid }) {
     }
   };
 
+  const haHeartbeat = hostData?.haHeartbeat;
+  const haDbs = React.useMemo(() => {
+    const names = new Set();
+    const raw = haHeartbeat?.hadbinfolist;
+    if (!raw) return names;
+
+    const ensureArray = (val) => {
+      if (!val) return [];
+      return Array.isArray(val) ? val : [val];
+    };
+
+    ensureArray(raw).forEach((entry) => {
+      const servers = entry?.server;
+      if (!servers) return;
+
+      ensureArray(servers).forEach((server) => {
+        if (!server) return;
+
+        ensureArray(server.dbmode).forEach((row) => {
+          if (row?.dbname) names.add(row.dbname);
+        });
+
+        ensureArray(server.dbprocinfo).forEach((row) => {
+          if (row?.dbname) names.add(row.dbname);
+        });
+
+        ensureArray(server.applylogdb).forEach((block) => {
+          if (block?.element) {
+            ensureArray(block.element).forEach((el) => {
+              if (el?.dbname) names.add(el.dbname);
+            });
+          }
+        });
+
+        ensureArray(server.copylogdb).forEach((block) => {
+          if (block?.element) {
+            ensureArray(block.element).forEach((el) => {
+              if (el?.dbname) names.add(el.dbname);
+            });
+          }
+        });
+      });
+    });
+
+    return names;
+  }, [haHeartbeat]);
+
   const dbListDisplay = databases.map(db => ({
     db: db.dbname,
     autoStart: autoStartDBs.includes(db.dbname),
-    status: activeDatabases.includes(db.dbname) ? CM.statusOn : CM.statusOff
+    status: activeDatabases.includes(db.dbname) ? CM.statusOn : CM.statusOff,
+    isHA: isHA && haDbs.has(db.dbname)
   }));
 
   return (
@@ -146,10 +201,11 @@ const Component = function ServerContent({ hostUid }) {
 
       {/* ── Scrollable Body ── */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <HaClusterStatusSection hostUid={hostUid} />
         <DatabaseVolumes hostUid={hostUid} />
         <Brokers hostUid={hostUid} isSection={true} />
         <SystemStatusSection hostUid={hostUid} isTabActive={isTabActive} />
-        <DatabaseListSection dbListDisplay={dbListDisplay} handleAutoStartToggle={handleAutoStartToggle} />
+        <DatabaseListSection dbListDisplay={dbListDisplay} handleAutoStartToggle={handleAutoStartToggle} isHA={isHA} />
         <SystemInfo hostUid={hostUid} />
       </div>
     </div>
