@@ -66,12 +66,9 @@ async function bootstrap() {
   app.useGlobalInterceptors(new LoggingInterceptor(), new SuccessResponseInterceptor());
 
   // Serve web-manager static files.
-  // pkg: public/ is next to the executable.
-  // node: public/ is next to the compiled main.js (dist/apps/api-server/public).
-  const isPkg = !!(process as any).pkg;
-  const publicDir = isPkg
-    ? path.join(path.dirname(process.execPath), 'public')
-    : path.join(__dirname, 'public');
+  // Both pkg (snapshot filesystem) and node use __dirname/public.
+  // pkg embeds public/ as assets so __dirname resolves inside the snapshot.
+  const publicDir = path.join(__dirname, 'public');
   if (fs.existsSync(publicDir)) {
     const expressApp = app.getHttpAdapter().getInstance();
 

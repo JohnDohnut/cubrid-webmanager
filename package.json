@@ -188,7 +188,8 @@
     "assets": [
       "assets/**/*",
       "node_modules/axios/**/*",
-      "node_modules/@nestjs/axios/**/*"
+      "node_modules/@nestjs/axios/**/*",
+      "public/**/*"
     ],
     "targets": [
       "node18-win-x64",
