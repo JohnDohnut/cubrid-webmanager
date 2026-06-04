@@ -7,7 +7,15 @@ import { parseCliArgs } from './parse-cli-args';
 const CWM_CONF_FILENAME = 'cwm.conf';
 const CWM_CONF_SUBDIR = 'conf';
 
+// cwm-vault: auto-managed secrets (SEED/SALT) — never edited by the user.
+// Mirrors the structure used by the Electron desktop app.
+const CWM_VAULT_DIRNAME = 'cwm-vault';
+const CWM_VAULT_SECRETS_FILENAME = 'secrets.json';
+
 type CwmConf = Record<string, string>;
+type CwmSecrets = { seed: string; salt: string };
+
+// ── conf/cwm.conf ────────────────────────────────────────────────────────────
 
 function readCwmConf(confPath: string): CwmConf {
   try {
@@ -29,40 +37,75 @@ function injectIntoEnv(conf: CwmConf): void {
   }
 }
 
-function loadCwmConf(baseDir: string): void {
-  const confPath = path.join(baseDir, CWM_CONF_FILENAME);
+function loadCwmConf(confDir: string): void {
+  const confPath = path.join(confDir, CWM_CONF_FILENAME);
   const conf = readCwmConf(confPath);
-  let dirty = false;
 
-  if (!conf.SEED) {
-    conf.SEED = crypto.randomBytes(32).toString('hex');
-    dirty = true;
-    console.log('[cwm.conf] SEED auto-generated');
-  }
-  if (!conf.SALT) {
-    conf.SALT = crypto.randomBytes(32).toString('hex');
-    dirty = true;
-    console.log('[cwm.conf] SALT auto-generated');
-  }
-
-  if (dirty) {
-    try {
-      fs.mkdirSync(baseDir, { recursive: true });
-      writeCwmConf(confPath, conf);
-      console.log(`[cwm.conf] saved: ${confPath}`);
-    } catch (err) {
-      console.warn(`[cwm.conf] could not write ${confPath}:`, (err as Error).message);
-    }
-  }
+  // SEED/SALT must not live in cwm.conf — they belong in cwm-vault/secrets.json.
+  // Strip them if someone copied them here from an older version.
+  delete conf.SEED;
+  delete conf.SALT;
 
   injectIntoEnv(conf);
-  console.log(`[cwm.conf] loaded: ${confPath}`);
+  if (fs.existsSync(confPath)) {
+    console.log(`[cwm.conf] loaded: ${confPath}`);
+  }
+}
+
+// ── cwm-vault/secrets.json ───────────────────────────────────────────────────
+
+function getVaultDir(baseDir: string): string {
+  return path.join(baseDir, CWM_VAULT_DIRNAME);
+}
+
+function readSecrets(secretsPath: string): CwmSecrets | null {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(secretsPath, 'utf8')) as CwmSecrets;
+    if (parsed.seed && parsed.salt) return parsed;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function writeSecrets(vaultDir: string, secrets: CwmSecrets): void {
+  fs.mkdirSync(vaultDir, { recursive: true, mode: 0o700 });
+  fs.writeFileSync(
+    path.join(vaultDir, CWM_VAULT_SECRETS_FILENAME),
+    JSON.stringify(secrets, null, 2),
+    { encoding: 'utf8', mode: 0o600 }
+  );
 }
 
 /**
- * conf/ 서브폴더 → 루트 순으로 cwm.conf 위치를 탐색한다.
- * pkg 배포 시 conf/ 위치가 우선이며, 없으면 루트 fallback.
+ * Load SEED/SALT from cwm-vault/secrets.json.
+ * Auto-generates and saves them on first run. Never overwrites existing values.
  */
+function loadOrCreateVaultSecrets(baseDir: string): void {
+  const vaultDir = getVaultDir(baseDir);
+  const secretsPath = path.join(vaultDir, CWM_VAULT_SECRETS_FILENAME);
+
+  let secrets = readSecrets(secretsPath);
+
+  if (!secrets) {
+    secrets = {
+      seed: crypto.randomBytes(32).toString('hex'),
+      salt: crypto.randomBytes(32).toString('hex'),
+    };
+    try {
+      writeSecrets(vaultDir, secrets);
+      console.log(`[cwm-vault] secrets generated: ${secretsPath}`);
+    } catch (err) {
+      console.warn(`[cwm-vault] could not write secrets:`, (err as Error).message);
+    }
+  }
+
+  if (process.env.SEED === undefined) process.env.SEED = secrets.seed;
+  if (process.env.SALT === undefined) process.env.SALT = secrets.salt;
+}
+
+// ── conf/ resolution ─────────────────────────────────────────────────────────
+
 function resolveCwmConfDir(baseDir: string): string | null {
   const subDir = path.join(baseDir, CWM_CONF_SUBDIR);
   if (fs.existsSync(path.join(subDir, CWM_CONF_FILENAME))) {
@@ -75,13 +118,16 @@ function resolveCwmConfDir(baseDir: string): string | null {
   return path.join(baseDir, CWM_CONF_SUBDIR);
 }
 
+// ── entry point ──────────────────────────────────────────────────────────────
+
 /**
  * Loads env before Nest bootstrap (pkg-aware base dir).
  *
  * Priority (highest to lowest):
  *   1. process.env already set (systemd EnvironmentFile etc.)
- *   2. conf/cwm.conf → cwm.conf (JSON, next to executable / project root)
- *   3. .env file (dotenv, for local dev / legacy)
+ *   2. cwm-vault/secrets.json  — SEED/SALT (auto-generated, do not edit)
+ *   3. conf/cwm.conf           — user config (PORT, ENVIRONMENT, etc.)
+ *   4. .env file               — local dev / legacy
  */
 export function loadRuntimeEnv(): void {
   if ((process.env.CWM_DESKTOP ?? '').trim() === '1') {
@@ -99,12 +145,20 @@ export function loadRuntimeEnv(): void {
   const isPkg = !!(process as any).pkg;
   const baseDir = isPkg ? path.dirname(process.execPath) : process.cwd();
 
+  // 1. SEED/SALT from cwm-vault (pkg mode or when vault already exists)
+  const vaultExists = fs.existsSync(path.join(getVaultDir(baseDir), CWM_VAULT_SECRETS_FILENAME));
+  if (isPkg || vaultExists) {
+    loadOrCreateVaultSecrets(baseDir);
+  }
+
+  // 2. User config from conf/cwm.conf
   const confDir = resolveCwmConfDir(baseDir);
   const confPath = confDir ? path.join(confDir, CWM_CONF_FILENAME) : null;
-  if (isPkg || (confPath && fs.existsSync(confPath))) {
+  if (confPath && (isPkg || fs.existsSync(confPath))) {
     loadCwmConf(confDir ?? baseDir);
   }
 
+  // 3. .env fallback (local dev / legacy)
   const candidates: string[] = [];
   if (isProduction) {
     candidates.push('/etc/cubrid-webmanager.env');
