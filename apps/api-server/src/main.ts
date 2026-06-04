@@ -26,27 +26,24 @@ async function bootstrap() {
   console.log('[main.ts] Allowed Origins from ConfigService:', allowedOrigins);
 
   if (allowedOrigins.includes('*')) {
-    console.log('[main.ts] Enabling CORS for all origins.');
+    // Development mode: allow all origins.
+    console.log('[main.ts] Enabling CORS for all origins (dev).');
     app.enableCors({
       origin: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
       credentials: true,
     });
-  } else {
+  } else if (allowedOrigins.length > 0) {
+    // Production with explicit whitelist: only listed origins allowed cross-origin.
     const whitelist = [...allowedOrigins];
     console.log('[main.ts] Production CORS whitelist:', whitelist);
     app.enableCors({
-      origin: (origin, callback) => {
+      origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
         if (!origin) {
-          // No Origin header = same-origin request or non-browser client.
           callback(null, true);
           return;
         }
-        // Cross-origin request with an Origin header.
-        // An empty whitelist means ALLOWED_ORIGINS was not configured —
-        // do NOT allow all: that would let any site call the API with the
-        // user's credentials (CSRF). Only explicitly listed origins pass.
         if (whitelist.includes(origin)) {
           callback(null, true);
           return;
@@ -58,6 +55,10 @@ async function bootstrap() {
       credentials: true,
     });
   }
+  // else: ALLOWED_ORIGINS not configured = single-server mode.
+  // The browser never applies CORS restrictions to same-origin requests,
+  // so no enableCors() call is needed. Cross-origin requests are blocked
+  // automatically by the browser (no ACAO header = blocked).
 
   // Desktop mode uses UDS + Electron proxy that strips /api — no prefix needed.
   if (!desktopMode) {
