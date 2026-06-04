@@ -93,16 +93,17 @@ npm run package:server:win       # Windows용
 npm run package:server:mac       # macOS용
 ```
 
-출력물 (`dist/executables/{platform}/`):
+출력물 (`dist/executables/`):
 ```
-dist/executables/mac/
-  ├── cwm-macos          # 실행파일 (Node.js 내장)
-  ├── public/            # React 정적 파일
+dist/executables/
+  ├── cwm-linux          # Linux 실행파일 (Node.js + 프론트엔드 내장)
+  ├── cwm-macos          # macOS 실행파일
+  ├── cwm.exe            # Windows 실행파일
   └── conf/
       └── cwm.conf.sample  # 설정 파일 샘플 → cwm.conf로 복사 후 편집
 ```
 
-업데이트 시 `cwm-linux`와 `public/`만 교체하면 된다. `conf/`는 건드리지 않는다.
+업데이트 시 실행파일만 교체하면 된다. `conf/`는 건드리지 않는다.
 
 #### cwm.conf 설정
 

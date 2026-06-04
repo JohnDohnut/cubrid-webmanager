@@ -3,7 +3,7 @@
  * Assembles the final distribution package after build:server + pkg.
  * public/ (frontend static files) is embedded inside the binary via pkg assets.
  *
- * Output: dist/executables/{platform}/
+ * Output: dist/executables/
  *   ├── cwm-linux | cwm.exe | cwm-macos   (public/ embedded)
  *   └── conf/
  *       └── cwm.conf.sample   (rename to cwm.conf before first run)
@@ -41,27 +41,23 @@ function assemble(platform) {
     process.exit(1);
   }
 
-  const outDir = path.join(EXECUTABLES_DIR, platform);
-  fs.rmSync(outDir, { recursive: true, force: true });
-  fs.mkdirSync(outDir, { recursive: true });
+  fs.mkdirSync(EXECUTABLES_DIR, { recursive: true });
 
-  // executable
-  const exeDest = path.join(outDir, info.dest);
+  // executable — placed directly in dist/executables/
+  const exeDest = path.join(EXECUTABLES_DIR, info.dest);
   fs.copyFileSync(exeSrc, exeDest);
   if (platform !== 'win') {
     fs.chmodSync(exeDest, 0o755);
   }
 
-  // conf/cwm.conf.sample
-  const confDir = path.join(outDir, 'conf');
+  // conf/cwm.conf.sample — shared across all platforms
+  const confDir = path.join(EXECUTABLES_DIR, 'conf');
   fs.mkdirSync(confDir, { recursive: true });
   if (fs.existsSync(CONF_SAMPLE)) {
     fs.copyFileSync(CONF_SAMPLE, path.join(confDir, 'cwm.conf.sample'));
   }
 
-  console.log(`\n✅ Package assembled: ${outDir}`);
-  console.log(`   ${info.dest}  (public/ embedded inside binary)`);
-  console.log(`   conf/cwm.conf.sample  ← rename to cwm.conf before first run`);
+  console.log(`\n✅ ${info.dest}  →  dist/executables/  (public/ embedded inside binary)`);
 }
 
 const arg = process.argv[2];
@@ -74,6 +70,8 @@ if (arg === 'all') {
   for (const platform of Object.keys(PLATFORM_MAP)) {
     assemble(platform);
   }
+  console.log('\nconf/cwm.conf.sample  ← rename to cwm.conf before first run');
 } else {
   assemble(arg);
+  console.log('\nconf/cwm.conf.sample  ← rename to cwm.conf before first run');
 }
