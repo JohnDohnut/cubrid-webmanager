@@ -43,9 +43,9 @@ function assemble(platform) {
 
   fs.mkdirSync(EXECUTABLES_DIR, { recursive: true });
 
-  // executable — placed directly in dist/executables/
+  // rename api-server-* → cwm-* in place
   const exeDest = path.join(EXECUTABLES_DIR, info.dest);
-  fs.copyFileSync(exeSrc, exeDest);
+  fs.renameSync(exeSrc, exeDest);
   if (platform !== 'win') {
     fs.chmodSync(exeDest, 0o755);
   }
