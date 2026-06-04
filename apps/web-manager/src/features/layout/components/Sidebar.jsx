@@ -481,11 +481,11 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
               onContextMenu={handleHostRootContextMenu}
             >
               {!isServerListCollapsed && (
-                (hostsLoading && hosts.length === 0) ? (
+                (hostsLoading && hosts.length === 0 && Object.keys(hostGroups).length === 0) ? (
                   <div className="flex items-center justify-center py-8">
                     <Spinner size="md" />
                   </div>
-                ) : hosts.length === 0 ? (
+                ) : (Object.keys(hostGroups).length === 0) ? (
                   <button
                     onClick={onAddHost}
                     className="w-full mt-1 flex flex-col items-center justify-center gap-2 py-6 px-3 rounded-lg border border-dashed border-slate-300 dark:border-white/10 bg-white dark:bg-white/2 hover:border-amber-400/60 hover:bg-amber-500/5 dark:hover:bg-amber-500/10 transition-all group/add-host cursor-pointer"
