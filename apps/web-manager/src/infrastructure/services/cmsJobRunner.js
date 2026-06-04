@@ -1,24 +1,26 @@
 import { pollCmsJob } from '../../features/database/databaseJobApi';
 
-/** @type {Map<string, { cancel: () => void }>} */
+const CANCELLED_ERROR = Object.assign(new Error('Polling cancelled'), { cancelled: true });
+
+/** @type {Map<string, { promise: Promise, cancel: () => void, reject: (err: Error) => void }>} */
 const activePolls = new Map();
 
 /**
  * Poll a job until terminal state. Survives React component unmount.
  * @returns {Promise<object>} Resolves with final job record.
  */
-export function runCmsJobInBackground(jobId, { intervalMs = 3000, onUpdate } = {}) {
+export function runCmsJobInBackground(jobId, { onUpdate } = {}) {
   const existing = activePolls.get(jobId);
   if (existing?.promise) {
     return existing.promise;
   }
 
   let cancelPoll = null;
+  let rejectOuter = null;
+
   const promise = new Promise((resolve, reject) => {
-    const { promise: pollPromise, cancel } = pollCmsJob(jobId, {
-      intervalMs,
-      onUpdate,
-    });
+    rejectOuter = reject;
+    const { promise: pollPromise, cancel } = pollCmsJob(jobId, { onUpdate });
     cancelPoll = cancel;
 
     pollPromise
@@ -32,7 +34,11 @@ export function runCmsJobInBackground(jobId, { intervalMs = 3000, onUpdate } = {
       });
   });
 
-  activePolls.set(jobId, { promise, cancel: () => cancelPoll?.() });
+  activePolls.set(jobId, {
+    promise,
+    cancel: () => cancelPoll?.(),
+    reject: (err) => rejectOuter?.(err),
+  });
   return promise;
 }
 
@@ -40,9 +46,18 @@ export function cancelCmsJobPoll(jobId) {
   const entry = activePolls.get(jobId);
   if (!entry) return;
   entry.cancel();
+  entry.reject(CANCELLED_ERROR);
   activePolls.delete(jobId);
 }
 
 export function isCmsJobPolling(jobId) {
   return activePolls.has(jobId);
+}
+
+export function cancelAllCmsJobPolls() {
+  for (const entry of activePolls.values()) {
+    entry.cancel();
+    entry.reject(CANCELLED_ERROR);
+  }
+  activePolls.clear();
 }
