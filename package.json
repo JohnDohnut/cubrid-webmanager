@@ -148,10 +148,10 @@
 
     "start": "node dist/apps/api-server/main.js",
 
-    "package:server": "npm run build:server && nx run api-server:build:exe:all && node scripts/assemble-package.mjs all",
-    "package:server:linux": "npm run build:server && nx run api-server:build:exe:linux && node scripts/assemble-package.mjs linux",
-    "package:server:win": "npm run build:server && nx run api-server:build:exe:windows && node scripts/assemble-package.mjs win",
-    "package:server:mac": "npm run build:server && nx run api-server:build:exe:macos && node scripts/assemble-package.mjs mac",
+    "package:server": "npm run build:web-manager && nx run api-server:build:exe:all && node scripts/assemble-package.mjs all",
+    "package:server:linux": "npm run build:web-manager && nx run api-server:build:exe:linux && node scripts/assemble-package.mjs linux",
+    "package:server:win": "npm run build:web-manager && nx run api-server:build:exe:windows && node scripts/assemble-package.mjs win",
+    "package:server:mac": "npm run build:web-manager && nx run api-server:build:exe:macos && node scripts/assemble-package.mjs mac",
 
     "package:electron": "nx run desktop:package",
     "package:electron:mac": "nx run desktop:package -- --mac",
