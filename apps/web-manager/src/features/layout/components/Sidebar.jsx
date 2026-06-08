@@ -92,7 +92,7 @@ import DeleteQueryPlanModal from '../../database/components/DeleteQueryPlanModal
 import AutoVolumeLogModal from '../../database/components/AutoVolumeLogModal';
 import CMSUserManagementModal from '../../host/components/CMSUserManagementModal';
 import EditCMSUserModal from '../../host/components/EditCMSUserModal';
-import { openCreateGroupModal, openDeleteGroupModal, openRenameGroupModal } from '../../host/hostSlice';
+import { openCreateGroupModal, openDeleteGroupModal, openRenameGroupModal, openAddHostModal } from '../../host/hostSlice';
 import { getUnauthorizedHostUids } from '../../host/hostGroupUtils';
 
 export default function Sidebar({ isCollapsed, onAddHost }) {
@@ -481,11 +481,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
               onContextMenu={handleHostRootContextMenu}
             >
               {!isServerListCollapsed && (
-                hostsLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Spinner size="md" />
-                  </div>
-                ) : Object.keys(hostGroups).length === 0 ? (
+                Object.keys(hostGroups).length === 0 && !hostsLoading ? (
                   <button
                     onClick={onAddHost}
                     className="w-full mt-1 flex flex-col items-center justify-center gap-2 py-6 px-3 rounded-lg border border-dashed border-slate-300 dark:border-white/10 bg-white dark:bg-white/2 hover:border-amber-400/60 hover:bg-amber-500/5 dark:hover:bg-amber-500/10 transition-all group/add-host cursor-pointer"
@@ -499,15 +495,20 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                     </div>
                   </button>
                 ) : (
-                  <HostGroupTree
-                    hostGroups={hostGroups}
-                    selectedGroupUid={selectedGroupUid}
-                    selectedHostUid={selectedHostUid}
-                    authorizedHosts={authorizedHosts}
-                    haInfo={haInfo}
-                    onContextMenu={handleContextMenu}
-                    onGroupContextMenu={handleGroupContextMenu}
-                  />
+                  <div className="relative">
+                    {hostsLoading && (
+                      <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 dark:bg-black/20 rounded pointer-events-none" />
+                    )}
+                    <HostGroupTree
+                      hostGroups={hostGroups}
+                      selectedGroupUid={selectedGroupUid}
+                      selectedHostUid={selectedHostUid}
+                      authorizedHosts={authorizedHosts}
+                      haInfo={haInfo}
+                      onContextMenu={handleContextMenu}
+                      onGroupContextMenu={handleGroupContextMenu}
+                    />
+                  </div>
                 )
               )}
             </div>
