@@ -32,18 +32,19 @@ export const Table = ({
     // Find the column to check for sortAccessor (raw sort key override)
     const col = columns.find((c) => c.accessor === sortConfig.key);
     const sortKey = col?.sortAccessor ?? sortConfig.key;
+    // numericSort: true must be set explicitly — applying parseFloat globally
+    // would break date strings, IP addresses, and other string columns.
+    const numeric = col?.numericSort === true || col?.sortAccessor != null;
     return [...data].sort((a, b) => {
       let valA = a[sortKey];
       let valB = b[sortKey];
       if (valA == null && valB == null) return 0;
       if (valA == null) return 1;
       if (valB == null) return -1;
-      // Coerce numeric strings so "10" sorts after "9" not before.
-      const numA = typeof valA === 'string' ? parseFloat(valA) : valA;
-      const numB = typeof valB === 'string' ? parseFloat(valB) : valB;
-      if (!isNaN(numA) && !isNaN(numB)) {
-        valA = numA;
-        valB = numB;
+      if (numeric) {
+        const nA = parseFloat(valA);
+        const nB = parseFloat(valB);
+        if (!isNaN(nA) && !isNaN(nB)) { valA = nA; valB = nB; }
       }
       if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
       if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;

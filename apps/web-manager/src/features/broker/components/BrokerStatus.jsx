@@ -64,12 +64,12 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
 
   /* Table Columns Definitions */
   const asColumns = [
-    { header: 'ID', accessor: 'as_id', width: '60px', render: (v) => <span className="font-mono text-amber-600 dark:text-amber-400">{v}</span> },
-    { header: 'PID', accessor: 'as_pid', width: '80px', render: (v) => <span className="font-mono">{v}</span> },
-    { header: 'QPS', accessor: 'as_num_query', width: '60px', render: (v) => <span className="font-mono">{v}</span> },
-    { header: 'TPS', accessor: 'as_num_tran', width: '60px', render: (v) => <span className="font-mono">{v}</span> },
-    { header: 'Port', accessor: 'as_port', width: '80px', render: (v) => <span className="font-mono">{v}</span> },
-    { header: CM.memory, accessor: 'as_psize', width: '100px', render: (v) => <span className="font-mono">{(parseInt(v) / 1024).toFixed(1)} KB</span> },
+    { header: 'ID',  accessor: 'as_id',        numericSort: true, width: '60px',  render: (v) => <span className="font-mono text-amber-600 dark:text-amber-400">{v}</span> },
+    { header: 'PID', accessor: 'as_pid',       numericSort: true, width: '80px',  render: (v) => <span className="font-mono">{v}</span> },
+    { header: 'QPS', accessor: 'as_num_query', numericSort: true, width: '60px',  render: (v) => <span className="font-mono">{v}</span> },
+    { header: 'TPS', accessor: 'as_num_tran',  numericSort: true, width: '60px',  render: (v) => <span className="font-mono">{v}</span> },
+    { header: 'Port', accessor: 'as_port',     numericSort: true, width: '80px',  render: (v) => <span className="font-mono">{v}</span> },
+    { header: CM.memory, accessor: 'as_psize', numericSort: true, width: '100px', render: (v) => <span className="font-mono">{(parseInt(v) / 1024).toFixed(1)} KB</span> },
     { 
       header: CM.status, 
       accessor: 'as_status', 
