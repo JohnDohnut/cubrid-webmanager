@@ -167,7 +167,10 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
 
   const handleHostLogin = useCallback((uid) => {
     if (!uid) return;
-    if (isLoggingIntoHost) return;
+    // Use a ref so concurrent clicks in the same render frame are also blocked.
+    // isLoggingIntoHost is a stale-closure value and misses same-frame double-clicks.
+    if (loginInProgressRef.current) return;
+    loginInProgressRef.current = true;
 
     dispatch(loginToHostWithSideEffects(uid))
       .unwrap()
@@ -179,8 +182,11 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
       })
       .catch((err) => {
         console.error('Failed to log into host:', err);
+      })
+      .finally(() => {
+        loginInProgressRef.current = false;
       });
-  }, [dispatch, isLoggingIntoHost]);
+  }, [dispatch]);
 
   const pendingLoginAllUids = getUnauthorizedHostUids(hostGroups, authorizedHosts, null);
   const pendingLoginCount = pendingLoginAllUids.length;
@@ -354,6 +360,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
   const [prevServerListSize, setPrevServerListSize] = useState(380);
   const [isTreeCollapsed, setIsTreeCollapsed] = useState(false);
   const lastProcessedHostUid = useRef(null);
+  const loginInProgressRef = useRef(false);
 
   const toggleServerListCollapse = () => {
     setIsServerListCollapsed(!isServerListCollapsed);
@@ -498,7 +505,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                 ) : (
                   <div className="relative">
                     {hostsLoading && (
-                      <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 dark:bg-black/20 rounded pointer-events-none" />
+                      <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 dark:bg-black/20 rounded" />
                     )}
                     <HostGroupTree
                       hostGroups={hostGroups}
