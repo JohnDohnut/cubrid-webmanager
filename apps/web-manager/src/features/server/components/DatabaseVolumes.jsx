@@ -37,18 +37,21 @@ const getVolumeColumn = (dbSpace, type) => {
 
 const getLogColumnRaw = (dbSpace, type) => {
   let totalPage = 0;
-  const pageSize = parseInt(dbSpace.pagesize);
+  // Log volumes use logpagesize, not the data pagesize.
+  const pageSize = parseInt(dbSpace.logpagesize || dbSpace.pagesize || 0);
+  if (!pageSize) return 0;
   for (const space of dbSpace.spaceinfo) {
-    if (space.type === type) totalPage += parseInt(space.totalpage);
+    if (space.type === type) totalPage += parseInt(space.totalpage || 0);
   }
-  return totalPage * pageSize; // raw bytes for sort
+  return totalPage * pageSize;
 };
 
 const getLogColumn = (dbSpace, type) => {
   let totalPage = 0;
-  const pageSize = parseInt(dbSpace.pagesize);
+  const pageSize = parseInt(dbSpace.logpagesize || dbSpace.pagesize || 0);
+  if (!pageSize) return '-';
   for (const space of dbSpace.spaceinfo) {
-    if (space.type === type) totalPage += parseInt(space.totalpage);
+    if (space.type === type) totalPage += parseInt(space.totalpage || 0);
   }
   return totalPage > 0 ? getSizeFormat(totalPage * pageSize) : '-';
 };

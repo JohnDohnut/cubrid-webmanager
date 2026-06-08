@@ -114,7 +114,12 @@ export const fetchDashboardCAS = createAsyncThunk(
               status: cas.as_status,
               lastConn: cas.as_lct,
               cpu: cas.as_cpu,
-              psize: cas.as_psize
+              psize: cas.as_psize,
+              // Raw numeric fields for correct sort (CMS returns strings)
+              _idNum: parseInt(cas.as_id, 10) || 0,
+              _pidNum: parseInt(cas.as_pid, 10) || 0,
+              _qpsNum: parseFloat(cas.as_num_query) || 0,
+              _lqsNum: parseFloat(cas.as_long_query) || 0,
             });
           }
         });

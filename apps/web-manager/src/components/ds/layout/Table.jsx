@@ -33,11 +33,18 @@ export const Table = ({
     const col = columns.find((c) => c.accessor === sortConfig.key);
     const sortKey = col?.sortAccessor ?? sortConfig.key;
     return [...data].sort((a, b) => {
-      const valA = a[sortKey];
-      const valB = b[sortKey];
+      let valA = a[sortKey];
+      let valB = b[sortKey];
       if (valA == null && valB == null) return 0;
       if (valA == null) return 1;
       if (valB == null) return -1;
+      // Coerce numeric strings so "10" sorts after "9" not before.
+      const numA = typeof valA === 'string' ? parseFloat(valA) : valA;
+      const numB = typeof valB === 'string' ? parseFloat(valB) : valB;
+      if (!isNaN(numA) && !isNaN(numB)) {
+        valA = numA;
+        valB = numB;
+      }
       if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
       if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
