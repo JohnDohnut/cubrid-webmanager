@@ -100,7 +100,7 @@ export default function DBBrokersCASSection({ brokersCAS, pollingProps, onViewSQ
       isCollapsed={isCollapsed}
       onToggle={(v) => setIsCollapsed(v)}
     >
-      <Table columns={columns} data={brokersCAS} />
+      <Table columns={columns} data={brokersCAS} sortable />
     </Card>
   );
 }

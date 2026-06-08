@@ -35,6 +35,15 @@ const getVolumeColumn = (dbSpace, type) => {
   return { display: '-', pct: 0 };
 };
 
+const getLogColumnRaw = (dbSpace, type) => {
+  let totalPage = 0;
+  const pageSize = parseInt(dbSpace.pagesize);
+  for (const space of dbSpace.spaceinfo) {
+    if (space.type === type) totalPage += parseInt(space.totalpage);
+  }
+  return totalPage * pageSize; // raw bytes for sort
+};
+
 const getLogColumn = (dbSpace, type) => {
   let totalPage = 0;
   const pageSize = parseInt(dbSpace.pagesize);
@@ -81,15 +90,23 @@ export default function DatabaseVolumes({ hostUid }) {
   useEffect(() => { fetchVolumes(); }, [fetchVolumes]);
 
   const volumeData = React.useMemo(() => volumes?.map((result) => {
-    if (!result?.spaceinfo) return { id: result.dbname, db: result.dbname, permanent: { display: '-', pct: 0 }, temporary: { display: '-', pct: 0 }, activeLog: '-', archiveLog: '-', storageFree: '-' };
+    if (!result?.spaceinfo) return { id: result.dbname, db: result.dbname, permanent: { display: '-', pct: 0 }, temporary: { display: '-', pct: 0 }, activeLog: '-', archiveLog: '-', storageFree: '-', _permanentPct: 0, _temporaryPct: 0, _activeLogRaw: 0, _archiveLogRaw: 0, _storageFreeRaw: 0 };
+    const perm = getVolumeColumn(result, 'PERMANENT');
+    const temp = getVolumeColumn(result, 'TEMPORARY');
     return {
       id: result.dbname,
       db: result.dbname,
-      permanent: getVolumeColumn(result, 'PERMANENT'),
-      temporary: getVolumeColumn(result, 'TEMPORARY'),
+      permanent: perm,
+      temporary: temp,
       activeLog: getLogColumn(result, 'Active_log'),
       archiveLog: getLogColumn(result, 'Archive_log'),
       storageFree: result.freespace ? getSizeFormat(parseInt(result.freespace) * 1024) : '-',
+      // raw numeric values used by sortAccessor for correct ordering
+      _permanentPct: perm.pct,
+      _temporaryPct: temp.pct,
+      _activeLogRaw: getLogColumnRaw(result, 'Active_log'),
+      _archiveLogRaw: getLogColumnRaw(result, 'Archive_log'),
+      _storageFreeRaw: result.freespace ? parseInt(result.freespace) : 0,
     };
   }) || [], [volumes]);
 
@@ -99,11 +116,11 @@ export default function DatabaseVolumes({ hostUid }) {
       accessor: 'db',
       render: (val) => <span className="font-mono text-[12px] font-semibold text-slate-700 dark:text-slate-200">{val}</span>
     },
-    { header: CM.permanent, accessor: 'permanent', render: (val) => <BarCell val={val} /> },
-    { header: CM.temporary, accessor: 'temporary', render: (val) => <BarCell val={val} /> },
-    { header: CM.activeLog, accessor: 'activeLog', render: (val) => <span className="font-mono text-[12px] text-slate-500">{val}</span> },
-    { header: CM.archiveLog, accessor: 'archiveLog', render: (val) => <span className="font-mono text-[12px] text-slate-500">{val}</span> },
-    { header: CM.freeStorage, accessor: 'storageFree', render: (val) => <span className="font-mono text-[12px] text-emerald-600 dark:text-emerald-400 font-semibold">{val}</span> },
+    { header: CM.permanent,   accessor: 'permanent',   sortAccessor: '_permanentPct',   render: (val) => <BarCell val={val} /> },
+    { header: CM.temporary,   accessor: 'temporary',   sortAccessor: '_temporaryPct',   render: (val) => <BarCell val={val} /> },
+    { header: CM.activeLog,   accessor: 'activeLog',   sortAccessor: '_activeLogRaw',   render: (val) => <span className="font-mono text-[12px] text-slate-500">{val}</span> },
+    { header: CM.archiveLog,  accessor: 'archiveLog',  sortAccessor: '_archiveLogRaw',  render: (val) => <span className="font-mono text-[12px] text-slate-500">{val}</span> },
+    { header: CM.freeStorage, accessor: 'storageFree', sortAccessor: '_storageFreeRaw', render: (val) => <span className="font-mono text-[12px] text-emerald-600 dark:text-emerald-400 font-semibold">{val}</span> },
   ], [CM]);
 
   return (

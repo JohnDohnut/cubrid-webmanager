@@ -29,14 +29,20 @@ export const Table = ({
 
   const sortedData = React.useMemo(() => {
     if (!sortConfig) return data;
+    // Find the column to check for sortAccessor (raw sort key override)
+    const col = columns.find((c) => c.accessor === sortConfig.key);
+    const sortKey = col?.sortAccessor ?? sortConfig.key;
     return [...data].sort((a, b) => {
-      const valA = a[sortConfig.key];
-      const valB = b[sortConfig.key];
+      const valA = a[sortKey];
+      const valB = b[sortKey];
+      if (valA == null && valB == null) return 0;
+      if (valA == null) return 1;
+      if (valB == null) return -1;
       if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
       if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [data, sortConfig]);
+  }, [data, sortConfig, columns]);
 
   if (loading && data.length === 0) {
     return (
