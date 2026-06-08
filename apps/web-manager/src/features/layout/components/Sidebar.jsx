@@ -167,6 +167,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
 
   const handleHostLogin = useCallback((uid) => {
     if (!uid) return;
+    if (isLoggingIntoHost) return;
 
     dispatch(loginToHostWithSideEffects(uid))
       .unwrap()
@@ -179,7 +180,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
       .catch((err) => {
         console.error('Failed to log into host:', err);
       });
-  }, [dispatch]);
+  }, [dispatch, isLoggingIntoHost]);
 
   const pendingLoginAllUids = getUnauthorizedHostUids(hostGroups, authorizedHosts, null);
   const pendingLoginCount = pendingLoginAllUids.length;
