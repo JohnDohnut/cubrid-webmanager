@@ -32,19 +32,23 @@ export const Table = ({
     // Find the column to check for sortAccessor (raw sort key override)
     const col = columns.find((c) => c.accessor === sortConfig.key);
     const sortKey = col?.sortAccessor ?? sortConfig.key;
-    // numericSort: true must be set explicitly — applying parseFloat globally
-    // would break date strings, IP addresses, and other string columns.
-    const numeric = col?.numericSort === true || col?.sortAccessor != null;
     return [...data].sort((a, b) => {
       let valA = a[sortKey];
       let valB = b[sortKey];
       if (valA == null && valB == null) return 0;
       if (valA == null) return 1;
       if (valB == null) return -1;
-      if (numeric) {
-        const nA = parseFloat(valA);
-        const nB = parseFloat(valB);
-        if (!isNaN(nA) && !isNaN(nB)) { valA = nA; valB = nB; }
+      // Use Number() (strict) not parseFloat (prefix-only) so that fully
+      // numeric strings like "10" and "2" compare as numbers, while dates
+      // ("2026-06-08"), IP addresses ("192.168.0.10"), and mixed strings
+      // fall through to lexicographic comparison.
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        const nA = Number(valA);
+        const nB = Number(valB);
+        if (!isNaN(nA) && !isNaN(nB) && valA.trim() !== '' && valB.trim() !== '') {
+          valA = nA;
+          valB = nB;
+        }
       }
       if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
       if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
