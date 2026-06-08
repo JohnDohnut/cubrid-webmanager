@@ -180,10 +180,16 @@ const Component = function ServiceDashboard() {
     const flushGroup = () => {
       if (!pendingGroup) return;
       pendingHosts.sort((a, b) => {
-        const va = summaries[a.uid]?.[key] ?? -Infinity;
-        const vb = summaries[b.uid]?.[key] ?? -Infinity;
-        if (va < vb) return direction === 'asc' ? -1 : 1;
-        if (va > vb) return direction === 'asc' ? 1 : -1;
+        const rawA = summaries[a.uid]?.[key];
+        const rawB = summaries[b.uid]?.[key];
+        const noA = rawA == null;
+        const noB = rawB == null;
+        // Hosts with no measurement always sort to the end regardless of direction.
+        if (noA && noB) return 0;
+        if (noA) return 1;
+        if (noB) return -1;
+        if (rawA < rawB) return direction === 'asc' ? -1 : 1;
+        if (rawA > rawB) return direction === 'asc' ? 1 : -1;
         return 0;
       });
       result.push(pendingGroup, ...pendingHosts);
