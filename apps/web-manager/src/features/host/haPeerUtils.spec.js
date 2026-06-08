@@ -19,8 +19,8 @@ describe('hostnameMatches (via hostMatchesHaPeer)', () => {
     it('short name matches FQDN', () => {
       expect(hostMatchesHaPeer(host('node1'), peer('node1.example.com'))).toBe(true);
     });
-    it('FQDN matches short name', () => {
-      expect(hostMatchesHaPeer(host('node1.example.com'), peer('node1'))).toBe(true);
+    it('FQDN stored + short peer does NOT match without IP (cross-cluster ambiguity)', () => {
+      expect(hostMatchesHaPeer(host('node1.example.com'), peer('node1'))).toBe(false);
     });
   });
 
@@ -45,34 +45,30 @@ describe('hostnameMatches (via hostMatchesHaPeer)', () => {
     });
   });
 
-  describe('FQDN stored, peer reports only short hostname — ambiguous without IP', () => {
-    it('node1.prod.example.com should NOT match short peer "node1" (no IP)', () => {
+  describe('FQDN stored, peer reports only short hostname', () => {
+    // Without IP evidence we cannot know whether "node1" belongs to
+    // node1.prod.example.com or node1.dev.example.com; blocking is safer
+    // than producing false merge/discovery proposals.
+    it('node1.example.com does NOT match short peer "node1" without IP', () => {
+      expect(hostMatchesHaPeer(host('node1.example.com'), peer('node1'))).toBe(false);
+    });
+    it('node1.prod.example.com does NOT match short peer "node1" without IP', () => {
       expect(hostMatchesHaPeer(host('node1.prod.example.com'), peer('node1'))).toBe(false);
     });
-    it('node1.dev.example.com should NOT match short peer "node1" (no IP)', () => {
-      expect(hostMatchesHaPeer(host('node1.dev.example.com'), peer('node1'))).toBe(false);
-    });
-    it('prevents cross-cluster false-positive when both FQDNs share first label', () => {
-      // Both prod and dev would previously match peer "node1"
-      const prodHost = host('node1.prod.example.com');
-      const devHost  = host('node1.dev.example.com');
-      const shortPeer = peer('node1');
-      expect(hostMatchesHaPeer(prodHost, shortPeer)).toBe(false);
-      expect(hostMatchesHaPeer(devHost,  shortPeer)).toBe(false);
-    });
-    it('does NOT match even when alias equals peer short name — alias is display name, not identity', () => {
-      expect(hostMatchesHaPeer(host('node1.prod.example.com', 'node1'), peer('node1'))).toBe(false);
-    });
-    it('alias matching cannot be exploited cross-cluster', () => {
-      // Both prod and dev hosts have alias "node1", but neither should match short peer without IP
-      expect(hostMatchesHaPeer(host('node1.prod.example.com', 'node1'), peer('node1'))).toBe(false);
-      expect(hostMatchesHaPeer(host('node1.dev.example.com',  'node1'), peer('node1'))).toBe(false);
-    });
-    it('FQDN stored + short peer + IP match → still matches via IP', () => {
+    it('FQDN stored + short peer + IP match → matches via IP', () => {
       expect(hostMatchesHaPeer(host('10.0.0.1'), peer('node1', '10.0.0.1'))).toBe(true);
     });
-    it('short stored address + FQDN peer → still matches (reverse direction is safe)', () => {
+    it('short stored address + FQDN peer → matches (reverse direction is safe)', () => {
       expect(hostMatchesHaPeer(host('node1'), peer('node1.prod.example.com'))).toBe(true);
+    });
+  });
+
+  describe('alias is not used as endpoint identity', () => {
+    it('alias "node1" on FQDN host does not match short peer "node1"', () => {
+      expect(hostMatchesHaPeer(host('node1.prod.example.com', 'node1'), peer('node1'))).toBe(false);
+    });
+    it('alias "node1" does not match unrelated FQDN peer', () => {
+      expect(hostMatchesHaPeer(host('node1.prod.example.com', 'node1'), peer('node1.dev.example.com'))).toBe(false);
     });
   });
 

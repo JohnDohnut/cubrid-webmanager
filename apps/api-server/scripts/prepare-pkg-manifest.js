@@ -20,9 +20,10 @@ if (!rootPackage.pkg) {
 const target = readArg('--target');
 const setBin = process.argv.includes('--set-bin');
 
+distPackage.name = 'cubrid-web-manager';
 distPackage.pkg = target ? { ...rootPackage.pkg, targets: [target] } : rootPackage.pkg;
 if (setBin || target) {
-  distPackage.bin = { 'api-server': 'main.js' };
+  distPackage.bin = { 'cubrid-web-manager': 'main.js' };
 }
 
 fs.writeFileSync(distPackagePath, JSON.stringify(distPackage, null, 2));

@@ -3,14 +3,14 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: ['**']
   pull_request:
-    branches: [main, develop]
+    branches: ['**']
   workflow_dispatch:
 
 jobs:
   build:
-    name: Install, typecheck, build
+    name: Typecheck & build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -31,7 +31,7 @@ jobs:
       - name: Build all projects
         run: npx nx run-many --target=build --all
 
-      # Artifact: Nx build output (dist only, including main.js), uploaded only for direct pushes to develop in the official repository.
+      # Artifact: dist uploaded only for direct pushes to develop in the official repository.
       - name: Upload dist
         if: github.event_name == 'push' && github.ref == 'refs/heads/develop' && github.repository == 'cubrid/cubrid-webmanager'
         uses: actions/upload-artifact@v4
@@ -40,3 +40,29 @@ jobs:
           path: dist/
           retention-days: 30
           if-no-files-found: error
+
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test api-server
+        run: npm run test:api-server -- --passWithNoTests --forceExit
+        env:
+          CI: true
+
+      - name: Test web-manager
+        run: npm run test:web-manager -- --passWithNoTests --reporter=verbose
+        env:
+          CI: true

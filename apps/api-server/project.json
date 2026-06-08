@@ -61,87 +61,47 @@
       "dependsOn": ["build"],
       "options": {
         "commands": [
-          {
-            "command": "npm install --production",
-            "cwd": "dist/apps/api-server"
-          },
-          {
-            "command": "node scripts/prepare-pkg-manifest.js",
-            "cwd": "apps/api-server"
-          },
-          {
-            "command": "npx pkg dist/apps/api-server/package.json",
-            "cwd": "{workspaceRoot}"
-          }
+          "cd dist/apps/api-server && npm install --production",
+          "node apps/api-server/scripts/prepare-pkg-manifest.js",
+          "node scripts/copy-web-to-api.mjs",
+          "npx pkg dist/apps/api-server/package.json"
         ],
         "parallel": false
       },
       "configurations": {
         "windows": {
           "commands": [
-            {
-              "command": "npm install --production",
-              "cwd": "dist/apps/api-server"
-            },
-            {
-              "command": "node scripts/prepare-pkg-manifest.js --target node18-win-x64",
-              "cwd": "apps/api-server"
-            },
-            {
-              "command": "npx pkg dist/apps/api-server/package.json --targets node18-win-x64 --output dist/executables/api-server.exe",
-              "cwd": "{workspaceRoot}"
-            }
+            "cd dist/apps/api-server && npm install --production",
+            "node apps/api-server/scripts/prepare-pkg-manifest.js --target node18-win-x64",
+            "node scripts/copy-web-to-api.mjs",
+            "npx pkg dist/apps/api-server/package.json --targets node18-win-x64 --output dist/executables/cubrid-web-manager.exe"
           ],
           "parallel": false
         },
         "linux": {
           "commands": [
-            {
-              "command": "npm install --production",
-              "cwd": "dist/apps/api-server"
-            },
-            {
-              "command": "node scripts/prepare-pkg-manifest.js --target node18-linux-x64",
-              "cwd": "apps/api-server"
-            },
-            {
-              "command": "npx pkg dist/apps/api-server/package.json --targets node18-linux-x64 --output dist/executables/api-server-linux",
-              "cwd": "{workspaceRoot}"
-            }
+            "cd dist/apps/api-server && npm install --production",
+            "node apps/api-server/scripts/prepare-pkg-manifest.js --target node18-linux-x64",
+            "node scripts/copy-web-to-api.mjs",
+            "npx pkg dist/apps/api-server/package.json --targets node18-linux-x64 --output dist/executables/cubrid-web-manager-linux"
           ],
           "parallel": false
         },
         "macos": {
           "commands": [
-            {
-              "command": "npm install --production",
-              "cwd": "dist/apps/api-server"
-            },
-            {
-              "command": "node scripts/prepare-pkg-manifest.js --target node18-macos-x64",
-              "cwd": "apps/api-server"
-            },
-            {
-              "command": "npx pkg dist/apps/api-server/package.json --targets node18-macos-x64 --output dist/executables/api-server-macos",
-              "cwd": "{workspaceRoot}"
-            }
+            "cd dist/apps/api-server && npm install --production",
+            "node apps/api-server/scripts/prepare-pkg-manifest.js --target node18-macos-x64",
+            "node scripts/copy-web-to-api.mjs",
+            "npx pkg dist/apps/api-server/package.json --targets node18-macos-x64 --output dist/executables/cubrid-web-manager-macos"
           ],
           "parallel": false
         },
         "all": {
           "commands": [
-            {
-              "command": "npm install --production",
-              "cwd": "dist/apps/api-server"
-            },
-            {
-              "command": "node scripts/prepare-pkg-manifest.js --set-bin",
-              "cwd": "apps/api-server"
-            },
-            {
-              "command": "npx pkg dist/apps/api-server/package.json",
-              "cwd": "{workspaceRoot}"
-            }
+            "cd dist/apps/api-server && npm install --production",
+            "node apps/api-server/scripts/prepare-pkg-manifest.js --set-bin",
+            "node scripts/copy-web-to-api.mjs",
+            "npx pkg dist/apps/api-server/package.json"
           ],
           "parallel": false
         }

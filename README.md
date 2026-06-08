@@ -1,348 +1,229 @@
 # CUBRID Web Manager
 
-CUBRID Web Manager is a modern web application for administering CUBRID databases. It talks to CUBRID Manager Server (CMS) on managed hosts and exposes a React UI backed by a NestJS API.
+CUBRID 데이터베이스 운영 관리를 위한 차세대 웹/데스크톱 애플리케이션입니다.
 
-This repository is an [Nx](https://nx.dev/) monorepo with a shared root `package.json`, shared TypeScript contracts in `libs/api-interfaces`, and three deployable applications: the web UI, the API server, and an Electron desktop launcher (phase 1 / MVP).
+## 프로젝트 구조
 
-## Repository layout
-
-```text
+```
 cubrid-webmanager/
 ├── apps/
-│   ├── web-manager/     # React + Vite frontend (PWA-capable)
-│   ├── api-server/      # NestJS HTTPS API and CMS integration
-│   └── desktop/         # Electron main/preload; bundles UI + API for local use
+│   ├── web-manager/     # React 19 + Vite + Ant Design (프론트엔드)
+│   ├── api-server/      # NestJS 11 + TypeScript (백엔드 API)
+│   └── desktop/         # Electron 35 (데스크톱 래퍼)
 ├── libs/
-│   ├── api-interfaces/  # Shared request/response TypeScript types
-│   └── ui-components/   # Reserved for shared UI (placeholder)
-├── data/                # Local desktop secrets and runtime data (git-ignored contents)
-├── docs/                # Architecture notes (including desktop MVP spec)
-├── dist/                # Build outputs (generated)
-├── tools/               # Local HTTPS/proxy helpers for web development
-└── package.json         # Root dependencies and npm scripts
+│   └── api-interfaces/  # 공유 TypeScript 타입 (Request/Response)
+├── scripts/             # 빌드 보조 스크립트
+├── tools/               # 개발 도구 (HTTPS 프록시 등)
+├── cwm.conf.sample      # 서버 배포용 설정 파일 샘플
+└── package.json
 ```
 
-## Tech stack
+## 시작하기
 
-| Layer | Technologies |
-|-------|----------------|
-| Frontend | React 19, Vite 7, Ant Design, Redux Toolkit, Tailwind CSS 4 |
-| Backend | NestJS 11, TypeScript, Passport JWT, encrypted file storage |
-| Desktop | Electron 35 (dev dependency at repo root) |
-| Tooling | Nx 22, Jest, ESLint, Webpack (API), `pkg` (optional API executables) |
-
-## Prerequisites
-
-- Node.js 20+ (aligned with the repo’s `@types/node` and `pkg` targets)
-- npm (install from the repository root)
-
-## Install
+### 의존성 설치
 
 ```bash
 npm install
 ```
 
-## Development
+---
 
-### Web UI only (Vite dev server)
+## 개발 모드
 
-```bash
-npm run dev:web-manager
-# or: nx dev web-manager
-```
-
-Set `VITE_API_BASE_URL=/api` when building for the [HTTPS stack](#https-web--api-local-stack) so the UI calls same-origin `/api/...`. Without it, the dev build defaults to `https://localhost:8080` (cross-origin, CORS required).
-
-### API server only
-
-Build once, then serve the compiled entrypoint:
+### 방법 1 — 프론트 + API 각각 실행
 
 ```bash
-npm run build:api-server
-npm run dev:api-server
+npm run dev:web-manager   # React (Vite HMR, http://localhost:4200)
+npm run dev:api-server    # NestJS (watch mode, https://localhost:8080)
 ```
 
-`nx serve api-server` runs `node dist/apps/api-server/main.js` from the workspace root.
-
-Copy `apps/api-server/.env.example` to `apps/api-server/.env` (or the repo root `.env`). At minimum set `SEED`, `SALT`, and `ENVIRONMENT`. See [Environment variables](#environment-variables) for the full list.
-
-Example with CLI overrides (CLI wins over env):
-
-```bash
-node dist/apps/api-server/main.js --SEED=seed --SALT=salt --PORT=8080 --ALLOWED_ORIGINS=https://localhost
-```
-
-### HTTPS web + API (local stack)
-
-`npm run dev:web-manager:https:stack` runs **two processes** via `tools/run-web-manager-https-stack.js`:
-
-1. **API** — `npm run dev:api-server` (NestJS on port `8080` by default)
-2. **HTTPS front door** — `tools/serve-web-manager-https-proxy.js` serves the **built** UI and proxies `/api/*` → `https://127.0.0.1:8080/*`
-
-Use this when you want the browser on a **single origin** (for example `https://localhost`) without CORS between UI and API.
-
-**Prerequisites**
-
-```bash
-npm run ssl:local-prod
-VITE_API_BASE_URL=/api npm run build:web-manager
-```
-
-**Run**
-
-```bash
-npm run dev:web-manager:https:stack        # HTTPS on 443
-npm run dev:web-manager:https:stack:4200   # if 443 is in use or needs elevated privileges
-```
-
-Open `https://localhost` (or `https://localhost:4200`). API calls should go to `/api/...` (same origin).
-
-**Related scripts**
-
-| Script | Purpose |
-|--------|---------|
-| `npm run serve:web-manager:https-proxy` | HTTPS UI + `/api` proxy only (API must already be running) |
-| `npm run serve:web-manager:dist` | Static UI over HTTP only (no API proxy) |
-
-Env for the stack and proxy is loaded from `apps/api-server/.env` (see [HTTPS stack / proxy tools](#https-stack--proxy-tools-tools)).
-
-**Local `ENVIRONMENT=production` example** (`apps/api-server/.env`):
+개발 시 `.env` 또는 `apps/api-server/.env` 파일에 환경변수를 설정합니다:
 
 ```env
-ENVIRONMENT=production
-SEED=seed
-SALT=salt
+SEED=your-seed-value
+SALT=your-salt-value
 PORT=8080
-ALLOWED_ORIGINS=https://localhost,https://127.0.0.1
-AUTH_REGISTRATION_ENABLED=true
-CWM_TRUST_LOCAL_PROXY=1
-PROXY_INSECURE_TLS=1
-API_TARGET=https://127.0.0.1:8080
-SSL_CERT_PATH=apps/api-server/ssl/cert.pem
-SSL_KEY_PATH=apps/api-server/ssl/key.pem
 ```
 
-Do **not** run `node dist/apps/api-server/main.js` in a separate terminal when using the stack — use the stack alone so port `443`/`4200` and `8080` stay in sync.
-
-### Desktop (Electron)
-
-The desktop app loads the **built** web UI over the custom `app://` protocol, spawns the **built** API as a child process on a **Unix domain socket** (named pipe on Windows), and injects `apiBaseUrl` into the renderer through a thin preload (`window.desktopConfig`).
+### 방법 2 — HTTPS 스택 한번에 실행 (브라우저 테스트)
 
 ```bash
-npm run dev:desktop
+npm run dev:stack
 ```
 
-This target builds `desktop`, `api-server`, and the Electron-specific `web-manager` build (`build-electron` uses `vite build --mode=electron` for macOS/Linux/Windows), then runs Electron via `npx electron apps/desktop`.
+NestJS API(:8080)와 HTTPS 프록시(:443)를 함께 실행합니다.
+같은 자체 서명 인증서를 공유하므로 브라우저에서 한 번만 신뢰하면 됩니다.
 
-Portable folder output (unpacked app directory):
+---
+
+## 빌드
 
 ```bash
-npm run package:desktop
+npm run build:web-manager   # React만 빌드
+npm run build:api-server    # NestJS만 빌드
+npm run build:server        # 서버 배포용 통합 빌드 (아래 참고)
+npm run build               # 전체 빌드
 ```
 
-Packaging can take several minutes while `api-server/node_modules` is copied into the app bundle. On macOS you may see `skipped macOS notarization` — that is expected for unsigned local builds.
+---
 
-Artifacts are written under `dist/portable/`:
+## 배포
 
-- macOS: `dist/portable/mac-arm64/CUBRID Web Manager.app` (or `mac/` / `mac-x64` depending on the build machine)
-- Windows: `dist/portable/win-unpacked/CUBRID Web Manager.exe`
-- Linux: `dist/portable/linux-unpacked/` (executable name matches `productName`)
-
-Run the generated app from that folder. Portable layout next to the app (same on macOS, Windows, Linux — not under Library/AppData):
-
-- `desktop-settings.json` — in the same folder as the `.app` (macOS) or `.exe` (Windows/Linux), not inside the bundle
-- `cwm-vault/secrets.json` — SEED/SALT (outside `cwm-workspace/`)
-- `cwm-workspace/` — default data directory (`data/`, `ssl/`, storage, `api.sock` on Unix)
-
-Runtime notes:
-
-- Renderer static files: `dist/apps/web-manager` in development; `resources/web-manager` when packaged
-- API entry: `dist/apps/api-server/main.js` in development; `resources/api-server/main.js` when packaged
-- API child env: `CWM_DESKTOP=1`, `LISTEN_UNIX_SOCKET=<data>/api.sock`, `STORAGE_PATH=<portable>/data/storage`, `ALLOWED_ORIGINS=app://.`
-- Desktop waits for API readiness before opening the main window
-- Phase 1 does **not** include code signing, a first-run wizard, or OS keychain integration
-
-See [docs/electron-desktop-spec.en.md](./docs/electron-desktop-spec.en.md) (Korean: [docs/electron-desktop-spec.ko.md](./docs/electron-desktop-spec.ko.md)).
-
-**Configuration models differ by app:**
-
-| App | How settings are supplied |
-|-----|---------------------------|
-| `api-server` | Runtime `.env` / environment / CLI (`--KEY=value`) |
-| `web-manager` (web deploy) | Build-time `VITE_*` or same-origin `/api` reverse proxy |
-| `desktop` | Main process `spawn` env for the API; preload for `apiBaseUrl` only |
-
-## Environment variables
-
-Configuration is read at **process startup** (not baked into bundles). For `api-server`, CLI flags `--KEY=value` override env when both are set.
-
-### How env files are loaded (`api-server`)
-
-Implemented in `apps/api-server/src/config/load-runtime-env.ts`. The **first existing file** wins (not merged):
-
-| `ENVIRONMENT` | Search order |
-|---------------|--------------|
-| `production` | `/etc/cubrid-webmanager.env` → `apps/api-server/.env` → repo root `.env` |
-| `development` | repo root `.env` → `apps/api-server/.env` |
-
-Skipped when `CWM_DESKTOP=1` (Electron injects env via `spawn`).
-
-`tools/load-workspace-env.js` (HTTPS stack / proxy) loads: `apps/api-server/.env` → repo root `.env` → `/etc/cubrid-webmanager.env`.
-
-### `api-server` runtime
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `SEED` | **Yes** | — | Input to PBKDF2 storage encryption key. Changing it invalidates existing encrypted storage. |
-| `SALT` | **Yes** | — | Salt for PBKDF2. Keep stable per deployment. |
-| `ENVIRONMENT` | No | `development` | `development` or `production`. Alias via CLI: `--ENV=` or `--ENVIRONMENT=`. |
-| `PORT` | No | `8080` | HTTPS listen port for the API. |
-| `ALLOWED_ORIGINS` | Production | empty | Comma-separated browser origins for CORS (no spaces after commas). Ignored in `development` (`*` used). Example: `https://localhost` for `https://localhost` on port 443 (Origin has no port). |
-| `AUTH_REGISTRATION_ENABLED` | No | `true` in dev, `false` in prod | Allow `POST /auth/register`. Use `true`/`false`/`1`/`0`. |
-| `CMS_REJECT_UNAUTHORIZED` | No | `true` in prod, `false` in dev | Reject invalid TLS certificates when calling CMS hosts. |
-| `CMS_FORWARD_ENABLED` | No | `false` in prod, `true` in dev | Enable CMS HTTPS forward proxy endpoints. |
-| `CMS_CA_CERT_PATH` | No | — | PEM file for CMS TLS trust store. |
-| `SSL_CERT_PATH` | Production | — | API HTTPS certificate PEM. Relative paths resolve from repo root. |
-| `SSL_KEY_PATH` | Production | — | API HTTPS private key PEM. |
-| `CWM_SSL_DIR` | No | `apps/api-server/ssl` (dev) | Directory for auto-generated self-signed certs when PEM paths are not set. |
-| `SERVER_IP` | No | — | Extra IP SAN when generating self-signed certs. |
-| `STORAGE_PATH` | No | `apps/api-server/storage` (dev) | Encrypted user/host storage directory. |
-| `LISTEN_HOST` / `HOST` | No | all interfaces | Bind address for TCP listen. |
-| `LISTEN_UNIX_SOCKET` | No | — | Unix socket (or Windows named pipe) instead of TCP. Used by desktop. |
-| `CWM_DESKTOP` | No | — | Set to `1` by Electron. Skips dotenv load; desktop-specific CORS rules. |
-| `CWM_TRUST_LOCAL_PROXY` | No | — | Set to `1` to allow production CORS requests with no `Origin` header (local HTTPS reverse proxy). **Do not enable on public deployments.** |
-
-**CLI equivalents** (same names): `--SEED=`, `--SALT=`, `--PORT=`, `--ALLOWED_ORIGINS=`, `--LISTEN_HOST=`, `--LISTEN_UNIX_SOCKET=`, `--AUTH_REGISTRATION_ENABLED=`, `--CMS_REJECT_UNAUTHORIZED=`, `--CMS_FORWARD_ENABLED=`, `--CMS_CA_CERT_PATH=`.
-
-**Behavior notes**
-
-- `development`: CORS allows all origins; self-signed API TLS is auto-created under `CWM_SSL_DIR` if `SSL_*_PATH` are missing.
-- `production`: CORS uses `ALLOWED_ORIGINS` only; `SSL_CERT_PATH` and `SSL_KEY_PATH` are required.
-
-### HTTPS stack / proxy tools (`tools/`)
-
-Used by `serve-web-manager-https-proxy.js` and `run-web-manager-https-stack.js`. Read from `apps/api-server/.env` when present.
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `WEB_HTTPS_PORT` | `443` | Port for the HTTPS UI + `/api` proxy. Override with `npm run dev:web-manager:https:stack:4200` (argument `4200`). |
-| `API_TARGET` | `https://127.0.0.1:8080` | Upstream API base URL. `/api` prefix is stripped before forward. |
-| `PROXY_INSECURE_TLS` | `0` | Set to `1` to skip TLS verification to the API (needed for local self-signed API certs). |
-| `BUILD_DIR` | `dist/apps/web-manager` | Built static web UI directory. |
-| `SSL_CERT_PATH` | `apps/api-server/ssl/cert.pem` | HTTPS certificate for the **proxy** (often same files as the API). |
-| `SSL_KEY_PATH` | `apps/api-server/ssl/key.pem` | HTTPS private key for the proxy. |
-| `API_START` | `dev:api-server` | npm script name started by the stack (stack runner only). |
-| `API_WAIT_HOST` | `127.0.0.1` | Host to poll before starting the proxy (stack runner only). |
-| `API_WAIT_PORT` | `8080` or `PORT` | Port to poll before starting the proxy (stack runner only). |
-| `API_WAIT_TIMEOUT_MS` | `120000` | Max wait for API readiness in ms (stack runner only). |
-
-Also inherits `ENVIRONMENT`, `SEED`, `SALT`, etc. when the stack starts `dev:api-server`.
-
-### `web-manager` (build-time)
-
-Vite embeds these at **build** time (restart dev server or rebuild after changes).
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `VITE_API_BASE_URL` | `https://localhost:8080` (if unset at build) | Axios `baseURL`. Use `/api` for same-origin HTTPS proxy deployments. |
+### 방법 A — Node.js 직접 실행
 
 ```bash
-VITE_API_BASE_URL=/api npm run build:web-manager
+npm run build:server
+# → dist/apps/api-server/main.js + dist/apps/api-server/public/ 생성
 ```
 
-Electron builds use `vite build --mode=electron`; the desktop preload supplies `window.desktopConfig.apiBaseUrl` instead.
+배포 서버에서:
+```bash
+# cwm.conf 설정 후 실행
+node dist/apps/api-server/main.js
+```
 
-### Desktop (`apps/desktop`)
+### 방법 B — 단일 실행파일 패키징 (권장)
 
-Set by the Electron main process when spawning the API (see `apps/desktop/src/api/api-process.ts`). Override only for debugging.
-
-| Variable | Typical value | Description |
-|----------|---------------|-------------|
-| `CWM_DESKTOP` | `1` | Desktop mode; skips file-based env load in the API. |
-| `ENVIRONMENT` | `development` | API mode for bundled desktop runs. |
-| `LISTEN_UNIX_SOCKET` | `<workspace>/api.sock` | API listens on a socket, not TCP. |
-| `STORAGE_PATH` | `<workspace>/data/storage` | Portable storage path. |
-| `CWM_SSL_DIR` | `<workspace>/ssl` | SSL directory for the API child. |
-| `ALLOWED_ORIGINS` | `app://.` | CORS origin for the custom `app://` protocol. |
-| `SEED` / `SALT` | from `cwm-vault/secrets.json` | Encryption secrets (not in `.env`). |
-| `CWM_DESKTOP_ALLOWED_ORIGIN` | — | Optional override for desktop CORS origin (main process). |
-
-### Deployment scripts (`scripts/`)
-
-These **`CWM_*` variables are for install/deploy scripts only** (`deploy-cubrid-webmanager.sh`, `setup-runtime-from-dist.sh`). They are written into `/etc/cubrid-webmanager.env` as standard `api-server` variables, not read directly by the API at runtime unless exported there.
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CWM_INSTALL_ROOT` | `/opt/cubrid-webmanager` | Install directory on the server. |
-| `CWM_ENV_FILE` | `/etc/cubrid-webmanager.env` | Generated API env file path. |
-| `CWM_SSL_DIR` | `/etc/ssl/cubrid-webmanager` | TLS directory on the server. |
-| `CWM_SEED` / `CWM_SALT` | — | Written as `SEED` / `SALT` in the env file. |
-| `CWM_ALLOWED_ORIGINS` | — | Written as `ALLOWED_ORIGINS`. |
-| `CWM_API_PORT` | `8080` | Written as `PORT`. |
-| `CWM_NGINX_SSL_PORT` | `443` | Public HTTPS port (nginx). |
-| `CWM_PUBLIC_HOST` / `CWM_PUBLIC_IP` | `localhost` | Hostname/IP for certs and URLs. |
-| `CWM_NODE_MAJOR` | `20` | Node.js major version for install scripts. |
-| `CWM_ARTIFACT_ZIP` | — | Deployment zip path (`deploy-cubrid-webmanager.sh`). |
-| `CWM_SERVICE_USER` / `CWM_SERVICE_GROUP` | `cubrid` | systemd service user/group. |
-
-## Build
+Node.js 없이 실행 가능한 실행파일로 패키징합니다.
 
 ```bash
-# Everything
-npm run build
-
-# Per project
-npm run build:web-manager
-nx run web-manager:build-electron
-npm run build:api-server
-nx build desktop
+npm run package:server           # 전 플랫폼 동시
+npm run package:server:linux     # Linux용
+npm run package:server:win       # Windows용
+npm run package:server:mac       # macOS용
 ```
 
-Outputs:
+출력물 (`dist/executables/`):
+```
+dist/executables/
+  ├── cubrid-web-manager-linux          # Linux 실행파일 (Node.js + 프론트엔드 내장)
+  ├── cubrid-web-manager-macos          # macOS 실행파일
+  ├── cubrid-web-manager.exe            # Windows 실행파일
+  └── conf/
+      └── cwm.conf.sample  # 설정 파일 샘플 → cwm.conf로 복사 후 편집
+```
 
-- Web UI: `dist/apps/web-manager`
-- API: `dist/apps/api-server`
-- Desktop main/preload: `dist/apps/desktop`
+업데이트 시 실행파일만 교체하면 된다. `conf/`는 건드리지 않는다.
 
-## Test, lint, and CI
+#### cwm.conf 설정
+
+`conf/cwm.conf.sample`을 `conf/cwm.conf`로 복사 후 편집합니다:
+
+```json
+{
+  "PORT": "8080",
+  "ENVIRONMENT": "production",
+  "STORAGE_PATH": "./data"
+}
+```
+
+| 키 | 설명 | 기본값 |
+|----|------|--------|
+| `PORT` | 서버 포트 | `8080` |
+| `ENVIRONMENT` | `production` / `development` | `production` |
+| `STORAGE_PATH` | 데이터 저장 경로 | `./data` |
+| `ALLOWED_ORIGINS` | CORS 허용 도메인 (쉼표 구분, 없으면 전체 허용) | — |
+| `SSL_CERT_PATH` | 공인 인증서 경로 (없으면 자동 생성) | — |
+| `SSL_KEY_PATH` | 공인 인증서 키 경로 | — |
+
+#### cwm-vault (자동 관리 — 편집 금지)
+
+암호화 키(SEED/SALT)는 `cwm-vault/secrets.json`에 자동 생성됩니다. Electron 데스크톱 앱과 동일한 구조입니다.
+
+```
+cwm-vault/
+  secrets.json   ← 자동 생성, 절대 편집/삭제 금지
+```
+
+> **주의**: `cwm-vault/`를 삭제하면 저장된 모든 데이터를 복호화할 수 없습니다.
+
+#### 포트 변경
+
+`conf/cwm.conf`의 `PORT` 값을 수정하고 재시작합니다.
+
+```json
+{
+  "PORT": "9090"
+}
+```
+
+이후 `https://서버IP:9090`으로 접속합니다.
+
+#### 첫 실행 동작
+
+1. `SEED` / `SALT` 없으면 자동 생성 후 `cwm-vault/secrets.json`에 저장
+2. `ssl/` 폴더에 자체 서명 인증서 자동 생성 (없을 때)
+3. 브라우저에서 `https://서버IP:PORT` 접속 → 인증서 한 번 신뢰 → 이후 정상 사용
+
+#### 업데이트
+
+새 버전 배포 시 `cwm-*` 실행파일과 `public/` 폴더만 교체합니다.
+`conf/cwm.conf`는 절대 덮어쓰지 않습니다 — `SEED`/`SALT`가 초기화되면 데이터를 잃습니다.
+
+#### 실행
 
 ```bash
-npm run test
-npm run lint
-npm run typecheck:api-server
-npm run ci
+# Linux
+./cubrid-web-manager-linux
+
+# Windows
+cubrid-web-manager.exe
+
+# macOS
+./cubrid-web-manager-macos
 ```
 
-Project-scoped commands are available, for example `npm run test:api-server` and `npm run lint:web-manager`.
+### 방법 C — Electron 데스크톱 앱
 
-## Packaging the API with `pkg`
+별도 브랜치(`project/electron-desktop`)에서 관리됩니다.
 
-Optional single-file executables for the API server:
+---
+
+## 빌드된 서버 로컬 실행
 
 ```bash
-npm run pkg:api-server          # all platforms (per root pkg config)
-npm run pkg:api-server:windows
-npm run pkg:api-server:linux
-npm run pkg:api-server:macos
+npm run build:server
+npm run start
+# → https://localhost:8080 에서 실행
 ```
 
-Artifacts are written under `dist/executables/`. Run with the same `SEED`, `SALT`, and `PORT` requirements as the Node entrypoint. Place env files next to the binary or inject environment variables as documented in `apps/api-server/.env.example`.
+---
 
-## Shared API contracts
+## 테스트 / 린트
 
-HTTP request and response shapes shared between the frontend and backend live in `libs/api-interfaces`. Import from `@api-interfaces` in application code. See [libs/api-interfaces/README.md](./libs/api-interfaces/README.md).
+```bash
+npm run test                   # 전체 테스트
+npm run test:api-server        # API 서버만
+npm run lint                   # 전체 린트
+npm run typecheck:api-server   # 타입 체크
+npm run ci                     # 타입 체크 + 빌드 (CI용)
+```
 
-## Nx monorepo notes
+---
 
-- Dependencies are installed once at the repository root.
-- Each app defines targets in its own `project.json` (or via Nx plugins for Vite/Webpack).
-- TypeScript path aliases for the API are listed under `_moduleAliases` in the root `package.json` and resolved at build time for the server bundle.
+## 기술 스택
 
-## Documentation
+| 영역 | 기술 |
+|------|------|
+| Frontend | React 19, Vite 7, Ant Design 5, Redux Toolkit, Tailwind CSS 4 |
+| Backend | NestJS 11, TypeScript, Passport JWT |
+| Desktop | Electron 35 |
+| Tooling | Nx 22, Webpack, pkg, Jest, ESLint |
 
-- [Electron desktop MVP spec (English)](./docs/electron-desktop-spec.en.md)
-- [Electron desktop MVP spec (Korean)](./docs/electron-desktop-spec.ko.md)
+---
 
-## License
+## 환경변수 전체 목록
 
-See the repository license file if present. Otherwise, refer to your organization’s distribution terms for CUBRID Web Manager.
+개발 시 `.env` 파일, 배포 시 `cwm.conf` 또는 시스템 환경변수로 설정합니다.
+
+| 변수 | 설명 | 필수 |
+|------|------|------|
+| `SEED` | 암호화 시드 | ✅ (cwm.conf에서 자동 생성) |
+| `SALT` | 암호화 솔트 | ✅ (cwm.conf에서 자동 생성) |
+| `PORT` | API 서버 포트 (기본: 8080) | — |
+| `ENVIRONMENT` | `development` / `production` | — |
+| `STORAGE_PATH` | 데이터 저장 경로 | — |
+| `SSL_CERT_PATH` | SSL 인증서 경로 (없으면 자동 생성) | — |
+| `SSL_KEY_PATH` | SSL 키 경로 | — |
+| `ALLOWED_ORIGINS` | CORS 허용 도메인 (쉼표 구분) | — |
+| `CWM_DESKTOP` | Electron 모드 (`1`) | — |

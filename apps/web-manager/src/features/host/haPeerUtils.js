@@ -36,9 +36,11 @@ function hostnameMatches(a, b) {
   const right = normalizeIdent(b);
   if (!left || !right) return false;
   if (left === right) return true;
-  if (left.endsWith(`.${right}`) || right.endsWith(`.${left}`)) return true;
-  // If both carry a domain suffix, do not collapse them to their first label.
+  // If both carry a domain suffix, they are distinct endpoints — do not
+  // collapse to first label, and do not use suffix containment (which would
+  // incorrectly match node1.example.com with example.com).
   if (left.includes('.') && right.includes('.')) return false;
+  // One side is a plain label (no dots): allow first-label fallback.
   const leftShort = left.split('.')[0];
   const rightShort = right.split('.')[0];
   return leftShort.length > 0 && leftShort === rightShort;
@@ -60,17 +62,20 @@ export function hostMatchesHaPeer(host, peer) {
   // Loopback special case.
   if (isLoopback(hAddr) && (isLoopback(nIp) || isLoopback(nHost))) return true;
 
-  // Stored address is FQDN but peer exposes only a bare short hostname (no dot):
-  // the first label is too coarse — node1.prod.example.com and node1.dev.example.com
-  // both reduce to "node1", so a first-label match is meaningless without IP evidence.
-  // IP evidence was checked above; if we reach here it did not confirm identity.
-  // Alias is a UI display name, not an endpoint identifier — it must not be used
-  // as a substitute for IP-level confirmation.
+  // If stored address is FQDN but the peer only exposes a bare short hostname,
+  // the first label is too coarse to confirm identity without IP evidence:
+  // node1.prod.example.com and node1.dev.example.com both reduce to "node1",
+  // so a different cluster's heartbeat can silently suppress discovery or
+  // trigger a false merge proposal.  IP evidence was already checked above;
+  // if we reach here it did not confirm identity.
   if (hAddr.includes('.') && nHost.length > 0 && !nHost.includes('.')) {
     return false;
   }
 
-  return hostnameMatches(hAddr, nHost) || hostnameMatches(hAlias, nHost);
+  // Alias is a UI display name, not an endpoint identifier.  It must not be
+  // used as a fallback for peer matching: alias "node1" on an unrelated host
+  // would match any heartbeat peer named "node1".
+  return hostnameMatches(hAddr, nHost);
 }
 
 export function findHostMatchingHaPeer(hosts, peer, excludeHostUid) {
