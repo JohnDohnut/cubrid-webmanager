@@ -36,9 +36,11 @@ function hostnameMatches(a, b) {
   const right = normalizeIdent(b);
   if (!left || !right) return false;
   if (left === right) return true;
-  if (left.endsWith(`.${right}`) || right.endsWith(`.${left}`)) return true;
-  // If both carry a domain suffix, do not collapse them to their first label.
+  // If both carry a domain suffix, they are distinct endpoints — do not
+  // collapse to first label, and do not use suffix containment (which would
+  // incorrectly match node1.example.com with example.com).
   if (left.includes('.') && right.includes('.')) return false;
+  // One side is a plain label (no dots): allow first-label fallback.
   const leftShort = left.split('.')[0];
   const rightShort = right.split('.')[0];
   return leftShort.length > 0 && leftShort === rightShort;

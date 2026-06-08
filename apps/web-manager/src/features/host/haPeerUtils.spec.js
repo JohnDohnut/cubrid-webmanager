@@ -19,8 +19,10 @@ describe('hostnameMatches (via hostMatchesHaPeer)', () => {
     it('short name matches FQDN', () => {
       expect(hostMatchesHaPeer(host('node1'), peer('node1.example.com'))).toBe(true);
     });
-    it('FQDN matches short name', () => {
-      expect(hostMatchesHaPeer(host('node1.example.com'), peer('node1'))).toBe(true);
+    it('FQDN stored + short peer is ambiguous without IP — does not match', () => {
+      // Stored address is FQDN but peer only has a short hostname: too ambiguous.
+      // node1.prod.example.com and node1.dev.example.com both reduce to "node1".
+      expect(hostMatchesHaPeer(host('node1.example.com'), peer('node1'))).toBe(false);
     });
   });
 

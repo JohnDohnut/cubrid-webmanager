@@ -68,5 +68,10 @@ export default defineConfig(({ mode }) => {
     port: 5173,
     allowedHosts: true,
   },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    passWithNoTests: true,
+  },
   }
 })
