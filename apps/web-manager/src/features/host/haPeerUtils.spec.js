@@ -19,12 +19,8 @@ describe('hostnameMatches (via hostMatchesHaPeer)', () => {
     it('short name matches FQDN', () => {
       expect(hostMatchesHaPeer(host('node1'), peer('node1.example.com'))).toBe(true);
     });
-    it('FQDN stored + short peer matches (CMS heartbeat often returns bare short names)', () => {
-      // Real CUBRID HA heartbeat commonly returns short hostnames even when the
-      // operator registered the host as a FQDN. Allow the first-label match;
-      // cross-cluster false-positives are already blocked by the FQDN-vs-FQDN
-      // different-suffix check in hostnameMatches().
-      expect(hostMatchesHaPeer(host('node1.example.com'), peer('node1'))).toBe(true);
+    it('FQDN stored + short peer does NOT match without IP (cross-cluster ambiguity)', () => {
+      expect(hostMatchesHaPeer(host('node1.example.com'), peer('node1'))).toBe(false);
     });
   });
 
@@ -50,21 +46,29 @@ describe('hostnameMatches (via hostMatchesHaPeer)', () => {
   });
 
   describe('FQDN stored, peer reports only short hostname', () => {
-    // CMS heartbeat commonly returns bare short names even when the host was
-    // registered as a FQDN. FQDN+short first-label matching is intentionally
-    // allowed. Cross-cluster false-positives are handled by the FQDN-vs-FQDN
-    // different-suffix check, not by blocking FQDN+short entirely.
-    it('node1.example.com matches short peer "node1"', () => {
-      expect(hostMatchesHaPeer(host('node1.example.com'), peer('node1'))).toBe(true);
+    // Without IP evidence we cannot know whether "node1" belongs to
+    // node1.prod.example.com or node1.dev.example.com; blocking is safer
+    // than producing false merge/discovery proposals.
+    it('node1.example.com does NOT match short peer "node1" without IP', () => {
+      expect(hostMatchesHaPeer(host('node1.example.com'), peer('node1'))).toBe(false);
     });
-    it('node1.prod.example.com matches short peer "node1" (same first label)', () => {
-      expect(hostMatchesHaPeer(host('node1.prod.example.com'), peer('node1'))).toBe(true);
+    it('node1.prod.example.com does NOT match short peer "node1" without IP', () => {
+      expect(hostMatchesHaPeer(host('node1.prod.example.com'), peer('node1'))).toBe(false);
     });
     it('FQDN stored + short peer + IP match → matches via IP', () => {
       expect(hostMatchesHaPeer(host('10.0.0.1'), peer('node1', '10.0.0.1'))).toBe(true);
     });
-    it('short stored address + FQDN peer → matches (reverse direction)', () => {
+    it('short stored address + FQDN peer → matches (reverse direction is safe)', () => {
       expect(hostMatchesHaPeer(host('node1'), peer('node1.prod.example.com'))).toBe(true);
+    });
+  });
+
+  describe('alias is not used as endpoint identity', () => {
+    it('alias "node1" on FQDN host does not match short peer "node1"', () => {
+      expect(hostMatchesHaPeer(host('node1.prod.example.com', 'node1'), peer('node1'))).toBe(false);
+    });
+    it('alias "node1" does not match unrelated FQDN peer', () => {
+      expect(hostMatchesHaPeer(host('node1.prod.example.com', 'node1'), peer('node1.dev.example.com'))).toBe(false);
     });
   });
 
