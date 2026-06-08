@@ -92,17 +92,6 @@ export class AuthService {
     await this.usersRepo.createUser(dto);
   }
 
-  /** Returns true when no user files exist in storage — first-run bootstrap. */
-  private isFirstRun(): boolean {
-    try {
-      const storageDir = getStoragePath();
-      if (!fs.existsSync(storageDir)) return true;
-      return fs.readdirSync(storageDir).filter((f) => f.endsWith('.json')).length === 0;
-    } catch {
-      return false;
-    }
-  }
-
   private async issueTokenPair(userId: string, familyId?: string): Promise<AuthTokens> {
     const jti = randomUUID();
     const token = await this.jwt.signAsync(
