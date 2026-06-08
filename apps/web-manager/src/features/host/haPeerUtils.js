@@ -62,16 +62,12 @@ export function hostMatchesHaPeer(host, peer) {
   // Loopback special case.
   if (isLoopback(hAddr) && (isLoopback(nIp) || isLoopback(nHost))) return true;
 
-  // Stored address is FQDN but peer exposes only a bare short hostname (no dot):
-  // the first label is too coarse — node1.prod.example.com and node1.dev.example.com
-  // both reduce to "node1", so a first-label match is meaningless without IP evidence.
-  // IP evidence was checked above; if we reach here it did not confirm identity.
-  // Alias is a UI display name, not an endpoint identifier — it must not be used
-  // as a substitute for IP-level confirmation.
-  if (hAddr.includes('.') && nHost.length > 0 && !nHost.includes('.')) {
-    return false;
-  }
-
+  // FQDN+short first-label matching is intentionally allowed.
+  // CMS heartbeat commonly returns bare short names (e.g. "node1") even when
+  // the operator registered the host as a FQDN (e.g. "node1.example.com").
+  // Blocking this match breaks peer discovery in real HA environments.
+  // Cross-cluster false-positives (node1.prod ≠ node1.dev) are prevented by
+  // hostnameMatches() rejecting FQDN-vs-FQDN pairs with different suffixes.
   return hostnameMatches(hAddr, nHost) || hostnameMatches(hAlias, nHost);
 }
 
