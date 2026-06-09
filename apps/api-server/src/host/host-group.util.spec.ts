@@ -76,7 +76,7 @@ describe('moveHostToGroup', () => {
     expect(user.host_groups!['group-2'].defaultHostUid).toBe('host-a');
   });
 
-  it('deletes source group when it becomes empty', () => {
+  it('preserves source group when it becomes empty after move', () => {
     const user = makeUser({
       'group-1': {
         name: 'G1',
@@ -90,7 +90,9 @@ describe('moveHostToGroup', () => {
     });
 
     expect(moveHostToGroup(user, 'host-a', 'group-2')).toBe(true);
-    expect(user.host_groups!['group-1']).toBeUndefined();
+    // Empty groups are preserved — deletion is an explicit user action only.
+    expect(user.host_groups!['group-1']).toBeDefined();
+    expect(user.host_groups!['group-1'].hosts).toEqual({});
     expect(user.host_groups!['group-2'].hosts!['host-a']).toBe(hostA);
   });
 });

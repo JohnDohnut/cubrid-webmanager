@@ -43,10 +43,10 @@ export default function DBBrokersCASSection({ brokersCAS, pollingProps, onViewSQ
       accessor: 'broker',
       render: (val) => <span className="font-mono text-[12px] font-semibold text-slate-700 dark:text-slate-200 uppercase">{val}</span>
     },
-    { header: 'CAS', accessor: 'id', render: (val) => <span className="font-mono text-[12px] text-slate-400">{val}</span> },
-    { header: 'PID', accessor: 'pid', render: (val) => <span className="font-mono text-[12px] text-slate-400">{val}</span> },
-    { header: CM.qps, accessor: 'qps', render: (val) => <span className="font-mono text-[12px] text-amber-600 dark:text-amber-400 font-semibold">{val}</span> },
-    { header: 'LQS', accessor: 'lqs', render: (val) => <span className="font-mono text-[12px] text-slate-500">{val}</span> },
+    { header: 'CAS', accessor: 'id',  sortAccessor: '_idNum',  render: (val) => <span className="font-mono text-[12px] text-slate-400">{val}</span> },
+    { header: 'PID', accessor: 'pid', sortAccessor: '_pidNum', render: (val) => <span className="font-mono text-[12px] text-slate-400">{val}</span> },
+    { header: CM.qps, accessor: 'qps', sortAccessor: '_qpsNum', render: (val) => <span className="font-mono text-[12px] text-amber-600 dark:text-amber-400 font-semibold">{val}</span> },
+    { header: 'LQS', accessor: 'lqs', sortAccessor: '_lqsNum', render: (val) => <span className="font-mono text-[12px] text-slate-500">{val}</span> },
     {
       header: CM.status,
       accessor: 'status',
@@ -100,7 +100,7 @@ export default function DBBrokersCASSection({ brokersCAS, pollingProps, onViewSQ
       isCollapsed={isCollapsed}
       onToggle={(v) => setIsCollapsed(v)}
     >
-      <Table columns={columns} data={brokersCAS} />
+      <Table columns={columns} data={brokersCAS} sortable />
     </Card>
   );
 }

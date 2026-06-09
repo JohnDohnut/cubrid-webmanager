@@ -190,9 +190,8 @@ export function moveHostToGroup(user: User, hostUid: string, targetGroupId: stri
     ref.group.defaultHostUid = remaining[0]?.uid;
   }
 
-  if (Object.keys(sourceHosts).length === 0) {
-    delete ensureHostGroupsWritable(user)[ref.groupId];
-  }
+  // Empty groups are preserved — users created them intentionally and may
+  // want to add more hosts later. Deletion is an explicit user action only.
 
   ensureGroupHostsWritable(targetGroup)[hostUid] = host;
   if (!targetGroup.defaultHostUid) {
@@ -211,9 +210,7 @@ export function removeHostFromUser(user: User, hostUid: string): boolean {
     const remaining = Object.values(hosts);
     ref.group.defaultHostUid = remaining[0]?.uid;
   }
-  if (Object.keys(hosts).length === 0) {
-    delete ensureHostGroupsWritable(user)[ref.groupId];
-  }
+  // Empty groups are preserved after host deletion.
   return true;
 }
 

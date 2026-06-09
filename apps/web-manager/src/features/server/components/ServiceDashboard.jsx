@@ -42,6 +42,16 @@ const Component = function ServiceDashboard() {
   const { refreshCounter, activeMainTab } = useSelector((state) => state.layout, shallowEqual);
   const [collapsedGroups, setCollapsedGroups] = useState(() => new Set());
   const [roleFilter, setRoleFilter] = useState('all');
+  const [sortConfig, setSortConfig] = useState(null); // { key, direction: 'asc'|'desc' }
+
+  const handleColumnSort = (accessor) => {
+    setSortConfig((prev) => {
+      if (prev?.key === accessor) {
+        return prev.direction === 'asc' ? { key: accessor, direction: 'desc' } : null;
+      }
+      return { key: accessor, direction: 'asc' };
+    });
+  };
   const { isManualRefreshing, lastRefreshed, handleRefresh: refreshAll } = usePollingRefresh({
     hostUid: 'global',
     tabId: 'service_dashboard',
@@ -158,6 +168,46 @@ const Component = function ServiceDashboard() {
 
     return { tableRows: rows, hostMetaByUid: metaByUid };
   }, [hostGroups, collapsedGroups, haInfo, roleFilter]);
+
+  // Sort host rows within each group while keeping group headers in place.
+  const sortedTableRows = React.useMemo(() => {
+    if (!sortConfig) return tableRows;
+    const { key, direction } = sortConfig;
+    const result = [];
+    let pendingGroup = null;
+    let pendingHosts = [];
+
+    const flushGroup = () => {
+      if (!pendingGroup) return;
+      pendingHosts.sort((a, b) => {
+        const rawA = summaries[a.uid]?.[key];
+        const rawB = summaries[b.uid]?.[key];
+        const noA = rawA == null;
+        const noB = rawB == null;
+        // Hosts with no measurement always sort to the end regardless of direction.
+        if (noA && noB) return 0;
+        if (noA) return 1;
+        if (noB) return -1;
+        if (rawA < rawB) return direction === 'asc' ? -1 : 1;
+        if (rawA > rawB) return direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+      result.push(pendingGroup, ...pendingHosts);
+      pendingGroup = null;
+      pendingHosts = [];
+    };
+
+    for (const row of tableRows) {
+      if (row._type === 'group') {
+        flushGroup();
+        pendingGroup = row;
+      } else {
+        pendingHosts.push(row);
+      }
+    }
+    flushGroup();
+    return result;
+  }, [tableRows, sortConfig, summaries]);
 
   const handleStartService = (e, row) => {
     e.stopPropagation();
@@ -397,9 +447,12 @@ const Component = function ServiceDashboard() {
         return <Badge variant={v > 30 ? 'success' : v > 10 ? 'warning' : 'danger'}>{v}%</Badge>;
       }
     },
-    { 
-      header: CM.tps, 
+    {
+      header: CM.tps,
       accessor: 'tps',
+      sortable: true,
+      onHeaderClick: () => handleColumnSort('tps'),
+      sortDirection: sortConfig?.key === 'tps' ? sortConfig.direction : null,
       render: (_, row) => {
         if (row._type === 'group') return <span className="text-slate-300">—</span>;
         const isConnected = authorizedHosts.includes(row.uid);
@@ -408,9 +461,12 @@ const Component = function ServiceDashboard() {
         return <span className="font-mono text-[12px] text-emerald-600 dark:text-emerald-400 font-bold">{v}</span>;
       }
     },
-    { 
-      header: CM.qps, 
+    {
+      header: CM.qps,
       accessor: 'qps',
+      sortable: true,
+      onHeaderClick: () => handleColumnSort('qps'),
+      sortDirection: sortConfig?.key === 'qps' ? sortConfig.direction : null,
       render: (_, row) => {
         if (row._type === 'group') return <span className="text-slate-300">—</span>;
         const isConnected = authorizedHosts.includes(row.uid);
@@ -588,7 +644,7 @@ const Component = function ServiceDashboard() {
         <Card noPadding className="overflow-hidden border-slate-200 dark:border-white/10 shadow-sm rounded-xl bg-white dark:bg-white/1">
           <Table 
             columns={columns} 
-            data={tableRows} 
+            data={sortedTableRows}
             onRowClick={handleRowClick}
             className="border-none text-[12px]" 
             hoverable
