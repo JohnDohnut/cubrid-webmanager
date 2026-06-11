@@ -161,6 +161,93 @@ export class DatabaseConfigService extends BaseService {
   }
 
   /**
+   * Append a single query plan to the existing auto-execution plan list.
+   * Fetches the current plans from CMS, appends the new plan, then writes back.
+   */
+  @HandleCmsErrors()
+  async appendAutoExecQueryPlan(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    newPlan: import('@api-interfaces').QueryPlanClient
+  ): Promise<SetAutoExecQueryClientResponse> {
+    const existing = await this.getAutoExecQuery(userId, hostUid, dbname);
+    const existingPlans = existing.planlist[0]?.queryplan ?? [];
+
+    const cmsRequest: SetAutoExecQueryCmsRequest = {
+      task: 'setautoexecquery',
+      dbname: dbname,
+      planlist: [{
+        queryplan: [
+          ...existingPlans.map(p => ({
+            query_id: p.query_id,
+            username: p.username,
+            userpass: p.userpass || '',
+            period: p.period,
+            detail: p.detail,
+            query_string: p.query_string,
+          })),
+          {
+            query_id: newPlan.query_id,
+            username: newPlan.username,
+            userpass: newPlan.userpass || '',
+            period: newPlan.period,
+            detail: newPlan.detail,
+            query_string: newPlan.query_string,
+          },
+        ],
+      }],
+    };
+
+    await this.executeCmsRequest<SetAutoExecQueryCmsRequest, SetAutoExecQueryCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
+
+    return { success: true };
+  }
+
+  /**
+   * Remove a single query plan from the auto-execution plan list by query_id.
+   * Fetches the current plans from CMS, filters out the target, then writes back.
+   */
+  @HandleCmsErrors()
+  async removeAutoExecQueryPlan(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    queryId: string
+  ): Promise<SetAutoExecQueryClientResponse> {
+    const existing = await this.getAutoExecQuery(userId, hostUid, dbname);
+    const existingPlans = existing.planlist[0]?.queryplan ?? [];
+    const remaining = existingPlans.filter(p => p.query_id !== queryId);
+
+    const cmsRequest: SetAutoExecQueryCmsRequest = {
+      task: 'setautoexecquery',
+      dbname: dbname,
+      planlist: [{
+        queryplan: remaining.map(p => ({
+          query_id: p.query_id,
+          username: p.username,
+          userpass: p.userpass || '',
+          period: p.period,
+          detail: p.detail,
+          query_string: p.query_string,
+        })),
+      }],
+    };
+
+    await this.executeCmsRequest<SetAutoExecQueryCmsRequest, SetAutoExecQueryCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
+
+    return { success: true };
+  }
+
+  /**
    * Enable auto-start for a database.
    * Adds database name to the server parameter in cubridconf configuration file.
    * If server parameter does not exist, it will be added to the [service] section.

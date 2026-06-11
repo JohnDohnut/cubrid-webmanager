@@ -93,6 +93,12 @@ export const databaseApi = {
   setAutoExecQuery: (hostUid, dbname, payload) => {
     return apiClient.post(`/${hostUid}/database/auto-exec-query/${encodeURIComponent(dbname)}`, payload);
   },
+  appendAutoExecQueryPlan: (hostUid, dbname, plan) => {
+    return apiClient.post(`/${hostUid}/database/auto-exec-query/${encodeURIComponent(dbname)}/plan`, plan);
+  },
+  removeAutoExecQueryPlan: (hostUid, dbname, queryId) => {
+    return apiClient.delete(`/${hostUid}/database/auto-exec-query/${encodeURIComponent(dbname)}/plan/${encodeURIComponent(queryId)}`);
+  },
   getQueryPlanLog: (hostUid) => {
     return apiClient.post(`/${hostUid}/database/auto-exec-query-err-log`, {});
   },

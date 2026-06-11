@@ -170,6 +170,15 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
     // Use a ref so concurrent clicks in the same render frame are also blocked.
     // isLoggingIntoHost is a stale-closure value and misses same-frame double-clicks.
     if (loginInProgressRef.current) return;
+
+    if (authorizedHosts.includes(uid)) {
+      dispatch(setActiveMainTab('host:' + uid));
+      dispatch(fetchDatabaseStartInfo(uid));
+      dispatch(fetchBrokerList(uid));
+      dispatch(fetchHostEnv(uid));
+      return;
+    }
+
     loginInProgressRef.current = true;
 
     dispatch(loginToHostWithSideEffects(uid))
@@ -186,7 +195,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
       .finally(() => {
         loginInProgressRef.current = false;
       });
-  }, [dispatch]);
+  }, [dispatch, authorizedHosts]);
 
   const pendingLoginAllUids = getUnauthorizedHostUids(hostGroups, authorizedHosts, null);
   const pendingLoginCount = pendingLoginAllUids.length;

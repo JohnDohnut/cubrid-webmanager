@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { closeAddQueryPlanModal, setAutoExecQuery } from '../databaseSlice';
+import { closeAddQueryPlanModal, appendAutoExecQueryPlan, fetchQueryPlan } from '../databaseSlice';
 import Editor from '@monaco-editor/react';
 import { useCM } from '../../../constants/useCM';
 
@@ -106,6 +106,7 @@ export default function AddQueryPlanModal() {
       endError('No SQL statement provided. The automation payload must contain at least one valid query.');
       return;
     }
+    const queryString = formData.queryString.trim();
     
     startAction();
 
@@ -114,22 +115,18 @@ export default function AddQueryPlanModal() {
     else if (formData.periodType === 'DATE') detail = `${formData.periodDetail} ${formData.backupTime}`;
     else detail = `${formData.periodDetail.join(',')} ${formData.backupTime}`;
 
-    const payload = {
-      dbname: selectedDatabase,
-      planlist: [{
-        queryplan: [{
-          query_id: formData.queryId.trim(),
-          username: formData.username,
-          userpass: formData.password,
-          period: formData.periodType,
-          detail: detail,
-          query_string: formData.queryString.trim()
-        }]
-      }]
+    const plan = {
+      query_id: formData.queryId.trim(),
+      username: formData.username,
+      userpass: formData.password,
+      period: formData.periodType,
+      detail: detail,
+      query_string: queryString
     };
 
     try {
-      await dispatch(setAutoExecQuery({ hostUid: selectedHostUid, dbname: selectedDatabase, payload })).unwrap();
+      await dispatch(appendAutoExecQueryPlan({ hostUid: selectedHostUid, dbname: selectedDatabase, plan })).unwrap();
+      dispatch(fetchQueryPlan({ hostUid: selectedHostUid, dbname: selectedDatabase }));
       endSuccess(`Plan "${formData.queryId}" has been successfully synchronized and registered with the scheduler.`);
     } catch (err) {
       endError(typeof err === 'string' ? err : (err.message || 'Failed to add query plan.'));

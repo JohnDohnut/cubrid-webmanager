@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeEditQueryPlanModal, setAutoExecQuery, fetchQueryPlan } from '../databaseSlice';
 import Editor from '@monaco-editor/react';
@@ -71,7 +71,7 @@ export default function EditQueryPlanModal() {
       const plans = queryPlans[selectedDatabase] || [];
       let plan = plans.find(p => p.query_id === selectedQueryPlanId);
       
-      if (!plan && plans.length === 0) {
+      if (!plan) {
         dispatch(fetchQueryPlan({ hostUid: selectedHostUid, dbname: selectedDatabase }));
       }
       
@@ -140,6 +140,7 @@ export default function EditQueryPlanModal() {
       endError('No SQL statement provided.');
       return;
     }
+    const queryString = formData.queryString.trim();
     
     startAction();
 
@@ -158,7 +159,7 @@ export default function EditQueryPlanModal() {
       userpass: formData.password,
       period: formData.periodType,
       detail: detail,
-      query_string: formData.queryString.trim()
+      query_string: queryString
     };
 
     const payload = {
