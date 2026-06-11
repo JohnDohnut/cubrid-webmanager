@@ -110,10 +110,25 @@ export default function AddQueryPlanModal() {
     
     startAction();
 
+    const WEEK_ABBRS = { 1: 'MON', 2: 'TUE', 3: 'WED', 4: 'THU', 5: 'FRI', 6: 'SAT', 7: 'SUN' };
     let detail = '';
-    if (formData.periodType === 'DAY') detail = formData.backupTime;
-    else if (formData.periodType === 'DATE') detail = `${formData.periodDetail} ${formData.backupTime}`;
-    else detail = `${formData.periodDetail.join(',')} ${formData.backupTime}`;
+    if (formData.periodType === 'DAY') {
+      detail = `EVERYDAY ${formData.backupTime}`;
+    } else if (formData.periodType === 'DATE') {
+      const dateStr = String(formData.periodDetail).replace(/-/g, '/');
+      detail = `${dateStr} ${formData.backupTime}`;
+    } else if (formData.periodType === 'WEEK') {
+      const days = Array.isArray(formData.periodDetail) && formData.periodDetail.length > 0
+        ? formData.periodDetail.map(d => WEEK_ABBRS[d] || d).join(',')
+        : 'MON';
+      detail = `${days} ${formData.backupTime}`;
+    } else {
+      // MONTH
+      const dayNums = Array.isArray(formData.periodDetail) && formData.periodDetail.length > 0
+        ? formData.periodDetail.join(',')
+        : '1';
+      detail = `${dayNums} ${formData.backupTime}`;
+    }
 
     const plan = {
       query_id: formData.queryId.trim(),

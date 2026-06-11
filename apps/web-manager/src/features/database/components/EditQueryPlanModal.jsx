@@ -76,21 +76,31 @@ export default function EditQueryPlanModal() {
       }
       
       if (plan) {
+        const ABBR_TO_NUM = { MON: 1, TUE: 2, WED: 3, THU: 4, FRI: 5, SAT: 6, SUN: 7 };
         let periodType = plan.period || 'DAY';
         let detailStr = plan.detail || '';
         let time = '12:00';
         let periodDetail = [];
-        
+
         if (periodType === 'DAY') {
-          time = detailStr;
+          // "EVERYDAY 12:00"
+          time = detailStr.split(' ')[1] || '12:00';
         } else if (periodType === 'DATE') {
           const parts = detailStr.split(' ');
-          periodDetail = parts[0];
+          // "2026/06/11 12:00" → convert slashes to dashes for date input
+          periodDetail = (parts[0] || '').replace(/\//g, '-');
+          time = parts[1] || '12:00';
+        } else if (periodType === 'WEEK') {
+          const parts = detailStr.split(' ');
+          // "MON,WED 12:00" → [1, 3]
+          periodDetail = (parts[0] || '').split(',')
+            .map(s => ABBR_TO_NUM[s.toUpperCase()] ?? parseInt(s))
+            .filter(n => !isNaN(n));
           time = parts[1] || '12:00';
         } else {
-          // MONTH, WEEK
+          // MONTH: "1,15 12:00" → [1, 15]
           const parts = detailStr.split(' ');
-          periodDetail = parts[0].split(',').map(s => isNaN(parseInt(s)) ? s : parseInt(s));
+          periodDetail = (parts[0] || '').split(',').map(s => parseInt(s)).filter(n => !isNaN(n));
           time = parts[1] || '12:00';
         }
         
@@ -144,10 +154,25 @@ export default function EditQueryPlanModal() {
     
     startAction();
 
+    const WEEK_ABBRS = { 1: 'MON', 2: 'TUE', 3: 'WED', 4: 'THU', 5: 'FRI', 6: 'SAT', 7: 'SUN' };
     let detail = '';
-    if (formData.periodType === 'DAY') detail = formData.backupTime;
-    else if (formData.periodType === 'DATE') detail = `${formData.periodDetail} ${formData.backupTime}`;
-    else detail = `${formData.periodDetail.join(',')} ${formData.backupTime}`;
+    if (formData.periodType === 'DAY') {
+      detail = `EVERYDAY ${formData.backupTime}`;
+    } else if (formData.periodType === 'DATE') {
+      const dateStr = String(formData.periodDetail).replace(/-/g, '/');
+      detail = `${dateStr} ${formData.backupTime}`;
+    } else if (formData.periodType === 'WEEK') {
+      const days = Array.isArray(formData.periodDetail) && formData.periodDetail.length > 0
+        ? formData.periodDetail.map(d => WEEK_ABBRS[d] || d).join(',')
+        : 'MON';
+      detail = `${days} ${formData.backupTime}`;
+    } else {
+      // MONTH
+      const dayNums = Array.isArray(formData.periodDetail) && formData.periodDetail.length > 0
+        ? formData.periodDetail.join(',')
+        : '1';
+      detail = `${dayNums} ${formData.backupTime}`;
+    }
 
     // IMPORTANT: CUBRID API usually requires sending the full list for a database.
     const currentPlans = queryPlans[selectedDatabase] || [];
