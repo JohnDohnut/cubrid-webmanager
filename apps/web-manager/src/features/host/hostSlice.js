@@ -954,11 +954,15 @@ export const processHaLoginSideEffects = createAsyncThunk(
         if (staleDiscoveryOpen) {
           dispatch(hostSlice.actions.clearSuggestedHaNodes());
         }
-        if (!getState().host.isDiscoveryModalOpen) {
+        const discoveryKey = `ha_discovery_shown_${hostUid}`;
+        let alreadyShownDiscovery = false;
+        try { alreadyShownDiscovery = sessionStorage.getItem(discoveryKey) === '1'; } catch {}
+        if (!alreadyShownDiscovery && !getState().host.isDiscoveryModalOpen) {
           dispatch(hostSlice.actions.setSuggestedHaNodes({
             nodes: undiscovered,
             groupId: findGroupIdForHost(hostGroups, hostUid),
           }));
+          try { sessionStorage.setItem(discoveryKey, '1'); } catch {}
           showedHaModal = true;
         }
       }
