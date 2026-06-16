@@ -37,22 +37,22 @@ const LEVEL_META = {
     desc: 'Complete database snapshot. All data, schema and volumes captured.',
   },
   1: {
-    label: 'L1', title: 'Incremental',
+    label: 'L1', title: 'Incremental (L1)',
     icon: 'trending_up', iconColor: 'text-violet-500',
     ring: 'border-violet-500/25 bg-violet-500/8 dark:bg-violet-500/10',
     ringSelected: 'bg-violet-500 text-white border-violet-400 shadow-violet-500/20',
     badge: 'bg-violet-500/10 border-violet-500/20 text-violet-600 dark:text-violet-400',
     dot: 'bg-violet-500',
-    desc: 'Changes since last full backup (L0). Requires L0 to restore.',
+    desc: 'Changes since last L0 backup. Requires L0 to restore.',
   },
   2: {
-    label: 'L2', title: 'Differential',
+    label: 'L2', title: 'Incremental (L2)',
     icon: 'call_split', iconColor: 'text-cyan-500',
     ring: 'border-cyan-500/25 bg-cyan-500/8 dark:bg-cyan-500/10',
     ringSelected: 'bg-cyan-500 text-white border-cyan-400 shadow-cyan-500/20',
     badge: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400',
     dot: 'bg-cyan-500',
-    desc: 'Changes since last incremental backup (L1). Requires L0 + L1.',
+    desc: 'Changes since last L1 backup. Requires L0 + L1 to restore.',
   },
 };
 

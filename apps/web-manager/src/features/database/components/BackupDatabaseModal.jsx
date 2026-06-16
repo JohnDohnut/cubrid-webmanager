@@ -112,8 +112,8 @@ export default function BackupDatabaseModal() {
 
   const levels = [
     { level: 'level 0', label: 'L0', title: CM.all, desc: CM.backupLevelFullDesc, icon: 'layers' },
-    { level: 'level 1', label: 'L1', title: 'Incremental', desc: CM.backupLevelIncrDesc, icon: 'trending_up' },
-    { level: 'level 2', label: 'L2', title: 'Differential', desc: CM.backupLevelDiffDesc, icon: 'call_split' }
+    { level: 'level 1', label: 'L1', title: CM.backupLevelIncrL1Title, desc: CM.backupLevelIncrDesc, icon: 'trending_up' },
+    { level: 'level 2', label: 'L2', title: CM.backupLevelIncrL2Title, desc: CM.backupLevelDiffDesc, icon: 'call_split' }
   ];
 
   const flags = [

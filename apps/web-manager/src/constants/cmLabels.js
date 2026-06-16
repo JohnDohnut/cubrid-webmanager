@@ -825,8 +825,10 @@ export const CM = {
 
   // Backup dialog options (aligned with CUBRID Admin)
   backupLevelFullDesc: 'Complete backup of all data',
-  backupLevelIncrDesc: 'Changes since last Level 0 or Level 1 backup',
-  backupLevelDiffDesc: 'Changes since last Level 1 backup',
+  backupLevelIncrL1Title: 'Incremental (L1)',
+  backupLevelIncrDesc: 'Changes since last L0 backup',
+  backupLevelIncrL2Title: 'Incremental (L2)',
+  backupLevelDiffDesc: 'Changes since last L1 backup',
   checkConsistencyLabel: 'Check Database Consistency',
   checkConsistencyDesc: 'Check the database consistency during backup',
   deleteArchiveLogsLabel: 'Delete Unnecessary Log-Archives',

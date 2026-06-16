@@ -803,8 +803,10 @@ export const CM_KO = {
 
   // Backup dialog options (aligned with CUBRID Admin)
   backupLevelFullDesc: '전체 데이터를 완전 백업합니다',
-  backupLevelIncrDesc: '이전 레벨 0 또는 레벨 1 백업 이후 변경 내용',
-  backupLevelDiffDesc: '이전 레벨 1 백업 이후 변경 내용',
+  backupLevelIncrL1Title: '증분 백업 (L1)',
+  backupLevelIncrDesc: '마지막 L0 백업 이후 변경 내용',
+  backupLevelIncrL2Title: '증분 백업 (L2)',
+  backupLevelDiffDesc: '마지막 L1 백업 이후 변경 내용',
   checkConsistencyLabel: '데이터베이스 일관성 검사',
   checkConsistencyDesc: '백업 중 데이터베이스 일관성을 검사합니다',
   deleteArchiveLogsLabel: '불필요한 아카이브 로그 삭제',
