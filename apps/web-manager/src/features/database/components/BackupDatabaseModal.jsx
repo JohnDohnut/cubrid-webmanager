@@ -111,7 +111,7 @@ export default function BackupDatabaseModal() {
   const handleClose = () => dispatch(closeBackupDatabaseModal());
 
   const levels = [
-    { level: 'level 0', label: 'L0', title: CM.all, desc: CM.backupLevelFullDesc, icon: 'layers' },
+    { level: 'level 0', label: 'L0', title: CM.backupLevelFullTitle, desc: CM.backupLevelFullDesc, icon: 'layers' },
     { level: 'level 1', label: 'L1', title: CM.backupLevelIncrL1Title, desc: CM.backupLevelIncrDesc, icon: 'trending_up' },
     { level: 'level 2', label: 'L2', title: CM.backupLevelIncrL2Title, desc: CM.backupLevelDiffDesc, icon: 'call_split' }
   ];

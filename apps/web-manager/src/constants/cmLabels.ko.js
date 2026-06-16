@@ -547,7 +547,7 @@ export const CM_KO = {
   snapshotCatalog: '백업 정보',
   scanningCatalog: '백업 정보를 불러오는 중…',
   restoreOptions: '복구 옵션',
-  applyIntermediateLogs: '중간 아카이브 로그 적용',
+  applyIntermediateLogs: '아카이브 로그가 없으면 강제로 부분 복구 수행',
   pathOverride: '복구 경로 지정',
   restoreInPlaceHint: '비워 두면 원래 위치로 복구',
   renamingDatabase: '데이터베이스 이름 변경 중',
@@ -802,6 +802,7 @@ export const CM_KO = {
   languageKo: '한국어',
 
   // Backup dialog options (aligned with CUBRID Admin)
+  backupLevelFullTitle: '전체 백업',
   backupLevelFullDesc: '전체 데이터를 완전 백업합니다',
   backupLevelIncrL1Title: '증분 백업 (L1)',
   backupLevelIncrDesc: '마지막 L0 백업 이후 변경 내용',
@@ -916,10 +917,17 @@ export const CM_KO = {
   volumeDir: '볼륨 경로',
 
   // RestoreDatabaseModal
-  logCatchup: '로그 복구',
+  logCatchup: '부분 복구',
   noBackupFound: '백업 정보 없음',
   noBackupHint: '백업 디렉터리가 설정되어 있고 호스트와 동기화되어 있는지 확인하세요.',
   showAllBackups: '전체 보기',
   irreversibleOperation: '되돌릴 수 없는 작업',
   restoreOverwriteNote: '선택한 백업으로 기존 볼륨이 영구적으로 덮어씌워집니다.',
+  selectBackupFirst: '복구할 백업을 선택해 주십시오.',
+  restoreErrorFallback: '복구 중 예기치 않은 오류가 발생했습니다.',
+  tryOtherBackupLevel: '다른 백업 레벨을 선택하거나 전체를 보십시오.',
+  recoveryPathPlaceholder: '기본값: 원래 위치',
+  backupLevelFullLongDesc: '모든 데이터, 스키마, 볼륨의 전체 스냅샷입니다.',
+  backupLevelIncrL1LongDesc: '마지막 L0 백업 이후 변경 내용입니다. 복구 시 L0이 필요합니다.',
+  backupLevelIncrL2LongDesc: '마지막 L1 백업 이후 변경 내용입니다. 복구 시 L0 + L1이 필요합니다.',
 };

@@ -28,31 +28,28 @@ const VIEW_ERROR   = 'error';
 /* ── meta config ─────────────────────────────────────────────── */
 const LEVEL_META = {
   0: {
-    label: 'L0', title: 'Full Backup',
+    label: 'L0', titleKey: 'backupLevelFullTitle', descKey: 'backupLevelFullLongDesc',
     icon: 'database', iconColor: 'text-blue-500',
     ring: 'border-blue-500/25 bg-blue-500/8 dark:bg-blue-500/10',
     ringSelected: 'bg-blue-500 text-white border-blue-400 shadow-blue-500/20',
     badge: 'bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400',
     dot: 'bg-blue-500',
-    desc: 'Complete database snapshot. All data, schema and volumes captured.',
   },
   1: {
-    label: 'L1', title: 'Incremental (L1)',
+    label: 'L1', titleKey: 'backupLevelIncrL1Title', descKey: 'backupLevelIncrL1LongDesc',
     icon: 'trending_up', iconColor: 'text-violet-500',
     ring: 'border-violet-500/25 bg-violet-500/8 dark:bg-violet-500/10',
     ringSelected: 'bg-violet-500 text-white border-violet-400 shadow-violet-500/20',
     badge: 'bg-violet-500/10 border-violet-500/20 text-violet-600 dark:text-violet-400',
     dot: 'bg-violet-500',
-    desc: 'Changes since last L0 backup. Requires L0 to restore.',
   },
   2: {
-    label: 'L2', title: 'Incremental (L2)',
+    label: 'L2', titleKey: 'backupLevelIncrL2Title', descKey: 'backupLevelIncrL2LongDesc',
     icon: 'call_split', iconColor: 'text-cyan-500',
     ring: 'border-cyan-500/25 bg-cyan-500/8 dark:bg-cyan-500/10',
     ringSelected: 'bg-cyan-500 text-white border-cyan-400 shadow-cyan-500/20',
     badge: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400',
     dot: 'bg-cyan-500',
-    desc: 'Changes since last L1 backup. Requires L0 + L1 to restore.',
   },
 };
 
@@ -134,7 +131,7 @@ export default function RestoreDatabaseModal() {
 
   const handleRestore = async () => {
     if (!formData.selectedBackup) {
-      endError('Please select a backup point to restore from.');
+      endError(CM.selectBackupFirst);
       return;
     }
 
@@ -152,9 +149,9 @@ export default function RestoreDatabaseModal() {
           recoverypath: formData.recoveryPath || '',
         }
       })).unwrap();
-      endSuccess(`Successfully restored "${selectedDatabase}" from snapshot ${backup.date || backup.pathname}.`);
+      endSuccess(selectedDatabase);
     } catch (error) {
-      endError(typeof error === 'string' ? error : (error.message || 'An unexpected error occurred during restore.'));
+      endError(typeof error === 'string' ? error : (error.message || CM.restoreErrorFallback));
     }
   };
 
@@ -181,7 +178,7 @@ export default function RestoreDatabaseModal() {
       <Modal isOpen title={CM.restoreSuccessful} icon="settings_backup_restore" iconVariant="success" onClose={handleClose} maxWidth="600px">
         <ModalStatusSuccess 
           title={CM.restoreCompleted}
-          message={`Database ${selectedDatabase} was restored.`}
+          message={selectedDatabase}
           onConfirm={handleClose}
           confirmText={CM.close}
         />
@@ -261,7 +258,7 @@ export default function RestoreDatabaseModal() {
               return (
                 <div key={lvl} className="flex items-center gap-2">
                   <span className={`w-2 h-2 rounded-full shrink-0 ${m.dot}`} />
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{m.title}</span>
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{CM[m.titleKey]}</span>
                   <span className={`ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-sm border ${m.badge}`}>{levelCounts[lvl]}</span>
                 </div>
               );
@@ -289,7 +286,7 @@ export default function RestoreDatabaseModal() {
                           : 'text-slate-400 border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 hover:text-slate-600 dark:hover:text-slate-200'
                         }`}
                     >
-                      {f === 'all' ? 'All' : `L${f}`}
+                      {f === 'all' ? CM.all : `L${f}`}
                     </button>
                   );
                 })}
@@ -305,12 +302,8 @@ export default function RestoreDatabaseModal() {
           ) : backups.length === 0 ? (
             <EmptyState
               icon={filter === 'all' ? 'search_off' : 'filter_list_off'}
-              title={filter === 'all' ? CM.noBackupFound : `No ${LEVEL_META[filter]?.title} Backups`}
-              subtitle={
-                filter === 'all'
-                  ? CM.noBackupHint
-                  : 'Try selecting another backup level or view all.'
-              }
+              title={CM.noBackupFound}
+              subtitle={filter === 'all' ? CM.noBackupHint : CM.tryOtherBackupLevel}
               action={filter !== 'all' && (
                 <button
                   onClick={() => setFilter('all')}
@@ -348,7 +341,7 @@ export default function RestoreDatabaseModal() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                         <span className={`text-[12px] font-bold tracking-tight transition-colors ${isSel ? 'text-amber-600 dark:text-amber-400' : 'text-slate-800 dark:text-white'}`}>
-                          {meta.title}
+                          {CM[meta.titleKey]}
                         </span>
                         {backup.date && (
                           <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-white/5 px-1.5 py-0.5 rounded-sm border border-slate-200 dark:border-white/10">
@@ -362,7 +355,7 @@ export default function RestoreDatabaseModal() {
                       </div>
                       {isSel && (
                         <p className="text-[9px] text-amber-600/70 dark:text-amber-400/60 mt-1 font-medium italic leading-tight">
-                          {meta.desc}
+                          {CM[meta.descKey]}
                         </p>
                       )}
                     </div>
@@ -417,7 +410,7 @@ export default function RestoreDatabaseModal() {
             <div className="space-y-1.5">
               <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 px-0.5">{CM.pathOverride}</p>
               <Input
-                placeholder="Default: original location"
+                placeholder={CM.recoveryPathPlaceholder}
                 value={formData.recoveryPath}
                 onChange={(e) => handleInputChange('recoveryPath', e.target.value)}
                 icon="drive_file_move"

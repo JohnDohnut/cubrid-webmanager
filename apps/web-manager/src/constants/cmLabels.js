@@ -564,7 +564,7 @@ export const CM = {
   snapshotCatalog: 'Backup Information',
   scanningCatalog: 'Loading backup information…',
   restoreOptions: 'Recovery Options',
-  applyIntermediateLogs: 'Apply intermediate archive logs',
+  applyIntermediateLogs: 'Perform partial recovery when archive logs are absent',
   pathOverride: 'Specify Recovery Path',
   restoreInPlaceHint: 'Leave blank to use the original path',
   renamingDatabase: 'Renaming Database',
@@ -824,6 +824,7 @@ export const CM = {
   languageKo: 'Korean',
 
   // Backup dialog options (aligned with CUBRID Admin)
+  backupLevelFullTitle: 'Full Backup',
   backupLevelFullDesc: 'Complete backup of all data',
   backupLevelIncrL1Title: 'Incremental (L1)',
   backupLevelIncrDesc: 'Changes since last L0 backup',
@@ -938,10 +939,17 @@ export const CM = {
   volumeDir: 'Volume Path',
 
   // RestoreDatabaseModal
-  logCatchup: 'Log Recovery',
+  logCatchup: 'Partial Recovery',
   noBackupFound: 'No Backup Records Found',
   noBackupHint: 'Ensure the backup directory is configured and synchronized.',
   showAllBackups: 'Show all',
   irreversibleOperation: 'Irreversible Operation',
   restoreOverwriteNote: 'All existing volumes will be permanently overwritten by the selected backup.',
+  selectBackupFirst: 'Please select a backup to restore from.',
+  restoreErrorFallback: 'An unexpected error occurred during restore.',
+  tryOtherBackupLevel: 'Try selecting another backup level, or view all.',
+  recoveryPathPlaceholder: 'Default: original location',
+  backupLevelFullLongDesc: 'Complete snapshot of all data, schema and volumes.',
+  backupLevelIncrL1LongDesc: 'Changes since last L0 backup. Requires L0 to restore.',
+  backupLevelIncrL2LongDesc: 'Changes since last L1 backup. Requires L0 + L1 to restore.',
 };
