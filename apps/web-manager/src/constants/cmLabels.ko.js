@@ -618,7 +618,7 @@ export const CM_KO = {
   scheduleCommitted: '저장됨',
   automationActive: '활성',
   executionError: '실행 오류',
-  initializeCycle: '주기',
+  initializeCycle: '저장',
   abstractionLevel: '유형',
   planRegistryId: '계획 ID',
   payloadPath: '경로',
@@ -631,7 +631,7 @@ export const CM_KO = {
   deleteBackupPlan: '백업 자동화 삭제',
   deleteQueryPlan: '질의 자동화 삭제',
   deletingQueryPlan: '질의 자동화 삭제 중',
-  removingRegistry: '레지스트리 제거 중',
+  removingRegistry: '삭제 중',
   deletionSuccess: '삭제 성공',
   registryPurged: '질의 자동화 삭제됨',
   queryPlanRemovedMsg: '질의 자동화가 삭제되었습니다.',
@@ -800,4 +800,124 @@ export const CM_KO = {
   language: '언어',
   languageEn: 'English',
   languageKo: '한국어',
+
+  // Backup dialog options (aligned with CUBRID Admin)
+  backupLevelFullDesc: '전체 데이터를 완전 백업합니다',
+  backupLevelIncrDesc: '이전 레벨 0 또는 레벨 1 백업 이후 변경 내용',
+  backupLevelDiffDesc: '이전 레벨 1 백업 이후 변경 내용',
+  checkConsistencyLabel: '데이터베이스 일관성 검사',
+  checkConsistencyDesc: '백업 중 데이터베이스 일관성을 검사합니다',
+  deleteArchiveLogsLabel: '불필요한 아카이브 로그 삭제',
+  deleteArchiveLogsDesc: '이미 보관된 트랜잭션 로그를 삭제합니다',
+  compressBackupLabel: '백업 볼륨 압축',
+  compressBackupDesc: '백업 파일 크기를 압축합니다',
+  parallelBackupDesc: '병렬 백업 스레드 수',
+  threadsLabel: '스레드',
+
+  // Compact database steps
+  compactStep1Label: '참조 정리',
+  compactStep1Desc: '사용하지 않는 객체 참조를 제거합니다',
+  compactStep2Label: '메타데이터 정리',
+  compactStep2Desc: '내부 메타데이터를 정리합니다',
+  compactStep3Label: '디스크 통합',
+  compactStep3Desc: '조각화된 디스크 페이지를 통합합니다',
+
+  // Optimize database
+  allTables: '전체 테이블',
+  filterObjects: '테이블 필터...',
+  regeneratingStatistics: '통계 갱신 중',
+  optimizationSuccess: '최적화 완료',
+  optimizationFailed: '최적화 실패',
+  optimizerHint: '통계 갱신을 통해 쿼리 옵티마이저가 최적의 실행 경로를 선택할 수 있습니다.',
+  globalScanHint: '전체 스캔 시 스키마 메타데이터가 일시적으로 잠길 수 있습니다.',
+
+  // Copy database path labels
+  primaryVolumePath: '데이터베이스 볼륨 경로',
+  extVolumePath: '확장 볼륨 경로',
+  logVolumePath: '로그 볼륨 경로',
+  replaceExistingDesc: '동일한 이름의 데이터베이스가 이미 있으면 덮어씁니다.',
+  moveSourceDesc: '복사 완료 후 원본 파일을 삭제합니다.',
+
+  // Query plan modals (Add/Edit)
+  queryIdentifierRequired: '질의 자동화 ID가 필요합니다.',
+  sqlStatementRequired: 'SQL 구문을 입력해야 합니다.',
+  queryPlanAdded: '질의 자동화 추가 완료',
+  addQueryPlanFailed: '질의 자동화 추가 실패',
+  editQueryPlanFailed: '질의 자동화 수정 실패',
+  objectIdentification: '식별',
+  queryIdentifierLabel: '질의 ID',
+  secureContextSection: '데이터베이스 자격 증명',
+  databaseUsernameLabel: '사용자 이름',
+  databasePasswordLabel: '비밀번호',
+  recurrenceFrequency: '주기',
+  startTimeLabel: '시간',
+  dailyLabel: '매일',
+  weeklyLabel: '매주',
+  monthlyLabel: '매월',
+  specificDateLabel: '특정 날짜',
+  sqlStatementSection: 'SQL 구문',
+  systemComplianceNote: '질의는 서버 측에서 실행됩니다. 데이터베이스 사용자에게 충분한 권한이 있어야 합니다.',
+  runSchedule: '저장',
+  automatingDatabase: '자동화 대상 데이터베이스',
+
+  // Backup plan level descs (short)
+  levelFullShortDesc: '전체 백업',
+  levelIncrL0ShortDesc: 'L0 기준',
+  levelIncrL1ShortDesc: 'L1 기준',
+
+  // Backup plan option labels
+  updateStatisticsLabel: '통계 정보 갱신',
+  updateStatisticsDesc: '질의 최적화기 통계 정보를 갱신합니다',
+  deleteArchiveDesc: '이미 보관된 트랜잭션 로그를 삭제합니다',
+
+  // Backup plan schedule options
+  monthly: '매월',
+  weekly: '매주',
+  daily: '매일',
+  specificDays: '특정 날짜',
+  onlineMode: '온라인',
+  onlineModeDesc: '데이터베이스 실행 중 백업',
+  offlineMode: '오프라인',
+  offlineModeDesc: '데이터베이스 중지 후 백업',
+  savingSchedule: '저장 중',
+  updatingSchedule: '수정 중',
+
+  // Delete backup plan modal
+  deletingBackupPlan: '백업 자동화 삭제 중',
+  backupPlanDeleted: '백업 자동화 삭제됨',
+  backupPlanRemovedMsg: '백업 자동화가 스케줄러에서 삭제되었습니다.',
+  deleteBackupPlanFailed: '백업 자동화 삭제 실패',
+  discardBackupStrategy: '백업 자동화를 삭제하시겠습니까?',
+  backupScheduleNote: '이 작업은 스케줄만 삭제합니다. 디스크의 기존 백업 파일은 유지됩니다.',
+  dangerousDiscardBackupPlan: '백업 자동화 삭제',
+  permanentRemovalBackup: '백업 자동화를 영구 삭제합니다',
+
+  // SetAutomationVolumeModal
+  savingPolicies: '저장 중',
+  policiesSaved: '저장됨',
+  savedSuccessfully: '저장 성공',
+  saveInterrupted: '저장 실패',
+  savePolicies: '저장',
+  expansionSize: '확장 크기 (MB)',
+  extensionPages: '확장 페이지 수',
+  autoVolumeActive: '볼륨 자동화 활성',
+  loadingConfig: '설정 불러오는 중...',
+  indexVolume: '인덱스 볼륨',
+
+  // AddVolumeModal
+  retryAddVolume: '다시 시도',
+  activeInstanceRequired: '데이터베이스가 실행 중이어야 합니다',
+  availableSpace: '사용 가능한 공간',
+  customCapacity: '용량 (MB)',
+  blocksAllocated: '할당된 페이지 수',
+  volumeIdentifier: '볼륨 이름',
+  volumeDir: '볼륨 경로',
+
+  // RestoreDatabaseModal
+  logCatchup: '로그 복구',
+  noBackupFound: '백업 정보 없음',
+  noBackupHint: '백업 디렉터리가 설정되어 있고 호스트와 동기화되어 있는지 확인하세요.',
+  showAllBackups: '전체 보기',
+  irreversibleOperation: '되돌릴 수 없는 작업',
+  restoreOverwriteNote: '선택한 백업으로 기존 볼륨이 영구적으로 덮어씌워집니다.',
 };

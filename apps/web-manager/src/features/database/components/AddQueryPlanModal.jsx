@@ -99,11 +99,11 @@ export default function AddQueryPlanModal() {
 
   const handleSave = async () => {
     if (!formData.queryId.trim()) {
-       endError('A unique Query Identifier is required to register this plan.');
+       endError(CM.queryIdentifierRequired);
        return;
     }
     if (!formData.queryString.trim()) {
-      endError('No SQL statement provided. The automation payload must contain at least one valid query.');
+      endError(CM.sqlStatementRequired);
       return;
     }
     const queryString = formData.queryString.trim();
@@ -142,7 +142,7 @@ export default function AddQueryPlanModal() {
     try {
       await dispatch(appendAutoExecQueryPlan({ hostUid: selectedHostUid, dbname: selectedDatabase, plan })).unwrap();
       dispatch(fetchQueryPlan({ hostUid: selectedHostUid, dbname: selectedDatabase }));
-      endSuccess(`Plan "${formData.queryId}" has been successfully synchronized and registered with the scheduler.`);
+      endSuccess(`${CM.queryPlanAdded}: ${formData.queryId}`);
     } catch (err) {
       endError(typeof err === 'string' ? err : (err.message || 'Failed to add query plan.'));
     }
@@ -153,10 +153,10 @@ export default function AddQueryPlanModal() {
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title="Scheduling Automate" icon="bolt" onClose={handleClose} maxWidth="720px" showCloseButton={false}>
-        <ModalStatusLoading 
-          title="Syncing Schedule" 
-          subtitle={`Registering ${formData.queryId} with the CUBRID Automation Service.`}
+      <Modal isOpen title={CM.addQueryPlan} icon="bolt" onClose={handleClose} maxWidth="720px" showCloseButton={false}>
+        <ModalStatusLoading
+          title={CM.savingSchedule}
+          subtitle={formData.queryId}
         />
       </Modal>
     );
@@ -165,12 +165,12 @@ export default function AddQueryPlanModal() {
   /* ─── SUCCESS view ─── */
   if (isSuccess) {
     return (
-      <Modal isOpen title="Plan Synchronized" icon="bolt" iconVariant="success" onClose={handleClose} maxWidth="720px">
-        <ModalStatusSuccess 
-          title="Schedule Registry Active"
-          message={`The automated query task for ${selectedDatabase} has been successfully committed.`}
+      <Modal isOpen title={CM.addQueryPlan} icon="bolt" iconVariant="success" onClose={handleClose} maxWidth="720px">
+        <ModalStatusSuccess
+          title={CM.queryPlanAdded}
+          message={`${selectedDatabase}: ${formData.queryId}`}
           onConfirm={handleClose}
-          confirmText="OK"
+          confirmText={CM.ok}
         />
       </Modal>
     );
@@ -179,14 +179,14 @@ export default function AddQueryPlanModal() {
   /* ─── ERROR view ─── */
   if (isError) {
     return (
-      <Modal isOpen title="Scheduling Interrupted" icon="bolt" iconVariant="danger" onClose={resetAction} maxWidth="720px">
-        <ModalStatusError 
-          title="Transaction Dropped"
+      <Modal isOpen title={CM.addQueryPlanFailed} icon="bolt" iconVariant="danger" onClose={resetAction} maxWidth="720px">
+        <ModalStatusError
+          title={CM.operationInterrupted}
           error={actionError}
           onRetry={handleSave}
           onCancel={resetAction}
-          retryText="Retry Submission"
-          cancelText="Dismiss"
+          retryText={CM.retry}
+          cancelText={CM.dismiss}
         />
       </Modal>
     );
@@ -204,13 +204,13 @@ export default function AddQueryPlanModal() {
       footer={
         <div className="flex justify-end gap-3 w-full">
           <Button variant="ghost" onClick={handleClose}>{CM.discard}</Button>
-          <Button 
+          <Button
             variant="primary"
-            onClick={handleSave} 
+            onClick={handleSave}
             icon="play_circle"
             className="min-w-[140px]"
           >
-            Run Schedule
+            {CM.runSchedule}
           </Button>
         </div>
       }
@@ -225,7 +225,7 @@ export default function AddQueryPlanModal() {
                 <Icon name="database" size="md" weight={300} className="text-amber-500" />
               </div>
               <div className="min-w-0">
-                <Typography variant="caption" className="font-bold text-amber-600/70 mb-0.5">Automating database</Typography>
+                <Typography variant="caption" className="font-bold text-amber-600/70 mb-0.5">{CM.automatingDatabase}</Typography>
                 <Typography variant="h4" className="text-[14px] font-black text-amber-700 dark:text-amber-400 font-mono truncate">
                    {selectedDatabase}
                 </Typography>
@@ -233,7 +233,7 @@ export default function AddQueryPlanModal() {
             </div>
             <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/50 dark:bg-black/20 border border-slate-200 dark:border-white/5 shadow-xs">
               <Icon name="bolt" size="sm" className="text-amber-500 animate-pulse" />
-              <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Payload: SQL Service</span>
+              <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">{CM.sqlStatementSection}</span>
             </div>
           </div>
         </div>
@@ -241,9 +241,9 @@ export default function AddQueryPlanModal() {
         <div className="space-y-8">
           {/* Identity */}
           <div className="space-y-4">
-            <SectionHeader title="Object Identification" icon="fingerprint" />
-            <Input 
-              label="Query Identifier"
+            <SectionHeader title={CM.objectIdentification} icon="fingerprint" />
+            <Input
+              label={CM.queryIdentifierLabel}
               placeholder="e.g. hourly_purge_logs"
               value={formData.queryId}
               onChange={e => handleInputChange('queryId', e.target.value)}
@@ -252,17 +252,17 @@ export default function AddQueryPlanModal() {
           </div>
 
           <div className="space-y-4">
-             <SectionHeader title="Secure Context" icon="lock" />
+            <SectionHeader title={CM.secureContextSection} icon="lock" />
             <div className="grid grid-cols-2 gap-4">
-              <Input 
-                label="Database Username"
+              <Input
+                label={CM.databaseUsernameLabel}
                 value={formData.username}
                 onChange={e => handleInputChange('username', e.target.value)}
                 icon="person"
               />
-              <Input 
+              <Input
                 type="password"
-                label="Database Password"
+                label={CM.databasePasswordLabel}
                 value={formData.password}
                 onChange={e => handleInputChange('password', e.target.value)}
                 icon="key"
@@ -275,21 +275,20 @@ export default function AddQueryPlanModal() {
           <div className="space-y-4">
             <SectionHeader title={CM.executionSchedule} icon="schedule" />
             <div className="grid grid-cols-2 gap-4">
-              <Select 
-                label="Recurrence Frequency"
+              <Select
+                label={CM.recurrenceFrequency}
                 icon="event_repeat"
                 value={formData.periodType}
                 onChange={e => handleInputChange('periodType', e.target.value)}
                 options={[
-                  { value: 'DAY', label: 'Daily (Every 24h)' },
-                  { value: 'WEEK', label: 'Weekly Precision' },
-                  { value: 'MONTH', label: 'Monthly Rotation' },
-                  { value: 'DATE', label: 'Specific Single Date' }
+                  { value: 'DAY', label: CM.dailyLabel },
+                  { value: 'WEEK', label: CM.weeklyLabel },
+                  { value: 'MONTH', label: CM.monthlyLabel },
+                  { value: 'DATE', label: CM.specificDateLabel }
                 ]}
               />
-              
-              <TimePicker 
-                label="Start Time"
+              <TimePicker
+                label={CM.startTimeLabel}
                 value={formData.backupTime}
                 onChange={e => handleInputChange('backupTime', e.target.value)}
                 icon="history_toggle_off"
@@ -350,10 +349,9 @@ export default function AddQueryPlanModal() {
 
           {/* SQL Payload */}
           <div className="space-y-4 pt-2">
-            <SectionHeader 
-              title="SQL Execution Payload" 
-              icon="code" 
-              badge="Atomic execution"
+            <SectionHeader
+              title={CM.sqlStatementSection}
+              icon="code"
             />
             <div className="relative group rounded-3xl overflow-hidden border border-slate-200 dark:border-white/8 bg-white dark:bg-[#1e1e1e] shadow-inner transition-all focus-within:ring-4 focus-within:ring-amber-500/5 focus-within:border-amber-500/40">
               <div className="absolute top-4 left-4 z-10 opacity-40 group-focus-within:opacity-100 transition-opacity pointer-events-none">
@@ -389,8 +387,8 @@ export default function AddQueryPlanModal() {
                 />
               </div>
             </div>
-            <InfoBanner title="System Compliance">
-              Queries are executed on the server side via the task controller. Ensure the DB user has sufficient privileges for the intended operations.
+            <InfoBanner>
+              {CM.systemComplianceNote}
             </InfoBanner>
           </div>
         </div>

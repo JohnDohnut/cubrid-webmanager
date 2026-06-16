@@ -219,9 +219,9 @@ export default function EditQueryPlanModal() {
   if (isLoading) {
     return (
       <Modal isOpen title={CM.editQueryPlan} icon="edit" onClose={handleClose} maxWidth="720px" showCloseButton={false}>
-        <ModalStatusLoading 
-          title="Syncing Changes" 
-          subtitle="Committing the new automation sequence to the task controller."
+        <ModalStatusLoading
+          title={CM.updatingSchedule}
+          subtitle={formData.queryId}
         />
       </Modal>
     );
@@ -231,11 +231,11 @@ export default function EditQueryPlanModal() {
   if (isSuccess) {
     return (
       <Modal isOpen title={CM.updateSuccessful} icon="verified" iconVariant="success" onClose={handleClose} maxWidth="700px">
-        <ModalStatusSuccess 
-          title="Schedule Registry Updated"
-          message={`Changes to the query plan for ${selectedDatabase} have been committed and re-indexed.`}
+        <ModalStatusSuccess
+          title={CM.updateSuccessful}
+          message={`${selectedDatabase}: ${formData.queryId}`}
           onConfirm={handleClose}
-          confirmText="OK"
+          confirmText={CM.ok}
         />
       </Modal>
     );
@@ -244,14 +244,14 @@ export default function EditQueryPlanModal() {
   /* ─── ERROR view ─── */
   if (isError) {
     return (
-      <Modal isOpen title="Update Failed" icon="error" iconVariant="danger" onClose={resetAction} maxWidth="700px">
-        <ModalStatusError 
-          title="Execution Halted"
+      <Modal isOpen title={CM.editQueryPlanFailed} icon="error" iconVariant="danger" onClose={resetAction} maxWidth="700px">
+        <ModalStatusError
+          title={CM.operationInterrupted}
           error={actionError}
           onRetry={handleSave}
           onCancel={resetAction}
-          retryText="Retry Update"
-          cancelText="Dismiss"
+          retryText={CM.retry}
+          cancelText={CM.dismiss}
         />
       </Modal>
     );
@@ -276,9 +276,9 @@ export default function EditQueryPlanModal() {
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-300">
         {/* Identifier */}
         <div className="space-y-4">
-          <SectionHeader title="Object Identification" icon="fingerprint" />
-          <Input 
-            label="Query Identifier"
+          <SectionHeader title={CM.objectIdentification} icon="fingerprint" />
+          <Input
+            label={CM.queryIdentifierLabel}
             value={formData.queryId}
             disabled
             icon="tag"
@@ -288,17 +288,17 @@ export default function EditQueryPlanModal() {
 
         {/* Security */}
         <div className="space-y-4">
-           <SectionHeader title="Secure Context" icon="lock" />
+          <SectionHeader title={CM.secureContextSection} icon="lock" />
           <div className="grid grid-cols-2 gap-4">
-            <Input 
-              label="Database Username"
+            <Input
+              label={CM.databaseUsernameLabel}
               value={formData.username}
               onChange={e => handleInputChange('username', e.target.value)}
               icon="person"
             />
-            <Input 
+            <Input
               type="password"
-              label="Database Password"
+              label={CM.databasePasswordLabel}
               value={formData.password}
               onChange={e => handleInputChange('password', e.target.value)}
               icon="key"
@@ -309,22 +309,22 @@ export default function EditQueryPlanModal() {
 
         {/* Schedule */}
         <div className="space-y-4">
-           <SectionHeader title={CM.executionSchedule} icon="schedule" />
+          <SectionHeader title={CM.executionSchedule} icon="schedule" />
           <div className="grid grid-cols-2 gap-4">
-            <Select 
-              label="Recurrence Frequency"
+            <Select
+              label={CM.recurrenceFrequency}
               icon="event_repeat"
               value={formData.periodType}
               onChange={e => handleInputChange('periodType', e.target.value)}
               options={[
-                { value: 'DAY', label: 'Daily (Every 24h)' },
-                { value: 'WEEK', label: 'Weekly Precision' },
-                { value: 'MONTH', label: 'Monthly Rotation' },
-                { value: 'DATE', label: 'Specific Single Date' }
+                { value: 'DAY', label: CM.dailyLabel },
+                { value: 'WEEK', label: CM.weeklyLabel },
+                { value: 'MONTH', label: CM.monthlyLabel },
+                { value: 'DATE', label: CM.specificDateLabel }
               ]}
             />
-            <TimePicker 
-              label="Start Time"
+            <TimePicker
+              label={CM.startTimeLabel}
               value={formData.backupTime}
               onChange={e => handleInputChange('backupTime', e.target.value)}
               icon="history_toggle_off"
@@ -382,10 +382,9 @@ export default function EditQueryPlanModal() {
 
         {/* SQL Payload */}
         <div className="space-y-4 pt-2">
-          <SectionHeader 
-            title="SQL Execution Payload" 
-            icon="code" 
-            badge="Atomic execution"
+          <SectionHeader
+            title={CM.sqlStatementSection}
+            icon="code"
           />
           <div className="relative group rounded-3xl overflow-hidden border border-slate-200 dark:border-white/8 bg-white dark:bg-[#1e1e1e] shadow-inner transition-all focus-within:ring-4 focus-within:ring-amber-500/5 focus-within:border-amber-500/40">
             <div className="absolute top-4 left-4 z-10 opacity-40 group-focus-within:opacity-100 transition-opacity pointer-events-none">
@@ -421,8 +420,8 @@ export default function EditQueryPlanModal() {
               />
             </div>
           </div>
-          <InfoBanner title="System Compliance">
-            Queries are executed on the server side via the task controller. Ensure the DB user has sufficient privileges for the intended operations.
+          <InfoBanner>
+            {CM.systemComplianceNote}
           </InfoBanner>
         </div>
       </div>

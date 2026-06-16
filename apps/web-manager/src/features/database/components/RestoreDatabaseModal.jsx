@@ -305,10 +305,10 @@ export default function RestoreDatabaseModal() {
           ) : backups.length === 0 ? (
             <EmptyState
               icon={filter === 'all' ? 'search_off' : 'filter_list_off'}
-              title={filter === 'all' ? 'No Backup Records Found' : `No ${LEVEL_META[filter]?.title} Backups`}
+              title={filter === 'all' ? CM.noBackupFound : `No ${LEVEL_META[filter]?.title} Backups`}
               subtitle={
                 filter === 'all'
-                  ? 'Ensure the backup directory is synchronized with this host.'
+                  ? CM.noBackupHint
                   : 'Try selecting another backup level or view all.'
               }
               action={filter !== 'all' && (
@@ -316,7 +316,7 @@ export default function RestoreDatabaseModal() {
                   onClick={() => setFilter('all')}
                   className="text-[10px] font-bold text-amber-500 hover:text-amber-600 transition-colors underline underline-offset-2 cursor-pointer"
                 >
-                  Show all backups
+                  {CM.showAllBackups}
                 </button>
               )}
             />
@@ -404,7 +404,7 @@ export default function RestoreDatabaseModal() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className={`text-[12px] font-bold transition-colors ${formData.isPartial ? 'text-slate-800 dark:text-white' : 'text-slate-600 dark:text-slate-400'}`}>
-                  Log Catch-up
+                  {CM.logCatchup}
                 </p>
                 <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-tight">{CM.applyIntermediateLogs}</p>
               </div>
@@ -434,10 +434,10 @@ export default function RestoreDatabaseModal() {
           </div>
           <div className="flex-1">
             <p className="text-[11px] font-bold text-rose-600 dark:text-rose-400 mb-1 uppercase tracking-tight">
-              Irreversible Operation
+              {CM.irreversibleOperation}
             </p>
             <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">
-              All existing volumes for <span className="font-mono font-bold text-slate-700 dark:text-slate-200">{selectedDatabase}</span> will be permanently overwritten by the selected snapshot.
+              {CM.restoreOverwriteNote}
             </p>
           </div>
         </div>

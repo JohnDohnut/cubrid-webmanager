@@ -111,15 +111,15 @@ export default function BackupDatabaseModal() {
   const handleClose = () => dispatch(closeBackupDatabaseModal());
 
   const levels = [
-    { level: 'level 0', label: 'L0', title: 'Full', desc: 'Complete snapshot of all data', icon: 'layers' },
-    { level: 'level 1', label: 'L1', title: 'Incremental', desc: 'Changes since last L0 or L1', icon: 'trending_up' },
-    { level: 'level 2', label: 'L2', title: 'Differential', desc: 'Changes since last L1', icon: 'call_split' }
+    { level: 'level 0', label: 'L0', title: CM.all, desc: CM.backupLevelFullDesc, icon: 'layers' },
+    { level: 'level 1', label: 'L1', title: 'Incremental', desc: CM.backupLevelIncrDesc, icon: 'trending_up' },
+    { level: 'level 2', label: 'L2', title: 'Differential', desc: CM.backupLevelDiffDesc, icon: 'call_split' }
   ];
 
   const flags = [
-    { field: 'checkConsistency', icon: 'verified_user', label: 'Consistency Check', desc: 'Validate block-level integrity of volumes' },
-    { field: 'deleteUnnecessary', icon: 'cleaning_services', label: 'Purge Archived Logs', desc: 'Remove transaction logs already archived' },
-    { field: 'compress', icon: 'compress', label: 'Compress Output', desc: 'Reduce file size with stream compression' },
+    { field: 'checkConsistency', icon: 'verified_user', label: CM.checkConsistencyLabel, desc: CM.checkConsistencyDesc },
+    { field: 'deleteUnnecessary', icon: 'cleaning_services', label: CM.deleteArchiveLogsLabel, desc: CM.deleteArchiveLogsDesc },
+    { field: 'compress', icon: 'compress', label: CM.compressBackupLabel, desc: CM.compressBackupDesc },
   ];
 
   /* ─── LOADING view ─── */
@@ -268,11 +268,11 @@ export default function BackupDatabaseModal() {
               <Input
                 type="number"
                 label={CM.parallelThreads}
-                description="Number of concurrent backup streams (based on CPU cores)"
+                description={CM.parallelBackupDesc}
                 value={formData.parallelBackup}
                 onChange={(e) => handleInputChange('parallelBackup', e.target.value)}
                 icon="speed"
-                suffix="Threads"
+                suffix={CM.threadsLabel}
               />
             </div>
           </div>

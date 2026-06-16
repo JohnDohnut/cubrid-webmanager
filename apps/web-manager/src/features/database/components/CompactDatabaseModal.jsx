@@ -41,10 +41,10 @@ export default function CompactDatabaseModal() {
   const [verbose, setVerbose] = useState(false);
 
   const pipelineSteps = useMemo(() => [
-    { label: 'OID Truncation', desc: 'Remove unused object references', icon: 'auto_fix_normal' },
-    { label: 'Metadata Pruning', desc: 'Clean stale internal metadata', icon: 'dataset' },
-    { label: 'Block Consolidation', desc: 'Merge fragmented disk pages', icon: 'grid_view' },
-  ], []);
+    { label: CM.compactStep1Label, desc: CM.compactStep1Desc, icon: 'auto_fix_normal' },
+    { label: CM.compactStep2Label, desc: CM.compactStep2Desc, icon: 'dataset' },
+    { label: CM.compactStep3Label, desc: CM.compactStep3Desc, icon: 'grid_view' },
+  ], [CM]);
 
   useEffect(() => {
     if (isCompactDatabaseModalOpen) {

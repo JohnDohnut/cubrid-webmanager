@@ -635,7 +635,7 @@ export const CM = {
   scheduleCommitted: 'Saved',
   automationActive: 'Active',
   executionError: 'Execution Error',
-  initializeCycle: 'Cycle',
+  initializeCycle: 'Save',
   abstractionLevel: 'Type',
   planRegistryId: 'Plan ID',
   payloadPath: 'Path',
@@ -648,7 +648,7 @@ export const CM = {
   deleteBackupPlan: 'Delete Backup Plan',
   deleteQueryPlan: 'Delete Query Plan',
   deletingQueryPlan: 'Deleting Query Plan',
-  removingRegistry: 'Removing Registry',
+  removingRegistry: 'Deleting',
   deletionSuccess: 'Deletion Success',
   registryPurged: 'Query Plan Deleted',
   queryPlanRemovedMsg: 'The query plan has been deleted.',
@@ -822,4 +822,124 @@ export const CM = {
   language: 'Language',
   languageEn: 'English',
   languageKo: 'Korean',
+
+  // Backup dialog options (aligned with CUBRID Admin)
+  backupLevelFullDesc: 'Complete backup of all data',
+  backupLevelIncrDesc: 'Changes since last Level 0 or Level 1 backup',
+  backupLevelDiffDesc: 'Changes since last Level 1 backup',
+  checkConsistencyLabel: 'Check Database Consistency',
+  checkConsistencyDesc: 'Check the database consistency during backup',
+  deleteArchiveLogsLabel: 'Delete Unnecessary Log-Archives',
+  deleteArchiveLogsDesc: 'Remove transaction logs already archived',
+  compressBackupLabel: 'Compress Backup Volumes',
+  compressBackupDesc: 'Reduce backup file size with compression',
+  parallelBackupDesc: 'Number of parallel backup threads',
+  threadsLabel: 'Threads',
+
+  // Compact database steps
+  compactStep1Label: 'Clean References',
+  compactStep1Desc: 'Remove unused object references',
+  compactStep2Label: 'Clean Metadata',
+  compactStep2Desc: 'Clean internal metadata',
+  compactStep3Label: 'Consolidate Disk',
+  compactStep3Desc: 'Merge fragmented disk pages',
+
+  // Optimize database
+  allTables: 'All Tables',
+  filterObjects: 'Filter objects...',
+  regeneratingStatistics: 'Regenerating Statistics',
+  optimizationSuccess: 'Optimization Complete',
+  optimizationFailed: 'Optimization Failed',
+  optimizerHint: 'Regenerating statistics allows the query optimizer to choose the most efficient execution paths.',
+  globalScanHint: 'Global scans may briefly lock schema metadata during analysis.',
+
+  // Copy database path labels
+  primaryVolumePath: 'Database Volume Path',
+  extVolumePath: 'Extended Volume Path',
+  logVolumePath: 'Log Volume Path',
+  replaceExistingDesc: 'Replace destination files if a database with this name already exists.',
+  moveSourceDesc: 'Remove source files after the copy is successfully finalized.',
+
+  // Query plan modals (Add/Edit)
+  queryIdentifierRequired: 'A Query ID is required.',
+  sqlStatementRequired: 'An SQL statement is required.',
+  queryPlanAdded: 'Query Plan Added',
+  addQueryPlanFailed: 'Failed to Add Query Plan',
+  editQueryPlanFailed: 'Failed to Update Query Plan',
+  objectIdentification: 'Identification',
+  queryIdentifierLabel: 'Query ID',
+  secureContextSection: 'Database Credentials',
+  databaseUsernameLabel: 'Username',
+  databasePasswordLabel: 'Password',
+  recurrenceFrequency: 'Frequency',
+  startTimeLabel: 'Time',
+  dailyLabel: 'Daily',
+  weeklyLabel: 'Weekly',
+  monthlyLabel: 'Monthly',
+  specificDateLabel: 'Specific Date',
+  sqlStatementSection: 'SQL Statement',
+  systemComplianceNote: 'Queries are executed on the server side. The database user must have sufficient privileges.',
+  runSchedule: 'Save',
+  automatingDatabase: 'Automating database',
+
+  // Backup plan level descs (short)
+  levelFullShortDesc: 'Full backup',
+  levelIncrL0ShortDesc: 'Since last L0',
+  levelIncrL1ShortDesc: 'Since last L1',
+
+  // Backup plan option labels
+  updateStatisticsLabel: 'Update Statistics',
+  updateStatisticsDesc: 'Update query optimizer statistics',
+  deleteArchiveDesc: 'Delete transaction logs that have already been archived',
+
+  // Backup plan schedule options
+  monthly: 'Monthly',
+  weekly: 'Weekly',
+  daily: 'Daily',
+  specificDays: 'Specific Date',
+  onlineMode: 'Online',
+  onlineModeDesc: 'Backup while the database is running',
+  offlineMode: 'Offline',
+  offlineModeDesc: 'Backup with the database stopped',
+  savingSchedule: 'Saving',
+  updatingSchedule: 'Updating',
+
+  // Delete backup plan modal
+  deletingBackupPlan: 'Deleting Backup Plan',
+  backupPlanDeleted: 'Backup Plan Deleted',
+  backupPlanRemovedMsg: 'The backup plan has been removed from the scheduler.',
+  deleteBackupPlanFailed: 'Delete Backup Plan Failed',
+  discardBackupStrategy: 'Delete Backup Plan?',
+  backupScheduleNote: 'This only removes the schedule. Existing backup files remain on disk.',
+  dangerousDiscardBackupPlan: 'Delete Backup Plan',
+  permanentRemovalBackup: 'Permanently remove this backup schedule',
+
+  // SetAutomationVolumeModal
+  savingPolicies: 'Saving',
+  policiesSaved: 'Saved',
+  savedSuccessfully: 'Saved Successfully',
+  saveInterrupted: 'Save Failed',
+  savePolicies: 'Save',
+  expansionSize: 'Expansion Size (MB)',
+  extensionPages: 'Extension Pages',
+  autoVolumeActive: 'Auto Volume Active',
+  loadingConfig: 'Loading configuration…',
+  indexVolume: 'Index Volume',
+
+  // AddVolumeModal
+  retryAddVolume: 'Retry',
+  activeInstanceRequired: 'Database must be running',
+  availableSpace: 'Available Space',
+  customCapacity: 'Capacity (MB)',
+  blocksAllocated: 'Pages Allocated',
+  volumeIdentifier: 'Volume Name',
+  volumeDir: 'Volume Path',
+
+  // RestoreDatabaseModal
+  logCatchup: 'Log Recovery',
+  noBackupFound: 'No Backup Records Found',
+  noBackupHint: 'Ensure the backup directory is configured and synchronized.',
+  showAllBackups: 'Show all',
+  irreversibleOperation: 'Irreversible Operation',
+  restoreOverwriteNote: 'All existing volumes will be permanently overwritten by the selected backup.',
 };
