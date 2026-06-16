@@ -952,4 +952,127 @@ export const CM = {
   backupLevelFullLongDesc: 'Complete snapshot of all data, schema and volumes.',
   backupLevelIncrL1LongDesc: 'Changes since last L0 backup. Requires L0 to restore.',
   backupLevelIncrL2LongDesc: 'Changes since last L1 backup. Requires L0 + L1 to restore.',
+
+  // Auth
+  pickUniqueUsername: 'Pick a unique username',
+  createStrongPassword: 'Create a strong password',
+  repeatPassword: 'Repeat your password',
+  emailAddressLabel: 'Email Address',
+
+  // Sidebar context menus
+  newGroup: 'New Group',
+  addNode: 'Add Node',
+  renameGroup: 'Rename Group',
+  deleteGroup: 'Delete Group',
+  viewAllLogs: 'View All Logs',
+  viewDatabase: 'View Database',
+
+  // Host modals
+  loginIdLabel: 'Login ID',
+  statusAuthorityLabel: 'Status Authority',
+  administratorAccount: 'Administrator Account',
+  groupNameLabel: 'Group Name',
+  hostPasswordPlaceholder: 'Host password',
+  haClusterLinked: 'HA Cluster Linked',
+  mergeHAPeers: 'Merge HA Cluster Peers',
+
+  // User modals
+  moveToGroups: 'Move to Groups',
+  removeFromAssigned: 'Remove from assigned',
+  departmentLabel: 'Department',
+  currentPasswordLabel: 'Current Password',
+  confirmNewPassword: 'Confirm New Password',
+  dropDatabaseUser: 'Drop Database User',
+  droppingUser: 'Deleting',
+  userDropped: 'Deleted',
+  dropUserConfirmSection: 'Confirm Delete',
+  dropUserWarning: 'This action is permanent.',
+  dropUserBtn: 'Drop User',
+
+  // DeleteDatabaseModal
+  deletingDatabase: 'Deleting',
+  deleteSuccessful: 'Delete Successful',
+  authorizationPointTitle: 'Authorization',
+  targetSelection: 'Target Selection',
+  recoveryCleanup: 'Recovery Cleanup',
+  purgeLinkedBackups: 'Delete Linked Backups',
+  purgeLinkedBackupsDesc: 'Remove all backup volumes and snapshots linked to this database.',
+  fetchingAssets: 'Loading...',
+  noVolumesDetected: 'No volumes detected',
+  proceedBtn: 'Proceed',
+  backBtn: 'Back',
+
+  // VolumeInfoMonitor
+  loadingVolumeInfo: 'Loading Volume Information',
+  loadingVolumeInfoSub: 'Fetching volume allocation data...',
+  volumeNotFound: 'Volume Not Found',
+
+  // Log modals
+  filterLogsById: 'Filter by ID or description...',
+  buffering: 'Buffering',
+  synchronizedStatus: 'Synchronized',
+
+  // Monitoring / misc
+  monitoringSync: 'Monitoring Synchronization',
+  customIntervalPlaceholder: 'Custom interval',
+  defaultValuePlaceholder: 'Default',
+
+  // Config editors
+  undoAllChanges: 'Undo all changes',
+  brokerConfigPlaceholder: '# Enter broker configuration here...',
+
+  // EditCMSUserModal
+  savingChanges: 'Saving Changes',
+  creatingUser: 'Creating User',
+  accountInformation: 'Account Information',
+  allowDatabaseCreation: 'Allow Database Creation',
+  allowDbCreationDesc: 'User can create and drop databases on this host',
+
+  // CreateUserModal
+  createUser: 'Create User',
+  userUpdated: 'User Updated',
+  userCreated: 'User Created',
+
+  // UserProfileModal
+  accountDetails: 'Account Details',
+  updateProfileSection: 'Update Profile',
+  accountProfile: 'Account Profile',
+  editProfile: 'Edit Profile',
+  updatePasswordBtn: 'Update Password',
+  securitySettings: 'Security Settings',
+
+  // DatabasePropertyModal
+  confirmReturn: 'Confirm & Return',
+  retryPatch: 'Retry Patch',
+  discardChanges: 'Discard Changes',
+
+  // HaPeerMergeModal / HostGroupNameModal
+  mergeIntoGroup: 'Merge into group',
+  createGroup: 'Create Group',
+
+  // CMSUserManagementModal
+  systemAdministrator: 'System administrator',
+  managementUsers: 'Management users',
+
+  // Monitor refresh buttons
+  refreshVolumeData: 'Refresh volume data',
+  refreshCategoryMetrics: 'Refresh category metrics',
+  refreshSpaceMetrics: 'Refresh space metrics',
+
+  // DatabaseSpaceMonitor
+  storageAnalysisError: 'Storage Analysis Error',
+
+  // CreateDatabaseModal
+  removeVolume: 'Remove volume',
+  storage: 'Storage',
+
+  // CreateUserModal
+  source: 'Source',
+
+  // Auth pages
+  recoverPassword: 'Recover your password',
+  linkExpiry: 'Link Expiry',
+  registrationFailedTitle: 'Registration Failed',
+  desktopOnly: 'Desktop only',
+  desktopBridgeUnavailable: 'Desktop bridge unavailable',
 };

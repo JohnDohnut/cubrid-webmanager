@@ -930,4 +930,127 @@ export const CM_KO = {
   backupLevelFullLongDesc: '모든 데이터, 스키마, 볼륨의 전체 스냅샷입니다.',
   backupLevelIncrL1LongDesc: '마지막 L0 백업 이후 변경 내용입니다. 복구 시 L0이 필요합니다.',
   backupLevelIncrL2LongDesc: '마지막 L1 백업 이후 변경 내용입니다. 복구 시 L0 + L1이 필요합니다.',
+
+  // Auth
+  pickUniqueUsername: '고유한 사용자 이름을 입력하세요',
+  createStrongPassword: '강력한 비밀번호를 만드세요',
+  repeatPassword: '비밀번호를 다시 입력하세요',
+  emailAddressLabel: '이메일 주소',
+
+  // Sidebar context menus
+  newGroup: '새 그룹',
+  addNode: '호스트 추가',
+  renameGroup: '그룹 이름 변경',
+  deleteGroup: '그룹 삭제',
+  viewAllLogs: '전체 로그 보기',
+  viewDatabase: '데이터베이스 보기',
+
+  // Host modals
+  loginIdLabel: '로그인 ID',
+  statusAuthorityLabel: '권한 상태',
+  administratorAccount: '관리자 계정',
+  groupNameLabel: '그룹 이름',
+  hostPasswordPlaceholder: '호스트 비밀번호',
+  haClusterLinked: 'HA 클러스터 연결됨',
+  mergeHAPeers: 'HA 클러스터 노드 병합',
+
+  // User modals
+  moveToGroups: '그룹으로 이동',
+  removeFromAssigned: '할당 해제',
+  departmentLabel: '부서',
+  currentPasswordLabel: '현재 비밀번호',
+  confirmNewPassword: '새 비밀번호 확인',
+  dropDatabaseUser: '데이터베이스 사용자 삭제',
+  droppingUser: '삭제 중',
+  userDropped: '삭제됨',
+  dropUserConfirmSection: '삭제 확인',
+  dropUserWarning: '이 작업은 되돌릴 수 없습니다.',
+  dropUserBtn: '사용자 삭제',
+
+  // DeleteDatabaseModal
+  deletingDatabase: '삭제 중',
+  deleteSuccessful: '삭제 성공',
+  authorizationPointTitle: '인증',
+  targetSelection: '대상 선택',
+  recoveryCleanup: '복구 파일 정리',
+  purgeLinkedBackups: '연결된 백업 삭제',
+  purgeLinkedBackupsDesc: '이 데이터베이스에 연결된 모든 백업 볼륨과 스냅샷을 삭제합니다.',
+  fetchingAssets: '불러오는 중...',
+  noVolumesDetected: '볼륨 없음',
+  proceedBtn: '계속',
+  backBtn: '뒤로',
+
+  // VolumeInfoMonitor
+  loadingVolumeInfo: '볼륨 정보 불러오는 중',
+  loadingVolumeInfoSub: '볼륨 할당 데이터를 가져오는 중...',
+  volumeNotFound: '볼륨을 찾을 수 없음',
+
+  // Log modals
+  filterLogsById: 'ID 또는 설명으로 필터',
+  buffering: '버퍼링 중',
+  synchronizedStatus: '동기화됨',
+
+  // Monitoring / misc
+  monitoringSync: '모니터링 동기화',
+  customIntervalPlaceholder: '사용자 지정 간격',
+  defaultValuePlaceholder: '기본값',
+
+  // Config editors
+  undoAllChanges: '모든 변경 사항 되돌리기',
+  brokerConfigPlaceholder: '# 여기에 브로커 설정을 입력하세요...',
+
+  // EditCMSUserModal
+  savingChanges: '저장 중',
+  creatingUser: '생성 중',
+  accountInformation: '계정 정보',
+  allowDatabaseCreation: '데이터베이스 생성 허용',
+  allowDbCreationDesc: '이 호스트에서 데이터베이스를 생성하고 삭제할 수 있습니다',
+
+  // CreateUserModal
+  createUser: '사용자 생성',
+  userUpdated: '사용자 업데이트됨',
+  userCreated: '사용자 생성됨',
+
+  // UserProfileModal
+  accountDetails: '계정 정보',
+  updateProfileSection: '프로필 업데이트',
+  accountProfile: '계정 프로필',
+  editProfile: '프로필 편집',
+  updatePasswordBtn: '비밀번호 업데이트',
+  securitySettings: '보안 설정',
+
+  // DatabasePropertyModal
+  confirmReturn: '확인 후 돌아가기',
+  retryPatch: '패치 재시도',
+  discardChanges: '변경 사항 취소',
+
+  // HaPeerMergeModal / HostGroupNameModal
+  mergeIntoGroup: '그룹으로 병합',
+  createGroup: '그룹 생성',
+
+  // CMSUserManagementModal
+  systemAdministrator: '시스템 관리자',
+  managementUsers: '관리 사용자',
+
+  // Monitor refresh buttons
+  refreshVolumeData: '볼륨 데이터 새로 고침',
+  refreshCategoryMetrics: '카테고리 지표 새로 고침',
+  refreshSpaceMetrics: '공간 지표 새로 고침',
+
+  // DatabaseSpaceMonitor
+  storageAnalysisError: '스토리지 분석 오류',
+
+  // CreateDatabaseModal
+  removeVolume: '볼륨 제거',
+  storage: '스토리지',
+
+  // ConfigSourceEditor
+  source: '소스',
+
+  // Auth pages
+  recoverPassword: '비밀번호 복구',
+  linkExpiry: '링크 만료',
+  registrationFailedTitle: '회원가입 실패',
+  desktopOnly: '데스크톱 전용',
+  desktopBridgeUnavailable: '데스크톱 브리지를 사용할 수 없음',
 };
