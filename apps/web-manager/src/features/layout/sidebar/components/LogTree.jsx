@@ -7,7 +7,7 @@ import { Typography } from '../../../../components/ds/foundation/Typography';
 import { Icon } from '../../../../components/ds/foundation/Icon';
 import { useCM } from '../../../../constants/useCM';
 
-export default function LogTree({ hostUid, onDbLogContextMenu }) {
+export default function LogTree({ hostUid, onDbLogContextMenu, onBrokerErrorLogContextMenu, onAdminLogContextMenu, onManagerLogContextMenu }) {
   const CM = useCM();
   const dispatch = useDispatch();
   const { databases } = useSelector((state) => state.database, shallowEqual);
@@ -41,7 +41,7 @@ export default function LogTree({ hostUid, onDbLogContextMenu }) {
           />
 
           {/* Error Logs */}
-          <TreeNode 
+          <TreeNode
             label={CM.error}
             icon="report"
             level={2}
@@ -52,6 +52,7 @@ export default function LogTree({ hostUid, onDbLogContextMenu }) {
               dispatch(setSelectedBroker(null));
               dispatch(setSelectedBrokerSubItem('log-error'));
             }}
+            onContextMenu={(e) => onBrokerErrorLogContextMenu && onBrokerErrorLogContextMenu(e)}
             onToggle={() => {
               if (!logsLoading) {
                 brokers.forEach(broker => {
@@ -98,7 +99,7 @@ export default function LogTree({ hostUid, onDbLogContextMenu }) {
           </TreeNode>
 
           {/* Admin Logs */}
-          <TreeNode 
+          <TreeNode
             label={CM.adminLog}
             icon="admin_panel_settings"
             level={2}
@@ -109,6 +110,7 @@ export default function LogTree({ hostUid, onDbLogContextMenu }) {
               dispatch(setSelectedBroker(null));
               dispatch(setSelectedBrokerSubItem('log-admin'));
             }}
+            onContextMenu={(e) => onAdminLogContextMenu && onAdminLogContextMenu(e)}
             onToggle={() => {
               if (!adminLogsByHost[hostUid] && !adminLogsLoading) {
                 dispatch(fetchAdminLogs(hostUid));
@@ -153,6 +155,7 @@ export default function LogTree({ hostUid, onDbLogContextMenu }) {
           dispatch(setSelectedBroker(null));
           dispatch(setSelectedBrokerSubItem('log-manager-root'));
         }}
+        onContextMenu={(e) => onManagerLogContextMenu && onManagerLogContextMenu(e)}
         onToggle={() => {
           if (!cmsLogsByHost[hostUid] && !logsLoading) {
             dispatch(fetchCMSLogs(hostUid));
