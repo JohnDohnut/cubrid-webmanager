@@ -406,6 +406,9 @@ export const CM = {
   fullControl: 'Full Control',
   permissions: 'Permissions',
   brokerAuthority: 'Broker Authority',
+  monitoringPermission: 'monitoring',
+  dbCreatePermission: 'db-creation',
+  brokerPermission: 'broker',
 
   // Server dashboard
   serverDashboard: 'Server Dashboard',
