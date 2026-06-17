@@ -7,7 +7,7 @@ import { Typography } from '../../../../components/ds/foundation/Typography';
 import { Icon } from '../../../../components/ds/foundation/Icon';
 import { useCM } from '../../../../constants/useCM';
 
-export default function LogTree({ hostUid, onDbLogContextMenu, onBrokerErrorLogContextMenu, onAdminLogContextMenu, onManagerLogContextMenu }) {
+export default function LogTree({ hostUid, onDbLogContextMenu, onBrokerLogRootContextMenu, onBrokerErrorLogContextMenu, onAdminLogContextMenu, onManagerLogContextMenu, onServerLogRootContextMenu }) {
   const CM = useCM();
   const dispatch = useDispatch();
   const { databases } = useSelector((state) => state.database, shallowEqual);
@@ -26,6 +26,7 @@ export default function LogTree({ hostUid, onDbLogContextMenu, onBrokerErrorLogC
           dispatch(setSelectedBroker(null));
           dispatch(setSelectedBrokerSubItem('log-broker-root'));
         }}
+        onContextMenu={(e) => onBrokerLogRootContextMenu && onBrokerLogRootContextMenu(e)}
       >
           {/* Access Logs */}
           <TreeNode
@@ -38,6 +39,7 @@ export default function LogTree({ hostUid, onDbLogContextMenu, onBrokerErrorLogC
               dispatch(setSelectedBroker(null));
               dispatch(setSelectedBrokerSubItem('log-access'));
             }}
+            onContextMenu={(e) => onBrokerLogRootContextMenu && onBrokerLogRootContextMenu(e)}
           />
 
           {/* Error Logs */}
@@ -172,6 +174,7 @@ export default function LogTree({ hostUid, onDbLogContextMenu, onBrokerErrorLogC
               dispatch(setSelectedBrokerSubItem('cms-access'));
             }}
             onDoubleClick={() => dispatch(openTab(`cms-access:${hostUid}`))}
+            onContextMenu={(e) => onManagerLogContextMenu && onManagerLogContextMenu(e)}
           />
           <TreeNode
             label={CM.errorLog}
@@ -183,6 +186,7 @@ export default function LogTree({ hostUid, onDbLogContextMenu, onBrokerErrorLogC
               dispatch(setSelectedBrokerSubItem('cms-error'));
             }}
             onDoubleClick={() => dispatch(openTab(`cms-error:${hostUid}`))}
+            onContextMenu={(e) => onManagerLogContextMenu && onManagerLogContextMenu(e)}
           />
       </TreeNode>
 
@@ -197,6 +201,7 @@ export default function LogTree({ hostUid, onDbLogContextMenu, onBrokerErrorLogC
           dispatch(setSelectedBroker(null));
           dispatch(setSelectedBrokerSubItem('log-server-root'));
         }}
+        onContextMenu={(e) => onServerLogRootContextMenu && onServerLogRootContextMenu(e)}
       >
           {(databases || []).map((db, idx) => (
             <TreeNode 

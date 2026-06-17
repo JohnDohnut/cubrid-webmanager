@@ -132,9 +132,11 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
   const [backupItemContextMenu, setBackupItemContextMenu] = useState(null);
   const [sqlLogContextMenu, setSqlLogContextMenu] = useState(null);
   const [dbLogContextMenu, setDbLogContextMenu] = useState(null);
+  const [brokerLogRootContextMenu, setBrokerLogRootContextMenu] = useState(null);
   const [brokerErrorLogContextMenu, setBrokerErrorLogContextMenu] = useState(null);
   const [adminLogContextMenu, setAdminLogContextMenu] = useState(null);
   const [managerLogContextMenu, setManagerLogContextMenu] = useState(null);
+  const [serverLogRootContextMenu, setServerLogRootContextMenu] = useState(null);
 
   const dispatch = useDispatch();
   const { 
@@ -178,9 +180,11 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
     setBackupItemContextMenu(null);
     setSqlLogContextMenu(null);
     setDbLogContextMenu(null);
+    setBrokerLogRootContextMenu(null);
     setBrokerErrorLogContextMenu(null);
     setAdminLogContextMenu(null);
     setManagerLogContextMenu(null);
+    setServerLogRootContextMenu(null);
   }, []);
 
   const handleHostLogin = useCallback((uid) => {
@@ -340,6 +344,13 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
     setDbLogContextMenu({ mouseX: e.clientX, mouseY: e.clientY, db: dbName });
   };
 
+  const handleBrokerLogRootContextMenu = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    closeAllContextMenus();
+    setBrokerLogRootContextMenu({ mouseX: e.clientX, mouseY: e.clientY });
+  };
+
   const handleBrokerErrorLogContextMenu = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -359,6 +370,13 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
     e.stopPropagation();
     closeAllContextMenus();
     setManagerLogContextMenu({ mouseX: e.clientX, mouseY: e.clientY });
+  };
+
+  const handleServerLogRootContextMenu = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    closeAllContextMenus();
+    setServerLogRootContextMenu({ mouseX: e.clientX, mouseY: e.clientY });
   };
 
   const handleUsersContextMenu = (e, dbName) => {
@@ -710,9 +728,11 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                       <LogTree
                         hostUid={selectedHostUid}
                         onDbLogContextMenu={handleDbLogContextMenu}
+                        onBrokerLogRootContextMenu={handleBrokerLogRootContextMenu}
                         onBrokerErrorLogContextMenu={handleBrokerErrorLogContextMenu}
                         onAdminLogContextMenu={handleAdminLogContextMenu}
                         onManagerLogContextMenu={handleManagerLogContextMenu}
+                        onServerLogRootContextMenu={handleServerLogRootContextMenu}
                       />
                     </div>
                   </div>
@@ -1309,6 +1329,26 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
         </ContextMenuWrapper>
       )}
 
+      {brokerLogRootContextMenu && (
+        <ContextMenuWrapper x={brokerLogRootContextMenu.mouseX} y={brokerLogRootContextMenu.mouseY} onClose={() => setBrokerLogRootContextMenu(null)}>
+          <div className="px-3 py-2 border-b border-slate-100 dark:border-white/5 mb-1 flex items-center justify-between">
+            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">Broker Logs</Typography>
+            <Icon name="hub" size="xs" className="opacity-30" weight={300} />
+          </div>
+          <MenuItem
+            icon="refresh"
+            label={CM.refresh}
+            onClick={() => {
+              dispatch(fetchBrokerList(selectedHostUid));
+              brokers.forEach(broker => {
+                dispatch(fetchBrokerLogs({ hostUid: selectedHostUid, brokerName: broker.name }));
+              });
+              setBrokerLogRootContextMenu(null);
+            }}
+          />
+        </ContextMenuWrapper>
+      )}
+
       {brokerErrorLogContextMenu && (
         <ContextMenuWrapper x={brokerErrorLogContextMenu.mouseX} y={brokerErrorLogContextMenu.mouseY} onClose={() => setBrokerErrorLogContextMenu(null)}>
           <div className="px-3 py-2 border-b border-slate-100 dark:border-white/5 mb-1 flex items-center justify-between">
@@ -1357,6 +1397,25 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
             onClick={() => {
               dispatch(fetchCMSLogs(selectedHostUid));
               setManagerLogContextMenu(null);
+            }}
+          />
+        </ContextMenuWrapper>
+      )}
+
+      {serverLogRootContextMenu && (
+        <ContextMenuWrapper x={serverLogRootContextMenu.mouseX} y={serverLogRootContextMenu.mouseY} onClose={() => setServerLogRootContextMenu(null)}>
+          <div className="px-3 py-2 border-b border-slate-100 dark:border-white/5 mb-1 flex items-center justify-between">
+            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">Server Logs</Typography>
+            <Icon name="dns" size="xs" className="opacity-30" weight={300} />
+          </div>
+          <MenuItem
+            icon="refresh"
+            label={CM.refresh}
+            onClick={() => {
+              (databases || []).forEach(db => {
+                dispatch(fetchDatabaseLogs({ hostUid: selectedHostUid, dbname: db.dbname }));
+              });
+              setServerLogRootContextMenu(null);
             }}
           />
         </ContextMenuWrapper>
