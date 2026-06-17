@@ -7,6 +7,7 @@ import { getCmsJobLoadingSubtitle } from '../../../infrastructure/cmsJob/cmsJobU
 import { databaseApi } from '../databaseApi';
 import { useCM } from '../../../constants/useCM';
 
+import { Modal } from '../../../components/ds/layout/Modal';
 import { Button } from '../../../components/ds/foundation/Button';
 import { Input } from '../../../components/ds/forms/Input';
 import { Typography } from '../../../components/ds/foundation/Typography';
