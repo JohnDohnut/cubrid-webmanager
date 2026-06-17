@@ -151,19 +151,14 @@ export default function SetAutomationVolumeModal() {
     isError
   } = useActionState();
 
-  const [dataEnabled, setDataEnabled]       = useState(false);
-  const [dataThreshold, setDataThreshold]   = useState(15);
-  const [dataAddSize, setDataAddSize]       = useState(2048);
-  const [indexEnabled, setIndexEnabled]     = useState(false);
-  const [indexThreshold, setIndexThreshold] = useState(15);
-  const [indexAddSize, setIndexAddSize]     = useState(2048);
+  const [permanentEnabled, setPermanentEnabled] = useState(false);
+  const [permanentThreshold, setPermanentThreshold] = useState(15);
+  const [permanentAddSize, setPermanentAddSize] = useState(2048);
 
   useEffect(() => {
     if (isSetAutomationVolumeModalOpen && selectedHostUid && selectedDatabase) {
       resetAction();
-      // Reset local state before fetching new config to avoid stale view
-      setDataEnabled(false);
-      setIndexEnabled(false);
+      setPermanentEnabled(false);
       dispatch(fetchAutoVolumeConfig({ hostUid: selectedHostUid, dbname: selectedDatabase }));
     }
   }, [isSetAutomationVolumeModalOpen, selectedHostUid, selectedDatabase, dispatch, resetAction]);
@@ -172,24 +167,24 @@ export default function SetAutomationVolumeModal() {
     if (!selectedDatabase || !autoVolumeConfigs) return;
     const config = autoVolumeConfigs[selectedDatabase];
     if (config) {
-      setDataEnabled(config.data === 'ON');
-      setDataThreshold(config.data_warn_outofspace ? Math.max(5, Math.round(parseFloat(config.data_warn_outofspace) * 100)) : 15);
-      setDataAddSize(config.data_ext_page ? Math.round(parseInt(config.data_ext_page) * PAGE_SIZE_BYTES / BYTES_TO_MB) : 2048);
-      setIndexEnabled(config.index === 'ON');
-      setIndexThreshold(config.index_warn_outofspace ? Math.max(5, Math.round(parseFloat(config.index_warn_outofspace) * 100)) : 15);
-      setIndexAddSize(config.index_ext_page ? Math.round(parseInt(config.index_ext_page) * PAGE_SIZE_BYTES / BYTES_TO_MB) : 2048);
+      setPermanentEnabled(config.data === 'ON' || config.index === 'ON');
+      setPermanentThreshold(config.data_warn_outofspace ? Math.max(5, Math.round(parseFloat(config.data_warn_outofspace) * 100)) : 15);
+      setPermanentAddSize(config.data_ext_page ? Math.round(parseInt(config.data_ext_page) * PAGE_SIZE_BYTES / BYTES_TO_MB) : 2048);
     }
   }, [autoVolumeConfigs, selectedDatabase]);
 
   const handleSave = useCallback(async () => {
     startAction();
+    const state = permanentEnabled ? 'ON' : 'OFF';
+    const warnRatio = (permanentThreshold / 100).toFixed(2);
+    const extPage = Math.floor(permanentAddSize * BYTES_TO_MB / PAGE_SIZE_BYTES).toString();
     const payload = {
-      data: dataEnabled ? 'ON' : 'OFF',
-      data_warn_outofspace: (dataThreshold / 100).toFixed(2),
-      data_ext_page: Math.floor(dataAddSize * BYTES_TO_MB / PAGE_SIZE_BYTES).toString(),
-      index: indexEnabled ? 'ON' : 'OFF',
-      index_warn_outofspace: (indexThreshold / 100).toFixed(2),
-      index_ext_page: Math.floor(indexAddSize * BYTES_TO_MB / PAGE_SIZE_BYTES).toString(),
+      data: state,
+      data_warn_outofspace: warnRatio,
+      data_ext_page: extPage,
+      index: state,
+      index_warn_outofspace: warnRatio,
+      index_ext_page: extPage,
     };
     try {
       await dispatch(updateAutoVolumeConfig({ hostUid: selectedHostUid, dbname: selectedDatabase, payload })).unwrap();
@@ -197,7 +192,7 @@ export default function SetAutomationVolumeModal() {
     } catch (err) {
       endError(typeof err === 'string' ? err : (err?.message || 'Failed to save configuration. Please try again.'));
     }
-  }, [dataEnabled, dataThreshold, dataAddSize, indexEnabled, indexThreshold, indexAddSize, selectedHostUid, selectedDatabase, dispatch, startAction, endSuccess, endError]);
+  }, [permanentEnabled, permanentThreshold, permanentAddSize, selectedHostUid, selectedDatabase, dispatch, startAction, endSuccess, endError]);
 
   const handleClose = () => dispatch(closeSetAutomationVolumeModal());
 
@@ -304,26 +299,15 @@ export default function SetAutomationVolumeModal() {
 
           <div className="space-y-3">
             <PolicyCard
-              title={CM.dataVolume}
+              title="PERMANENT"
               icon="database"
-              description="Permanent data volumes"
-              enabled={dataEnabled}
-              onToggle={setDataEnabled}
-              threshold={dataThreshold}
-              onThresholdChange={setDataThreshold}
-              addSize={dataAddSize}
-              onSizeChange={setDataAddSize}
-            />
-            <PolicyCard
-              title={CM.indexVolume}
-              icon="list_alt"
-              description="Index & search volumes"
-              enabled={indexEnabled}
-              onToggle={setIndexEnabled}
-              threshold={indexThreshold}
-              onThresholdChange={setIndexThreshold}
-              addSize={indexAddSize}
-              onSizeChange={setIndexAddSize}
+              description="Data &amp; index volumes (both)"
+              enabled={permanentEnabled}
+              onToggle={setPermanentEnabled}
+              threshold={permanentThreshold}
+              onThresholdChange={setPermanentThreshold}
+              addSize={permanentAddSize}
+              onSizeChange={setPermanentAddSize}
             />
           </div>
         </div>
