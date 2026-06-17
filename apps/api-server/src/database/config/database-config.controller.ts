@@ -1,8 +1,7 @@
-import { Body, Controller, Delete, Get, Logger, Param, Post, Query, Request } from '@nestjs/common';
+import { Body, Controller, Get, Logger, Param, Post, Query, Request } from '@nestjs/common';
 import {
   SetAutoExecQueryClientRequest,
   SetAutoExecQueryClientResponse,
-  QueryPlanClient,
   GetAutoExecQueryClientResponse,
   SetAutoStartRequest,
   SetAutoStartResponse,
@@ -69,47 +68,6 @@ export class DatabaseConfigController {
     );
     return await this.configService.setAutoExecQuery(userId, hostUid, dbname, body);
   }
-
-  /**
-   * Append a single plan to the auto-execution query list.
-   * The server fetches existing plans and appends the new one.
-   *
-   * @route POST /:hostUid/database/auto-exec-query/:dbname/plan
-   */
-  @Post('auto-exec-query/:dbname/plan')
-  async appendAutoExecQueryPlan(
-    @Request() req,
-    @Param('hostUid') hostUid: string,
-    @Param('dbname') dbname: string,
-    @Body() body: QueryPlanClient
-  ): Promise<SetAutoExecQueryClientResponse> {
-    const userId = req.user.sub;
-
-    validateRequiredFields(body, ['query_id', 'query_string'], 'database/auto-exec-query/plan', this.logger);
-
-    this.logger.log(`Appending auto-exec query plan "${body.query_id}" for database: ${dbname}`);
-    return await this.configService.appendAutoExecQueryPlan(userId, hostUid, dbname, body);
-  }
-
-  /**
-   * Remove a single plan from the auto-execution query list by query_id.
-   * The server fetches existing plans, removes the target, and writes back.
-   *
-   * @route DELETE /:hostUid/database/auto-exec-query/:dbname/plan/:queryId
-   */
-  @Delete('auto-exec-query/:dbname/plan/:queryId')
-  async removeAutoExecQueryPlan(
-    @Request() req,
-    @Param('hostUid') hostUid: string,
-    @Param('dbname') dbname: string,
-    @Param('queryId') queryId: string
-  ): Promise<SetAutoExecQueryClientResponse> {
-    const userId = req.user.sub;
-
-    this.logger.log(`Removing auto-exec query plan "${queryId}" from database: ${dbname}`);
-    return await this.configService.removeAutoExecQueryPlan(userId, hostUid, dbname, queryId);
-  }
-
 
   /**
    * Get auto-execution query for a database.
