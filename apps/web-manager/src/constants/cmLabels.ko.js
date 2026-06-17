@@ -931,11 +931,18 @@ export const CM_KO = {
   // AddVolumeModal
   retryAddVolume: '다시 시도',
   activeInstanceRequired: '데이터베이스가 실행 중이어야 합니다',
-  availableSpace: '사용 가능한 공간',
-  customCapacity: '용량 (MB)',
-  blocksAllocated: '할당된 페이지 수',
+  availableSpace: '여유 공간',
+  customCapacity: '볼륨 크기 (MB)',
+  blocksAllocated: '페이지 수',
   volumeIdentifier: '볼륨 이름',
   volumeDir: '볼륨 경로',
+  addVolumeTargetDb: '대상 데이터베이스',
+  calculating: '계산 중',
+  volumeSizeVisualizer: '볼륨 크기',
+  addVolumeSuccessMessage: (volName, db) => volName ? `볼륨 "${volName}"이(가) ${db}에 추가되었습니다.` : `${db}에 볼륨이 추가되었습니다.`,
+  volumeTypeDataDesc: '테이블, 행 데이터',
+  volumeTypeTempDesc: '임시 작업 공간',
+  addVolumeNote: '볼륨을 추가하려면 데이터베이스가 실행 중이어야 합니다. 볼륨 경로에 쓰기 권한이 있는지 확인하세요.',
 
   // RestoreDatabaseModal
   logCatchup: '부분 복구',
