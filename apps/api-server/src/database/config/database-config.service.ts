@@ -607,7 +607,7 @@ export class DatabaseConfigService extends BaseService {
       const cmsRequest: SetAutoExecQueryCmsRequest = {
         task: 'setautoexecquery',
         dbname,
-        planlist: [{ queryplan: remaining }],
+        planlist: [{ dbname, queryplan: remaining }],
       };
       await this.executeCmsRequest<SetAutoExecQueryCmsRequest, SetAutoExecQueryCmsResponse>(
         userId,
