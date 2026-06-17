@@ -184,7 +184,7 @@ apiClient.interceptors.response.use(
     // path exposes a meaningful message via err.response.data.message.
     // Priority: our StandardResponse.note → nested data.message → data.detail
     // → data.title → existing message (e.g. NestJS default "Internal Server Error")
-    if (apiData) {
+    if (apiData && typeof apiData === 'object' && !Array.isArray(apiData)) {
       apiData.message = apiData.note
         || apiData.data?.message
         || apiData.data?.detail
