@@ -1193,10 +1193,10 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           <MenuItem
             icon="refresh"
             label={CM.refresh}
-            onClick={() => {
+            onClick={async () => {
               setBrokerRootContextMenu(null);
-              dispatch(fetchBrokerList(selectedHostUid));
-              brokers.forEach(broker => {
+              const updatedBrokers = await dispatch(fetchBrokerList(selectedHostUid)).unwrap().catch(() => brokers);
+              updatedBrokers.forEach(broker => {
                 dispatch(fetchBrokerLogs({ hostUid: selectedHostUid, brokerName: broker.name }));
               });
             }}
@@ -1338,12 +1338,12 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           <MenuItem
             icon="refresh"
             label={CM.refresh}
-            onClick={() => {
-              dispatch(fetchBrokerList(selectedHostUid));
-              brokers.forEach(broker => {
+            onClick={async () => {
+              setBrokerLogRootContextMenu(null);
+              const updatedBrokers = await dispatch(fetchBrokerList(selectedHostUid)).unwrap().catch(() => brokers);
+              updatedBrokers.forEach(broker => {
                 dispatch(fetchBrokerLogs({ hostUid: selectedHostUid, brokerName: broker.name }));
               });
-              setBrokerLogRootContextMenu(null);
             }}
           />
         </ContextMenuWrapper>
