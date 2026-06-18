@@ -79,12 +79,12 @@ export default function BackupDatabaseModal() {
   const [activeTab, setActiveTab] = useState(TAB_INFO);
   const [backupInfoFetchError, setBackupInfoFetchError] = useState(false);
 
+  const backupInfo = selectedDatabase ? databaseBackupInfo[selectedDatabase] : null;
+
   // Keep a ref so the modal-open effect can read the latest backupInfo
   // synchronously without adding it to its own dependency array.
   const backupInfoRef = useRef(null);
   useEffect(() => { backupInfoRef.current = backupInfo; }, [backupInfo]);
-
-  const backupInfo = selectedDatabase ? databaseBackupInfo[selectedDatabase] : null;
   const backupHistory = useMemo(() => {
     if (!backupInfo) return [];
     return [0, 1, 2].flatMap((level) => {
