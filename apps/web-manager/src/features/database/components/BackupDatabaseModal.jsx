@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { closeBackupDatabaseModal, backupDatabase, fetchBackupDbInfo, fetchCreateDatabaseInfo } from '../databaseSlice';
+import { closeBackupDatabaseModal, backupDatabase, fetchBackupDbInfo } from '../databaseSlice';
 
 import { Modal } from '../../../components/ds/layout/Modal';
 import {
@@ -47,7 +47,6 @@ export default function BackupDatabaseModal() {
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
   const { backupDbInfo: databaseBackupInfo } = useSelector((state) => state.databaseOperation, shallowEqual);
   const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
-  const hostEnv = useSelector((state) => state.host.hostEnvs[selectedHostUid]);
 
   const { 
     error, 
@@ -112,30 +111,16 @@ export default function BackupDatabaseModal() {
       setFormData(prev => ({ ...prev, volPath: `${selectedDatabase}_backup_lv${prev.backupLevel}` }));
       if (isBackupDatabaseModalOpen && selectedHostUid) {
         dispatch(fetchBackupDbInfo({ hostUid: selectedHostUid, dbname: selectedDatabase }));
-
-        const cachedDir = hostEnv?.CUBRID_DATABASES;
-        if (cachedDir) {
-          setFormData(prev => prev.backupDir ? prev : { ...prev, backupDir: `${cachedDir}/${selectedDatabase}/backup` });
-        } else {
-          dispatch(fetchCreateDatabaseInfo({ hostUid: selectedHostUid }))
-            .unwrap()
-            .then(data => {
-              const dir = data?.default_db_dir;
-              if (dir) {
-                setFormData(prev => prev.backupDir ? prev : { ...prev, backupDir: `${dir}/${selectedDatabase}/backup` });
-              }
-            })
-            .catch(() => {});
-        }
       }
     }
-  }, [selectedDatabase, isBackupDatabaseModalOpen, selectedHostUid, hostEnv?.CUBRID_DATABASES, dispatch]);
+  }, [selectedDatabase, isBackupDatabaseModalOpen, selectedHostUid, dispatch]);
 
   useEffect(() => {
-    if (backupInfo?.dbdir && !formData.backupDir) {
-      setFormData(prev => ({ ...prev, backupDir: `${backupInfo.dbdir}/backup` }));
-    }
-  }, [backupInfo, formData.backupDir]);
+    if (!backupInfo?.dbdir) return;
+    const dbdir = backupInfo.dbdir.replace(/\/backup\/?$/, '');
+    const defaultDir = `${dbdir}/backup`;
+    setFormData(prev => prev.backupDir ? prev : { ...prev, backupDir: defaultDir });
+  }, [backupInfo]);
 
   useEffect(() => {
     if (!availableLevels.includes(formData.backupLevel)) {
