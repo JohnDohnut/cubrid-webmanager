@@ -558,6 +558,7 @@ export const CM_KO = {
   storageConfiguration: '백업 정보',
   revisionId: '백업 레벨',
   backupDirectory: '백업 디렉터리',
+  backupDirFetchError: '기본 백업 디렉터리를 조회하지 못했습니다. 경로를 직접 입력하세요.',
   restoringDatabase: '데이터베이스 복구 중',
   reconstructingInstance: '데이터베이스 복구 중',
   restoreCompleted: '복구 완료',
