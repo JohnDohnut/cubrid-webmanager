@@ -104,10 +104,11 @@ export const usePollingRefresh = ({ hostUid, tabId, pollingIntervalSeconds, onFe
     return () => clearInterval(timer);
   }, [isTabActive, pollingIntervalSeconds, handleRefresh]);
 
-  // 6. Network Recovery — re-fetch immediately when the browser comes back online
+  // 6. Network Recovery — re-fetch immediately when the browser comes back online,
+  // but only if this view is the active foreground tab (same guard as the polling timer).
   useEffect(() => {
     const handleOnline = () => {
-      if (initialLoadDone.current) {
+      if (initialLoadDone.current && isActiveRef.current) {
         handleRefresh(true);
       }
     };

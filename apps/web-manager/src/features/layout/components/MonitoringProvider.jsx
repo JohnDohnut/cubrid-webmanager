@@ -25,21 +25,6 @@ export default function MonitoringProvider({ children }) {
     return () => activityEvents.forEach(event => document.removeEventListener(event, handleActivity));
   }, []);
 
-  // Network Recovery — re-fetch immediately when the browser comes back online
-  useEffect(() => {
-    const handleOnline = () => {
-      const hostUid = selectedHostUid;
-      if (!hostUid || !authorizedHosts.includes(hostUid)) return;
-      dispatch(fetchDatabaseStartInfo({ hostUid, isBackground: true }));
-      dispatch(fetchBrokerList({ hostUid, isBackground: true }));
-      if (activeDatabases.length > 0) {
-        dispatch(fetchDatabaseVolumes({ hostUid, activeDatabases, isBackground: true }));
-      }
-    };
-    window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
-  }, [dispatch, selectedHostUid, authorizedHosts, activeDatabases]);
-
   const MAX_IDLE_TIME = 10 * 60 * 1000; // 10 minutes
   const isMonitoringTab = activeMainTab?.startsWith('host:') || activeMainTab?.startsWith('db:');
 
