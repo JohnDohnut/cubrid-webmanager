@@ -1,17 +1,35 @@
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
-import { HandleBrokerErrors, checkCmsTokenError } from '@common';
-import { BrokerError } from '@error/broker/broker-error';
+import { BaseService, HandleCmsErrors } from '@common';
 import { HostService } from '@host';
 import { Injectable } from '@nestjs/common';
-import { GetBrokerStatusClientResponse } from '@api-interfaces';
 import {
+  AddDbmtUserClientResponse,
+  AddDbmtUserRequest,
+  BrokerStartStopClientResponse,
+  GetBrokerStatusClientResponse,
+  StartAllBrokersClientResponse,
+  StopAllBrokersClientResponse,
+  UpdateDbmtUserClientResponse,
+  UpdateDbmtUserRequest,
+} from '@api-interfaces';
+import {
+  AddDbmtUserCmsRequest,
   BaseCmsRequest,
   BaseCmsResponse,
   GetBrokerStatusCmsRequest,
   GetBrokerStatusCmsResponse,
   GetBrokersInfoCmsResponse,
   HandleBrokerCmsRequest,
+  StartBrokerCmsRequest,
+  StopAllBrokersCmsRequest,
+  UpdateDbmtUserCmsRequest,
 } from '@type';
+import {
+  AddDbmtUserCmsResponse,
+  StartBrokerCmsResponse,
+  StopAllBrokersCmsResponse,
+  UpdateDbmtUserCmsResponse,
+} from '@type/cms-response';
 
 /**
  * Service for managing broker operations.
@@ -23,193 +41,184 @@ import {
  * @since 1.0.0
  */
 @Injectable()
-export class BrokerService {
+export class BrokerService extends BaseService {
   constructor(
-    private readonly hostService: HostService,
-    private readonly cmsClient: CmsHttpsClientService
-  ) {}
+    protected readonly hostService: HostService,
+    protected readonly cmsClient: CmsHttpsClientService
+  ) {
+    super(hostService, cmsClient);
+  }
 
-  @HandleBrokerErrors()
-  async getBrokers(userId: string, hostUid: string) {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const body: BaseCmsRequest = {
-      task: 'getbrokersinfo',
-      token: host.token ? host.token : '',
+  /**
+   * Add a DBMT (CMS) user on the host.
+   * CMS task: adddbmtuser.
+   */
+  @HandleCmsErrors()
+  async addDbmtUser(
+    userId: string,
+    hostUid: string,
+    request: AddDbmtUserRequest
+  ): Promise<AddDbmtUserClientResponse> {
+    const cmsRequest: AddDbmtUserCmsRequest = {
+      task: 'adddbmtuser',
+      targetid: request.targetid,
+      password: request.password,
+      casauth: request.casauth,
+      dbcreate: request.dbcreate,
+      statusmonitorauth: request.statusmonitorauth,
     };
-    const response = await this.cmsClient.postAuthenticated<
-      BaseCmsRequest,
-      GetBrokersInfoCmsResponse
-    >(url, body);
 
-    checkCmsTokenError(response);
+    const response = await this.executeCmsRequest<
+      AddDbmtUserCmsRequest,
+      AddDbmtUserCmsResponse
+    >(userId, hostUid, cmsRequest);
 
-    if (response.status !== 'success') {
-      throw BrokerError.GetBrokersFailed();
-    }
+    return {
+      dblist: response.dblist ?? [],
+      userlist: response.userlist ?? [],
+    };
+  }
+
+  /**
+   * Update a DBMT (CMS) user on the host.
+   * CMS task: updatedbmtuser.
+   */
+  @HandleCmsErrors()
+  async updateDbmtUser(
+    userId: string,
+    hostUid: string,
+    request: UpdateDbmtUserRequest
+  ): Promise<UpdateDbmtUserClientResponse> {
+    const cmsRequest: UpdateDbmtUserCmsRequest = {
+      task: 'updatedbmtuser',
+      targetid: request.targetid,
+      dbauth: request.dbauth ?? [],
+      casauth: request.casauth,
+      dbcreate: request.dbcreate,
+      statusmonitorauth: request.statusmonitorauth,
+    };
+
+    const response = await this.executeCmsRequest<
+      UpdateDbmtUserCmsRequest,
+      UpdateDbmtUserCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    return {
+      dblist: response.dblist ?? [],
+      userlist: response.userlist ?? [],
+    };
+  }
+
+  @HandleCmsErrors()
+  async getBrokers(userId: string, hostUid: string) {
+    const cmsRequest: BaseCmsRequest = {
+      task: 'getbrokersinfo',
+    };
+    const response = await this.executeCmsRequest<BaseCmsRequest, GetBrokersInfoCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
+
     return response.brokersinfo;
   }
 
-  @HandleBrokerErrors()
-  async stopBroker(userId: string, hostUid: string, bname: string): Promise<BaseCmsResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const body: HandleBrokerCmsRequest = {
+  @HandleCmsErrors()
+  async stopBroker(
+    userId: string,
+    hostUid: string,
+    bname: string
+  ): Promise<BrokerStartStopClientResponse> {
+    const cmsRequest: HandleBrokerCmsRequest = {
       task: 'broker_stop',
-      token: host.token ? host.token : '',
       bname: bname,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    await this.executeCmsRequest<
       HandleBrokerCmsRequest,
       BaseCmsResponse
-    >(url, body);
+    >(userId, hostUid, cmsRequest);
 
-    checkCmsTokenError(response);
-
-    if (response.status !== 'success') {
-      throw BrokerError.BrokerStopFailed();
-    }
-    return response;
+    return { success: true };
   }
 
-  @HandleBrokerErrors()
-  async startBroker(userId: string, hostUid: string, bname: string): Promise<BaseCmsResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const body: HandleBrokerCmsRequest = {
+  @HandleCmsErrors()
+  async startBroker(
+    userId: string,
+    hostUid: string,
+    bname: string
+  ): Promise<BrokerStartStopClientResponse> {
+    const cmsRequest: HandleBrokerCmsRequest = {
       task: 'broker_start',
-      token: host.token ? host.token : '',
       bname: bname,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    await this.executeCmsRequest<
       HandleBrokerCmsRequest,
       BaseCmsResponse
-    >(url, body);
+    >(userId, hostUid, cmsRequest);
 
-    checkCmsTokenError(response);
-
-    if (response.status !== 'success') {
-      throw BrokerError.BrokerStartFailed();
-    }
-    return response;
+    return { success: true };
   }
 
-  @HandleBrokerErrors()
+  @HandleCmsErrors()
   async restartBroker(userId: string, hostUid: string, bname: string): Promise<boolean> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const stopRequest: HandleBrokerCmsRequest = {
-      task: 'broker_stop',
-      token: host.token ? host.token : '',
-      bname: bname,
-    };
-
-    const response = await this.cmsClient.postAuthenticated<
-      HandleBrokerCmsRequest,
-      BaseCmsResponse
-    >(url, stopRequest);
-    if (response.status === 'success') {
-      const startRequest: HandleBrokerCmsRequest = {
-        task: 'broker_start',
-        token: host.token ? host.token : '',
-        bname: bname,
-      };
-
-      const response = await this.cmsClient.postAuthenticated<
-        HandleBrokerCmsRequest,
-        BaseCmsResponse
-      >(url, startRequest);
-      if (response.status === 'success') {
-        return true;
-      } else {
-        throw BrokerError.BrokerStartFailed();
-      }
-    } else {
-      throw BrokerError.BrokerStopFailed();
-    }
+    await this.stopBroker(userId, hostUid, bname);
+    await this.startBroker(userId, hostUid, bname);
+    return true;
   }
 
   /**
    * Get broker status including application server information.
-   *
-   * @param userId - User ID
-   * @param hostUid - Host unique identifier
-   * @param bname - Broker name
-   * @returns Broker status data without BaseCmsResponse fields
-   * @throws BrokerError if the request fails
    */
-  @HandleBrokerErrors()
+  @HandleCmsErrors()
   async getBrokerStatus(
     userId: string,
     hostUid: string,
     bname: string
   ): Promise<GetBrokerStatusClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const body: GetBrokerStatusCmsRequest = {
+    const cmsRequest: GetBrokerStatusCmsRequest = {
       task: 'getbrokerstatus',
-      token: host.token ? host.token : '',
       bname: bname,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    const response = await this.executeCmsRequest<
       GetBrokerStatusCmsRequest,
       GetBrokerStatusCmsResponse
-    >(url, body);
+    >(userId, hostUid, cmsRequest);
 
-    checkCmsTokenError(response);
-
-    if (response.status === 'success') {
-      const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
-      return dataOnly;
-    }
-
-    throw BrokerError.GetBrokersFailed({ response });
+    return this.extractDomainData(response);
   }
 
-  @HandleBrokerErrors()
-  async stopAllBrokers(userId: string, hostUid: string): Promise<boolean> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const body = {
+  @HandleCmsErrors()
+  async stopAllBrokers(
+    userId: string,
+    hostUid: string
+  ): Promise<StopAllBrokersClientResponse> {
+    const cmsRequest: StopAllBrokersCmsRequest = {
       task: 'stopbroker',
-      token: host.token ? host.token : '',
     };
-    const response: BaseCmsResponse = await this.cmsClient.postAuthenticated<
-      BaseCmsRequest,
-      BaseCmsResponse
-    >(url, body);
+    await this.executeCmsRequest<
+      StopAllBrokersCmsRequest,
+      StopAllBrokersCmsResponse
+    >(userId, hostUid, cmsRequest);
 
-    checkCmsTokenError(response);
-
-    if (response.status === 'success') {
-      return true;
-    }
-
-    throw BrokerError.BrokerStopFailed();
+    return { success: true };
   }
 
-  @HandleBrokerErrors()
-  async startAllBrokers(userId: string, hostUid: string): Promise<boolean> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const body = {
+  @HandleCmsErrors()
+  async startAllBrokers(
+    userId: string,
+    hostUid: string
+  ): Promise<StartAllBrokersClientResponse> {
+    const cmsRequest: StartBrokerCmsRequest = {
       task: 'startbroker',
-      token: host.token ? host.token : '',
     };
-    const response: BaseCmsResponse = await this.cmsClient.postAuthenticated<
-      BaseCmsRequest,
-      BaseCmsResponse
-    >(url, body);
+    await this.executeCmsRequest<
+      StartBrokerCmsRequest,
+      StartBrokerCmsResponse
+    >(userId, hostUid, cmsRequest);
 
-    checkCmsTokenError(response);
-
-    if (response.status === 'success') {
-      return true;
-    }
-
-    throw BrokerError.BrokerStartFailed();
+    return { success: true };
   }
 }

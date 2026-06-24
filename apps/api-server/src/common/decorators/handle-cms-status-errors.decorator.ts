@@ -1,5 +1,5 @@
 import { CmsError } from '@error/cms/cms-error';
-import { BaseCmsResponse } from '@type/cms-response/base-cms-response';
+import { Logger } from '@nestjs/common';
 
 /**
  * Checks if a CMS response indicates a failure (status === 'fail').
@@ -8,15 +8,77 @@ import { BaseCmsResponse } from '@type/cms-response/base-cms-response';
  * @returns true if the response indicates a failure
  */
 export function isCmsStatusFailure(response: any): boolean {
-  if (!response || typeof response !== 'object') {
+  if (!response || typeof response !== 'object' || !('status' in response)) {
     return false;
   }
 
-  if ('status' in response) {
-    return response.status === 'fail' || response.status === 'failure';
+  const normalized = String(response.status).trim().toLowerCase();
+  if (normalized === 'success' || normalized === 'ok') {
+    return false;
   }
 
-  return false;
+  if (normalized.includes('fail') || normalized === 'error') {
+    return true;
+  }
+
+  return normalized !== 'success';
+}
+
+const CMS_ERROR_LINE_PREFIX = /^\s*ERROR:/i;
+const CMS_ERROR_LINE_PHRASE = /error occurred/i;
+
+export function getCmsErrorLines(response: any): string[] {
+  if (!response || !Array.isArray(response.line)) {
+    return [];
+  }
+
+  return response.line
+    .map((line: unknown) => String(line).trim())
+    .filter(
+      (text) =>
+        text !== '' && (CMS_ERROR_LINE_PREFIX.test(text) || CMS_ERROR_LINE_PHRASE.test(text))
+    );
+}
+
+/** CMS may return status=success while reporting errors in `line` (e.g. loaddb). */
+export function hasCmsLineFailure(response: any): boolean {
+  return getCmsErrorLines(response).length > 0;
+}
+
+/** Failure check for long-running jobs (unload/load background jobs). */
+export function isCmsLongJobFailure(response: any): boolean {
+  return isCmsStatusFailure(response) || hasCmsLineFailure(response);
+}
+
+function stripCmsArtifacts(s: string): string {
+  return s.replace(/<end>\s*$/i, '').trim();
+}
+
+export function extractCmsFailureMessage(response: any, errorMessage?: string): string {
+  const noteMessage = isMeaningfulCmsNote(response?.note)
+    ? stripCmsArtifacts(String(response.note))
+    : undefined;
+  const errorLines = getCmsErrorLines(response);
+  const lineMessage =
+    errorLines.length > 0
+      ? errorLines.join('\n')
+      : Array.isArray(response?.line)
+        ? response.line
+            .map((line: unknown) => String(line))
+            .filter((line) => line.trim() !== '')
+            .join('\n')
+            .trim()
+        : '';
+  return (
+    errorMessage ||
+    noteMessage ||
+    (lineMessage !== '' ? lineMessage : undefined) ||
+    'CMS request failed'
+  );
+}
+
+export function extractCmsLongJobFailureMessage(response: any, errorMessage?: string): string {
+  return extractCmsFailureMessage(response, errorMessage);
 }
 
 /**
@@ -36,58 +98,28 @@ export function isCmsStatusFailure(response: any): boolean {
  * ```
  */
 export function checkCmsStatusError(response: any, errorMessage?: string): void {
-  if (isCmsStatusFailure(response)) {
-    // Use custom error message if provided, otherwise use response.note if it's user-friendly
-    // response.note from CMS typically contains user-friendly error messages (e.g., "Invalid password")
-    const message =
-      errorMessage ||
-      (response.note ? `CMS request failed: ${response.note}` : 'CMS request failed');
-    throw CmsError.RequestFailed({
-      message: message,
-      response: response,
-    });
+  if (!isCmsStatusFailure(response)) {
+    return;
   }
+
+  const message = extractCmsFailureMessage(response, errorMessage);
+
+  Logger.log(message);
+  throw CmsError.RequestFailed({
+    message,
+    response,
+  });
 }
 
-/**
- * A method decorator that automatically checks CMS responses for failure status.
- *
- * CMS returns HTTP 201 but the body's status field may be 'fail'.
- * This decorator checks the method's return value and throws CmsError.RequestFailed if status is 'fail'.
- *
- * @category Decorators
- * @since 1.0.0
- * @example
- * ```typescript
- * class LogService {
- *   @HandleCmsStatusErrors()
- *   async getBrokerLogList(...): Promise<GetBrokerLogListClientResponse> {
- *     const response = await this.client.forwardAuthenticated(...);
- *     // Decorator automatically checks status === 'fail'
- *     return { broker: response.broker, logfileinfo: response.logfileinfo };
- *   }
- * }
- * ```
- */
-export function HandleCmsStatusErrors() {
-  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
-    const originalMethod = descriptor.value;
+function isMeaningfulCmsNote(note: unknown): boolean {
+  if (note === undefined || note === null) {
+    return false;
+  }
 
-    descriptor.value = async function (...args: any[]) {
-      const result = await originalMethod.apply(this, args);
+  const value = String(note).trim();
+  if (!value) {
+    return false;
+  }
 
-      if (result instanceof Promise) {
-        return result.then((response) => {
-          checkCmsStatusError(response);
-          return response;
-        });
-      }
-
-      checkCmsStatusError(result);
-
-      return result;
-    };
-
-    return descriptor;
-  };
+  return value.toLowerCase() !== 'none';
 }

@@ -1,20 +1,22 @@
-import { Injectable } from '@nestjs/common';
-import { UserRepositoryService } from '@repository';
-import { PasswordService } from '@security';
-import { UserError } from '@error/user/user-error';
-import { passwordValidityChecker, omitPassword } from '@util';
-import { HandleUserErrors } from '@common';
-import {
-  User,
-  UpdateUserDto,
-  UserPreference,
-  UserPreferenceDto,
-} from '@type/index';
 import {
   ChangePasswordRequest,
+  DeleteUserRequest,
   UpdateUserInfoRequest,
   UserResponse,
 } from '@api-interfaces';
+import { HandleUserErrors } from '@common';
+import { UserError } from '@error/user/user-error';
+import { readGroupHosts, readHostGroups } from '@host/host-group.util';
+import { Injectable } from '@nestjs/common';
+import { UserRepositoryService } from '@repository';
+import { PasswordService } from '@security';
+import {
+  UpdateUserDto,
+  User,
+  UserPreference,
+  UserPreferenceDto,
+} from '@type/index';
+import { passwordValidityChecker } from '@util';
 
 /**
  * Service for managing user-related operations.
@@ -70,24 +72,63 @@ export class UserService {
   }
 
   /**
-   * Retrieves user data excluding the password field.
+   * Retrieves user data excluding sensitive information.
    *
-   * Loads user information from the repository and removes the password field
-   * for security purposes before returning the data.
+   * Loads user information from the repository and removes:
+   * - User password
+   * - Host passwords and tokens in host_groups
+   * - Database passwords in dbProfiles within each host
    *
    * @param {string} userId - The unique identifier of the user
-   * @returns {Promise<UserResponse>} User data without password
+   * @returns {Promise<UserResponse>} User data without sensitive information
    * @throws {UserError} When user is not found
    * @example
    * ```typescript
    * const userData = await userService.getUserData("user123");
    * console.log(userData.department); // "IT"
    * // userData.password is undefined
+   * // host_groups[*].hosts[uid].password is undefined in the API response
+   * // host_groups[*].hosts[uid].token is undefined in the API response
+   * // host_groups[*].hosts[uid].dbProfiles[dbname].password is undefined in the API response
    * ```
    */
   @HandleUserErrors()
   async getUserData(userId: string): Promise<UserResponse> {
-    return omitPassword(await this.repository.loadUserById(userId));
+    const user = await this.repository.loadUserById(userId);
+    
+    const { password, uuid, ...userResponse } = user;
+
+    const sanitizedGroups: Record<string, any> = {};
+    for (const [groupId, group] of Object.entries(readHostGroups(userResponse))) {
+      const sanitizedHosts: Record<string, any> = {};
+      for (const [hostUid, hostInfo] of Object.entries(readGroupHosts(group))) {
+        const { password: _p, token, dbProfiles, ...hostWithoutSensitive } = hostInfo;
+        const sanitizedDbProfiles: Record<string, any> = {};
+        if (dbProfiles) {
+          for (const [dbname, dbInfo] of Object.entries(dbProfiles)) {
+            const { password: dbPassword, ...dbWithoutPassword } = dbInfo;
+            sanitizedDbProfiles[dbname] = dbWithoutPassword;
+          }
+        }
+        sanitizedHosts[hostUid] = {
+          ...hostWithoutSensitive,
+          dbProfiles: sanitizedDbProfiles,
+        };
+      }
+      sanitizedGroups[groupId] = {
+        name: group.name,
+        defaultHostUid: group.defaultHostUid,
+        createdAt: group.createdAt,
+        hosts: sanitizedHosts,
+      };
+    }
+
+    const result: UserResponse = {
+      ...userResponse,
+      host_groups: sanitizedGroups,
+    };
+
+    return result;
   }
 
   /**
@@ -111,22 +152,33 @@ export class UserService {
   }
 
   /**
-   * Permanently deletes a user account.
+   * Permanently deletes a user account after password verification.
    *
+   * Validates the provided password against the stored hash before deleting.
    * Removes the user and all associated data from the repository.
    * This operation cannot be undone.
    *
    * @param {string} userId - The unique identifier of the user to delete
+   * @param {DeleteUserRequest} request - Request containing password for verification
    * @returns {Promise<void>} No return value on success
-   * @throws {UserError} When user is not found
+   * @throws {UserError} When user is not found or password is incorrect
    * @example
    * ```typescript
-   * await userService.deleteUser("user123");
-   * // User account is permanently deleted
+   * await userService.deleteUser("user123", { password: "userpassword" });
+   * // User account is permanently deleted after password verification
    * ```
    */
   @HandleUserErrors()
-  async deleteUser(userId: string): Promise<void> {
+  async deleteUser(userId: string, request: DeleteUserRequest): Promise<void> {
+    // Load user to verify password
+    const user = await this.repository.loadUserById(userId);
+
+    // Verify password before deletion
+    if (!(await this.password.comparePlainAndHash(request.password, user.password))) {
+      throw UserError.OldPasswordMismatch();
+    }
+
+    // Password verified, proceed with deletion
     await this.repository.deleteUser(userId);
   }
 

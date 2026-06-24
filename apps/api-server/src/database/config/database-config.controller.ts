@@ -1,15 +1,23 @@
-import { Body, Controller, Delete, Get, Logger, Param, Post, Request } from '@nestjs/common';
+import { Body, Controller, Get, Logger, Param, Post, Query, Request } from '@nestjs/common';
 import {
   SetAutoExecQueryClientRequest,
   SetAutoExecQueryClientResponse,
-  GetAutoExecQueryClientRequest,
   GetAutoExecQueryClientResponse,
   SetAutoStartRequest,
   SetAutoStartResponse,
   RemoveAutoStartRequest,
   RemoveAutoStartResponse,
+  GetAutoAddVolClientResponse,
+  GetDbSizeClientResponse,
   SetAutoAddVolRequest,
   SetAutoAddVolResponse,
+  ClassInfoRequest,
+  ClassInfoResponse,
+  GetAutoExecQueryErrLogRequest,
+  GetAutoExecQueryErrLogResponse,
+  GetAutoAddVolLogResponse,
+  AppendAutoExecQueryPlanRequest,
+  RemoveAutoExecQueryPlanRequest,
 } from '@api-interfaces';
 import { validateRequiredFields } from '@util';
 import { DatabaseConfigService } from './database-config.service';
@@ -55,9 +63,8 @@ export class DatabaseConfigController {
 
     validateRequiredFields(body, ['planlist'], 'database/auto-exec-query', this.logger);
 
-    Logger.log(
-      `Setting auto-exec query for database: ${dbname} on host: ${hostUid}`,
-      'DatabaseConfigController'
+    this.logger.log(
+      `Setting auto-exec query for database: ${dbname} on host: ${hostUid}`
     );
     return await this.configService.setAutoExecQuery(userId, hostUid, dbname, body);
   }
@@ -82,9 +89,8 @@ export class DatabaseConfigController {
   ): Promise<GetAutoExecQueryClientResponse> {
     const userId = req.user.sub;
 
-    Logger.log(
-      `Getting auto-exec query for database: ${dbname} on host: ${hostUid}`,
-      'DatabaseConfigController'
+    this.logger.log(
+      `Getting auto-exec query for database: ${dbname} on host: ${hostUid}`
     );
     return await this.configService.getAutoExecQuery(userId, hostUid, dbname);
   }
@@ -102,7 +108,7 @@ export class DatabaseConfigController {
    * // POST /host-uid/database/auto-start
    * // Body: { "confname": "cubridconf", "dbname": "testdb" }
    */
-  @Post('auto-start')
+  @Post('auto-start/set')
   async setAutoStart(
     @Request() req,
     @Param('hostUid') hostUid: string,
@@ -110,9 +116,8 @@ export class DatabaseConfigController {
   ): Promise<SetAutoStartResponse> {
     const userId = req.user.sub;
 
-    Logger.log(
-      `Enabling auto-start for database: ${body.dbname} on host: ${hostUid}`,
-      'DatabaseConfigController'
+    this.logger.log(
+      `Enabling auto-start for database: ${body.dbname} on host: ${hostUid}`
     );
     return await this.configService.setAutoStart(userId, hostUid, body);
   }
@@ -120,17 +125,18 @@ export class DatabaseConfigController {
   /**
    * Disable auto-start for a database.
    * Removes database name from the server parameter in configuration file.
+   * Uses POST so request bodies are reliably delivered (Electron fetch, proxies).
    *
-   * @route DELETE /:hostUid/database/auto-start
+   * @route POST /:hostUid/database/auto-start/remove
    * @param req Express request (contains authenticated user)
    * @param hostUid Host unique identifier from path parameter
    * @param body Request body containing confname and dbname
    * @returns RemoveAutoStartResponse Empty object on success
    * @example
-   * // DELETE /host-uid/database/auto-start
+   * // POST /host-uid/database/auto-start/remove
    * // Body: { "confname": "cubridconf", "dbname": "testdb" }
    */
-  @Delete('auto-start')
+  @Post('auto-start/remove')
   async removeAutoStart(
     @Request() req,
     @Param('hostUid') hostUid: string,
@@ -138,11 +144,47 @@ export class DatabaseConfigController {
   ): Promise<RemoveAutoStartResponse> {
     const userId = req.user.sub;
 
-    Logger.log(
-      `Disabling auto-start for database: ${body.dbname} on host: ${hostUid}`,
-      'DatabaseConfigController'
+    validateRequiredFields(body, ['dbname'], 'database/auto-start/remove', this.logger);
+
+    this.logger.log(
+      `Disabling auto-start for database: ${body.dbname} on host: ${hostUid}`
     );
     return await this.configService.removeAutoStart(userId, hostUid, body);
+  }
+
+  /**
+   * Get database size. CMS task: getdbsize.
+   * @route GET /:hostUid/database/db-size/:dbname
+   */
+  @Get('db-size/:dbname')
+  async getDbSize(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string
+  ): Promise<GetDbSizeClientResponse> {
+    const userId = req.user.sub;
+    this.logger.log(`Getting db size for database: ${dbname} on host: ${hostUid}`);
+    return await this.configService.getDbSize(userId, hostUid, dbname);
+  }
+
+  /**
+   * Get auto-add volume configuration for a database (CMS task: getautoaddvol).
+   *
+   * @route GET /:hostUid/database/auto-add-vol/:dbname
+   * @example
+   * // GET /host-uid/database/auto-add-vol/test
+   */
+  @Get('auto-add-vol/:dbname')
+  async getAutoAddVol(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string
+  ): Promise<GetAutoAddVolClientResponse> {
+    const userId = req.user.sub;
+    this.logger.log(
+      `Getting auto-add volume for database: ${dbname} on host: ${hostUid}`
+    );
+    return await this.configService.getAutoAddVol(userId, hostUid, dbname);
   }
 
   /**
@@ -182,10 +224,126 @@ export class DatabaseConfigController {
       this.logger
     );
 
-    Logger.log(
-      `Setting auto-add volume for database: ${dbname} on host: ${hostUid}`,
-      'DatabaseConfigController'
+    this.logger.log(
+      `Setting auto-add volume for database: ${dbname} on host: ${hostUid}`
     );
     return await this.configService.setAutoAddVol(userId, hostUid, dbname, body);
+  }
+
+  /**
+   * Get class information for a database.
+   * Returns domain-only data (CMS envelope removed).
+   *
+   * @route POST /:hostUid/database/class-info/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Database name from path parameter
+   * @param body Request body containing dbstatus
+   * @returns ClassInfoResponse Class information (system classes and user classes)
+   * @example
+   * // POST /host-uid/database/class-info/empty
+   * // Body: { "dbstatus": "off" }
+   */
+  @Post('class-info/:dbname')
+  async getClassInfo(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: ClassInfoRequest
+  ): Promise<ClassInfoResponse> {
+    const userId = req.user.sub;
+
+    validateRequiredFields(body, ['dbstatus'], 'database/class-info', this.logger);
+
+    this.logger.log(
+      `Getting class info for database: ${dbname} on host: ${hostUid}`
+    );
+    return await this.configService.getClassInfo(userId, hostUid, dbname, body);
+  }
+
+  /**
+   * Append a single query plan to a database's auto-exec plan list.
+   *
+   * @route POST /:hostUid/database/auto-exec-query/:dbname/append
+   */
+  @Post('auto-exec-query/:dbname/append')
+  async appendAutoExecQueryPlan(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: Omit<AppendAutoExecQueryPlanRequest, 'dbname'>
+  ): Promise<SetAutoExecQueryClientResponse> {
+    const userId = req.user.sub;
+    validateRequiredFields(body, ['plan'], 'database/auto-exec-query/append', this.logger);
+    this.logger.log(`Appending query plan to database: ${dbname} on host: ${hostUid}`);
+    return await this.configService.appendAutoExecQueryPlan(userId, hostUid, { dbname, ...body });
+  }
+
+  /**
+   * Remove a single query plan from a database's auto-exec plan list by query_id.
+   *
+   * @route POST /:hostUid/database/auto-exec-query/:dbname/remove
+   */
+  @Post('auto-exec-query/:dbname/remove')
+  async removeAutoExecQueryPlan(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: Omit<RemoveAutoExecQueryPlanRequest, 'dbname'>
+  ): Promise<SetAutoExecQueryClientResponse> {
+    const userId = req.user.sub;
+    validateRequiredFields(body, ['query_id'], 'database/auto-exec-query/remove', this.logger);
+    this.logger.log(
+      `Removing query plan ${body.query_id} from database: ${dbname} on host: ${hostUid}`
+    );
+    return await this.configService.removeAutoExecQueryPlan(userId, hostUid, { dbname, ...body });
+  }
+
+  /**
+   * Get auto-execution query error log.
+   * Returns domain-only data (CMS envelope removed).
+   *
+   * @route POST /:hostUid/database/auto-exec-query-err-log
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param body Request body (empty object)
+   * @returns GetAutoExecQueryErrLogResponse Error log entries
+   * @example
+   * // POST /host-uid/database/auto-exec-query-err-log
+   * // Body: {}
+   */
+  @Post('auto-exec-query-err-log')
+  async getAutoExecQueryErrLog(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Body() body: GetAutoExecQueryErrLogRequest
+  ): Promise<GetAutoExecQueryErrLogResponse> {
+    const userId = req.user.sub;
+
+    this.logger.log(
+      `Getting auto-exec query error log on host: ${hostUid}`
+    );
+    return await this.configService.getAutoExecQueryErrLog(userId, hostUid, body);
+  }
+
+  /**
+   * Get auto-add volume log entries. CMS task: getautoaddvollog.
+   *
+   * @route GET /:hostUid/database/auto-add-vol-log?start_time=...&end_time=...
+   */
+  @Get('auto-add-vol-log')
+  async getAutoAddVolLog(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Query('start_time') startTime?: string,
+    @Query('end_time') endTime?: string
+  ): Promise<GetAutoAddVolLogResponse> {
+    const userId = req.user.sub;
+
+    this.logger.log(`Getting auto-add volume log on host: ${hostUid}`);
+    return await this.configService.getAutoAddVolLog(userId, hostUid, {
+      start_time: startTime,
+      end_time: endTime,
+    });
   }
 }

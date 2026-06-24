@@ -10,6 +10,11 @@ import * as path from 'path';
  * @since 1.0.0
  */
 export function getStoragePath() {
+  const configuredPath = process.env.STORAGE_PATH?.trim();
+  if (configuredPath) {
+    return path.resolve(configuredPath);
+  }
+
   const isPkg = !!(process as any).pkg;
 
   if (isPkg) {

@@ -1,79 +1,75 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Request } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Logger, Param, Post, Put, Request } from '@nestjs/common';
 import {
   AddHostRequest,
+  CreateHostGroupRequest,
   GetHostsResponse,
   HostResponse,
+  UpdateHostGroupRequest,
   UpdateHostClientRequest,
+  MoveHostRequest,
 } from '@api-interfaces';
-import { HostService } from './host.service';
+import { HostService, AddHostPayload } from './host.service';
+import { validateRequiredFields } from '@util';
 
-/**
- * Controller for managing host-related operations.
- *
- * Handles HTTP requests for host management including adding, updating,
- * retrieving, and deleting hosts. All operations require user authentication.
- * - Follows RESTful pattern: /host (list/add), /host/:hostUid (get/update/delete)
- *
- * @category Controllers
- * @since 1.0.0
- */
 @Controller('host')
 export class HostController {
+  private readonly logger = new Logger(HostController.name);
+
   constructor(private readonly hostService: HostService) {}
 
-  /**
-   * Add a new host to user's host list.
-   *
-   * @param request - Express request object containing user payload
-   * @param hostInfo - Host information without UID
-   * @returns Promise<GetHostsResponse> Updated host list without passwords
-   */
   @Post()
-  async addHost(@Request() request, @Body() hostInfo: AddHostRequest): Promise<GetHostsResponse> {
+  async addHost(@Request() request, @Body() hostInfo: AddHostPayload): Promise<GetHostsResponse> {
     const userId = request.user.sub;
-    return { host_list: await this.hostService.addHost(userId, hostInfo) };
+    validateRequiredFields(
+      hostInfo,
+      ['address', 'port', 'id', 'password', 'alias'],
+      'host/add',
+      this.logger
+    );
+    return { host_groups: await this.hostService.addHost(userId, hostInfo) };
   }
 
-  /**
-   * Get all hosts for the authenticated user.
-   *
-   * @param request - Express request object containing user payload
-   * @returns Promise<GetHostsResponse> List of hosts without passwords
-   */
+  @Post('group')
+  async createGroup(
+    @Request() request,
+    @Body() body: CreateHostGroupRequest
+  ): Promise<GetHostsResponse> {
+    const userId = request.user.sub;
+    validateRequiredFields(body, ['name'], 'host/group/create', this.logger);
+    return { host_groups: await this.hostService.createHostGroup(userId, body.name) };
+  }
+
+  @Put('group/:groupId')
+  async updateGroup(
+    @Request() request,
+    @Param('groupId') groupId: string,
+    @Body() body: UpdateHostGroupRequest
+  ): Promise<GetHostsResponse> {
+    const userId = request.user.sub;
+    return { host_groups: await this.hostService.updateHostGroup(userId, groupId, body) };
+  }
+
+  @Delete('group/:groupId')
+  async deleteGroup(
+    @Request() request,
+    @Param('groupId') groupId: string
+  ): Promise<GetHostsResponse> {
+    const userId = request.user.sub;
+    return { host_groups: await this.hostService.deleteHostGroup(userId, groupId) };
+  }
+
   @Get()
   async getHosts(@Request() request): Promise<GetHostsResponse> {
     const userId = request.user.sub;
     return await this.hostService.getHostList(userId);
   }
 
-  /**
-   * Get a specific host by UID.
-   *
-   * @route GET /host/:hostUid
-   * @param request - Express request object containing user payload
-   * @param hostUid - Host unique identifier from path parameter
-   * @returns Promise<HostResponse> Host information without password
-   * @example
-   * // GET /host/host-uid
-   */
   @Get(':hostUid')
   async getHost(@Request() request, @Param('hostUid') hostUid: string): Promise<HostResponse> {
     const userId = request.user.sub;
     return await this.hostService.findHost(userId, hostUid);
   }
 
-  /**
-   * Update an existing host.
-   *
-   * @route PUT /host/:hostUid
-   * @param request - Express request object containing user payload
-   * @param hostUid - Host unique identifier from path parameter
-   * @param hostInfo - Updated host information (without hostUid)
-   * @returns Promise<GetHostsResponse> Updated host list
-   * @example
-   * // PUT /host/host-uid
-   * // Body: { "name": "new-name", "address": "192.168.1.1", ... }
-   */
   @Put(':hostUid')
   async updateHost(
     @Request() request,
@@ -81,25 +77,38 @@ export class HostController {
     @Body() hostInfo: Omit<UpdateHostClientRequest, 'hostUid'>
   ): Promise<GetHostsResponse> {
     const userId = request.user.sub;
-    return { host_list: await this.hostService.updateHost(userId, hostUid, hostInfo) };
+    return { host_groups: await this.hostService.updateHost(userId, hostUid, hostInfo) };
   }
 
-  /**
-   * Delete a host and return updated host list.
-   *
-   * @route DELETE /host/:hostUid
-   * @param request - Express request object containing user payload
-   * @param hostUid - Host unique identifier from path parameter
-   * @returns Promise<GetHostsResponse> Updated host list without passwords
-   * @example
-   * // DELETE /host/host-uid
-   */
+  @Post(':hostUid/move')
+  async moveHost(
+    @Request() request,
+    @Param('hostUid') hostUid: string,
+    @Body() body: MoveHostRequest
+  ): Promise<GetHostsResponse> {
+    const userId = request.user.sub;
+    validateRequiredFields(body, ['targetGroupId'], 'host/move', this.logger);
+    return {
+      host_groups: await this.hostService.moveHost(userId, hostUid, body.targetGroupId),
+    };
+  }
+
   @Delete(':hostUid')
   async deleteHost(
     @Request() request,
     @Param('hostUid') hostUid: string
   ): Promise<GetHostsResponse> {
     const userId = request.user.sub;
-    return { host_list: await this.hostService.deleteHost(userId, hostUid) };
+    return { host_groups: await this.hostService.deleteHost(userId, hostUid) };
+  }
+
+  @Post(':hostUid/mark-ha')
+  async markHa(
+    @Request() request,
+    @Param('hostUid') hostUid: string,
+    @Body() body: { groupName?: string }
+  ): Promise<GetHostsResponse> {
+    const userId = request.user.sub;
+    return { host_groups: await this.hostService.markGroupHa(userId, hostUid, body?.groupName) };
   }
 }

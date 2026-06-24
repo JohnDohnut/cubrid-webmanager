@@ -2,15 +2,16 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { DatabaseBackupService } from './database-backup.service';
 import { HostService } from '@host';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
-import { AddBackupInfoClientRequest, SetBackupInfoClientRequest } from '@api-interfaces';
-import * as common from '@common';
+import {
+  AddBackupInfoClientRequest,
+  SetBackupInfoClientRequest,
+  BackupDbListClientRequest,
+  RestoreDbClientRequest,
+} from '@api-interfaces';
+import { DatabaseError } from '@error/database/database-error';
+import { HostError } from '@error/index';
+import { CmsError } from '@error/cms/cms-error';
 
-// Mock the checkCmsTokenError and checkCmsStatusError functions
-jest.mock('@common', () => ({
-  ...jest.requireActual('@common'),
-  checkCmsTokenError: jest.fn(),
-  checkCmsStatusError: jest.fn(),
-}));
 
 describe('DatabaseBackupService', () => {
   let service: DatabaseBackupService;
@@ -24,6 +25,8 @@ describe('DatabaseBackupService', () => {
     port: 8001,
     password: 'host-password',
     token: 'test-token',
+    initialLogin: false,
+    alias: 'host-1',
     dbProfiles: {},
   };
 
@@ -60,8 +63,6 @@ describe('DatabaseBackupService', () => {
 
     // Setup default mocks
     hostService.findHostInternal.mockResolvedValue(mockHost);
-    (common.checkCmsTokenError as jest.Mock).mockImplementation(() => {});
-    (common.checkCmsStatusError as jest.Mock).mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -117,7 +118,7 @@ describe('DatabaseBackupService', () => {
           path: mockRequest.path,
         })
       );
-      expect(result).toEqual({});
+      expect(result).toEqual({ success: true });
     });
   });
 
@@ -164,12 +165,7 @@ describe('DatabaseBackupService', () => {
           dbname: mockDbname,
         })
       );
-      expect(result).toEqual({
-        __EXEC_TIME: '10 ms',
-        note: 'none',
-        status: 'success',
-        task: 'setbackupinfo',
-      });
+      expect(result).toEqual({ success: true });
     });
   });
 
@@ -204,7 +200,7 @@ describe('DatabaseBackupService', () => {
           backupid: mockRequest.backupid,
         })
       );
-      expect(result).toBeDefined();
+      expect(result).toEqual({ success: true });
     });
   });
 
@@ -234,6 +230,371 @@ describe('DatabaseBackupService', () => {
         dbname: 'testdb',
         backups: [],
       });
+    });
+  });
+
+  describe('getBackupDbInfo', () => {
+    const mockRequest = { dbname: mockDbname };
+
+    it('should return backup db info with level0, level1, level2', async () => {
+      const mockResponse = {
+        __EXEC_TIME: '19 ms',
+        dbdir: '/home/cubrid/databases/test/backup',
+        freespace: '2068768',
+        level0: [
+          {
+            data: '2026.03.12.09.50',
+            path: '/home/cubrid/databases/test/backup/test_backup_lv0_2/test_bk0v000',
+            size: '11547648',
+          },
+        ],
+        level1: [
+          {
+            data: '2026.03.12.09.54',
+            path: '/home/cubrid/databases/test/backup/test_backup_lv1_3/test_bk1v000',
+            size: '5256192',
+          },
+        ],
+        level2: [
+          {
+            data: '2026.03.12.10.45',
+            path: '/home/cubrid/databases/test/backup/test_backup_lv2/test_bk2v000',
+            size: '5256192',
+          },
+        ],
+        note: 'none',
+        status: 'success',
+        task: 'backupdbinfo',
+      };
+
+      cmsClient.postAuthenticated.mockResolvedValue(mockResponse);
+
+      const result = await service.getBackupDbInfo(
+        mockUserId,
+        mockHostUid,
+        mockRequest
+      );
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'backupdbinfo',
+          dbname: mockDbname,
+        })
+      );
+      expect(result).toMatchObject({
+        dbdir: mockResponse.dbdir,
+        freespace: mockResponse.freespace,
+        level0: mockResponse.level0,
+        level1: mockResponse.level1,
+        level2: mockResponse.level2,
+      });
+    });
+
+    it('should return empty level arrays when no backups exist', async () => {
+      const mockResponse = {
+        __EXEC_TIME: '5 ms',
+        dbdir: '/home/cubrid/databases/test/backup',
+        freespace: '2068768',
+        note: 'none',
+        status: 'success',
+        task: 'backupdbinfo',
+      };
+
+      cmsClient.postAuthenticated.mockResolvedValue(mockResponse);
+
+      const result = await service.getBackupDbInfo(
+        mockUserId,
+        mockHostUid,
+        mockRequest
+      );
+
+      expect(result.level0).toEqual([]);
+      expect(result.level1).toEqual([]);
+      expect(result.level2).toEqual([]);
+      expect(result.dbdir).toBe(mockResponse.dbdir);
+      expect(result.freespace).toBe(mockResponse.freespace);
+    });
+  });
+
+  describe('getBackupList', () => {
+    const mockRequest: BackupDbListClientRequest = { dbname: mockDbname };
+
+    it('should return backup list with level0/level1/level2 (none when empty)', async () => {
+      const mockResponse = {
+        __EXEC_TIME: '0 ms',
+        level0: 'none',
+        level1: 'none',
+        level2: 'none',
+        note: 'none',
+        status: 'success',
+        task: 'getbackuplist',
+      };
+
+      cmsClient.postAuthenticated.mockResolvedValue(mockResponse);
+
+      const result = await service.getBackupList(mockUserId, mockHostUid, mockRequest);
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'getbackuplist',
+          dbname: mockDbname,
+        })
+      );
+
+      expect(result).toEqual({
+        level0: 'none',
+        level1: 'none',
+        level2: 'none',
+      });
+    });
+  });
+
+  describe('backupDb', () => {
+    const mockRequest = {
+      level: '0' as const,
+      volname: 'demodb_backup_lv0',
+      backupdir: '/home/cubrid/databases/demodb/backup',
+      removelog: 'y' as const,
+      check: 'y' as const,
+      mt: '2',
+      zip: 'y' as const,
+      safereplication: 'n' as const,
+    };
+
+    it('should successfully execute backup', async () => {
+      const mockResponse = {
+        __EXEC_TIME: '1412 ms',
+        note: 'none',
+        status: 'success',
+        task: 'backupdb',
+      };
+
+      cmsClient.postAuthenticated.mockResolvedValue(mockResponse);
+
+      const result = await service.backupDb(
+        mockUserId,
+        mockHostUid,
+        mockDbname,
+        mockRequest
+      );
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'backupdb',
+          dbname: mockDbname,
+          level: '0',
+          volname: mockRequest.volname,
+          backupdir: mockRequest.backupdir,
+          removelog: 'y',
+          check: 'y',
+          mt: '2',
+          zip: 'y',
+          safereplication: 'n',
+        })
+      );
+      expect(result).toEqual({ success: true });
+    });
+
+    it('should use default options when optional fields omitted', async () => {
+      const minimalRequest = {
+        level: '1' as const,
+        volname: 'test_backup_lv1',
+        backupdir: '/path/to/backup',
+      };
+      const mockResponse = {
+        __EXEC_TIME: '500 ms',
+        note: 'none',
+        status: 'success',
+        task: 'backupdb',
+      };
+
+      cmsClient.postAuthenticated.mockResolvedValue(mockResponse);
+
+      await service.backupDb(mockUserId, mockHostUid, mockDbname, minimalRequest);
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'backupdb',
+          removelog: 'y',
+          check: 'n',
+          mt: '0',
+          zip: 'n',
+          safereplication: 'n',
+        })
+      );
+    });
+  });
+
+  describe('restoreDb', () => {
+    const mockRequest: RestoreDbClientRequest = {
+      date: '19-03-2026:09:17:46',
+      level: '0',
+      partial: 'y',
+      pathname:
+        '/home/cubrid/CUBRID-11.5.0.2103-a598990-Linux.x86_64/databases/test/backup/test_backup_lv0_2/test_bk0v000',
+      recoverypath:
+        '/home/cubrid/CUBRID-11.5.0.2103-a598990-Linux.x86_64/databases/test',
+    };
+
+    it('should successfully restore database', async () => {
+      const mockResponse = {
+        __EXEC_TIME: '6661 ms',
+        note: 'none',
+        status: 'success',
+        task: 'restoredb',
+      };
+
+      cmsClient.postAuthenticated.mockResolvedValue(mockResponse);
+
+      const result = await service.restoreDb(
+        mockUserId,
+        mockHostUid,
+        mockDbname,
+        mockRequest
+      );
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'restoredb',
+          dbname: mockDbname,
+          date: mockRequest.date,
+          level: mockRequest.level,
+          partial: mockRequest.partial,
+          pathname: mockRequest.pathname,
+          recoverypath: mockRequest.recoverypath,
+        })
+      );
+
+      expect(result).toEqual({ success: true });
+    });
+  });
+
+  describe('getAutoBackupDbErrLog', () => {
+    const mockRequest = {};
+
+    it('should successfully get auto backup db error log with errors', async () => {
+      const mockSuccessResponse = {
+        __EXEC_TIME: '0 ms',
+        note: 'none',
+        status: 'success',
+        task: 'getautobackupdberrlog',
+        error: [
+          {
+            backupid: 'test_backup',
+            dbname: 'demodb',
+            error_desc: 'backupdb(demodb): auto job start',
+            error_time: '2026/01/24 15:18:00',
+          },
+          {
+            backupid: 'test_backup',
+            dbname: 'demodb',
+            error_desc: 'backupdb(demodb): success',
+            error_time: '2026/01/24 15:18:00',
+          },
+        ],
+      };
+
+      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
+
+      const result = await service.getAutoBackupDbErrLog(
+        mockUserId,
+        mockHostUid,
+        mockRequest
+      );
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'getautobackupdberrlog',
+          token: mockHost.token,
+        })
+      );
+      expect(result).toEqual({
+        error: [
+          {
+            backupid: 'test_backup',
+            dbname: 'demodb',
+            error_desc: 'backupdb(demodb): auto job start',
+            error_time: '2026/01/24 15:18:00',
+          },
+          {
+            backupid: 'test_backup',
+            dbname: 'demodb',
+            error_desc: 'backupdb(demodb): success',
+            error_time: '2026/01/24 15:18:00',
+          },
+        ],
+      });
+    });
+
+    it('should successfully get auto backup db error log with null error', async () => {
+      const mockSuccessResponse = {
+        __EXEC_TIME: '0 ms',
+        note: 'none',
+        status: 'success',
+        task: 'getautobackupdberrlog',
+        error: null,
+      };
+
+      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
+
+      const result = await service.getAutoBackupDbErrLog(
+        mockUserId,
+        mockHostUid,
+        mockRequest
+      );
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'getautobackupdberrlog',
+          token: mockHost.token,
+        })
+      );
+      expect(result).toEqual({
+        error: null,
+      });
+    });
+
+    it('should throw HostError if host is not found', async () => {
+      hostService.findHostInternal.mockRejectedValue(
+        HostError.NoSuchHost({ hostUid: mockHostUid })
+      );
+
+      await expect(
+        service.getAutoBackupDbErrLog(mockUserId, mockHostUid, mockRequest)
+      ).rejects.toThrow(HostError);
+    });
+
+    it('should throw CmsError if CMS token error', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({
+        __EXEC_TIME: '0 ms',
+        note: 'Request is rejected due to invalid token. Please reconnect.',
+        status: 'error',
+        task: 'getautobackupdberrlog',
+      });
+
+      await expect(
+        service.getAutoBackupDbErrLog(mockUserId, mockHostUid, mockRequest)
+      ).rejects.toThrow(CmsError);
+    });
+
+    it('should throw CmsError if CMS status is fail', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({
+        __EXEC_TIME: '0 ms',
+        note: 'Error log retrieval failed',
+        status: 'failed',
+        task: 'getautobackupdberrlog',
+      });
+
+      await expect(
+        service.getAutoBackupDbErrLog(mockUserId, mockHostUid, mockRequest)
+      ).rejects.toThrow(CmsError);
     });
   });
 });

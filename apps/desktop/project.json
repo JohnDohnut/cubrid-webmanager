@@ -1,0 +1,49 @@
+{
+  "name": "desktop",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/desktop/src",
+  "projectType": "application",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p apps/desktop/tsconfig.json",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "prepare-api-runtime": {
+      "executor": "nx:run-commands",
+      "dependsOn": [{ "target": "build", "projects": "api-server" }],
+      "options": {
+        "command": "npm install --omit=dev --no-audit --no-fund",
+        "cwd": "dist/apps/api-server"
+      }
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        { "target": "build", "projects": "self" },
+        { "target": "build", "projects": "api-server" },
+        { "target": "build-electron", "projects": "web-manager" }
+      ],
+      "options": {
+        "command": "npx electron apps/desktop --no-sandbox",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "package": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        { "target": "build", "projects": "self" },
+        { "target": "build", "projects": "api-server" },
+        { "target": "prepare-api-runtime", "projects": "self" },
+        { "target": "build-electron", "projects": "web-manager" }
+      ],
+      "options": {
+        "command": "CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --config apps/desktop/electron-builder.yml --publish never",
+        "cwd": "{workspaceRoot}"
+      }
+    }
+  }
+}

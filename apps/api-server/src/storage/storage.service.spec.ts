@@ -2,16 +2,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { StorageService } from './storage.service';
 import { LockService } from '@lock/lock.service';
 import * as fs from 'fs/promises';
-import { resolveUserFilePath } from '@util/resolve-storage-path';
-import { StorageError } from '@error/storage/storage-error';
 
 // Mock dependencies
 jest.mock('fs/promises');
 jest.mock('@lock/lock.service');
-jest.mock('@util/resolve-storage-path', () => ({
-    ...jest.requireActual('@util/resolve-storage-path'),
-    resolveUserFilePath: jest.fn((filename) => `mock/path/to/${filename}`),
-    getStoragePath: jest.fn(() => 'mock/path'),
+jest.mock('@util', () => ({
+  ...jest.requireActual('@util'),
+  resolveUserFilePath: jest.fn((filename) => `mock/path/to/${filename}`),
+  getStoragePath: jest.fn(() => 'mock/path'),
 }));
 
 describe('StorageService', () => {

@@ -1,40 +1,53 @@
+import * as fs from 'fs';
 import { Injectable } from '@nestjs/common';
-import * as crypto from 'crypto';
+import { parseCliArgs } from './parse-cli-args';
+import { parseBooleanEnv } from './parse-boolean-env';
+import { deriveSecretKeyHexFromSeedSalt } from './master-key';
 
 /**
- * Service for managing application configuration.
- *
- * This service handles the parsing and validation of command-line arguments
- * and provides access to configuration values throughout the application.
- * It generates cryptographic keys from provided seed and salt values.
+ * Application configuration from env (after `loadRuntimeEnv`) with optional CLI overrides.
+ * Encryption key: PBKDF2(SEED, SALT) — set `SEED` and `SALT` in env or `/etc/cubrid-webmanager.env`.
  *
  * @category Infrastructure Services
  * @since 1.0.0
- * @example
- * ```typescript
- * // Start application with required arguments
- * node app.js --SEED=myseed --SALT=mysalt --PORT=8080
- * ```
  */
 @Injectable()
 export class ConfigService {
-  public seed!: string;
-  public salt!: string;
   public port: string = '8080';
   public secret_key!: string;
   public environment: string = 'development';
   public allowedOrigins: string[] = [];
+  public cmsRejectUnauthorized!: boolean;
+  public cmsForwardEnabled!: boolean;
+  public authRegistrationEnabled!: boolean;
+  public listenHost?: string;
+  private readonly listenUnixSocket?: string;
+  private readonly cmsCaCert?: string;
 
   constructor() {
-    const args = parseArgs(process.argv.slice(2));
+    const args = parseCliArgs(process.argv.slice(2));
 
-    if (!args.SEED || !args.SALT) {
+    const seed = args.SEED ?? process.env.SEED;
+    const salt = args.SALT ?? process.env.SALT;
+    if (!seed || !salt) {
       throw new Error(
-        'SEED and SALT must be provided as command-line arguments (e.g., --SEED=... --SALT=...).'
+        'SEED and SALT are required (env or CLI, e.g. SEED=... SALT=... in .env).'
       );
     }
-    this.seed = args.SEED;
-    this.salt = args.SALT;
+    this.secret_key = deriveSecretKeyHexFromSeedSalt(seed, salt);
+
+    this.environment = (
+      args.ENVIRONMENT ??
+      args.ENV ??
+      process.env.ENVIRONMENT ??
+      'development'
+    ).toLowerCase();
+    console.log('[ConfigService] Environment:', this.environment);
+
+    this.cmsRejectUnauthorized = this.resolveCmsRejectUnauthorized(args);
+    this.cmsForwardEnabled = this.resolveCmsForwardEnabled(args);
+    this.authRegistrationEnabled = this.resolveAuthRegistrationEnabled(args);
+    this.cmsCaCert = this.resolveCmsCaCert(args);
 
     if (args.PORT) {
       const portNumber = parseInt(args.PORT, 10);
@@ -44,83 +57,146 @@ export class ConfigService {
         );
       }
       this.port = args.PORT;
+    } else if (process.env.PORT) {
+      const portNumber = parseInt(process.env.PORT, 10);
+      if (isNaN(portNumber) || portNumber <= 0 || portNumber > 65535) {
+        throw new Error(
+          `Invalid PORT in environment: "${process.env.PORT}". Port must be a number between 1 and 65535.`
+        );
+      }
+      this.port = process.env.PORT;
     } else {
       this.port = '8080';
     }
 
-    this.environment = args.ENVIRONMENT || 'development';
-    console.log('[ConfigService] Environment:', this.environment);
-    this.setAllowedOrigins(args.ALLOWED_ORIGINS);
+    const allowedFromEnvOrArg =
+      args.ALLOWED_ORIGINS ?? process.env.ALLOWED_ORIGINS;
+    const desktopMode = (process.env.CWM_DESKTOP ?? '').trim() === '1';
+    this.setAllowedOrigins(allowedFromEnvOrArg, desktopMode);
 
-    const derived = crypto.pbkdf2Sync(this.seed, this.salt, 100_000, 32, 'sha256');
-    this.secret_key = derived.toString('hex');
+    const listenHost =
+      args.LISTEN_HOST ?? process.env.LISTEN_HOST ?? process.env.HOST;
+    if (listenHost?.trim()) {
+      this.listenHost = listenHost.trim();
+    }
+
+    const listenUnixSocket =
+      args.LISTEN_UNIX_SOCKET ?? process.env.LISTEN_UNIX_SOCKET;
+    if (listenUnixSocket?.trim()) {
+      this.listenUnixSocket = listenUnixSocket.trim();
+    }
   }
 
-  /**
-   * Gets the derived secret key for encryption operations.
-   *
-   * The secret key is derived from the provided SEED and SALT using PBKDF2
-   * with 100,000 iterations and SHA-256 hashing algorithm.
-   *
-   * @returns The secret key as a hexadecimal string
-   */
   getSecretKey(): string {
     return this.secret_key;
   }
 
-  /**
-   * Gets the configured port number for the server.
-   *
-   * @returns The port number as a string (default: '8080')
-   */
   getPort(): string {
     return this.port;
   }
 
-  /**
-   * Gets the current environment.
-   *
-   * @returns The environment string ('development' or 'production')
-   */
   getEnvironment(): string {
     return this.environment;
   }
 
-  /**
-   * Gets the allowed origins for CORS.
-   *
-   * @returns Array of allowed origins
-   */
+  isProduction(): boolean {
+    return this.environment === 'production';
+  }
+
   getAllowedOrigins(): string[] {
     return this.allowedOrigins;
   }
 
-  /**
-   * Sets allowed origins based on environment.
-   */
-  private setAllowedOrigins(allowedOrigins?: string): void {
-    if (this.environment === 'production') {
+  getListenHost(): string | undefined {
+    return this.listenHost;
+  }
+
+  getListenUnixSocket(): string | undefined {
+    return this.listenUnixSocket;
+  }
+
+  getCmsRejectUnauthorized(): boolean {
+    return this.cmsRejectUnauthorized;
+  }
+
+  getCmsCaCert(): string | undefined {
+    return this.cmsCaCert;
+  }
+
+  isCmsForwardEnabled(): boolean {
+    return this.cmsForwardEnabled;
+  }
+
+  isAuthRegistrationEnabled(): boolean {
+    return this.authRegistrationEnabled;
+  }
+
+  private resolveCmsRejectUnauthorized(args: Record<string, string>): boolean {
+    const raw = args.CMS_REJECT_UNAUTHORIZED ?? process.env.CMS_REJECT_UNAUTHORIZED;
+    if (raw != null && raw !== '') {
+      return parseBooleanEnv(raw);
+    }
+
+    return this.isProduction();
+  }
+
+  private resolveCmsForwardEnabled(args: Record<string, string>): boolean {
+    const raw = args.CMS_FORWARD_ENABLED ?? process.env.CMS_FORWARD_ENABLED;
+    if (raw != null && raw !== '') {
+      return parseBooleanEnv(raw);
+    }
+
+    return !this.isProduction();
+  }
+
+  private resolveAuthRegistrationEnabled(args: Record<string, string>): boolean {
+    const raw = args.AUTH_REGISTRATION_ENABLED ?? process.env.AUTH_REGISTRATION_ENABLED;
+    if (raw != null && raw !== '') {
+      return parseBooleanEnv(raw);
+    }
+
+    // Default: registration is open.
+    // This is a self-hosted management tool — network access is the security boundary.
+    // Operators who want to lock down sign-ups after initial setup can set
+    // AUTH_REGISTRATION_ENABLED=false in cwm.conf.
+    return true;
+  }
+
+  private resolveCmsCaCert(args: Record<string, string>): string | undefined {
+    const certPath = args.CMS_CA_CERT_PATH ?? process.env.CMS_CA_CERT_PATH;
+    if (!certPath) {
+      return undefined;
+    }
+
+    if (!fs.existsSync(certPath)) {
+      throw new Error(`CMS CA certificate file not found: ${certPath}`);
+    }
+
+    return fs.readFileSync(certPath, 'utf8');
+  }
+
+  private setAllowedOrigins(allowedOrigins: string | undefined, desktopMode: boolean): void {
+    if (desktopMode) {
+      if (!allowedOrigins?.trim()) {
+        throw new Error('ALLOWED_ORIGINS is required when CWM_DESKTOP=1.');
+      }
+      this.allowedOrigins = allowedOrigins.split(',').map((s) => s.trim()).filter(Boolean);
+      console.log('[ConfigService] Allowed Origins (desktop):', this.allowedOrigins);
+      return;
+    }
+
+    if (this.isProduction()) {
       if (allowedOrigins) {
-        this.allowedOrigins = allowedOrigins.split(',');
+        this.allowedOrigins = allowedOrigins
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
       } else {
-        this.allowedOrigins = []; // Default to no origins in production if not specified
+        this.allowedOrigins = [];
       }
     } else {
       this.allowedOrigins = ['*'];
     }
-    console.log('[ConfigService] Allowed Origins:', this.allowedOrigins); // DEBUG
+    console.log('[ConfigService] Allowed Origins:', this.allowedOrigins);
   }
-}
-
-function parseArgs(argv: string[]): Record<string, string> {
-  const result: Record<string, string> = {};
-
-  for (const arg of argv) {
-    if (arg.startsWith('--')) {
-      const [key, value] = arg.slice(2).split('=');
-      result[key] = value;
-    }
-  }
-
-  return result;
 }

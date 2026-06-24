@@ -3,14 +3,8 @@ import { DatabaseConfigService } from './database-config.service';
 import { HostService } from '@host';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import { CmsConfigService } from '@cms-config/cms-config.service';
-import * as common from '@common';
-
-// Mock the checkCmsTokenError and checkCmsStatusError functions
-jest.mock('@common', () => ({
-  ...jest.requireActual('@common'),
-  checkCmsTokenError: jest.fn(),
-  checkCmsStatusError: jest.fn(),
-}));
+import { HostError } from '@error/index';
+import { CmsError } from '@error/cms/cms-error';
 
 describe('DatabaseConfigService', () => {
   let service: DatabaseConfigService;
@@ -24,7 +18,9 @@ describe('DatabaseConfigService', () => {
     address: 'localhost',
     port: 8001,
     password: 'host-password',
+    initialLogin: false,
     token: 'test-token',
+    alias: 'host-1',
     dbProfiles: {},
   };
 
@@ -71,8 +67,6 @@ describe('DatabaseConfigService', () => {
 
     // Setup default mocks
     hostService.findHostInternal.mockResolvedValue(mockHost);
-    (common.checkCmsTokenError as jest.Mock).mockImplementation(() => {});
-    (common.checkCmsStatusError as jest.Mock).mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -115,10 +109,10 @@ describe('DatabaseConfigService', () => {
         expect.objectContaining({
           task: 'setautoexecquery',
           dbname: mockDbname,
-          planlist: mockRequest.planlist,
+          planlist: mockRequest.planlist.map((item) => ({ ...item, dbname: mockDbname })),
         })
       );
-      expect(result).toEqual({});
+      expect(result).toEqual({ success: true });
     });
   });
 
@@ -144,6 +138,412 @@ describe('DatabaseConfigService', () => {
         })
       );
       expect(result).toEqual({ planlist: [] });
+    });
+
+    it('should return empty planlist when CMS response has no planlist', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({
+        __EXEC_TIME: '10 ms',
+        note: 'none',
+        status: 'success',
+        task: 'getautoexecquery',
+      });
+
+      const result = await service.getAutoExecQuery(mockUserId, mockHostUid, mockDbname);
+      expect(result).toEqual({ planlist: [] });
+    });
+
+    it('should return empty queryplan when a plan has invalid queryplan', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({
+        __EXEC_TIME: '10 ms',
+        note: 'none',
+        status: 'success',
+        task: 'getautoexecquery',
+        planlist: [{ dbname: 'testdb', queryplan: null }],
+      });
+
+      const result = await service.getAutoExecQuery(mockUserId, mockHostUid, mockDbname);
+      expect(result).toEqual({
+        planlist: [{ dbname: 'testdb', queryplan: [] }],
+      });
+    });
+  });
+
+  describe('getClassInfo', () => {
+    const mockRequest = {
+      dbstatus: 'off' as const,
+    };
+
+    const mockResponse = {
+      __EXEC_TIME: '2510 ms',
+      dbname: 'empty',
+      note: 'none',
+      status: 'success',
+      task: 'classinfo',
+      systemclass: [
+        {
+          class: [
+            {
+              classname: 'db_root',
+              owner: 'DBA',
+              virtual: 'normal',
+            },
+            {
+              classname: 'db_user',
+              owner: 'DBA',
+              virtual: 'normal',
+            },
+          ],
+        },
+      ],
+      userclass: [
+        {
+          class: [
+            {
+              classname: 'dba.test',
+              owner: 'DBA',
+              virtual: 'normal',
+            },
+            {
+              classname: 'dba.test2',
+              owner: 'DBA',
+              virtual: 'normal',
+            },
+          ],
+        },
+      ],
+    };
+
+    it('should successfully get class info', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue(mockResponse);
+
+      const result = await service.getClassInfo(
+        mockUserId,
+        mockHostUid,
+        mockDbname,
+        mockRequest
+      );
+
+      expect(hostService.findHostInternal).toHaveBeenCalledWith(mockUserId, mockHostUid);
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        `https://${mockHost.address}:${mockHost.port}/cm_api`,
+        expect.objectContaining({
+          task: 'classinfo',
+          token: mockHost.token,
+          dbname: mockDbname,
+          dbstatus: 'off',
+        })
+      );
+      expect(result).toEqual({
+        dbname: 'empty',
+        systemclass: mockResponse.systemclass,
+        userclass: mockResponse.userclass,
+      });
+    });
+
+    it('should successfully get class info with dbstatus on', async () => {
+      const requestWithOn = {
+        dbstatus: 'on' as const,
+      };
+
+      cmsClient.postAuthenticated.mockResolvedValue(mockResponse);
+
+      const result = await service.getClassInfo(
+        mockUserId,
+        mockHostUid,
+        mockDbname,
+        requestWithOn
+      );
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'classinfo',
+          dbname: mockDbname,
+          dbstatus: 'on',
+        })
+      );
+      expect(result).toEqual({
+        dbname: 'empty',
+        systemclass: mockResponse.systemclass,
+        userclass: mockResponse.userclass,
+      });
+    });
+
+    it('should throw HostError when host is not found', async () => {
+      hostService.findHostInternal.mockRejectedValue(
+        HostError.NoSuchHost({ hostUid: mockHostUid })
+      );
+
+      await expect(
+        service.getClassInfo(mockUserId, mockHostUid, mockDbname, mockRequest)
+      ).rejects.toThrow(HostError);
+
+      expect(cmsClient.postAuthenticated).not.toHaveBeenCalled();
+    });
+
+    it('should throw CmsError when CMS request fails', async () => {
+      const cmsError = CmsError.RequestFailed({
+        status: 500,
+        data: { message: 'Internal server error' },
+      });
+
+      cmsClient.postAuthenticated.mockRejectedValue(cmsError);
+
+      await expect(
+        service.getClassInfo(mockUserId, mockHostUid, mockDbname, mockRequest)
+      ).rejects.toThrow(CmsError);
+    });
+
+    it('should throw CmsError when CMS token error is detected', async () => {
+      const invalidTokenResponse = {
+        __EXEC_TIME: '0 ms',
+        note: 'Request is rejected due to invalid token. Please reconnect.',
+        status: 'failed',
+        task: 'classinfo',
+      };
+
+      cmsClient.postAuthenticated.mockResolvedValue(invalidTokenResponse);
+
+      await expect(
+        service.getClassInfo(mockUserId, mockHostUid, mockDbname, mockRequest)
+      ).rejects.toThrow(CmsError);
+    });
+
+    it('should throw CmsError when CMS status error is detected', async () => {
+      const failedResponse = {
+        __EXEC_TIME: '0 ms',
+        note: 'Class info failed',
+        status: 'failed',
+        task: 'classinfo',
+      };
+
+      cmsClient.postAuthenticated.mockResolvedValue(failedResponse);
+
+      await expect(
+        service.getClassInfo(mockUserId, mockHostUid, mockDbname, mockRequest)
+      ).rejects.toThrow(CmsError);
+    });
+  });
+
+  describe('getAutoAddVol', () => {
+    const mockGetAutoAddVolResponse = {
+      __EXEC_TIME: '0 ms',
+      data: 'ON',
+      data_ext_page: '32768',
+      data_warn_outofspace: '0.15',
+      index: 'ON',
+      index_ext_page: '32768',
+      index_warn_outofspace: '0.15',
+      note: 'none',
+      status: 'success',
+      task: 'getautoaddvol',
+    };
+
+    it('should return auto-add vol config on success', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue(mockGetAutoAddVolResponse);
+
+      const result = await service.getAutoAddVol(mockUserId, mockHostUid, mockDbname);
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'getautoaddvol',
+          dbname: mockDbname,
+          token: mockHost.token,
+        })
+      );
+      expect(result).toEqual({
+        data: 'ON',
+        data_ext_page: '32768',
+        data_warn_outofspace: '0.15',
+        index: 'ON',
+        index_ext_page: '32768',
+        index_warn_outofspace: '0.15',
+      });
+    });
+
+    it('should throw CmsError when CMS returns non-success', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({
+        __EXEC_TIME: '0 ms',
+        note: 'failed',
+        status: 'fail',
+        task: 'getautoaddvol',
+      });
+
+      await expect(
+        service.getAutoAddVol(mockUserId, mockHostUid, mockDbname)
+      ).rejects.toThrow(CmsError);
+    });
+  });
+
+  describe('getAutoExecQueryErrLog', () => {
+    const mockRequest = {};
+
+    it('should successfully get auto exec query error log with errors', async () => {
+      const mockSuccessResponse = {
+        __EXEC_TIME: '0 ms',
+        note: 'none',
+        status: 'success',
+        task: 'getautoexecqueryerrlog',
+        error: [
+          {
+            '@username': 'admin',
+            dbname: 'demodb',
+            error_code: '0',
+            error_desc: 'start',
+            error_time: '2026/01/24 15:10:00',
+            query_id: 'test_query',
+          },
+          {
+            '@username': 'admin',
+            dbname: 'demodb',
+            error_code: '0',
+            error_desc: 'success',
+            error_time: '2026/01/24 15:10:00',
+            query_id: 'test_query',
+          },
+        ],
+      };
+
+      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
+
+      const result = await service.getAutoExecQueryErrLog(
+        mockUserId,
+        mockHostUid,
+        mockRequest
+      );
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'getautoexecqueryerrlog',
+          token: mockHost.token,
+        })
+      );
+      expect(result).toEqual({
+        error: [
+          {
+            '@username': 'admin',
+            dbname: 'demodb',
+            error_code: '0',
+            error_desc: 'start',
+            error_time: '2026/01/24 15:10:00',
+            query_id: 'test_query',
+          },
+          {
+            '@username': 'admin',
+            dbname: 'demodb',
+            error_code: '0',
+            error_desc: 'success',
+            error_time: '2026/01/24 15:10:00',
+            query_id: 'test_query',
+          },
+        ],
+      });
+    });
+
+    it('should successfully get auto exec query error log with null error', async () => {
+      const mockSuccessResponse = {
+        __EXEC_TIME: '0 ms',
+        note: 'none',
+        status: 'success',
+        task: 'getautoexecqueryerrlog',
+        error: null,
+      };
+
+      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
+
+      const result = await service.getAutoExecQueryErrLog(
+        mockUserId,
+        mockHostUid,
+        mockRequest
+      );
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'getautoexecqueryerrlog',
+          token: mockHost.token,
+        })
+      );
+      expect(result).toEqual({
+        error: null,
+      });
+    });
+
+    it('should throw HostError if host is not found', async () => {
+      hostService.findHostInternal.mockRejectedValue(
+        HostError.NoSuchHost({ hostUid: mockHostUid })
+      );
+
+      await expect(
+        service.getAutoExecQueryErrLog(mockUserId, mockHostUid, mockRequest)
+      ).rejects.toThrow(HostError);
+    });
+
+    it('should throw CmsError if CMS token error', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({
+        __EXEC_TIME: '0 ms',
+        note: 'Request is rejected due to invalid token. Please reconnect.',
+        status: 'error',
+        task: 'getautoexecqueryerrlog',
+      });
+
+      await expect(
+        service.getAutoExecQueryErrLog(mockUserId, mockHostUid, mockRequest)
+      ).rejects.toThrow(CmsError);
+    });
+
+    it('should throw CmsError if CMS status is fail', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({
+        __EXEC_TIME: '0 ms',
+        note: 'Error log retrieval failed',
+        status: 'failed',
+        task: 'getautoexecqueryerrlog',
+      });
+
+      await expect(
+        service.getAutoExecQueryErrLog(mockUserId, mockHostUid, mockRequest)
+      ).rejects.toThrow(CmsError);
+    });
+  });
+
+  describe('getAutoAddVolLog', () => {
+    it('should send getautoaddvollog task and return log entries', async () => {
+      const mockSuccessResponse = {
+        __EXEC_TIME: '3 ms',
+        note: 'none',
+        status: 'success',
+        task: 'getautoaddvollog',
+        log: [
+          {
+            dbname: 'testdb',
+            volname: 'testdb_x002',
+            purpose: 'data',
+            page: '1024',
+            time: '2012-11-16,10:4:57',
+            outcome: 'success',
+          },
+        ],
+      };
+
+      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
+
+      const result = await service.getAutoAddVolLog(mockUserId, mockHostUid, {
+        start_time: '2012-11-16,10:4:57',
+        end_time: '2012-11-16,23:59:59',
+      });
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'getautoaddvollog',
+          start_time: '2012-11-16,10:4:57',
+          end_time: '2012-11-16,23:59:59',
+          token: mockHost.token,
+        })
+      );
+      expect(result).toEqual(mockSuccessResponse.log);
     });
   });
 });

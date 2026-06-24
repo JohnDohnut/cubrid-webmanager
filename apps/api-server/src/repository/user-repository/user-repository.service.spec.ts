@@ -28,7 +28,7 @@ describe('UserRepositoryService', () => {
     id: 'test-user',
     password: 'hashed-password',
     department: 'default',
-    host_list: {},
+    host_groups: {},
     ha_mon_list: {},
     resource_mon_list: {},
     user_preference: { dashboardInterval: 0, brokerStatusInterval: 0 },
@@ -150,7 +150,7 @@ describe('UserRepositoryService', () => {
       expect(userJson.id).toBe(mockUserId);
       expect(userJson.password).toBe(mockHashedPassword);
       expect(userJson.department).toBe('default');
-      expect(userJson.host_list).toEqual({});
+      expect(userJson.host_groups).toEqual({});
       expect(userJson.ha_mon_list).toEqual({});
       expect(userJson.resource_mon_list).toEqual({});
       expect(userJson.user_preference).toEqual({
@@ -198,11 +198,10 @@ describe('UserRepositoryService', () => {
 
   describe('atomicUpdateUser', () => {
     it('should perform atomic update using lockService.withLock', async () => {
-      const updatedUser: User = {
-        ...mockUser,
-        department: 'updated-department',
-      };
-      const modifierCallback = jest.fn().mockResolvedValue(updatedUser);
+      const modifierCallback = jest.fn(async (user: User) => {
+        user.department = 'updated-department';
+        return user;
+      });
 
       storageService.readUnsafe.mockResolvedValue(mockEncryptedData);
       encryptionService.decryptValue.mockReturnValue(JSON.stringify(mockUser));
@@ -220,12 +219,17 @@ describe('UserRepositoryService', () => {
 
       const result = await service.atomicUpdateUser(mockUserId, modifierCallback);
 
+      const updatedUser: User = {
+        ...mockUser,
+        department: 'updated-department',
+      };
+
       expect(encryptionService.getHashedValue).toHaveBeenCalledWith(mockUserId);
       expect(lockService.withLock).toHaveBeenCalledWith(mockHashedId, expect.any(Function));
       expect(capturedWorker).toBeDefined();
       expect(storageService.readUnsafe).toHaveBeenCalledWith(mockHashedId);
       expect(encryptionService.decryptValue).toHaveBeenCalledWith(mockEncryptedData);
-      expect(modifierCallback).toHaveBeenCalledWith(mockUser);
+      expect(modifierCallback).toHaveBeenCalledWith(expect.objectContaining({ id: mockUser.id }));
       expect(encryptionService.encryptValue).toHaveBeenCalledWith(JSON.stringify(updatedUser));
       expect(storageService.writeUnsafe).toHaveBeenCalledWith(mockHashedId, mockEncryptedData);
       expect(result).toEqual(updatedUser);

@@ -64,7 +64,7 @@ export class UserRepositoryService {
       id: dto.id,
       password: await this.passwordService.getHashedValue(dto.password),
       department: 'default',
-      host_list: {},
+      host_groups: {},
       ha_mon_list: {},
       resource_mon_list: {},
       user_preference: { dashboardInterval: 0, brokerStatusInterval: 0 },
@@ -128,7 +128,7 @@ export class UserRepositoryService {
     const updated = await this.lockService.withLock(hashedId, async () => {
       const encrypted: string = await this.storageService.readUnsafe(hashedId);
       const decrypted: string = await this.encryptionService.decryptValue(encrypted);
-      const userJson: User = await JSON.parse(decrypted);
+      const userJson: User = JSON.parse(decrypted);
 
       await modifierCallback(userJson);
 

@@ -1,11 +1,27 @@
-import { Body, Controller, Get, Logger, Param, Post, Put, Request } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Logger,
+  Param,
+  Post,
+  Put,
+  Query,
+  Request,
+} from '@nestjs/common';
 import { DatabaseUserService } from './database-user.service';
 import {
+  CreateDbUserRequest,
   DatabaseLoginClientRequest,
   UpdateDbUserRequest,
   UpdateDbUserResponse,
+  UserInfoClientResponse,
+  CreateDbUserResponse,
+  DeleteDbUserResponse,
+  UserVerifyRequest,
+  UserVerifyResponse,
 } from '@api-interfaces';
-import { ValidationError } from '@error/validation/validation-error';
 import { validateRequiredFields } from '@util';
 
 /**
@@ -24,37 +40,123 @@ export class DatabaseUserController {
   constructor(private readonly databaseUserService: DatabaseUserService) {}
 
   /**
-   * Get list of database users for a specific host.
+   * Get user info (list of users) for a database. CMS task: userinfo.
    *
-   * @route GET /:hostUid/database/users
-   * @param req Express request (contains authenticated user)
-   * @param hostUid Host unique identifier from path parameter
-   * @returns Database users list
-   * @example
-   * // GET /host-uid/database/users
+   * @route GET /:hostUid/database/users/info/:dbname
    */
-  @Get()
-  async getDatabaseUsers(@Request() req, @Param('hostUid') hostUid: string) {
+  @Get('info/:dbname')
+  async getUserInfo(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string
+  ): Promise<UserInfoClientResponse> {
     const userId = req.user.sub;
-    // TODO: Implement
-    return await this.databaseUserService.getDatabaseUsers(userId);
+    this.logger.log(`Getting user info for database: ${dbname} on host: ${hostUid}`);
+    return await this.databaseUserService.getUserInfo(userId, hostUid, dbname);
   }
 
   /**
-   * Login to a database using profile or client-provided credentials.
+   * Verify database user credentials. CMS task: userverify.
    *
-   * - If profile exists: only dbname is required (id, password not needed in body)
-   * - If profile doesn't exist: dbname + id + password are required
+   * @route POST /:hostUid/database/users/verify
+   */
+  @Post('verify')
+  async userVerify(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Body() body: UserVerifyRequest
+  ): Promise<UserVerifyResponse> {
+    const userId = req.user.sub;
+    validateRequiredFields(body, ['dbname', 'dbuser', 'dbpasswd'], 'database/users/verify', this.logger);
+    this.logger.log(`Verifying user ${body.dbuser} for database: ${body.dbname} on host: ${hostUid}`);
+    return await this.databaseUserService.userVerify(
+      userId,
+      hostUid,
+      body.dbname,
+      body.dbuser,
+      body.dbpasswd
+    );
+  }
+
+  /**
+   * Create a database user. CMS task: createuser.
+   *
+   * @route POST /:hostUid/database/users
+   */
+  @Post()
+  async createUser(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Body() body: CreateDbUserRequest
+  ): Promise<CreateDbUserResponse> {
+    const userId = req.user.sub;
+    validateRequiredFields(
+      body,
+      ['dbname', 'username', 'userpass', 'groups', 'authorization'],
+      'database/users/create',
+      this.logger
+    );
+    this.logger.log(`Creating user: ${body.username} in database: ${body.dbname} on host: ${hostUid}`);
+    return await this.databaseUserService.createUser(
+      userId,
+      hostUid,
+      body.dbname,
+      body.username,
+      body.userpass,
+      body.groups,
+      body.authorization
+    );
+  }
+
+  /**
+   * Delete a database user. CMS task: deleteuser.
+   *
+   * @route DELETE /:hostUid/database/users/:dbname/:username
+   */
+  @Delete(':dbname/:username')
+  async deleteUser(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Param('username') username: string
+  ): Promise<DeleteDbUserResponse> {
+    const userId = req.user.sub;
+    this.logger.log(`Deleting user: ${username} from database: ${dbname} on host: ${hostUid}`);
+    return await this.databaseUserService.deleteUser(userId, hostUid, dbname, username);
+  }
+
+  /**
+   * Get list of database users for a database. CMS task: userinfo.
+   *
+   * @route GET /:hostUid/database/users?dbname=:dbname
+   */
+  @Get()
+  async getDatabaseUsers(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Query('dbname') dbname: string
+  ): Promise<UserInfoClientResponse> {
+    const userId = req.user.sub;
+    validateRequiredFields({ dbname }, ['dbname'], 'database/users', this.logger);
+    this.logger.log(`Getting database users for database: ${dbname} on host: ${hostUid}`);
+    return await this.databaseUserService.getDatabaseUsers(userId, hostUid, dbname);
+  }
+
+  /**
+   * Login to a database using client-provided credentials.
+   *
+   * - Requires `id` and `password` in request body
+   * - Does not fallback to stored profile
    *
    * @route POST /:hostUid/database/users/login/:dbname
    * @param req Express request (contains authenticated user)
    * @param hostUid Host unique identifier from path parameter
    * @param dbname Database name from path parameter
-   * @param body Request body containing optional `id`, `password` (required if no profile)
+   * @param body Request body containing `id`, `password`
    * @returns boolean True on success
    * @example
    * // POST /host-uid/database/users/login/demodb
-   * // Body (if no profile): { "id": "user", "password": "pass" }
+   * // Body: { "id": "user", "password": "pass" }
    */
   @Post('login/:dbname')
   async loginDatabase(
@@ -64,16 +166,38 @@ export class DatabaseUserController {
     @Body() body: Omit<DatabaseLoginClientRequest, 'hostUid' | 'dbname'>
   ): Promise<boolean> {
     const userId = req.user.sub;
-
-    Logger.log(`Logging in to database: ${dbname} on host: ${hostUid}`, 'DatabaseUserController');
-    const result = await this.databaseUserService.loginDatabase(
+    validateRequiredFields(body, ['id', 'password'], `database/users/login/${dbname}`, this.logger);
+    this.logger.log(`Logging in to database: ${dbname} on host: ${hostUid}`);
+    return await this.databaseUserService.loginDatabase(
       userId,
       hostUid,
       dbname,
       body.id,
       body.password
     );
-    return result;
+  }
+
+  /**
+   * Login to a database using stored profile credentials only.
+   *
+   * - Uses `host.dbProfiles[dbname]`
+   * - Fails if profile is missing
+   *
+   * @route POST /:hostUid/database/users/login-with-profile/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Database name from path parameter
+   * @returns boolean True on success
+   */
+  @Post('login-with-profile/:dbname')
+  async loginDatabaseWithProfile(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string
+  ): Promise<boolean> {
+    const userId = req.user.sub;
+    this.logger.log(`Logging in to database: ${dbname} on host: ${hostUid} (using profile)`);
+    return await this.databaseUserService.loginDatabase(userId, hostUid, dbname);
   }
 
   /**
@@ -108,9 +232,8 @@ export class DatabaseUserController {
       this.logger
     );
 
-    Logger.log(
-      `Updating user: ${username} in database: ${dbname} on host: ${hostUid}`,
-      'DatabaseUserController'
+    this.logger.log(
+      `Updating user: ${username} in database: ${dbname} on host: ${hostUid}`
     );
     return await this.databaseUserService.updateUser(
       userId,

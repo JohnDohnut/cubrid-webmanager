@@ -1,15 +1,17 @@
-import { Body, Controller, Get, Logger, Param, Post, Request } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Logger, Param, Post, Request, HttpCode, HttpStatus } from '@nestjs/common';
 import {
-  CreateDatabaseClientRequest,
-  CreateDatabaseClientResponse,
   CreateDatabaseWithConfigRequest,
   CreateDatabaseWithConfigResponse,
+  CreateCmsJobResponse,
   DatabaseVolumeInfoClientResponse,
+  DeleteDatabaseRequest,
+  GetCreatedbInfoClientResponse,
   StartInfoClientResponse,
   SaveDatabaseProfileRequest,
 } from '@api-interfaces';
 import { validateRequiredFields } from '@util';
 import { DatabaseLifecycleService } from './database-lifecycle.service';
+import { CmsJobService } from '@cms-job/cms-job.service';
 
 /**
  * Controller for handling database lifecycle operations.
@@ -25,7 +27,10 @@ import { DatabaseLifecycleService } from './database-lifecycle.service';
 export class DatabaseLifecycleController {
   private readonly logger = new Logger(DatabaseLifecycleController.name);
 
-  constructor(private readonly lifecycleService: DatabaseLifecycleService) {}
+  constructor(
+    private readonly lifecycleService: DatabaseLifecycleService,
+    private readonly cmsJobService: CmsJobService
+  ) {}
 
   /**
    * Get start information for databases on a host.
@@ -45,9 +50,31 @@ export class DatabaseLifecycleController {
   ): Promise<StartInfoClientResponse> {
     const userId = req.user.sub;
 
-    Logger.log(`Getting start info for host: ${hostUid}`, 'DatabaseLifecycleController');
+    this.logger.log(`Getting start info for host: ${hostUid}`);
     const response = await this.lifecycleService.startInfo(userId, hostUid);
     return response;
+  }
+
+  /**
+   * Get default information for creating a database.
+   * Returns default database directory path, CUBRID version, and installation path.
+   *
+   * @route GET /:hostUid/database/create-info
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @returns GetCreatedbInfoClientResponse Default database creation information
+   * @example
+   * // GET /host-uid/database/create-info
+   */
+  @Get('create-info')
+  async getCreateInfo(
+    @Request() req,
+    @Param('hostUid') hostUid: string
+  ): Promise<GetCreatedbInfoClientResponse> {
+    const userId = req.user.sub;
+
+    this.logger.log(`Getting create info for host: ${hostUid}`);
+    return await this.lifecycleService.getCreatedbInfo(userId, hostUid);
   }
 
   /**
@@ -70,7 +97,7 @@ export class DatabaseLifecycleController {
   ): Promise<StartInfoClientResponse> {
     const userId = req.user.sub;
 
-    Logger.log(`Starting database: ${dbname} on host: ${hostUid}`, 'DatabaseLifecycleController');
+    this.logger.log(`Starting database: ${dbname} on host: ${hostUid}`);
     const result = await this.lifecycleService.startDatabase(userId, hostUid, dbname);
     return result;
   }
@@ -95,7 +122,7 @@ export class DatabaseLifecycleController {
   ): Promise<StartInfoClientResponse> {
     const userId = req.user.sub;
 
-    Logger.log(`Stopping database: ${dbname} on host: ${hostUid}`, 'DatabaseLifecycleController');
+    this.logger.log(`Stopping database: ${dbname} on host: ${hostUid}`);
     const result = await this.lifecycleService.stopDatabase(userId, hostUid, dbname);
     return result;
   }
@@ -120,24 +147,24 @@ export class DatabaseLifecycleController {
   ): Promise<StartInfoClientResponse> {
     const userId = req.user.sub;
 
-    Logger.log(`Restarting database: ${dbname} on host: ${hostUid}`, 'DatabaseLifecycleController');
+    this.logger.log(`Restarting database: ${dbname} on host: ${hostUid}`);
     const result = await this.lifecycleService.restartDatabase(userId, hostUid, dbname);
     return result;
   }
 
   /**
-   * Save a database profile for a host.
+   * Create or update a database profile for a host (same route for first save and credential refresh).
    * Returns latest start info on success (isProfileExists is updated).
    *
    * @route POST /:hostUid/database/register/:dbname
    * @param req Express request (contains authenticated user)
    * @param hostUid Host unique identifier from path parameter
    * @param dbname Database name from path parameter
-   * @param body Request body containing `id`, `password`
+   * @param body Request body: `id` required; `password` optional (omitted → `""`)
    * @returns StartInfoClientResponse Latest database start information
    * @example
    * // POST /host-uid/database/register/demodb
-   * // Body: { "id": "user", "password": "pass" }
+   * // Body: { "id": "user" } or { "id": "user", "password": "pass" }
    */
   @Post('register/:dbname')
   async saveDatabaseProfile(
@@ -148,14 +175,14 @@ export class DatabaseLifecycleController {
   ): Promise<StartInfoClientResponse> {
     const userId = req.user.sub;
 
-    validateRequiredFields(body, ['id', 'password'], 'database/register', this.logger);
+    validateRequiredFields(body, ['id'], 'database/register', this.logger);
 
     return await this.lifecycleService.saveDatabaseProfile(
       userId,
       hostUid,
       dbname,
       body.id,
-      body.password
+      body.password ?? ''
     );
   }
 
@@ -179,11 +206,12 @@ export class DatabaseLifecycleController {
    * // }
    */
   @Post('create')
+  @HttpCode(HttpStatus.ACCEPTED)
   async createDatabase(
     @Request() req,
     @Param('hostUid') hostUid: string,
     @Body() body: CreateDatabaseWithConfigRequest
-  ): Promise<CreateDatabaseWithConfigResponse> {
+  ): Promise<CreateCmsJobResponse> {
     const userId = req.user.sub;
 
     validateRequiredFields(
@@ -203,8 +231,8 @@ export class DatabaseLifecycleController {
       this.logger
     );
 
-    Logger.log(`Creating database: ${body.dbname} on host: ${hostUid}`, 'DatabaseLifecycleController');
-    return await this.lifecycleService.createDatabase(userId, hostUid, body);
+    this.logger.log(`Enqueue create database job: ${body.dbname} on host: ${hostUid}`);
+    return await this.cmsJobService.createJob(userId, hostUid, 'create', body.dbname, body);
   }
 
   /**
@@ -227,11 +255,40 @@ export class DatabaseLifecycleController {
   ): Promise<DatabaseVolumeInfoClientResponse> {
     const userId = req.user.sub;
 
-    Logger.log(
-      `Getting volume info for database: ${dbname} on host: ${hostUid}`,
-      'DatabaseLifecycleController'
+    this.logger.log(
+      `Getting volume info for database: ${dbname} on host: ${hostUid}`
     );
     const response = await this.lifecycleService.getDBSpaceInfo(userId, hostUid, dbname);
     return response;
+  }
+
+  /**
+   * Delete a database on a host.
+   * Also removes the database name from the server parameter in cubridconf if it exists.
+   * Returns start-info (db list) on success.
+   *
+   * @route DELETE /:hostUid/database/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Database name from path parameter
+   * @param body Request body containing delbackup option
+   * @returns StartInfoClientResponse Latest database list (start-info) on success
+   * @example
+   * // DELETE /host-uid/database/testdb
+   * // Body: { "delbackup": "y" }
+   */
+  @Delete(':dbname')
+  async deleteDatabase(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: DeleteDatabaseRequest
+  ): Promise<StartInfoClientResponse> {
+    const userId = req.user.sub;
+
+    validateRequiredFields(body, ['delbackup'], 'database/delete', this.logger);
+
+    this.logger.log(`Deleting database: ${dbname} on host: ${hostUid}`);
+    return await this.lifecycleService.deleteDatabase(userId, hostUid, dbname, body);
   }
 }

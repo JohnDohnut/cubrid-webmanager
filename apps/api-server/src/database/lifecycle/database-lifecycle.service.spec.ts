@@ -5,19 +5,17 @@ import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.servic
 import { UserRepositoryService } from '@repository';
 import { CmsConfigService } from '@cms-config/cms-config.service';
 import { FileService } from '@file/file.service';
+import { DatabaseInfoService } from '../info/database-info.service';
+import { HaService } from '@ha';
 import { DatabaseUserService } from '../user/database-user.service';
 import { DatabaseConfigService } from '../config/database-config.service';
 import { DatabaseError } from '@error/database/database-error';
+import { DatabaseErrorCode } from '@error/database/database-error-code';
 import { HostError } from '@error/index';
-import { CreateDatabaseClientResponse } from '@api-interfaces';
-import * as common from '@common';
+import { CmsError } from '@error/cms/cms-error';
+import { CreateDatabaseClientResponse, DeleteDatabaseRequest } from '@api-interfaces';
+import { DeleteDatabaseCmsResponse } from '@type/cms-response';
 
-// Mock the checkCmsTokenError and checkCmsStatusError functions
-jest.mock('@common', () => ({
-  ...jest.requireActual('@common'),
-  checkCmsTokenError: jest.fn(),
-  checkCmsStatusError: jest.fn(),
-}));
 
 describe('DatabaseLifecycleService', () => {
   let service: DatabaseLifecycleService;
@@ -28,6 +26,7 @@ describe('DatabaseLifecycleService', () => {
   let fileService: jest.Mocked<FileService>;
   let databaseUserService: jest.Mocked<DatabaseUserService>;
   let databaseConfigService: jest.Mocked<DatabaseConfigService>;
+  let databaseInfoService: DatabaseInfoService;
 
   const mockHost = {
     uid: 'host-uid-1',
@@ -36,12 +35,26 @@ describe('DatabaseLifecycleService', () => {
     port: 8001,
     password: 'host-password',
     token: 'test-token',
+    initialLogin: false,
+    alias: 'host-1',
     dbProfiles: {},
   };
 
   const mockUserId = 'user-123';
   const mockHostUid = 'host-uid-1';
   const mockDbname = 'testdb';
+
+  const mockGroupId = 'group-host-uid-1';
+  const hostInGroups = (host: typeof mockHost, groupId = mockGroupId) => ({
+    host_groups: {
+      [groupId]: {
+        name: host.alias || host.id,
+        hosts: { [host.uid]: host },
+      },
+    },
+  });
+  const getMockHostFromUser = (user: { host_groups?: Record<string, { hosts: Record<string, typeof mockHost> }> }) =>
+    user.host_groups?.[mockGroupId]?.hosts[mockHostUid];
 
   beforeEach(async () => {
     const mockHostService = {
@@ -52,24 +65,34 @@ describe('DatabaseLifecycleService', () => {
       postAuthenticated: jest.fn(),
     };
 
-    const mockRepository = {};
+    const mockRepository = {
+      atomicUpdateUser: jest.fn(),
+    };
 
-    const mockCmsConfigService = {};
+    const mockCmsConfigService = {
+      getAllSystemParam: jest.fn().mockResolvedValue({
+        conflist: [{ confdata: ['[common]', 'ha_mode=off'] }],
+      }),
+    };
 
     const mockFileService = {};
 
     const mockDatabaseUserService = {
       updateUser: jest.fn(),
+      loginDatabase: jest.fn().mockResolvedValue({}),
+      getUserInfo: jest.fn().mockResolvedValue({ user: [] }),
     };
 
     const mockDatabaseConfigService = {
       setAutoAddVol: jest.fn(),
       setAutoStart: jest.fn(),
+      removeAutoStart: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DatabaseLifecycleService,
+        DatabaseInfoService,
         {
           provide: HostService,
           useValue: mockHostService,
@@ -98,6 +121,7 @@ describe('DatabaseLifecycleService', () => {
           provide: DatabaseConfigService,
           useValue: mockDatabaseConfigService,
         },
+        HaService,
       ],
     }).compile();
 
@@ -109,11 +133,10 @@ describe('DatabaseLifecycleService', () => {
     fileService = module.get(FileService);
     databaseUserService = module.get(DatabaseUserService);
     databaseConfigService = module.get(DatabaseConfigService);
+    databaseInfoService = module.get(DatabaseInfoService);
 
     // Setup default mocks
     hostService.findHostInternal.mockResolvedValue(mockHost);
-    (common.checkCmsTokenError as jest.Mock).mockImplementation(() => {});
-    (common.checkCmsStatusError as jest.Mock).mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -193,7 +216,7 @@ describe('DatabaseLifecycleService', () => {
       expect(result).toEqual(mockStartInfoClientResponse);
     });
 
-    it('should throw DatabaseError when CMS status is fail', async () => {
+    it('should throw CmsError when CMS status is fail', async () => {
       const failedResponse = {
         __EXEC_TIME: '0 ms',
         note: 'Failed',
@@ -202,7 +225,7 @@ describe('DatabaseLifecycleService', () => {
       };
       cmsClient.postAuthenticated.mockResolvedValue(failedResponse);
 
-      await expect(service.startInfo(mockUserId, mockHostUid)).rejects.toThrow(DatabaseError);
+      await expect(service.startInfo(mockUserId, mockHostUid)).rejects.toThrow(CmsError);
     });
   });
 
@@ -220,7 +243,8 @@ describe('DatabaseLifecycleService', () => {
     };
 
     beforeEach(() => {
-      jest.spyOn(service, 'startInfo').mockResolvedValue(mockStartInfoResponse);
+      jest.spyOn(databaseInfoService, 'startInfo').mockResolvedValue(mockStartInfoResponse as any);
+      jest.spyOn(databaseInfoService as any, 'effectiveHaDbForDbname').mockResolvedValue(false);
     });
 
     it('should successfully start database', async () => {
@@ -236,11 +260,27 @@ describe('DatabaseLifecycleService', () => {
           dbname: mockDbname,
         })
       );
-      expect(common.checkCmsTokenError).toHaveBeenCalled();
       expect(result).toEqual(mockStartInfoResponse);
     });
 
-    it('should throw DatabaseError when CMS status is fail', async () => {
+    it('should use ha_start when effectiveHaDbForDbname is true', async () => {
+      jest.spyOn(databaseInfoService as any, 'effectiveHaDbForDbname').mockResolvedValue(true);
+      const haResp = { ...mockBaseResponse, task: 'ha_start' };
+      cmsClient.postAuthenticated.mockResolvedValue(haResp);
+
+      await service.startDatabase(mockUserId, mockHostUid, mockDbname);
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        `https://${mockHost.address}:${mockHost.port}/cm_api`,
+        expect.objectContaining({
+          task: 'ha_start',
+          token: mockHost.token,
+          dbname: mockDbname,
+        })
+      );
+    });
+
+    it('should throw CmsError when CMS status is fail', async () => {
       const failedResponse = {
         ...mockBaseResponse,
         status: 'fail',
@@ -248,9 +288,7 @@ describe('DatabaseLifecycleService', () => {
       };
       cmsClient.postAuthenticated.mockResolvedValue(failedResponse);
 
-      await expect(service.startDatabase(mockUserId, mockHostUid, mockDbname)).rejects.toThrow(
-        DatabaseError
-      );
+      await expect(service.startDatabase(mockUserId, mockHostUid, mockDbname)).rejects.toThrow(CmsError);
     });
   });
 
@@ -268,7 +306,8 @@ describe('DatabaseLifecycleService', () => {
     };
 
     beforeEach(() => {
-      jest.spyOn(service, 'startInfo').mockResolvedValue(mockStartInfoResponse);
+      jest.spyOn(databaseInfoService, 'startInfo').mockResolvedValue(mockStartInfoResponse as any);
+      jest.spyOn(databaseInfoService as any, 'effectiveHaDbForDbname').mockResolvedValue(false);
     });
 
     it('should successfully stop database', async () => {
@@ -287,7 +326,24 @@ describe('DatabaseLifecycleService', () => {
       expect(result).toEqual(mockStartInfoResponse);
     });
 
-    it('should throw DatabaseError when CMS status is fail', async () => {
+    it('should use ha_stop when effectiveHaDbForDbname is true', async () => {
+      jest.spyOn(databaseInfoService as any, 'effectiveHaDbForDbname').mockResolvedValue(true);
+      const haResp = { ...mockBaseResponse, task: 'ha_stop' };
+      cmsClient.postAuthenticated.mockResolvedValue(haResp);
+
+      await service.stopDatabase(mockUserId, mockHostUid, mockDbname);
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        `https://${mockHost.address}:${mockHost.port}/cm_api`,
+        expect.objectContaining({
+          task: 'ha_stop',
+          token: mockHost.token,
+          dbname: mockDbname,
+        })
+      );
+    });
+
+    it('should throw CmsError when CMS status is fail', async () => {
       const failedResponse = {
         ...mockBaseResponse,
         status: 'fail',
@@ -296,7 +352,7 @@ describe('DatabaseLifecycleService', () => {
       cmsClient.postAuthenticated.mockResolvedValue(failedResponse);
 
       await expect(service.stopDatabase(mockUserId, mockHostUid, mockDbname)).rejects.toThrow(
-        DatabaseError
+        CmsError
       );
     });
   });
@@ -322,7 +378,8 @@ describe('DatabaseLifecycleService', () => {
     };
 
     beforeEach(() => {
-      jest.spyOn(service, 'startInfo').mockResolvedValue(mockStartInfoResponse);
+      jest.spyOn(databaseInfoService, 'startInfo').mockResolvedValue(mockStartInfoResponse as any);
+      jest.spyOn(databaseInfoService as any, 'effectiveHaDbForDbname').mockResolvedValue(false);
     });
 
     it('should successfully restart database', async () => {
@@ -336,7 +393,27 @@ describe('DatabaseLifecycleService', () => {
       expect(result).toEqual(mockStartInfoResponse);
     });
 
-    it('should throw DatabaseError when stop fails', async () => {
+    it('should use ha_stop and ha_start when effectiveHaDbForDbname is true', async () => {
+      jest.spyOn(databaseInfoService as any, 'effectiveHaDbForDbname').mockResolvedValue(true);
+      const haStop = { ...mockBaseResponse, task: 'ha_stop' };
+      const haStart = { ...mockStartResponse, task: 'ha_start' };
+      cmsClient.postAuthenticated.mockResolvedValueOnce(haStop).mockResolvedValueOnce(haStart);
+
+      await service.restartDatabase(mockUserId, mockHostUid, mockDbname);
+
+      expect(cmsClient.postAuthenticated).toHaveBeenNthCalledWith(
+        1,
+        expect.any(String),
+        expect.objectContaining({ task: 'ha_stop', dbname: mockDbname })
+      );
+      expect(cmsClient.postAuthenticated).toHaveBeenNthCalledWith(
+        2,
+        expect.any(String),
+        expect.objectContaining({ task: 'ha_start', dbname: mockDbname })
+      );
+    });
+
+    it('should throw CmsError when stop fails', async () => {
       const failedResponse = {
         ...mockBaseResponse,
         status: 'fail',
@@ -345,11 +422,11 @@ describe('DatabaseLifecycleService', () => {
       cmsClient.postAuthenticated.mockResolvedValueOnce(failedResponse);
 
       await expect(service.restartDatabase(mockUserId, mockHostUid, mockDbname)).rejects.toThrow(
-        DatabaseError
+        CmsError
       );
     });
 
-    it('should throw DatabaseError when start fails', async () => {
+    it('should throw CmsError when start fails', async () => {
       const failedResponse = {
         ...mockStartResponse,
         status: 'fail',
@@ -360,7 +437,7 @@ describe('DatabaseLifecycleService', () => {
         .mockResolvedValueOnce(failedResponse); // start fails
 
       await expect(service.restartDatabase(mockUserId, mockHostUid, mockDbname)).rejects.toThrow(
-        DatabaseError
+        CmsError
       );
     });
   });
@@ -372,15 +449,13 @@ describe('DatabaseLifecycleService', () => {
     };
 
     beforeEach(() => {
-      jest.spyOn(service, 'startInfo').mockResolvedValue(mockStartInfoResponse);
+      jest.spyOn(databaseInfoService, 'startInfo').mockResolvedValue(mockStartInfoResponse as any);
     });
 
     it('should successfully save database profile', async () => {
       const mockUser = {
         id: mockUserId,
-        host_list: {
-          [mockHostUid]: mockHost,
-        },
+        ...hostInGroups(mockHost),
       };
 
       repository.atomicUpdateUser.mockImplementation(async (userId, callback) => {
@@ -399,7 +474,7 @@ describe('DatabaseLifecycleService', () => {
       expect(result).toEqual(mockStartInfoResponse);
     });
 
-    it('should throw ValidationError when credentials are missing', async () => {
+    it('should throw ValidationError when dbname or id is missing', async () => {
       await expect(
         service.saveDatabaseProfile(mockUserId, mockHostUid, '', 'dba', 'password')
       ).rejects.toThrow();
@@ -407,37 +482,53 @@ describe('DatabaseLifecycleService', () => {
       await expect(
         service.saveDatabaseProfile(mockUserId, mockHostUid, mockDbname, '', 'password')
       ).rejects.toThrow();
-
-      await expect(
-        service.saveDatabaseProfile(mockUserId, mockHostUid, mockDbname, 'dba', '')
-      ).rejects.toThrow();
     });
 
-    it('should throw DatabaseError when profile already exists', async () => {
-      const hostWithProfile = {
-        ...mockHost,
-        dbProfiles: { [mockDbname]: { dbname: mockDbname, id: 'dba', password: 'pass' } },
-      };
+    it('should save empty password when password is omitted or null', async () => {
       const mockUser = {
         id: mockUserId,
-        host_list: {
-          [mockHostUid]: hostWithProfile,
-        },
+        ...hostInGroups({ ...mockHost, dbProfiles: {} }),
       };
 
       repository.atomicUpdateUser.mockImplementation(async (userId, callback) => {
         return await callback(mockUser as any);
       });
 
-      await expect(
-        service.saveDatabaseProfile(mockUserId, mockHostUid, mockDbname, 'dba', 'password')
-      ).rejects.toThrow(DatabaseError);
+      await service.saveDatabaseProfile(mockUserId, mockHostUid, mockDbname, 'dba', '');
+      expect(getMockHostFromUser(mockUser)!.dbProfiles[mockDbname].password).toBe('');
+
+      await service.saveDatabaseProfile(mockUserId, mockHostUid, mockDbname, 'dba', null as any);
+      expect(getMockHostFromUser(mockUser)!.dbProfiles[mockDbname].password).toBe('');
+    });
+
+    it('should overwrite existing database profile', async () => {
+      const hostWithProfile = {
+        ...mockHost,
+        dbProfiles: { [mockDbname]: { dbname: mockDbname, id: 'dba', password: 'old' } },
+      };
+      const mockUser = {
+        id: mockUserId,
+        ...hostInGroups(hostWithProfile),
+      };
+
+      repository.atomicUpdateUser.mockImplementation(async (userId, callback) => {
+        return await callback(mockUser as any);
+      });
+
+      await service.saveDatabaseProfile(mockUserId, mockHostUid, mockDbname, 'dba', 'newpass');
+
+      expect(getMockHostFromUser(mockUser)!.dbProfiles[mockDbname]).toEqual({
+        dbname: mockDbname,
+        id: 'dba',
+        password: 'newpass',
+      });
+      expect(repository.atomicUpdateUser).toHaveBeenCalled();
     });
 
     it('should throw HostError when host is not found', async () => {
       const mockUser = {
         id: mockUserId,
-        host_list: {},
+        host_groups: {},
       };
 
       repository.atomicUpdateUser.mockImplementation(async (userId, callback) => {
@@ -483,7 +574,6 @@ describe('DatabaseLifecycleService', () => {
       const result = await service.getDBSpaceInfo(mockUserId, mockHostUid, mockDbname);
 
       expect(cmsClient.postAuthenticated).toHaveBeenCalledTimes(2);
-      expect(common.checkCmsTokenError).toHaveBeenCalled();
       expect(result).toEqual({
         dbname: 'testdb',
         pagesize: '16384',
@@ -506,16 +596,28 @@ describe('DatabaseLifecycleService', () => {
       overwrite_config_file: 'YES' as const,
     };
 
-    const mockCreateDatabaseResponse: CreateDatabaseClientResponse = {};
+    const mockCreateDatabaseResponse: CreateDatabaseClientResponse = {
+      success: true,
+    };
+
+    const mockStartInfoForCreate = { activelist: { active: [] }, dblist: { dbs: [] } };
 
     beforeEach(() => {
       jest.spyOn(service, 'createDatabaseInternal').mockResolvedValue(mockCreateDatabaseResponse);
-      databaseUserService.updateUser.mockResolvedValue({});
-      databaseConfigService.setAutoAddVol.mockResolvedValue({});
-      databaseConfigService.setAutoStart.mockResolvedValue({});
+      jest.spyOn(databaseInfoService, 'startInfo').mockResolvedValue(mockStartInfoForCreate as any);
+      cmsClient.postAuthenticated.mockResolvedValue({
+        __EXEC_TIME: '0 ms',
+        note: 'none',
+        status: 'success',
+        task: 'startdb',
+      });
+      databaseUserService.updateUser.mockResolvedValue({ success: true });
+      databaseConfigService.setAutoAddVol.mockResolvedValue({ success: true });
+      databaseConfigService.setAutoStart.mockResolvedValue({ success: true });
     });
 
     it('should successfully create database without optional configuration', async () => {
+      const startDatabaseSpy = jest.spyOn(service, 'startDatabase');
       const request = {
         ...mockCreateDbRequest,
       };
@@ -533,6 +635,7 @@ describe('DatabaseLifecycleService', () => {
           data: mockCreateDatabaseResponse,
         },
       });
+      expect(startDatabaseSpy).not.toHaveBeenCalled();
       expect(databaseUserService.updateUser).not.toHaveBeenCalled();
       expect(databaseConfigService.setAutoAddVol).not.toHaveBeenCalled();
       expect(databaseConfigService.setAutoStart).not.toHaveBeenCalled();
@@ -587,17 +690,21 @@ describe('DatabaseLifecycleService', () => {
           success: true,
           data: mockCreateDatabaseResponse,
         },
+        startDatabase: {
+          success: true,
+          data: mockStartInfoForCreate,
+        },
         updateUser: {
           success: true,
-          data: {},
+          data: { success: true },
         },
         setAutoAddVol: {
           success: true,
-          data: {},
+          data: { success: true },
         },
         setAutoStart: {
           success: true,
-          data: {},
+          data: { success: true },
         },
       });
     });
@@ -624,7 +731,7 @@ describe('DatabaseLifecycleService', () => {
     });
 
     it('should handle createDatabase failure and continue with other operations', async () => {
-      const createError = new DatabaseError('Create failed', 'CREATE_FAILED');
+      const createError = DatabaseError.Unknown();
       jest.spyOn(service, 'createDatabaseInternal').mockRejectedValue(createError);
 
       const request = {
@@ -635,23 +742,15 @@ describe('DatabaseLifecycleService', () => {
         setAutoStart: true,
       };
 
-      const result = await service.createDatabase(mockUserId, mockHostUid, request);
+      await expect(service.createDatabase(mockUserId, mockHostUid, request)).rejects.toThrow(createError);
 
-      expect(result.createDatabase).toEqual({
-        success: false,
-        error: {
-          message: 'Create failed',
-          code: 'CREATE_FAILED',
-          details: undefined,
-        },
-      });
-      // Other operations should still be attempted
-      expect(databaseUserService.updateUser).toHaveBeenCalled();
-      expect(databaseConfigService.setAutoStart).toHaveBeenCalled();
+      // createdb가 실패하면 나머지 단계는 중단되어야 함
+      expect(databaseUserService.updateUser).not.toHaveBeenCalled();
+      expect(databaseConfigService.setAutoStart).not.toHaveBeenCalled();
     });
 
     it('should handle updateUser failure but continue with other operations', async () => {
-      const updateError = new DatabaseError('Update user failed', 'UPDATE_USER_FAILED');
+      const updateError = DatabaseError.Unknown();
       databaseUserService.updateUser.mockRejectedValue(updateError);
 
       const request = {
@@ -677,8 +776,8 @@ describe('DatabaseLifecycleService', () => {
       expect(result.updateUser).toEqual({
         success: false,
         error: {
-          message: 'Update user failed',
-          code: 'UPDATE_USER_FAILED',
+          message: DatabaseErrorCode.UNKNOWN,
+          code: DatabaseErrorCode.UNKNOWN,
           details: undefined,
         },
       });
@@ -688,7 +787,7 @@ describe('DatabaseLifecycleService', () => {
     });
 
     it('should handle setAutoAddVol failure but continue with other operations', async () => {
-      const autoAddVolError = new DatabaseError('Set auto-add vol failed', 'SET_AUTO_ADD_VOL_FAILED');
+      const autoAddVolError = DatabaseError.Unknown();
       databaseConfigService.setAutoAddVol.mockRejectedValue(autoAddVolError);
 
       const request = {
@@ -714,8 +813,8 @@ describe('DatabaseLifecycleService', () => {
       expect(result.setAutoAddVol).toEqual({
         success: false,
         error: {
-          message: 'Set auto-add vol failed',
-          code: 'SET_AUTO_ADD_VOL_FAILED',
+          message: DatabaseErrorCode.UNKNOWN,
+          code: DatabaseErrorCode.UNKNOWN,
           details: undefined,
         },
       });
@@ -723,7 +822,7 @@ describe('DatabaseLifecycleService', () => {
     });
 
     it('should handle setAutoStart failure but other operations succeed', async () => {
-      const autoStartError = new DatabaseError('Set auto-start failed', 'SET_AUTO_START_FAILED');
+      const autoStartError = DatabaseError.Unknown();
       databaseConfigService.setAutoStart.mockRejectedValue(autoStartError);
 
       const request = {
@@ -741,21 +840,17 @@ describe('DatabaseLifecycleService', () => {
       expect(result.setAutoStart).toEqual({
         success: false,
         error: {
-          message: 'Set auto-start failed',
-          code: 'SET_AUTO_START_FAILED',
+          message: DatabaseErrorCode.UNKNOWN,
+          code: DatabaseErrorCode.UNKNOWN,
           details: undefined,
         },
       });
     });
 
-    it('should handle multiple failures and return all error statuses', async () => {
-      const createError = new DatabaseError('Create failed', 'CREATE_FAILED');
-      const updateError = new DatabaseError('Update failed', 'UPDATE_FAILED');
-      const autoStartError = new DatabaseError('Auto-start failed', 'AUTO_START_FAILED');
+    it('should fail fast: createdb failure should reject and stop further operations', async () => {
+      const createError = DatabaseError.Unknown();
 
       jest.spyOn(service, 'createDatabaseInternal').mockRejectedValue(createError);
-      databaseUserService.updateUser.mockRejectedValue(updateError);
-      databaseConfigService.setAutoStart.mockRejectedValue(autoStartError);
 
       const request = {
         ...mockCreateDbRequest,
@@ -765,14 +860,198 @@ describe('DatabaseLifecycleService', () => {
         setAutoStart: true,
       };
 
-      const result = await service.createDatabase(mockUserId, mockHostUid, request);
+      await expect(service.createDatabase(mockUserId, mockHostUid, request)).rejects.toThrow(createError);
+      expect(databaseUserService.updateUser).not.toHaveBeenCalled();
+      expect(databaseConfigService.setAutoStart).not.toHaveBeenCalled();
+    });
+  });
 
-      expect(result.createDatabase.success).toBe(false);
-      expect(result.updateUser?.success).toBe(false);
-      expect(result.setAutoStart?.success).toBe(false);
-      expect(result.createDatabase.error?.message).toBe('Create failed');
-      expect(result.updateUser?.error?.message).toBe('Update failed');
-      expect(result.setAutoStart?.error?.message).toBe('Auto-start failed');
+  describe('createDatabaseInternal logsize conversion', () => {
+    it('should convert logsize from MB to CMS pages using logpagesize', async () => {
+      // Arrange: prevent file existence check from blocking the flow
+      (fileService as any).checkfileInternal = jest.fn().mockResolvedValue({
+        existfile: undefined,
+      });
+
+      const request = {
+        dbname: 'testdb',
+        numpage: '32768',
+        pagesize: '16384',
+        logsize: '512', // MB (client contract)
+        logpagesize: '16384', // bytes
+        genvolpath: '/path/to/testdb',
+        logvolpath: '/path/to/testdb',
+        charset: 'en_US.utf8',
+        overwrite_config_file: 'YES' as const,
+        exvol: [
+          {
+            testdb_data_x001: {
+              type: 'data',
+              size: 512,
+              pagesize: 16384,
+              volpath: '/path/to/testdb',
+            },
+          },
+        ],
+      };
+
+      cmsClient.postAuthenticated.mockResolvedValue({
+        __EXEC_TIME: '0 ms',
+        note: 'none',
+        status: 'success',
+        task: 'createdb',
+      });
+
+      // Act
+      await service.createDatabaseInternal(mockUserId, mockHostUid, request as any);
+
+      // Assert: logsize should become pages = floor(MB*1024*1024 / bytesPerPage)
+      // 512 * 1024 * 1024 / 16384 = 32768 pages
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'createdb',
+          logsize: '32768',
+          logpagesize: '16384',
+        })
+      );
+    });
+  });
+
+  describe('deleteDatabase', () => {
+    const mockSuccessResponse: DeleteDatabaseCmsResponse = {
+      __EXEC_TIME: '848 ms',
+      note: 'none',
+      status: 'success',
+      task: 'deletedb',
+    };
+
+    const mockStartInfoAfterDelete = {
+      activelist: { active: [] },
+      dblist: { dbs: [] },
+    };
+
+    it('should successfully delete database with delbackup "y" and return start-info', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
+      jest.spyOn(databaseInfoService, 'startInfo').mockResolvedValue(mockStartInfoAfterDelete as any);
+      const request: DeleteDatabaseRequest = {
+        delbackup: 'y',
+      };
+
+      const result = await service.deleteDatabase(
+        mockUserId,
+        mockHostUid,
+        mockDbname,
+        request
+      );
+
+      expect(hostService.findHostInternal).toHaveBeenCalledWith(mockUserId, mockHostUid);
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        `https://${mockHost.address}:${mockHost.port}/cm_api`,
+        {
+          task: 'deletedb',
+          token: mockHost.token,
+          dbname: mockDbname,
+          delbackup: 'y',
+        }
+      );
+      expect(result).toEqual(mockStartInfoAfterDelete);
+    });
+
+    it('should successfully delete database with delbackup "n" and return start-info', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
+      jest.spyOn(databaseInfoService, 'startInfo').mockResolvedValue(mockStartInfoAfterDelete as any);
+      const request: DeleteDatabaseRequest = {
+        delbackup: 'n',
+      };
+
+      const result = await service.deleteDatabase(
+        mockUserId,
+        mockHostUid,
+        mockDbname,
+        request
+      );
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'deletedb',
+          delbackup: 'n',
+        })
+      );
+      expect(result).toEqual(mockStartInfoAfterDelete);
+    });
+
+    it('should throw HostError if host is not found', async () => {
+      cmsConfigService.getAllSystemParam.mockRejectedValue(
+        HostError.NoSuchHost({ hostUid: mockHostUid })
+      );
+      const request: DeleteDatabaseRequest = {
+        delbackup: 'y',
+      };
+
+      await expect(
+        service.deleteDatabase(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(HostError);
+    });
+
+    it('should throw DatabaseError when host is HA (deletedb blocked)', async () => {
+      cmsConfigService.getAllSystemParam.mockResolvedValue({
+        conflist: [{ confdata: ['[common]', 'ha_mode=ON'] }],
+      } as any);
+      const request: DeleteDatabaseRequest = {
+        delbackup: 'y',
+      };
+
+      await expect(
+        service.deleteDatabase(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(DatabaseError);
+
+      expect(cmsClient.postAuthenticated).not.toHaveBeenCalled();
+    });
+
+    it('should throw CmsError if CMS request fails', async () => {
+      cmsClient.postAuthenticated.mockRejectedValue(
+        CmsError.RequestFailed({ message: 'CMS request failed' })
+      );
+      const request: DeleteDatabaseRequest = {
+        delbackup: 'y',
+      };
+
+      await expect(
+        service.deleteDatabase(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(CmsError);
+    });
+
+    it('should throw CmsError when executeCmsRequest reports invalid token', async () => {
+      const execSpy = jest
+        .spyOn(service as any, 'executeCmsRequest')
+        .mockRejectedValueOnce(CmsError.InvalidToken({ response: { note: 'invalid token' } }));
+      const request: DeleteDatabaseRequest = {
+        delbackup: 'y',
+      };
+
+      await expect(
+        service.deleteDatabase(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(CmsError);
+
+      execSpy.mockRestore();
+    });
+
+    it('should throw CmsError if CMS status is fail', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({
+        __EXEC_TIME: '0 ms',
+        note: 'operation failed',
+        status: 'fail',
+        task: 'deletedb',
+      } as any);
+      const request: DeleteDatabaseRequest = {
+        delbackup: 'y',
+      };
+
+      await expect(
+        service.deleteDatabase(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(CmsError);
     });
   });
 });

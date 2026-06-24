@@ -1,13 +1,42 @@
-import { Body, Controller, Get, Logger, Param, Post, Request } from '@nestjs/common';
 import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Logger,
+  Param,
+  Post,
+  Request,
+} from '@nestjs/common';
+import {
+  AddVolDbRequest,
+  AddVolDbResponse,
+  CheckDatabaseRequest,
+  CheckDatabaseResponse,
+  CompactDatabaseRequest,
+  CompactDatabaseResponse,
+  CopyDbRequest,
+  CmsSuccessClientResponse,
+  GetAddVolStatusResponse,
+  CreateCmsJobResponse,
   LoadDatabaseRequest,
-  LoadDatabaseResponse,
+  LockDatabaseRequest,
+  LockDatabaseResponse,
+  GetTransactionInfoRequest,
+  GetTransactionInfoResponse,
+  KillTransactionRequest,
+  KillTransactionResponse,
   OptimizeDatabaseRequest,
   OptimizeDatabaseResponse,
+  RenameDatabaseRequest,
+  StartInfoClientResponse,
   UnloadDatabaseRequest,
   UnloadInfoClientResponse,
 } from '@api-interfaces';
+import { ValidationError } from '@error/validation/validation-error';
 import { validateRequiredFields } from '@util';
+import { CmsJobService } from '@cms-job/cms-job.service';
 import { DatabaseManagementService } from './database-management.service';
 
 /**
@@ -24,7 +53,45 @@ import { DatabaseManagementService } from './database-management.service';
 export class DatabaseManagementController {
   private readonly logger = new Logger(DatabaseManagementController.name);
 
-  constructor(private readonly managementService: DatabaseManagementService) {}
+  constructor(
+    private readonly managementService: DatabaseManagementService,
+    private readonly cmsJobService: CmsJobService
+  ) {}
+
+  /**
+   * Copy a database. CMS task: copydb.
+   * volume is only sent when advanced is "on".
+   *
+   * @route POST /:hostUid/database/copy
+   */
+  @Post('copy')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async copyDb(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Body() body: CopyDbRequest
+  ): Promise<CreateCmsJobResponse> {
+    const userId = req.user.sub;
+    validateRequiredFields(
+      body,
+      [
+        'srcdbname',
+        'destdbname',
+        'destdbpath',
+        'exvolpath',
+        'logpath',
+        'overwrite',
+        'move',
+        'advanced',
+      ],
+      'database/copy',
+      this.logger
+    );
+    this.logger.log(
+      `Enqueue copy job: ${body.srcdbname} -> ${body.destdbname} on host: ${hostUid}`
+    );
+    return await this.cmsJobService.createJob(userId, hostUid, 'copy', body.destdbname, body);
+  }
 
   /**
    * Unload a database.
@@ -41,12 +108,13 @@ export class DatabaseManagementController {
    * // Body: { "targetdir": "/path/to/backup", "isSchemaIncluded": true, "isDataIncluded": true, "dbuser": "user", "dbpasswd": "pass" }
    */
   @Post('unload/:dbname')
+  @HttpCode(HttpStatus.ACCEPTED)
   async unloadDatabase(
     @Request() req,
     @Param('hostUid') hostUid: string,
     @Param('dbname') dbname: string,
     @Body() body: UnloadDatabaseRequest
-  ): Promise<{}> {
+  ): Promise<CreateCmsJobResponse> {
     const userId = req.user.sub;
 
     validateRequiredFields(
@@ -56,8 +124,8 @@ export class DatabaseManagementController {
       this.logger
     );
 
-    Logger.log(`Unloading database: ${dbname} on host: ${hostUid}`, 'DatabaseManagementController');
-    return await this.managementService.unloadDatabase(userId, hostUid, dbname, body);
+    this.logger.log(`Enqueue unload job: ${dbname} on host: ${hostUid}`);
+    return await this.cmsJobService.createUnloadJob(userId, hostUid, dbname, body);
   }
 
   /**
@@ -78,7 +146,7 @@ export class DatabaseManagementController {
   ): Promise<UnloadInfoClientResponse> {
     const userId = req.user.sub;
 
-    Logger.log(`Getting unload info for host: ${hostUid}`, 'DatabaseManagementController');
+    this.logger.log(`Getting unload info for host: ${hostUid}`);
     return await this.managementService.getUnloadInfo(userId, hostUid);
   }
 
@@ -97,12 +165,13 @@ export class DatabaseManagementController {
    * // Body: { "checkoption": "both", "period": "none", "user": "dba", "estimated": "none", "oiduse": "yes", "statisticsuse": "yes", "nolog": "no", "schema": "/path/to/schema", "object": "/path/to/object", "index": "none", "errorcontrolfile": "none", "ignoreclassfile": "none" }
    */
   @Post('load/:dbname')
+  @HttpCode(HttpStatus.ACCEPTED)
   async loadDatabase(
     @Request() req,
     @Param('hostUid') hostUid: string,
     @Param('dbname') dbname: string,
     @Body() body: LoadDatabaseRequest
-  ): Promise<LoadDatabaseResponse> {
+  ): Promise<CreateCmsJobResponse> {
     const userId = req.user.sub;
 
     validateRequiredFields(
@@ -111,6 +180,8 @@ export class DatabaseManagementController {
         'checkoption',
         'period',
         'user',
+        '_DBID',
+        '_DBPASSWD',
         'estimated',
         'oiduse',
         'statisticsuse',
@@ -125,8 +196,8 @@ export class DatabaseManagementController {
       this.logger
     );
 
-    Logger.log(`Loading database: ${dbname} on host: ${hostUid}`, 'DatabaseManagementController');
-    return await this.managementService.loadDatabase(userId, hostUid, dbname, body);
+    this.logger.log(`Enqueue load job: ${dbname} on host: ${hostUid}`);
+    return await this.cmsJobService.createLoadJob(userId, hostUid, dbname, body);
   }
 
   /**
@@ -144,15 +215,285 @@ export class DatabaseManagementController {
    * // Body: { "class": [{ "classname": "dba.test4" }] } (optional - if not provided, optimizes entire database)
    */
   @Post('optimize/:dbname')
+  @HttpCode(HttpStatus.ACCEPTED)
   async optimizeDatabase(
     @Request() req,
     @Param('hostUid') hostUid: string,
     @Param('dbname') dbname: string,
     @Body() body: OptimizeDatabaseRequest
-  ): Promise<OptimizeDatabaseResponse> {
+  ): Promise<CreateCmsJobResponse> {
     const userId = req.user.sub;
 
-    Logger.log(`Optimizing database: ${dbname} on host: ${hostUid}`, 'DatabaseManagementController');
-    return await this.managementService.optimizeDatabase(userId, hostUid, dbname, body);
+    this.logger.log(`Enqueue optimize job: ${dbname} on host: ${hostUid}`);
+    return await this.cmsJobService.createJob(userId, hostUid, 'optimize', dbname, body);
+  }
+
+  /**
+   * Check a database.
+   * Returns empty object on success.
+   *
+   * @route POST /:hostUid/database/check/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Database name from path parameter
+   * @param body Request body containing repair option
+   * @returns CheckDatabaseResponse Empty object on success
+   * @example
+   * // POST /host-uid/database/check/test
+   * // Body: { "repairdb": "n" } (n = check only, y = check and repair)
+   */
+  @Post('check/:dbname')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async checkDatabase(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: CheckDatabaseRequest
+  ): Promise<CreateCmsJobResponse> {
+    const userId = req.user.sub;
+
+    validateRequiredFields(body, ['repairdb'], 'database/check', this.logger);
+
+    this.logger.log(`Enqueue check job: ${dbname} on host: ${hostUid}`);
+    return await this.cmsJobService.createJob(userId, hostUid, 'check', dbname, body);
+  }
+
+  /**
+   * Compact a database.
+   * Returns log output if verbose is 'y', otherwise returns empty object.
+   *
+   * @route POST /:hostUid/database/compact/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Database name from path parameter
+   * @param body Request body containing verbose option
+   * @returns CompactDatabaseResponse Log output if verbose is 'y', otherwise empty object
+   * @example
+   * // POST /host-uid/database/compact/test
+   * // Body: { "verbose": "y" } (y = include log output, n = exclude log output)
+   */
+  @Post('compact/:dbname')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async compactDatabase(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: CompactDatabaseRequest
+  ): Promise<CreateCmsJobResponse> {
+    const userId = req.user.sub;
+
+    validateRequiredFields(body, ['verbose'], 'database/compact', this.logger);
+
+    this.logger.log(`Enqueue compact job: ${dbname} on host: ${hostUid}`);
+    return await this.cmsJobService.createJob(userId, hostUid, 'compact', dbname, body);
+  }
+
+  /**
+   * Rename a database.
+   * Returns empty object on success.
+   *
+   * @route POST /:hostUid/database/rename/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Current database name from path parameter
+   * @param body Request body containing rename configuration
+   * @returns StartInfoClientResponse Latest database list (start-info) on success
+   * @example
+   * // POST /host-uid/database/rename/rename_test
+   * // Body: { "rename": "renamed_db", "exvolpath": "none", "advanced": "on", "volume": [{ "/old/path": "/new/path" }], "forcedel": "n" }
+   */
+  @Post('rename/:dbname')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async renameDatabase(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: RenameDatabaseRequest
+  ): Promise<CreateCmsJobResponse> {
+    const userId = req.user.sub;
+
+    validateRequiredFields(
+      body,
+      ['rename', 'exvolpath', 'advanced', 'forcedel'],
+      'database/rename',
+      this.logger
+    );
+
+    // Validate volume when advanced is 'on'
+    if (body.advanced === 'on' && (!body.volume || body.volume.length===0) ) {
+      throw ValidationError.MissingRequiredField(['volume'], {
+        endpoint: 'database/rename',
+        reason: 'Volume is required when advanced is "on"',
+      });
+    }
+
+    this.logger.log(`Enqueue rename job: ${dbname} to ${body.rename} on host: ${hostUid}`);
+    return await this.cmsJobService.createJob(userId, hostUid, 'rename', dbname, body);
+  }
+
+  /**
+   * Get additional volume status for a database.
+   * Returns domain-only data (CMS envelope removed).
+   *
+   * @route GET /:hostUid/database/add-vol-status/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Database name from path parameter
+   * @returns GetAddVolStatusResponse Volume status information
+   * @example
+   * // GET /host-uid/database/add-vol-status/test
+   */
+  @Get('add-vol-status/:dbname')
+  async getAddVolStatus(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string
+  ): Promise<GetAddVolStatusResponse> {
+    const userId = req.user.sub;
+
+    this.logger.log(
+      `Getting add vol status for database: ${dbname} on host: ${hostUid}`
+    );
+    return await this.managementService.getAddVolStatus(userId, hostUid, dbname);
+  }
+
+  /**
+   * Add a volume to a database.
+   * Returns domain-only data (CMS envelope removed).
+   *
+   * @route POST /:hostUid/database/add-vol/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Database name from path parameter
+   * @param body Request body containing volume information
+   * @returns AddVolDbResponse Volume addition result
+   * @example
+   * // POST /host-uid/database/add-vol/test
+   * // Body: { "volname": "", "purpose": "generic", "path": "/path/to/vol", "numberofpages": "32768", "size_need_mb": "512.000(MB)" }
+   */
+  @Post('add-vol/:dbname')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async addVolDb(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: AddVolDbRequest
+  ): Promise<CreateCmsJobResponse> {
+    const userId = req.user.sub;
+
+    validateRequiredFields(
+      body,
+      ['volname', 'purpose', 'path', 'numberofpages', 'size_need_mb'],
+      'database/add-vol',
+      this.logger
+    );
+
+    this.logger.log(`Enqueue add-vol job: ${dbname} on host: ${hostUid}`);
+    return await this.cmsJobService.createJob(userId, hostUid, 'addvol', dbname, body);
+  }
+
+  /**
+   * Get lock information for a database.
+   * Returns lock information including lock entries, transactions, and lock statistics.
+   *
+   * @route POST /:hostUid/database/lock/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Database name from path parameter
+   * @param body Request body (empty object, no fields required)
+   * @returns LockDatabaseResponse Lock information
+   * @example
+   * // POST /host-uid/database/lock/demodb
+   * // Body: {}
+   */
+  @Post('lock/:dbname')
+  async lockDatabase(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: LockDatabaseRequest
+  ): Promise<LockDatabaseResponse> {
+    const userId = req.user.sub;
+
+    this.logger.log(
+      `Getting lock information for database: ${dbname} on host: ${hostUid}`
+    );
+    return await this.managementService.lockDatabase(userId, hostUid, dbname, body);
+  }
+
+  /**
+   * Get transaction information for a database.
+   * Returns domain-only data (CMS envelope removed).
+   *
+   * @route POST /:hostUid/database/transaction-info/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Database name from path parameter
+   * @param body Request body containing dbuser and dbpasswd
+   * @returns GetTransactionInfoResponse Transaction information
+   * @example
+   * // POST /host-uid/database/transaction-info/demodb
+   * // Body: { "dbuser": "dba", "dbpasswd": "" }
+   */
+  @Post('transaction-info/:dbname')
+  async getTransactionInfo(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: GetTransactionInfoRequest
+  ): Promise<GetTransactionInfoResponse> {
+    const userId = req.user.sub;
+
+    validateRequiredFields(body, ['dbuser', 'dbpasswd'], 'database/transaction-info', this.logger);
+
+    this.logger.log(
+      `Getting transaction information for database: ${dbname} on host: ${hostUid}`
+    );
+    return await this.managementService.getTransactionInfo(userId, hostUid, dbname, body);
+  }
+
+  /**
+   * Kill a transaction in a database or display active transactions.
+   * Returns domain-only data (CMS envelope removed).
+   *
+   * @route POST /:hostUid/database/kill-transaction/:dbname
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param dbname Database name from path parameter
+   * @param body Request body containing type and optional parameter:
+   *   - type 'd': Display active transaction (parameter not required)
+   *   - type 'i': Kill transaction by transaction index (parameter: transaction index)
+   *   - type 'p': Kill all transactions with the specified process name (parameter: process name)
+   *   - type 'h': Kill all transactions from the specified host (parameter: host name)
+   * @returns KillTransactionResponse Transaction information
+   * @example
+   * // POST /host-uid/database/kill-transaction/demodb
+   * // Body: { "type": "d" } or { "type": "i", "parameter": "1" }
+   */
+  @Post('kill-transaction/:dbname')
+  async killTransaction(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: KillTransactionRequest
+  ): Promise<KillTransactionResponse> {
+    const userId = req.user.sub;
+
+    validateRequiredFields(body, ['type'], 'database/kill-transaction', this.logger);
+
+    // Validate parameter requirement based on type
+    if (body.type !== 'd' && !body.parameter) {
+      validateRequiredFields(
+        body,
+        ['parameter'],
+        'database/kill-transaction',
+        this.logger
+      );
+    }
+
+    this.logger.log(
+      `Killing transaction for database: ${dbname} on host: ${hostUid}`
+    );
+    return await this.managementService.killTransaction(userId, hostUid, dbname, body);
   }
 }

@@ -354,6 +354,80 @@
 			"description": "Host management endpoints. All endpoints require JWT authentication."
 		},
 		{
+			"name": "HA",
+			"item": [
+				{
+					"name": "HA Heartbeat List",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"dbmodeall\": \"y\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/ha/heartbeat-list",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"ha",
+								"heartbeat-list"
+							]
+						},
+						"description": "Get HA heartbeat information from CMS (`heartbeatlist`).\n\n**URI:**\n```\nPOST /:hostUid/ha/heartbeat-list\n```\n**Example:**\n```\nPOST /host-uid-1/ha/heartbeat-list\n```\n\n**Authentication:** Required (Bearer `{{jwt_token}}`)\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n\n**Request Body:**\n```json\n{\n  \"dbmodeall\": \"y\"\n}\n```\n\n**Success Response (200 OK):** Domain data includes `hadbinfolist`, `hanodelist`, etc. (CMS envelope stripped by the server where applicable).\n\n**Note:** The JWT identifies the Web Manager user; the CMS `token` is taken from the stored host session."
+					},
+					"response": []
+				},
+				{
+					"name": "HA Reload",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/ha/reload",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"ha",
+								"reload"
+							]
+						},
+						"description": "Reload HA configuration on the CMS host (`ha_reload`). No request fields beyond JSON body placeholder; the server sends `{ \"task\": \"ha_reload\" }` plus the host CMS token.\n\n**URI:**\n```\nPOST /:hostUid/ha/reload\n```\n**Example:**\n```\nPOST /host-uid-1/ha/reload\n```\n\n**Authentication:** Required (Bearer `{{jwt_token}}`)\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n\n**Request Body:** Empty JSON object `{}` (ignored).\n\n**Success Response (200 OK) — CMS-shaped payload:**\n```json\n{\n  \"__EXEC_TIME\": \"72 ms\",\n  \"note\": \"none\",\n  \"status\": \"success\",\n  \"task\": \"ha_reload\"\n}\n```"
+					},
+					"response": []
+				}
+			],
+			"description": "High Availability CMS proxy endpoints. JWT required; CMS host token is applied server-side."
+		},
+		{
 			"name": "Database",
 			"item": [
 				{
@@ -372,7 +446,7 @@
 								"start-info"
 							]
 						},
-						"description": "Get database start information for a host. Returns only domain data (BaseCmsResponse fields stripped out).\n\n**URI:**\n```\nGET /:hostUid/database/start-info\n```\n**Example:**\n```\nGET /host-uid-1/database/start-info\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n\n**Success Response (200 OK):**\n```json\n{\n  \"activelist\": {\n    \"active\": [\n      {\n        \"dbname\": \"demodb\"\n      },\n      {\n        \"dbname\": \"testdb\"\n      }\n    ]\n  },\n  \"dblist\": {\n    \"dbs\": [\n      {\n        \"dbdir\": \"/home/cubrid/databases/demodb\",\n        \"dbname\": \"demodb\",\n        \"isProfileExists\": true\n      },\n      {\n        \"dbdir\": \"/home/cubrid/databases/testdb\",\n        \"dbname\": \"testdb\",\n        \"isProfileExists\": false\n      }\n    ]\n  }\n}\n```\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Host not found\",\n  \"error\": \"Not Found\"\n}\n```"
+						"description": "Get database start information for a host. Returns only domain data (BaseCmsResponse fields stripped out).\n\n**URI:**\n```\nGET /:hostUid/database/start-info\n```\n**Example:**\n```\nGET /host-uid-1/database/start-info\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n\n**Success Response (200 OK):**\n```json\n{\n  \"activelist\": {\n    \"active\": [\n      {\n        \"dbname\": \"demodb\"\n      },\n      {\n        \"dbname\": \"testdb\"\n      }\n    ]\n  },\n  \"dblist\": {\n    \"dbs\": [\n      {\n        \"dbdir\": \"/home/cubrid/databases/demodb\",\n        \"dbname\": \"demodb\",\n        \"isProfileExists\": true\n      },\n      {\n        \"dbdir\": \"/home/cubrid/databases/testdb\",\n        \"dbname\": \"testdb\",\n        \"isProfileExists\": false\n      }\n    ]\n  }\n}\n```\n\n**Note:** `isProfileExists` indicates whether Web Manager has stored DB credentials for that database.\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Host not found\",\n  \"error\": \"Not Found\"\n}\n```"
 					},
 					"response": []
 				},
@@ -636,6 +710,152 @@
 					"response": []
 				},
 				{
+					"name": "Get Backup DB Info",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/backup-db-info/{{dbname}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"database",
+								"backup-db-info",
+								"{{dbname}}"
+							]
+						},
+						"description": "Get backup DB physical info (dbdir, freespace, level0/1/2 backup list). CMS task: backupdbinfo. level0, level1, level2 may be empty arrays when no backups exist.\n\n**URI:**\n```\nGET /:hostUid/database/backup-db-info/:dbname\n```\n**Example:**\n```\nGET /host-uid-1/database/backup-db-info/test\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `dbname` - Database name\n\n**Success Response (200 OK):**\n```json\n{\n  \"__EXEC_TIME\": \"19 ms\",\n  \"dbdir\": \"/home/cubrid/databases/test/backup\",\n  \"freespace\": \"2068768\",\n  \"level0\": [\n    { \"data\": \"2026.03.12.09.50\", \"path\": \"/path/to/test_bk0v000\", \"size\": \"11547648\" }\n  ],\n  \"level1\": [\n    { \"data\": \"2026.03.12.09.54\", \"path\": \"/path/to/test_bk1v000\", \"size\": \"5256192\" }\n  ],\n  \"level2\": [\n    { \"data\": \"2026.03.12.10.45\", \"path\": \"/path/to/test_bk2v000\", \"size\": \"5256192\" }\n  ],\n  \"note\": \"none\",\n  \"status\": \"success\",\n  \"task\": \"backupdbinfo\"\n}\n```\n\n**Error Response (404/500):** Standard error payload."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Backup DB List",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/backup-db-list/{{dbname}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"database",
+								"backup-db-list",
+								"{{dbname}}"
+							]
+						},
+						"description": "Get backup DB physical list (level0/1/2). CMS task: getbackuplist. level0/level1/level2 may be 'none' when no backups exist.\n\n**URI:**\n```\nGET /:hostUid/database/backup-db-list/:dbname\n```\n\n**Example:**\n```\nGET /host-uid-1/database/backup-db-list/test\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `dbname` - Database name\n\n**Success Response (200 OK):**\n```json\n{\n  \"__EXEC_TIME\": \"0 ms\",\n  \"level0\": \"none\",\n  \"level1\": \"none\",\n  \"level2\": \"none\",\n  \"note\": \"none\",\n  \"status\": \"success\",\n  \"task\": \"getbackuplist\"\n}\n```\n\n**Error Response (404/500):** Standard error payload."
+					},
+					"response": []
+				},
+				{
+					"name": "Execute Backup DB",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"level\": \"0\",\n  \"volname\": \"demodb_backup_lv0\",\n  \"backupdir\": \"/home/cubrid/CUBRID-11.5.0.2103-a598990-Linux.x86_64/databases/demodb/backup\",\n  \"removelog\": \"y\",\n  \"check\": \"y\",\n  \"mt\": \"2\",\n  \"zip\": \"y\",\n  \"safereplication\": \"n\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/backup-db/{{dbname}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"database",
+								"backup-db",
+								"{{dbname}}"
+							]
+						},
+						"description": "Execute database backup (level 0, 1, or 2). CMS task: backupdb.\n\n**URI:**\n```\nPOST /:hostUid/database/backup-db/:dbname\n```\n**Example:**\n```\nPOST /host-uid-1/database/backup-db/demodb\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `dbname` - Database name\n\n**Request Body (required: level, volname, backupdir):**\n```json\n{\n  \"level\": \"0\",\n  \"volname\": \"demodb_backup_lv0\",\n  \"backupdir\": \"/home/cubrid/databases/demodb/backup\",\n  \"removelog\": \"y\",\n  \"check\": \"y\",\n  \"mt\": \"2\",\n  \"zip\": \"y\",\n  \"safereplication\": \"n\"\n}\n```\n- `level`: \"0\" | \"1\" | \"2\"\n- `volname`: Volume name for backup\n- `backupdir`: Full path to backup directory\n- `removelog` (optional, default \"y\"): \"y\" | \"n\"\n- `check` (optional, default \"n\"): \"y\" | \"n\"\n- `mt` (optional, default \"0\"): Multi-thread count\n- `zip` (optional, default \"n\"): \"y\" | \"n\"\n- `safereplication` (optional, default \"n\"): \"y\" | \"n\"\n\n**Success Response (200 OK):**\n```json\n{\n  \"__EXEC_TIME\": \"1412 ms\",\n  \"note\": \"none\",\n  \"status\": \"success\",\n  \"task\": \"backupdb\"\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Restore DB",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"date\": \"19-03-2026:09:17:46\",\n  \"level\": \"0\",\n  \"partial\": \"y\",\n  \"pathname\": \"/home/cubrid/CUBRID-11.5.0.2103-a598990-Linux.x86_64/databases/test/backup/test_backup_lv0_2/test_bk0v000\",\n  \"recoverypath\": \"/home/cubrid/CUBRID-11.5.0.2103-a598990-Linux.x86_64/databases/test\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/restore-db/{{dbname}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"database",
+								"restore-db",
+								"{{dbname}}"
+							]
+						},
+						"description": "Restore database from backup (CMS task: restoredb).\n\n**URI:**\n```\nPOST /:hostUid/database/restore-db/:dbname\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `dbname` - Database name\n\n**Request Body:**\n```json\n{\n  \"date\": \"19-03-2026:09:17:46\",\n  \"level\": \"0\",\n  \"partial\": \"y\",\n  \"pathname\": \".../test_bk0v000\",\n  \"recoverypath\": \".../databases/test\"\n}\n```\n\n**Success Response (200 OK):**\n```json\n{\n  \"__EXEC_TIME\": \"6661 ms\",\n  \"note\": \"none\",\n  \"status\": \"success\",\n  \"task\": \"restoredb\"\n}\n```\n\n**Error Response (4xx/5xx):** Standard error payload."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Auto Backup DB Err Log",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/auto-backup-db-err-log",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"database",
+								"auto-backup-db-err-log"
+							]
+						},
+						"description": "Get auto-backup database error log. Returns domain-only data (CMS envelope removed).\n\n**URI:**\n```\nPOST /:hostUid/database/auto-backup-db-err-log\n```\n**Example:**\n```\nPOST /host-uid-1/database/auto-backup-db-err-log\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n\n**Request Body:**\n```json\n{}\n```\n\n**Note:** Request body is an empty object. No fields are required.\n\n**Success Response (200 OK) - With Errors:**\n```json\n{\n  \"error\": [\n    {\n      \"backupid\": \"test_backup\",\n      \"dbname\": \"demodb\",\n      \"error_desc\": \"backupdb(demodb): auto job start\",\n      \"error_time\": \"2026/01/24 15:18:00\"\n    },\n    {\n      \"backupid\": \"test_backup\",\n      \"dbname\": \"demodb\",\n      \"error_desc\": \"backupdb(demodb): success\",\n      \"error_time\": \"2026/01/24 15:18:00\"\n    }\n  ]\n}\n```\n\n**Success Response (200 OK) - No Errors:**\n```json\n{\n  \"error\": null\n}\n```\n\n**Response Field Descriptions:**\n- `error` - Array of error log entries (null if no errors)\n  - `backupid` - Backup ID\n  - `dbname` - Database name\n  - `error_desc` - Error description\n  - `error_time` - Error time\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Host not found\",\n  \"error\": \"Not Found\"\n}\n```\n\n**Error Response (500 Internal Server Error):**\n```json\n{\n  \"statusCode\": 500,\n  \"message\": \"Failed to get error log\",\n  \"error\": \"Internal Server Error\"\n}\n```"
+					},
+					"response": []
+				},
+				{
 					"name": "Set Auto Exec Query",
 					"request": {
 						"method": "POST",
@@ -687,6 +907,40 @@
 					"response": []
 				},
 				{
+					"name": "Get Auto Exec Query Err Log",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/auto-exec-query-err-log",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"database",
+								"auto-exec-query-err-log"
+							]
+						},
+						"description": "Get auto-execution query error log. Returns domain-only data (CMS envelope removed).\n\n**URI:**\n```\nPOST /:hostUid/database/auto-exec-query-err-log\n```\n**Example:**\n```\nPOST /host-uid-1/database/auto-exec-query-err-log\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n\n**Request Body:**\n```json\n{}\n```\n\n**Note:** Request body is an empty object. No fields are required.\n\n**Success Response (200 OK) - With Errors:**\n```json\n{\n  \"error\": [\n    {\n      \"@username\": \"admin\",\n      \"dbname\": \"demodb\",\n      \"error_code\": \"0\",\n      \"error_desc\": \"start\",\n      \"error_time\": \"2026/01/24 15:10:00\",\n      \"query_id\": \"test_query\"\n    },\n    {\n      \"@username\": \"admin\",\n      \"dbname\": \"demodb\",\n      \"error_code\": \"0\",\n      \"error_desc\": \"success\",\n      \"error_time\": \"2026/01/24 15:10:00\",\n      \"query_id\": \"test_query\"\n    }\n  ]\n}\n```\n\n**Success Response (200 OK) - No Errors:**\n```json\n{\n  \"error\": null\n}\n```\n\n**Response Field Descriptions:**\n- `error` - Array of error log entries (null if no errors)\n  - `@username` - Username\n  - `dbname` - Database name\n  - `error_code` - Error code\n  - `error_desc` - Error description\n  - `error_time` - Error time\n  - `query_id` - Query ID\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Host not found\",\n  \"error\": \"Not Found\"\n}\n```\n\n**Error Response (500 Internal Server Error):**\n```json\n{\n  \"statusCode\": 500,\n  \"message\": \"Failed to get error log\",\n  \"error\": \"Internal Server Error\"\n}\n```"
+					},
+					"response": []
+				},
+				{
 					"name": "Set Auto Add Volume",
 					"request": {
 						"method": "POST",
@@ -722,6 +976,20 @@
 					"response": []
 				},
 				{
+					"name": "Get Auto Add Volume",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/auto-add-vol/{{dbname}}",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "database", "auto-add-vol", "{{dbname}}"]
+						},
+						"description": "Get auto-add volume configuration for a database (CMS task: getautoaddvol). GET /:hostUid/database/auto-add-vol/:dbname. Success: data, data_ext_page, data_warn_outofspace, index, index_ext_page, index_warn_outofspace, note, execTime."
+					},
+					"response": []
+				},
+				{
 					"name": "Set Auto Start",
 					"request": {
 						"method": "POST",
@@ -751,14 +1019,14 @@
 								"auto-start"
 							]
 						},
-						"description": "Enable auto-start for a database. Adds database name to the server parameter in configuration file. Returns empty object on success.\n\n**URI:**\n```\nPOST /:hostUid/database/auto-start\n```\n**Example:**\n```\nPOST /host-uid-1/database/auto-start\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n\n**Request Body:**\n```json\n{\n  \"confname\": \"cubridconf\",\n  \"dbname\": \"testdb\"\n}\n```\n\n**Success Response (200 OK):**\n```json\n{}\n```\n\n**Error Response (400 Bad Request):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Database name already exists in server parameter\",\n  \"error\": \"Bad Request\"\n}\n```\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Server parameter not found in configuration file\",\n  \"error\": \"Not Found\"\n}\n```"
+						"description": "Enable auto-start for a database. Adds database name to the server parameter in cubridconf configuration file. The `confname` field in the request body is ignored - the system always uses 'cubridconf' as the configuration file name.\n\n**URI:**\n```\nPOST /:hostUid/database/auto-start\n```\n**Example:**\n```\nPOST /host-uid-1/database/auto-start\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n\n**Request Body:**\n```json\n{\n  \"confname\": \"cubridconf\",\n  \"dbname\": \"testdb\"\n}\n```\n\n**Request Body Field Descriptions:**\n- `confname` - **Ignored**: This field is accepted but ignored. The system always uses 'cubridconf' as the configuration file name.\n- `dbname` - **Required**: Database name to enable auto-start\n\n**Behavior:**\n1. The system always uses 'cubridconf' configuration file (the `confname` field is ignored).\n2. If the `server` parameter exists in the `[service]` section:\n   - If the database name already exists in the server parameter, the request succeeds without modification and returns the current configuration.\n   - If the database name does not exist, it is added to the server parameter.\n3. If the `server` parameter does not exist in the `[service]` section:\n   - The system searches for the `[service]` section (case-sensitive, lowercase).\n   - If the `[service]` section exists, the `server` parameter is added to that section with the database name.\n   - If the `[service]` section does not exist, an error is returned.\n\n**Success Response (200 OK) - When database name is added or already exists:**\n```json\n{}\n```\n\n**Success Response (200 OK) - When database name already exists (returns current configuration):**\n```json\n{\n  \"conflist\": [\n    {\n      \"confname\": \"cubridconf\",\n      \"confdata\": [\n        \"# Configuration file\",\n        \"[service]\",\n        \"server=demodb,testdb\",\n        \"...\"\n      ]\n    }\n  ]\n}\n```\n\n**Error Response (400 Bad Request - Missing dbname):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Missing required fields: dbname\",\n  \"error\": \"Bad Request\"\n}\n```\n\n**Error Response (404 Not Found - [service] section not found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"[service] section not found in configuration file\",\n  \"error\": \"Not Found\"\n}\n```\n\n**Error Response (500 Internal Server Error):**\n```json\n{\n  \"statusCode\": 500,\n  \"message\": \"Failed to set auto-start\",\n  \"error\": \"Internal Server Error\"\n}\n```"
 					},
 					"response": []
 				},
 				{
 					"name": "Remove Auto Start",
 					"request": {
-						"method": "DELETE",
+						"method": "POST",
 						"header": [
 							{
 								"key": "Content-Type",
@@ -775,17 +1043,18 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/{{hostUid}}/database/auto-start",
+							"raw": "{{base_url}}/{{hostUid}}/database/auto-start/remove",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"{{hostUid}}",
 								"database",
-								"auto-start"
+								"auto-start",
+								"remove"
 							]
 						},
-						"description": "Disable auto-start for a database. Removes database name from the server parameter in configuration file. Returns empty object on success.\n\n**URI:**\n```\nDELETE /:hostUid/database/auto-start\n```\n**Example:**\n```\nDELETE /host-uid-1/database/auto-start\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n\n**Request Body:**\n```json\n{\n  \"confname\": \"cubridconf\",\n  \"dbname\": \"testdb\"\n}\n```\n\n**Success Response (200 OK):**\n```json\n{}\n```\n\n**Error Response (400 Bad Request):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Database name not found in server parameter\",\n  \"error\": \"Bad Request\"\n}\n```\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Server parameter not found in configuration file\",\n  \"error\": \"Not Found\"\n}\n```"
+						"description": "Disable auto-start for a database. Removes database name from the server parameter in configuration file. Returns empty object on success.\n\n**URI:**\n```\nPOST /:hostUid/database/auto-start/remove\n```\n**Example:**\n```\nPOST /host-uid-1/database/auto-start/remove\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n\n**Request Body:**\n```json\n{\n  \"confname\": \"cubridconf\",\n  \"dbname\": \"testdb\"\n}\n```\n\n**Success Response (200 OK):**\n```json\n{}\n```\n\n**Error Response (400 Bad Request):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Database name not found in server parameter\",\n  \"error\": \"Bad Request\"\n}\n```\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Server parameter not found in configuration file\",\n  \"error\": \"Not Found\"\n}\n```"
 					},
 					"response": []
 				},
@@ -843,6 +1112,215 @@
 						"description": "Get unload information for databases on a host. Returns domain-only data (CMS envelope removed).\n\n**URI:**\n```\nGET /:hostUid/database/unload-info\n```\n**Example:**\n```\nGET /host-uid-1/database/unload-info\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n\n**Success Response (200 OK):**\n```json\n{\n  \"database\": [\n    {\n      \"dbname\": \"test4\",\n      \"object\": \"/home/cubrid/CUBRID-11.4.4.1832-7f8f019-Linux.x86_64/databases/test4/test4_objects;2026.01.27 12:17\",\n      \"schema\": \"/home/cubrid/CUBRID-11.4.4.1832-7f8f019-Linux.x86_64/databases/test4/test4_schema;2026.01.27 12:17\"\n    },\n    {\n      \"dbname\": \"demodb\",\n      \"object\": \"/home/cubrid/CUBRID-11.4.4.1832-7f8f019-Linux.x86_64/databases/demodb/demodb_objects;2026.01.27 12:02\",\n      \"schema\": \"/home/cubrid/CUBRID-11.4.4.1832-7f8f019-Linux.x86_64/databases/demodb/demodb_schema;2026.01.27 12:02\"\n    }\n  ]\n}\n```\n\n**Response Fields:**\n- `database` - Array of database unload information\n  - `dbname` - Database name\n  - `object` - Object file path with timestamp\n  - `schema` - Schema file path with timestamp\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Host not found\",\n  \"error\": \"Not Found\"\n}\n```\n\n**Error Response (500 Internal Server Error):**\n```json\n{\n  \"statusCode\": 500,\n  \"message\": \"Failed to get unload information\",\n  \"error\": \"Internal Server Error\"\n}\n```"
 					},
 					"response": []
+				},
+				{
+					"name": "Check Database",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"repairdb\": \"n\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/check/{{dbname}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"database",
+								"check",
+								"{{dbname}}"
+							]
+						},
+						"description": "Check a database. Returns empty object on success.\n\n**URI:**\n```\nPOST /:hostUid/database/check/:dbname\n```\n**Example:**\n```\nPOST /host-uid-1/database/check/test\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `dbname` - Database name\n\n**Request Body (Required Fields):**\n```json\n{\n  \"repairdb\": \"n\"\n}\n```\n\n**Request Body Field Descriptions:**\n- `repairdb` - Repair option (`y` = check and repair, `n` = check only)\n\n**Success Response (200 OK):**\n```json\n{}\n```\n\n**Error Response (400 Bad Request):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Missing required fields: repairdb\",\n  \"error\": \"Bad Request\"\n}\n```\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Database not found\",\n  \"error\": \"Not Found\"\n}\n```\n\n**Error Response (500 Internal Server Error):**\n```json\n{\n  \"statusCode\": 500,\n  \"message\": \"Failed to check database\",\n  \"error\": \"Internal Server Error\"\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Lock Database",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/lock/{{dbname}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"database",
+								"lock",
+								"{{dbname}}"
+							]
+						},
+						"description": "Get lock information for a database. Returns lock information including lock entries, transactions, and lock statistics.\n\n**URI:**\n```\nPOST /:hostUid/database/lock/:dbname\n```\n**Example:**\n```\nPOST /host-uid-1/database/lock/demodb\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `dbname` - Database name\n\n**Request Body:**\n```json\n{}\n```\n\n**Note:** Request body is an empty object. No fields are required.\n\n**Success Response (200 OK):**\n```json\n{\n  \"lockinfo\": [\n    {\n      \"dinterval\": \"1.00\",\n      \"esc\": \"100000\",\n      \"lot\": [\n        {\n          \"entry\": [\n            {\n              \"lock_holders\": [\n                {\n                  \"count\": \"1\",\n                  \"granted_mode\": \"IS_LOCK\",\n                  \"nsubgranules\": \"0\",\n                  \"tran_index\": \"1\"\n                }\n              ],\n              \"num_b_holders\": \"0\",\n              \"num_holders\": \"1\",\n              \"num_waiters\": \"0\",\n              \"ob_type\": \"Class = code\",\n              \"oid\": \"0|201|-32763\"\n            }\n          ],\n          \"maxnumlock\": \"10000\",\n          \"numlocked\": \"6\"\n        }\n      ],\n      \"transaction\": [\n        {\n          \"@uid\": \"DBA\",\n          \"host\": \"lgj1089-36\",\n          \"index\": \"1\",\n          \"isolevel\": \"COMMITTED READ\",\n          \"pid\": \"44371\",\n          \"pname\": \"csql\",\n          \"timeout\": \":\"\n        }\n      ]\n    }\n  ]\n}\n```\n\n**Response Field Descriptions:**\n- `lockinfo` - Array of lock information objects\n  - `dinterval` - Deadlock interval\n  - `esc` - ESC (Escalation) value\n  - `lot` - Lock object table array\n    - `entry` - Array of lock entries\n      - `lock_holders` (optional) - Array of lock holder information (only present when lock is held)\n        - `count` - Count\n        - `granted_mode` - Granted mode (e.g., \"IS_LOCK\", \"IX_LOCK\")\n        - `nsubgranules` - Number of sub-granules\n        - `tran_index` - Transaction index\n      - `num_b_holders` - Number of B holders (may be \"missing\" or numeric string)\n      - `num_holders` - Number of holders (may be \"inser\" or numeric string)\n      - `num_waiters` - Number of waiters (may be \"=\" or numeric string)\n      - `ob_type` - Object type\n      - `oid` - Object ID\n    - `maxnumlock` - Maximum number of locks\n    - `numallocated` (optional) - Number of allocated locks (may not be present)\n    - `numlocked` - Number of locked objects\n    - `sizelock` (optional) - Size of lock (may not be present)\n  - `transaction` - Array of transaction information\n    - `@uid` - User ID\n    - `host` - Host name\n    - `index` - Transaction index\n    - `isolevel` - Isolation level\n    - `pid` - Process ID\n    - `pname` - Process name\n    - `timeout` - Timeout\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Host not found\",\n  \"error\": \"Not Found\"\n}\n```\n\n**Error Response (500 Internal Server Error):**\n```json\n{\n  \"statusCode\": 500,\n  \"message\": \"Failed to get lock information\",\n  \"error\": \"Internal Server Error\"\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Transaction Info",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"dbuser\": \"dba\",\n  \"dbpasswd\": \"\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/transaction-info/{{dbname}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"database",
+								"transaction-info",
+								"{{dbname}}"
+							]
+						},
+						"description": "Get transaction information for a database. Returns domain-only data (CMS envelope removed).\n\n**URI:**\n```\nPOST /:hostUid/database/transaction-info/:dbname\n```\n**Example:**\n```\nPOST /host-uid-1/database/transaction-info/demodb\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `dbname` - Database name\n\n**Request Body (Required Fields):**\n```json\n{\n  \"dbuser\": \"dba\",\n  \"dbpasswd\": \"\"\n}\n```\n\n**Request Body Field Descriptions:**\n- `dbuser` - Database user name\n- `dbpasswd` - Database password (can be empty string)\n\n**Success Response (200 OK):**\n```json\n{\n  \"dbname\": \"demodb\",\n  \"transactioninfo\": [\n    {\n      \"transaction\": [\n        {\n          \"@user\": \"DBA\",\n          \"SQL_ID\": \"empty\",\n          \"host\": \"lgj1089-3-60\",\n          \"pid\": \"1684512\",\n          \"program\": \"query_editor_cub_cas_1\",\n          \"query_time\": \"0.00\",\n          \"tran_time\": \"0.00\",\n          \"tranindex\": \"2(ACTIVE)\",\n          \"wait_for_lock_holder\": \"-1\"\n        }\n      ]\n    }\n  ]\n}\n```\n\n**Response Field Descriptions:**\n- `dbname` - Database name\n- `transactioninfo` - Array of transaction information containers\n  - `transaction` - Array of transaction entries\n    - `@user` - User name\n    - `SQL_ID` - SQL ID\n    - `host` - Host name\n    - `pid` - Process ID\n    - `program` - Program name\n    - `query_time` - Query time\n    - `tran_time` - Transaction time\n    - `tranindex` - Transaction index (may include status like \"ACTIVE\")\n    - `wait_for_lock_holder` - Wait for lock holder\n\n**Error Response (400 Bad Request):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Missing required fields: dbuser, dbpasswd\",\n  \"error\": \"Bad Request\"\n}\n```\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Host not found\",\n  \"error\": \"Not Found\"\n}\n```\n\n**Error Response (500 Internal Server Error):**\n```json\n{\n  \"statusCode\": 500,\n  \"message\": \"Failed to get transaction information\",\n  \"error\": \"Internal Server Error\"\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Kill Transaction",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"i\",\n  \"parameter\": \"1\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/kill-transaction/{{dbname}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"database",
+								"kill-transaction",
+								"{{dbname}}"
+							]
+						},
+						"description": "Kill a transaction in a database or display active transactions. Returns domain-only data (CMS envelope removed).\n\n**URI:**\n```\nPOST /:hostUid/database/kill-transaction/:dbname\n```\n**Example:**\n```\nPOST /host-uid-1/database/kill-transaction/demodb\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `dbname` - Database name\n\n**Request Body (Required Fields):**\n```json\n{\n  \"type\": \"d\"\n}\n```\nor\n```json\n{\n  \"type\": \"i\",\n  \"parameter\": \"1\"\n}\n```\n\n**Request Body Field Descriptions:**\n\n**`type` (Required)** - Type of operation. Must be one of the following:\n- `\"d\"` - **Display active transaction**: Display all active transactions in the database. This option does NOT kill any transactions, it only displays them. The `parameter` field is **NOT required** for this type.\n- `\"i\"` - **Kill by transaction index**: Kill a specific transaction by its transaction index. The `parameter` field is **REQUIRED** for this type and must contain the transaction index as a string (e.g., `\"1\"`, `\"2\"`).\n- `\"p\"` - **Kill by process name**: Kill all transactions that have the specified process name. The `parameter` field is **REQUIRED** for this type and must contain the process name as a string (e.g., `\"query_editor_cub_cas_1\"`).\n- `\"h\"` - **Kill by host name**: Kill all transactions from a specific host. The `parameter` field is **REQUIRED** for this type and must contain the host name as a string (e.g., `\"lgj1089-3-60\"`).\n\n**`parameter` (Conditionally Required)** - Parameter value for the operation:\n- **For type `\"d\"`**: NOT required. Omit this field or leave it empty.\n- **For type `\"i\"`**: REQUIRED. Must be a string containing the transaction index (e.g., `\"1\"`, `\"2\"`, `\"3\"`). This will kill the transaction with the specified index.\n- **For type `\"p\"`**: REQUIRED. Must be a string containing the process name (e.g., `\"query_editor_cub_cas_1\"`, `\"csql\"`). This will kill all transactions that have the specified process name.\n- **For type `\"h\"`**: REQUIRED. Must be a string containing the host name (e.g., `\"lgj1089-3-60\"`, `\"hostname\"`). This will kill all transactions from the specified host.\n\n**Option Requirements Summary:**\n| Type | Description | Parameter Required | Parameter Type | Example Parameter Value |\n|------|-------------|-------------------|----------------|------------------------|\n| `\"d\"` | Display active transaction | ❌ No | N/A | N/A |\n| `\"i\"` | Kill transaction by transaction index | ✅ Yes | Transaction index (string) | `\"1\"`, `\"2\"` |\n| `\"p\"` | Kill all transactions with specified process name | ✅ Yes | Process name (string) | `\"query_editor_cub_cas_1\"` |\n| `\"h\"` | Kill all transactions from specified host | ✅ Yes | Host name (string) | `\"lgj1089-3-60\"` |\n\n**Example Request Bodies:**\n\n**1. Display active transactions (type 'd'):**\n```json\n{\n  \"type\": \"d\"\n}\n```\nNote: This does NOT kill any transactions, it only displays all active transactions in the database. The `parameter` field is not included.\n\n**2. Kill by transaction index (type 'i'):**\n```json\n{\n  \"type\": \"i\",\n  \"parameter\": \"1\"\n}\n```\nThis will kill the transaction with index \"1\".\n\n**3. Kill by process name (type 'p'):**\n```json\n{\n  \"type\": \"p\",\n  \"parameter\": \"query_editor_cub_cas_1\"\n}\n```\nThis will kill all transactions that have the process name \"query_editor_cub_cas_1\".\n\n**4. Kill by host name (type 'h'):**\n```json\n{\n  \"type\": \"h\",\n  \"parameter\": \"lgj1089-3-60\"\n}\n```\nThis will kill all transactions from the host \"lgj1089-3-60\".\n\n**Success Response (200 OK):**\n```json\n{\n  \"dbname\": \"demodb\",\n  \"transactioninfo\": [\n    {\n      \"transaction\": [\n        {\n          \"@user\": \"DBA\",\n          \"SQL_ID\": \"empty\",\n          \"host\": \"lgj1089-3-60\",\n          \"pid\": \"2782204\",\n          \"program\": \"query_editor_cub_cas_1\",\n          \"query_time\": \"0.00\",\n          \"tran_time\": \"0.00\",\n          \"tranindex\": \"1(ACTIVE)\",\n          \"wait_for_lock_holder\": \"-1\"\n        }\n      ]\n    }\n  ]\n}\n```\n\n**Response Field Descriptions:**\n- `dbname` - Database name\n- `transactioninfo` - Array of transaction information containers\n  - `transaction` - Array of transaction entries\n    - `@user` - User name\n    - `SQL_ID` - SQL ID\n    - `host` - Host name\n    - `pid` - Process ID\n    - `program` - Program name (process name)\n    - `query_time` - Query time\n    - `tran_time` - Transaction time\n    - `tranindex` - Transaction index (may include status like \"ACTIVE\")\n    - `wait_for_lock_holder` - Wait for lock holder\n\n**Error Response (400 Bad Request - Missing type):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Missing required fields: type\",\n  \"error\": \"Bad Request\"\n}\n```\n\n**Error Response (400 Bad Request - Missing parameter for type 'i', 'p', or 'h'):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Missing required fields: parameter\",\n  \"error\": \"Bad Request\"\n}\n```\nThis error occurs when `type` is set to `\"i\"`, `\"p\"`, or `\"h\"` but the `parameter` field is missing or empty.\n\n**Error Response (400 Bad Request - Invalid parameter requirement):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Parameter is required for type 'i'\",\n  \"error\": \"Bad Request\"\n}\n```\nThis error occurs when a type that requires a parameter (i, p, h) is used without providing the parameter.\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Host not found\",\n  \"error\": \"Not Found\"\n}\n```\n\n**Error Response (500 Internal Server Error):**\n```json\n{\n  \"statusCode\": 500,\n  \"message\": \"Failed to kill transaction\",\n  \"error\": \"Internal Server Error\"\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Database",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"delbackup\": \"y\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/{{dbname}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"database",
+								"{{dbname}}"
+							]
+						},
+						"description": "Delete a database. Also removes the database name from the server parameter in cubridconf if it exists. Returns empty object on success.\n\n**URI:**\n```\nDELETE /:hostUid/database/:dbname\n```\n**Example:**\n```\nDELETE /host-uid-1/database/test\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `dbname` - Database name to delete\n\n**Request Body (Required Fields):**\n```json\n{\n  \"delbackup\": \"y\"\n}\n```\n\n**Request Body Field Descriptions:**\n- `delbackup` - Delete backup option (`y` = delete backup, `n` = keep backup)\n\n**Behavior:**\n1. Deletes the database using the CMS deletedb task.\n2. After successful deletion, automatically removes the database name from the `server` parameter in the `[service]` section of the `cubridconf` configuration file if it exists.\n3. If the database name is not found in the server parameter, the operation continues without error.\n\n**Success Response (200 OK):**\n```json\n{}\n```\n\n**Error Response (400 Bad Request):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Missing required fields: delbackup\",\n  \"error\": \"Bad Request\"\n}\n```\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Host not found\",\n  \"error\": \"Not Found\"\n}\n```\n\n**Error Response (500 Internal Server Error):**\n```json\n{\n  \"statusCode\": 500,\n  \"message\": \"Failed to delete database\",\n  \"error\": \"Internal Server Error\"\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Compact Database",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"verbose\": \"y\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/compact/{{dbname}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"database",
+								"compact",
+								"{{dbname}}"
+							]
+						},
+						"description": "Compact a database. Returns log output if verbose is 'y', otherwise returns empty object.\n\n**URI:**\n```\nPOST /:hostUid/database/compact/:dbname\n```\n**Example:**\n```\nPOST /host-uid-1/database/compact/test\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `dbname` - Database name\n\n**Request Body (Required Fields):**\n```json\n{\n  \"verbose\": \"y\"\n}\n```\n\n**Request Body Field Descriptions:**\n- `verbose` - Verbose option (`y` = include log output, `n` = exclude log output)\n\n**Success Response (200 OK) - With verbose \"y\":**\n```json\n{\n  \"log\": [\n    {\n      \"line\": [\n        \"\",\n        \"Pass 1\",\n        \"\",\n        \"Class db_root\",\n        \"1 instances.\",\n        \"1154 objects processed.\"\n      ]\n    }\n  ]\n}\n```\n\n**Success Response (200 OK) - With verbose \"n\":**\n```json\n{}\n```\n\n**Error Response (400 Bad Request):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Missing required fields: verbose\",\n  \"error\": \"Bad Request\"\n}\n```\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Database not found\",\n  \"error\": \"Not Found\"\n}\n```\n\n**Error Response (500 Internal Server Error):**\n```json\n{\n  \"statusCode\": 500,\n  \"message\": \"Failed to compact database\",\n  \"error\": \"Internal Server Error\"\n}\n```"
+					},
+					"response": []
 				}
 			],
 			"description": "Database management endpoints. All endpoints require JWT authentication."
@@ -850,6 +1328,56 @@
 		{
 			"name": "Database Users",
 			"item": [
+				{
+					"name": "Get User Info (userinfo)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/users/info/{{dbname}}",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "database", "users", "info", "{{dbname}}"]
+						},
+						"description": "Get user info (list of users) for a database. CMS task: userinfo. GET /:hostUid/database/users/info/:dbname. Auth: Bearer JWT."
+					},
+					"response": []
+				},
+				{
+					"name": "User Verify (userverify)",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"dbname\": \"demodb\",\n  \"dbuser\": \"dba\",\n  \"dbpasswd\": \"\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/users/verify",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "database", "users", "verify"]
+						},
+						"description": "Verify database user credentials. CMS task: userverify. POST /:hostUid/database/users/verify. Body: dbname, dbuser, dbpasswd. Auth: Bearer JWT."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Database User (createuser)",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"dbname\": \"demodb\",\n  \"username\": \"yifan\",\n  \"userpass\": \"1111\",\n  \"groups\": { \"group\": [\"public\"] },\n  \"authorization\": []\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/users",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "database", "users"]
+						},
+						"description": "Create a database user. CMS task: createuser. POST /:hostUid/database/users. Body: dbname, username, userpass, groups, authorization. Auth: Bearer JWT."
+					},
+					"response": []
+				},
 				{
 					"name": "Get Database Users",
 					"request": {
@@ -941,6 +1469,20 @@
 						"description": "Update a database user. Returns empty object on success.\n\n**URI:**\n```\nPUT /:hostUid/database/users/:dbname/:username\n```\n**Example:**\n```\nPUT /host-uid-1/database/users/demodb/yifan\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `dbname` - Database name\n- `username` - Username to update\n\n**Request Body:**\n```json\n{\n  \"userpass\": \"1111\",\n  \"groups\": {\n    \"group\": [\"public\"]\n  },\n  \"authorization\": []\n}\n```\n\n**Success Response (200 OK):**\n```json\n{}\n```\n\n**Error Response (400 Bad Request):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Missing required fields: userpass, groups, authorization\",\n  \"error\": \"Bad Request\"\n}\n```\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Database or user not found\",\n  \"error\": \"Not Found\"\n}\n```"
 					},
 					"response": []
+				},
+				{
+					"name": "Delete Database User (deleteuser)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/database/users/{{dbname}}/{{username}}",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "database", "users", "{{dbname}}", "{{username}}"]
+						},
+						"description": "Delete a database user. CMS task: deleteuser. DELETE /:hostUid/database/users/:dbname/:username. Auth: Bearer JWT."
+					},
+					"response": []
 				}
 			],
 			"description": "Database user management endpoints. All endpoints require JWT authentication."
@@ -948,6 +1490,70 @@
 		{
 			"name": "Broker",
 			"item": [
+				{
+					"name": "Start All Brokers",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/broker/start-all",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "broker", "start-all"]
+						},
+						"description": "Start all brokers on the host (CMS task: startbroker). POST /:hostUid/broker/start-all. Auth: Bearer JWT."
+					},
+					"response": []
+				},
+				{
+					"name": "Stop All Brokers",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/broker/stop-all",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "broker", "stop-all"]
+						},
+						"description": "Stop all brokers on the host (CMS task: stopbroker). POST /:hostUid/broker/stop-all. Auth: Bearer JWT."
+					},
+					"response": []
+				},
+				{
+					"name": "Add DBMT User",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"targetid\": \"test_user_2\",\n  \"password\": \"1234\",\n  \"casauth\": \"none\",\n  \"dbcreate\": \"none\",\n  \"statusmonitorauth\": \"none\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/broker/dbmt-user",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "broker", "dbmt-user"]
+						},
+						"description": "Add a DBMT (CMS) user (CMS task: adddbmtuser). POST /:hostUid/broker/dbmt-user. Body: targetid, password, casauth, dbcreate, statusmonitorauth. Auth: Bearer JWT."
+					},
+					"response": []
+				},
+				{
+					"name": "Update DBMT User",
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"targetid\": \"test_user_2\",\n  \"dbauth\": [],\n  \"casauth\": \"none\",\n  \"dbcreate\": \"none\",\n  \"statusmonitorauth\": \"none\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/broker/dbmt-user",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "broker", "dbmt-user"]
+						},
+						"description": "Update a DBMT (CMS) user (CMS task: updatedbmtuser). PUT /:hostUid/broker/dbmt-user. Body: targetid, casauth, dbcreate, statusmonitorauth (dbauth optional). Auth: Bearer JWT."
+					},
+					"response": []
+				},
 				{
 					"name": "Get Broker List",
 					"request": {
@@ -1056,6 +1662,78 @@
 			"description": "Broker management endpoints. All endpoints require JWT authentication."
 		},
 		{
+			"name": "CMS User",
+			"item": [
+				{
+					"name": "Get DBMT User Info (getdbmtuserinfo)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/cms-user",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "cms-user"]
+						},
+						"description": "Get DBMT user info (dblist, userlist). CMS task: getdbmtuserinfo.\n\n**URI:** GET /:hostUid/cms-user\n**Success Response:** { dblist, userlist }\n**Authentication:** Bearer JWT (collection default)"
+					},
+					"response": []
+				},
+				{
+					"name": "Update DBMT User (updatedbmtuser)",
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"targetid\": \"test_target\",\n  \"dbauth\": [],\n  \"casauth\": \"none\",\n  \"dbcreate\": \"none\",\n  \"statusmonitorauth\": \"none\"\n}",
+							"options": {"raw": {"language": "json"}}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/cms-user",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "cms-user"]
+						},
+						"description": "Update DBMT user. CMS task: updatedbmtuser.\n\n**URI:** PUT /:hostUid/cms-user\n**Body:** targetid, dbauth (optional), casauth, dbcreate, statusmonitorauth\n**Success Response:** { dblist, userlist }\n**Authentication:** Bearer JWT (collection default)"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete DBMT User (deletedbmtuser)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/cms-user/{{targetid}}",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "cms-user", "{{targetid}}"]
+						},
+						"description": "Delete DBMT user. CMS task: deletedbmtuser.\n\n**URI:** DELETE /:hostUid/cms-user/:targetid\n**Success Response:** { dblist, userlist }\n**Authentication:** Bearer JWT (collection default)"
+					},
+					"response": []
+				},
+				{
+					"name": "Set DBMT Password (setdbmtpasswd)",
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"targetid\": \"yifan\",\n  \"newpassword\": \"1111\"\n}",
+							"options": {"raw": {"language": "json"}}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/cms-user/set-password",
+							"host": ["{{base_url}}"],
+							"path": ["{{hostUid}}", "cms-user", "set-password"]
+						},
+						"description": "Set DBMT user password. CMS task: setdbmtpasswd.\n\n**URI:** PUT /:hostUid/cms-user/set-password\n**Body:** targetid, newpassword\n**Success Response:** {}\n**Authentication:** Bearer JWT (collection default)"
+					},
+					"response": []
+				}
+			],
+			"description": "CMS (DBMT) user management: get list, update, delete, set password. All endpoints require JWT authentication."
+		},
+		{
 			"name": "File",
 			"item": [
 				{
@@ -1101,6 +1779,27 @@
 							]
 						},
 						"description": "Get environment information from a CMS host. Returns environment variables and system information without CMS envelope fields.\n\n**URI:**\n```\nGET /:hostUid/cms-config/env\n```\n**Example:**\n```\nGET /host-uid-1/cms-config/env\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n\n**Success Response (200 OK):**\n```json\n{\n  \"CUBRID\": \"/opt/cubrid\",\n  \"CUBRIDVER\": \"11.2\",\n  \"BROKERVER\": \"11.2\",\n  \"CUBRID_DATABASES\": \"/home/cubrid/databases\",\n  \"CUBRID_DBMT\": \"/opt/cubrid/dbmt\",\n  \"HOSTMONTAB0\": \"/etc/hostmon.conf\",\n  \"HOSTMONTAB1\": \"/etc/hostmon.conf\",\n  \"HOSTMONTAB2\": \"/etc/hostmon.conf\",\n  \"HOSTMONTAB3\": \"/etc/hostmon.conf\",\n  \"osinfo\": \"Linux x86_64\"\n}\n```\n\n**Error Response (404 Not Found):**\n```json\n{\n  \"statusCode\": 404,\n  \"message\": \"Host not found\",\n  \"error\": \"Not Found\"\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Broker Config",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/cms-config/broker-config/{{confname}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"cms-config",
+								"broker-config",
+								"{{confname}}"
+							]
+						},
+						"description": "Get broker config file content from a CMS host (CMS task: getaddbrokerinfo). Returns conflist (config lines), confname, note, execTime.\n\n**URI:**\n```\nGET /:hostUid/cms-config/broker-config/:confname\n```\n**Example:**\n```\nGET /host-uid-1/cms-config/broker-config/brokerconf\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n- `confname` - Config name (e.g. brokerconf)\n\n**Success Response (200 OK):**\n```json\n{\n  \"conflist\": [{ \"confdata\": [\"[broker]\", \"SERVICE = ON\", \"...\"] }],\n  \"confname\": \"broker\",\n  \"note\": \"none\",\n  \"execTime\": \"0 ms\"\n}\n```"
 					},
 					"response": []
 				},
@@ -1199,6 +1898,35 @@
 							]
 						},
 						"description": "Set system parameters in a configuration file on a CMS host. Updates configuration file with provided data.\n\n**URI:**\n```\nPOST /:hostUid/cms-config/set-sys-param\n```\n**Example:**\n```\nPOST /host-uid-1/cms-config/set-sys-param\n```\n\n**Authentication:** Required\n**Headers:**\n```\nAuthorization: Bearer <JWT_TOKEN>\nContent-Type: application/json\n```\n\n**Path Parameters:**\n- `hostUid` - Host unique identifier\n\n**Request Body:**\n```json\n{\n  \"confname\": \"cubridconf\",\n  \"confdata\": [\n    \"#\",\n    \"# Copyright ...\",\n    \"[service]\",\n    \"service=server,broker,manager\",\n    \"server=demodb\",\n    \"\",\n    \"[common]\",\n    \"data_buffer_size=512M\",\n    \"log_buffer_size=4M\",\n    \"sort_buffer_size=2M\",\n    \"max_clients=100\",\n    \"cubrid_port_id=1523\"\n  ]\n}\n```\n\n**Success Response (200 OK):**\n```json\n{}\n```\n\n**Error Response (400 Bad Request):**\n```json\n{\n  \"statusCode\": 400,\n  \"message\": \"Failed to set system parameters: Invalid configuration\",\n  \"error\": \"Bad Request\"\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Set Broker Param",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"confdata\": [\n    \"#\",\n    \"#  Copyright 2008 Search Solution Corporation\",\n    \"[broker]\",\n    \"MASTER_SHM_ID=30001\",\n    \"ADMIN_LOG_FILE=log/broker/cubrid_broker.log\",\n    \"\",\n    \"[%query_editor]\",\n    \"SERVICE=ON\",\n    \"SSL=OFF\",\n    \"BROKER_PORT=30000\",\n    \"MIN_NUM_APPL_SERVER=5\",\n    \"MAX_NUM_APPL_SERVER=30\"\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/{{hostUid}}/cms-config/broker-set-param",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"{{hostUid}}",
+								"cms-config",
+								"broker-set-param"
+							]
+						},
+						"description": "Set broker configuration file content on a CMS host (CMS task: broker_setparam). POST /:hostUid/cms-config/broker-set-param. Body: confdata (array of config lines). Success: {}."
 					},
 					"response": []
 				}
@@ -1444,6 +2172,16 @@
 		{
 			"key": "bname",
 			"value": "query_editor",
+			"type": "string"
+		},
+		{
+			"key": "username",
+			"value": "yifan",
+			"type": "string"
+		},
+		{
+			"key": "targetid",
+			"value": "test_user_2",
 			"type": "string"
 		}
 	]

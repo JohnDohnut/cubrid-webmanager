@@ -1,12 +1,10 @@
-import { Body, Controller, Delete, Get, Post, Request, Patch, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Logger, Post, Put, Request } from '@nestjs/common';
+import { validateRequiredFields } from '@util';
 import { UserService } from './user.service';
-import {
-  UpdateUserDto,
-  UserPreference,
-  UserPreferenceDto,
-} from '@type/index';
+import { UserPreference, UserPreferenceDto } from '@type/index';
 import {
   ChangePasswordRequest,
+  DeleteUserRequest,
   UpdateUserInfoRequest,
   UserResponse,
 } from '@api-interfaces';
@@ -23,6 +21,8 @@ import {
  */
 @Controller('user')
 export class UserController {
+  private readonly logger = new Logger(UserController.name);
+
   constructor(private readonly userService: UserService) {}
 
   /**
@@ -37,7 +37,7 @@ export class UserController {
    * @example
    * ```typescript
    * // GET /user
-   * // Returns: { uuid: "123", id: "user1", department: "IT", host_list: [], ... }
+   * // Returns: { uuid: "123", id: "user1", department: "IT", host_groups: {}, ... }
    * ```
    */
   @Get()
@@ -90,23 +90,27 @@ export class UserController {
   }
 
   /**
-   * Deletes the user's account.
+   * Deletes the user's account after password verification.
    *
-   * Permanently removes the user account and all associated data.
-   * This operation cannot be undone.
+   * Validates the provided password before permanently removing the user account
+   * and all associated data. This operation cannot be undone.
    *
    * @param {any} req - Express request object containing JWT payload
+   * @param {DeleteUserRequest} body - Request body containing password for verification
    * @returns {Promise<boolean>} Always returns true on successful deletion
-   * @throws {UserError} When user is not found
+   * @throws {UserError} When user is not found or password is incorrect
    * @example
    * ```typescript
    * // DELETE /user/account
+   * // Body: { password: "userpassword" }
    * // Returns: true
    * ```
    */
   @Delete('account')
-  async deleteUser(@Request() req): Promise<boolean> {
-    await this.userService.deleteUser(req.user.sub);
+  async deleteUser(@Request() req, @Body() body: DeleteUserRequest): Promise<boolean> {
+    validateRequiredFields(body, ['password'], 'user/account', this.logger);
+
+    await this.userService.deleteUser(req.user.sub, body);
     return true;
   }
 

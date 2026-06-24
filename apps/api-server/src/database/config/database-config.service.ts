@@ -1,4 +1,6 @@
 import {
+  GetAutoAddVolClientResponse,
+  GetDbSizeClientResponse,
   GetAutoExecQueryClientResponse,
   SetAutoExecQueryClientRequest,
   SetAutoExecQueryClientResponse,
@@ -8,30 +10,47 @@ import {
   RemoveAutoStartResponse,
   SetAutoAddVolRequest,
   SetAutoAddVolResponse,
+  ClassInfoRequest,
+  ClassInfoResponse,
+  GetAutoExecQueryErrLogRequest,
+  GetAutoExecQueryErrLogResponse,
+  GetAutoAddVolLogRequest,
+  GetAutoAddVolLogResponse,
+  AppendAutoExecQueryPlanRequest,
+  RemoveAutoExecQueryPlanRequest,
 } from '@api-interfaces';
 import { CmsConfigService } from '@cms-config/cms-config.service';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import {
-  checkCmsStatusError,
-  checkCmsTokenError,
-  HandleDatabaseErrors,
+  BaseService,
+  HandleCmsErrors,
 } from '@common';
 import { ConfigError } from '@error/config/config-error';
-import { DatabaseError } from '@error/database/database-error';
 import { HostService } from '@host';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import {
   GetAutoExecQueryCmsRequest,
   SetAutoExecQueryCmsRequest,
   SetAutoAddVolCmsRequest,
+  GetAutoAddVolCmsRequest,
+  GetDbSizeCmsRequest,
+  ClassInfoCmsRequest,
+  GetAutoExecQueryErrLogCmsRequest,
+  GetAutoAddVolLogCmsRequest,
 } from '@type/cms-request';
 import {
   GetAutoExecQueryCmsResponse,
   SetAutoExecQueryCmsResponse,
   SetAutoAddVolCmsResponse,
+  GetAutoAddVolCmsResponse,
+  GetDbSizeCmsResponse,
+  ClassInfoCmsResponse,
+  GetAutoExecQueryErrLogCmsResponse,
+  GetAutoAddVolLogCmsResponse,
 } from '@type/cms-response';
 import { GetAllSysParamCmsResponse } from '@type/cms-response/get-all-sys-param-cms-response';
 import { parseConfigParams } from '@util';
+import { CMS_CONFNAME_CUBRID } from '@database/database.constants';
 
 /**
  * Service for managing database configuration operations.
@@ -41,14 +60,14 @@ import { parseConfigParams } from '@util';
  * @since 1.0.0
  */
 @Injectable()
-export class DatabaseConfigService {
-  private readonly logger = new Logger(DatabaseConfigService.name);
-
+export class DatabaseConfigService extends BaseService {
   constructor(
-    private readonly hostService: HostService,
-    private readonly cmsClient: CmsHttpsClientService,
+    protected readonly hostService: HostService,
+    protected readonly cmsClient: CmsHttpsClientService,
     private readonly cmsConfigService: CmsConfigService
-  ) {}
+  ) {
+    super(hostService, cmsClient);
+  }
 
   /**
    * Set auto-execution query for a database.
@@ -61,32 +80,26 @@ export class DatabaseConfigService {
    * @returns SetAutoExecQueryClientResponse Empty object on success
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async setAutoExecQuery(
     userId: string,
     hostUid: string,
     dbname: string,
     autoExecQuery: SetAutoExecQueryClientRequest
   ): Promise<SetAutoExecQueryClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const request: SetAutoExecQueryCmsRequest = {
+    const cmsRequest: SetAutoExecQueryCmsRequest = {
       task: 'setautoexecquery',
-      token: host.token || '',
       dbname: dbname,
-      planlist: autoExecQuery.planlist,
+      planlist: autoExecQuery.planlist.map((item) => ({ ...item, dbname })),
     };
 
-    const response = await this.cmsClient.postAuthenticated<
-      SetAutoExecQueryCmsRequest,
-      SetAutoExecQueryCmsResponse
-    >(url, request);
+    await this.executeCmsRequest<SetAutoExecQueryCmsRequest, SetAutoExecQueryCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
 
-    checkCmsTokenError(response);
-
-    checkCmsStatusError(response);
-
-    return {};
+    return { success: true };
   }
 
   /**
@@ -99,48 +112,47 @@ export class DatabaseConfigService {
    * @returns GetAutoExecQueryClientResponse Auto-execution query information
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async getAutoExecQuery(
     userId: string,
     hostUid: string,
     dbname: string
   ): Promise<GetAutoExecQueryClientResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
-    const request: GetAutoExecQueryCmsRequest = {
+    const cmsRequest: GetAutoExecQueryCmsRequest = {
       task: 'getautoexecquery',
-      token: host.token || '',
       dbname: dbname,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
+    const response = await this.executeCmsRequest<
       GetAutoExecQueryCmsRequest,
       GetAutoExecQueryCmsResponse
-    >(url, request);
+    >(userId, hostUid, cmsRequest);
 
-    checkCmsTokenError(response);
+    const dataOnly = this.extractDomainData(response);
 
-    checkCmsStatusError(response);
-
-    const { __EXEC_TIME, note, status, task, ...dataOnly } = response;
-
-    const planlist = dataOnly.planlist.map((plan) => {
-      const queryplan = plan.queryplan.map((query) => {
-        const queryAny = query as any;
-
-        if (queryAny['@username'] !== undefined) {
-          const { '@username': atUsername, ...rest } = queryAny;
+    const rawPlanlist = Array.isArray(dataOnly.planlist) ? dataOnly.planlist : [];
+    const planlist = rawPlanlist.map((plan) => {
+      const rawQueryplan = Array.isArray(plan.queryplan) ? plan.queryplan : [];
+      const queryplan = rawQueryplan.map((query) => {
+        // Handle @username field (from XML) and convert to username
+        // Client response requires username to be non-optional
+        if ('@username' in query && query['@username'] !== undefined) {
+          const { '@username': atUsername, ...rest } = query;
           return {
             ...rest,
             username: atUsername || '',
           };
         }
 
-        return queryAny;
+        // Ensure username exists (required in client response)
+        return {
+          ...query,
+          username: query.username || '',
+        };
       });
 
       return {
-        dbname: plan.dbname,
+        dbname: plan.dbname ?? '',
         queryplan: queryplan,
       };
     });
@@ -152,114 +164,165 @@ export class DatabaseConfigService {
 
   /**
    * Enable auto-start for a database.
-   * Adds database name to the server parameter in configuration file.
+   * Adds database name to the server parameter in cubridconf configuration file.
+   * If server parameter does not exist, it will be added to the [service] section.
+   * The confname field in the request is ignored - the system always uses 'cubridconf'.
    *
    * @param userId User ID from JWT
    * @param hostUid Host UID
-   * @param request Request containing confname and dbname
-   * @returns SetAutoStartResponse Empty object on success
-   * @throws DatabaseError If request fails, server parameter not found, or dbname already exists
+   * @param request Request containing dbname (confname is ignored, always uses 'cubridconf')
+   * @returns SetAutoStartResponse Configuration response on success
+   * @throws ConfigError If request fails, [service] section not found, or server parameter cannot be added
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async setAutoStart(
     userId: string,
     hostUid: string,
     request: SetAutoStartRequest
   ): Promise<SetAutoStartResponse> {
-    // Get current configuration
+    const confname = CMS_CONFNAME_CUBRID;
+
+    // Get current configuration from cubridconf
     const currentConfig = await this.cmsConfigService.getAllSystemParam(
       userId,
       hostUid,
-      request.confname
+      confname
     );
 
     if (!currentConfig.conflist || currentConfig.conflist.length === 0) {
-      throw ConfigError.NoConflistData(request.confname);
+      throw ConfigError.NoConflistData(confname);
     }
 
     const confdata = currentConfig.conflist[0].confdata;
     if (!confdata || confdata.length === 0) {
-      throw ConfigError.NoConfdata(request.confname);
+      throw ConfigError.NoConfdata(confname);
     }
+    this.logger.debug(JSON.stringify(currentConfig));
 
-    // Find the server parameter using utility function
-    // Type assertion is safe because parseConfigParams only uses conflist property
+    // Find the server parameter in the [service] section
     const params = parseConfigParams(currentConfig as GetAllSysParamCmsResponse);
-    const serverParam = params.find((param) => param.key === 'server');
+    const serverParam = params.find(
+      (param) => param.key === 'server' && param.section === 'service'
+    );
+
+    let updatedConfdata: string[];
 
     if (!serverParam) {
-      throw ConfigError.ServerParamNotFound(request.confname);
+      // Server parameter does not exist in [service] section
+      // Find [service] section in confdata (case-sensitive, lowercase)
+      let serviceSectionStartIndex = -1;
+
+      for (let i = 0; i < confdata.length; i++) {
+        const line = confdata[i].trim();
+
+        // Check for [service] section (case-sensitive, lowercase)
+        if (line === '[service]') {
+          serviceSectionStartIndex = i;
+          break;
+        }
+      }
+
+      if (serviceSectionStartIndex === -1) {
+        // [service] section does not exist, throw error
+        throw ConfigError.ServerParamNotFound(confname, {
+          message: '[service] section not found in configuration file',
+        });
+      }
+
+      // [service] section exists, add server parameter after the section header
+      const insertIndex = serviceSectionStartIndex + 1;
+      updatedConfdata = [
+        ...confdata.slice(0, insertIndex),
+        `server=${request.dbname}`,
+        ...confdata.slice(insertIndex),
+      ];
+      this.logger.debug(
+        `Server parameter not found in [service] section, adding server=${request.dbname} at line ${insertIndex + 1}`
+      );
+    } else {
+      // Parse existing server values
+      const existingDbnames = serverParam.value
+        ? serverParam.value
+            .split(',')
+            .map((db) => db.trim())
+            .filter((db) => db.length > 0)
+        : [];
+
+      // Check if dbname already exists - if it does, return success without modification
+      if (existingDbnames.includes(request.dbname)) {
+        this.logger.debug(
+          `Database name ${request.dbname} already exists in server parameter, returning current configuration`
+        );
+        const rv: SetAutoStartResponse = currentConfig as unknown as SetAutoStartResponse;
+        this.logger.debug(JSON.stringify(rv));
+        return rv;
+      }
+
+      // Append new dbname
+      const updatedDbnames = [...existingDbnames, request.dbname];
+      const updatedServerLine = `server=${updatedDbnames.join(',')}`;
+
+      // Update confdata with new server line (lineNumber is 1-based, convert to 0-based index)
+      updatedConfdata = [...confdata];
+      updatedConfdata[serverParam.lineNumber - 1] = updatedServerLine;
     }
 
-    // Parse existing server values
-    const existingDbnames = serverParam.value
-      ? serverParam.value
-          .split(',')
-          .map((db) => db.trim())
-          .filter((db) => db.length > 0)
-      : [];
-
-    // Check if dbname already exists
-    if (existingDbnames.includes(request.dbname)) {
-      throw ConfigError.DbnameAlreadyExists(request.confname, request.dbname);
-    }
-
-    // Append new dbname
-    const updatedDbnames = [...existingDbnames, request.dbname];
-    const updatedServerLine = `server=${updatedDbnames.join(',')}`;
-
-    // Update confdata with new server line (lineNumber is 1-based, convert to 0-based index)
-    const updatedConfdata = [...confdata];
-    updatedConfdata[serverParam.lineNumber - 1] = updatedServerLine;
-
-    // Set updated configuration
-    return await this.cmsConfigService.setSystemParam(
+    const rv = await this.cmsConfigService.setSystemParam(
       userId,
       hostUid,
-      request.confname,
+      confname,
       updatedConfdata
     );
+    // Set updated configuration
+    this.logger.debug(JSON.stringify(rv));
+    return rv;
   }
 
   /**
    * Disable auto-start for a database.
-   * Removes database name from the server parameter in configuration file.
+   * Removes database name from the server parameter in cubridconf configuration file.
+   * The confname field in the request is ignored - the system always uses 'cubridconf'.
    *
    * @param userId User ID from JWT
    * @param hostUid Host UID
-   * @param request Request containing confname and dbname
+   * @param request Request containing dbname (confname is ignored, always uses 'cubridconf')
    * @returns RemoveAutoStartResponse Empty object on success
-   * @throws DatabaseError If request fails, server parameter not found, or dbname does not exist
+   * @throws ConfigError If request fails, server parameter not found in [service] section, or dbname does not exist
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async removeAutoStart(
     userId: string,
     hostUid: string,
     request: RemoveAutoStartRequest
   ): Promise<RemoveAutoStartResponse> {
-    // Get current configuration
+    const confname = CMS_CONFNAME_CUBRID;
+
+    // Get current configuration from cubridconf
     const currentConfig = await this.cmsConfigService.getAllSystemParam(
       userId,
       hostUid,
-      request.confname
+      confname
     );
 
     if (!currentConfig.conflist || currentConfig.conflist.length === 0) {
-      throw ConfigError.NoConflistData(request.confname);
+      throw ConfigError.NoConflistData(confname);
     }
 
     const confdata = currentConfig.conflist[0].confdata;
     if (!confdata || confdata.length === 0) {
-      throw ConfigError.NoConfdata(request.confname);
+      throw ConfigError.NoConfdata(confname);
     }
 
-    // Find the server parameter using utility function
-    // Type assertion is safe because parseConfigParams only uses conflist property
+    // Find the server parameter in the [service] section
     const params = parseConfigParams(currentConfig as GetAllSysParamCmsResponse);
-    const serverParam = params.find((param) => param.key === 'server');
+    const serverParam = params.find(
+      (param) => param.key === 'server' && param.section === 'service'
+    );
 
     if (!serverParam) {
-      throw ConfigError.ServerParamNotFound(request.confname);
+      throw ConfigError.ServerParamNotFound(confname, {
+        message: 'server parameter not found in [service] section',
+      });
     }
 
     // Parse existing server values
@@ -272,7 +335,7 @@ export class DatabaseConfigService {
 
     // Check if dbname exists
     if (!existingDbnames.includes(request.dbname)) {
-      throw ConfigError.DbnameNotFound(request.confname, request.dbname);
+      throw ConfigError.DbnameNotFound(confname, request.dbname);
     }
 
     // Remove dbname
@@ -288,7 +351,7 @@ export class DatabaseConfigService {
     return await this.cmsConfigService.setSystemParam(
       userId,
       hostUid,
-      request.confname,
+      confname,
       updatedConfdata
     );
   }
@@ -304,18 +367,15 @@ export class DatabaseConfigService {
    * @returns SetAutoAddVolResponse Empty object on success
    * @throws DatabaseError If request fails or CMS status is fail
    */
-  @HandleDatabaseErrors()
+  @HandleCmsErrors()
   async setAutoAddVol(
     userId: string,
     hostUid: string,
     dbname: string,
     request: SetAutoAddVolRequest
   ): Promise<SetAutoAddVolResponse> {
-    const host = await this.hostService.findHostInternal(userId, hostUid);
-    const url = `https://${host.address}:${host.port}/cm_api`;
     const cmsRequest: SetAutoAddVolCmsRequest = {
       task: 'setautoaddvol',
-      token: host.token || '',
       dbname: dbname,
       data: request.data,
       data_warn_outofspace: request.data_warn_outofspace,
@@ -325,15 +385,282 @@ export class DatabaseConfigService {
       index_ext_page: request.index_ext_page,
     };
 
-    const response = await this.cmsClient.postAuthenticated<
-      SetAutoAddVolCmsRequest,
-      SetAutoAddVolCmsResponse
-    >(url, cmsRequest);
+    await this.executeCmsRequest<SetAutoAddVolCmsRequest, SetAutoAddVolCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
 
-    checkCmsTokenError(response);
+    return { success: true };
+  }
 
-    checkCmsStatusError(response);
+  /**
+   * Get database size (CMS task: getdbsize).
+   * Request: task, token, dbname. Response: __EXEC_TIME, dbsize, note, status, task.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param dbname Database name
+   * @returns GetDbSizeClientResponse dbsize (bytes as string)
+   */
+  @HandleCmsErrors()
+  async getDbSize(
+    userId: string,
+    hostUid: string,
+    dbname: string
+  ): Promise<GetDbSizeClientResponse> {
+    const cmsRequest: GetDbSizeCmsRequest = {
+      task: 'getdbsize',
+      dbname,
+    };
 
-    return {};
+    const response = await this.executeCmsRequest<
+      GetDbSizeCmsRequest,
+      GetDbSizeCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    return {
+      dbsize: response.dbsize ?? '0',
+    };
+  }
+
+  /**
+   * Get auto-add volume configuration for a database (CMS task: getautoaddvol).
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param dbname Database name
+   * @returns GetAutoAddVolClientResponse volume fields only (CMS envelope omitted)
+   */
+  @HandleCmsErrors()
+  async getAutoAddVol(
+    userId: string,
+    hostUid: string,
+    dbname: string
+  ): Promise<GetAutoAddVolClientResponse> {
+    const cmsRequest: GetAutoAddVolCmsRequest = {
+      task: 'getautoaddvol',
+      dbname,
+    };
+
+    const response = await this.executeCmsRequest<
+      GetAutoAddVolCmsRequest,
+      GetAutoAddVolCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    const cms = response as GetAutoAddVolCmsResponse;
+    return {
+      data: cms.data,
+      data_ext_page: cms.data_ext_page,
+      data_warn_outofspace: cms.data_warn_outofspace,
+      index: cms.index,
+      index_ext_page: cms.index_ext_page,
+      index_warn_outofspace: cms.index_warn_outofspace,
+    };
+  }
+
+  /**
+   * Get class information for a database.
+   * Returns domain-only data (CMS envelope removed).
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param dbname Database name
+   * @param request Request containing dbstatus
+   * @returns ClassInfoResponse Class information (system classes and user classes)
+   * @throws DatabaseError If request fails or CMS status is fail
+   */
+  @HandleCmsErrors()
+  async getClassInfo(
+    userId: string,
+    hostUid: string,
+    dbname: string,
+    request: ClassInfoRequest
+  ): Promise<ClassInfoResponse> {
+    const cmsRequest: ClassInfoCmsRequest = {
+      task: 'classinfo',
+      dbname: dbname,
+      dbstatus: request.dbstatus,
+    };
+
+    const response = await this.executeCmsRequest<ClassInfoCmsRequest, ClassInfoCmsResponse>(
+      userId,
+      hostUid,
+      cmsRequest
+    );
+
+    return this.extractDomainData(response);
+  }
+
+  /**
+   * Get auto-execution query error log.
+   * Returns domain-only data (CMS envelope removed).
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param request Client request (empty object)
+   * @returns GetAutoExecQueryErrLogResponse Error log entries
+   * @throws DatabaseError If request fails or CMS status is fail
+   */
+  @HandleCmsErrors()
+  async getAutoExecQueryErrLog(
+    userId: string,
+    hostUid: string,
+    _request: GetAutoExecQueryErrLogRequest
+  ): Promise<GetAutoExecQueryErrLogResponse> {
+    const cmsRequest: GetAutoExecQueryErrLogCmsRequest = {
+      task: 'getautoexecqueryerrlog',
+    };
+
+    this.logger.debug('Getting auto-execution query error log');
+
+    const response = await this.executeCmsRequest<
+      GetAutoExecQueryErrLogCmsRequest,
+      GetAutoExecQueryErrLogCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    return this.extractDomainData(response);
+  }
+
+  /**
+   * Get auto-add volume log entries for a time range. CMS task: getautoaddvollog.
+   */
+  @HandleCmsErrors()
+  async getAutoAddVolLog(
+    userId: string,
+    hostUid: string,
+    request: GetAutoAddVolLogRequest
+  ): Promise<GetAutoAddVolLogResponse> {
+    const { start_time, end_time } = this.resolveAutoAddVolLogRange(request);
+    const cmsRequest: GetAutoAddVolLogCmsRequest = {
+      task: 'getautoaddvollog',
+      start_time,
+      end_time,
+    };
+
+    const response = await this.executeCmsRequest<
+      GetAutoAddVolLogCmsRequest,
+      GetAutoAddVolLogCmsResponse
+    >(userId, hostUid, cmsRequest);
+
+    const domain = this.extractDomainData(response);
+    return domain.log ?? [];
+  }
+
+  /**
+   * Append a single query plan to a database's auto-exec plan list.
+   * Serializes concurrent callers per (hostUid, dbname) to prevent read-modify-write races.
+   *
+   * @throws ConfigError.DuplicateQueryId if a plan with the same query_id already exists
+   */
+  @HandleCmsErrors()
+  async appendAutoExecQueryPlan(
+    userId: string,
+    hostUid: string,
+    request: AppendAutoExecQueryPlanRequest
+  ): Promise<SetAutoExecQueryClientResponse> {
+    const { dbname, plan: newPlan } = request;
+    return this.withQueryPlanMutex(`${hostUid}:${dbname}`, async () => {
+      const existing = await this.getAutoExecQuery(userId, hostUid, dbname);
+      const existingPlans = existing.planlist.find((p) => p.dbname === dbname)?.queryplan ?? [];
+
+      if (existingPlans.some((p) => p.query_id === newPlan.query_id)) {
+        throw ConfigError.DuplicateQueryId(dbname, newPlan.query_id);
+      }
+
+      const cmsRequest: SetAutoExecQueryCmsRequest = {
+        task: 'setautoexecquery',
+        dbname,
+        planlist: [{ dbname, queryplan: [...existingPlans, newPlan] }],
+      };
+      await this.executeCmsRequest<SetAutoExecQueryCmsRequest, SetAutoExecQueryCmsResponse>(
+        userId,
+        hostUid,
+        cmsRequest
+      );
+      return { success: true };
+    });
+  }
+
+  /**
+   * Remove a single query plan from a database's auto-exec plan list by query_id.
+   * Serializes concurrent callers per (hostUid, dbname) to prevent read-modify-write races.
+   *
+   * @throws ConfigError.QueryPlanNotFound if no plan with the given query_id exists
+   */
+  @HandleCmsErrors()
+  async removeAutoExecQueryPlan(
+    userId: string,
+    hostUid: string,
+    request: RemoveAutoExecQueryPlanRequest
+  ): Promise<SetAutoExecQueryClientResponse> {
+    const { dbname, query_id: queryId } = request;
+    return this.withQueryPlanMutex(`${hostUid}:${dbname}`, async () => {
+      const existing = await this.getAutoExecQuery(userId, hostUid, dbname);
+      const existingPlans = existing.planlist.find((p) => p.dbname === dbname)?.queryplan ?? [];
+      const remaining = existingPlans.filter((p) => p.query_id !== queryId);
+
+      if (remaining.length === existingPlans.length) {
+        throw ConfigError.QueryPlanNotFound(dbname, queryId);
+      }
+
+      const cmsRequest: SetAutoExecQueryCmsRequest = {
+        task: 'setautoexecquery',
+        dbname,
+        planlist: [{ dbname, queryplan: remaining }],
+      };
+      await this.executeCmsRequest<SetAutoExecQueryCmsRequest, SetAutoExecQueryCmsResponse>(
+        userId,
+        hostUid,
+        cmsRequest
+      );
+      return { success: true };
+    });
+  }
+
+  // Serializes concurrent read-modify-write operations per (hostUid, dbname) key.
+  private readonly queryPlanMutex = new Map<string, Promise<void>>();
+
+  private async withQueryPlanMutex<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    const pending = this.queryPlanMutex.get(key) ?? Promise.resolve();
+    let resolve!: () => void;
+    const next = new Promise<void>((r) => (resolve = r));
+    this.queryPlanMutex.set(key, next);
+    try {
+      await pending;
+      return await fn();
+    } finally {
+      resolve();
+      if (this.queryPlanMutex.get(key) === next) {
+        this.queryPlanMutex.delete(key);
+      }
+    }
+  }
+
+  private resolveAutoAddVolLogRange(request: GetAutoAddVolLogRequest): {
+    start_time: string;
+    end_time: string;
+  } {
+    const now = new Date();
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(now);
+    end.setHours(23, 59, 59, 999);
+
+    return {
+      start_time: request.start_time ?? this.formatCmsLogDateTime(start),
+      end_time: request.end_time ?? this.formatCmsLogDateTime(end),
+    };
+  }
+
+  private formatCmsLogDateTime(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    const seconds = date.getSeconds();
+
+    return `${year}-${month}-${day},${hours}:${minutes}:${seconds}`;
   }
 }

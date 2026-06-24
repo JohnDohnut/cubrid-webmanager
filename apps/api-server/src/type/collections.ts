@@ -1,4 +1,5 @@
 import { HostInfo } from './host-info';
+import { HostGroupInfo } from './host-group-info';
 import { DBInfo } from './db-info';
 
 /**
@@ -22,6 +23,9 @@ export type HostList = HashMap<HostInfo>;
  * @category Types
  */
 export type SafeHostList = HashMap<Omit<HostInfo, 'password' | 'token' | 'dbProfiles'>>;
+
+export type SafeHostGroupInfo = Omit<HostGroupInfo, 'hosts'> & { hosts: SafeHostList };
+export type SafeHostGroupsMap = HashMap<SafeHostGroupInfo>;
 
 /**
  * Database list as a hashmap (internal use with passwords)

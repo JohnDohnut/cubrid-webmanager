@@ -45,22 +45,10 @@
     },
     "serve": {
       "executor": "nx:run-commands",
-      "defaultConfiguration": "development",
       "dependsOn": ["build"],
       "options": {
         "command": "node dist/apps/api-server/main.js",
-        "cwd": "."
-      },
-      "configurations": {
-        "development": {
-          "command": "node dist/apps/api-server/main.js --SEED=seed --SALT=salt --PORT=8080"
-        },
-        "production": {
-          "command": "node dist/apps/api-server/main.js --SEED=seed --SALT=salt --PORT=8080"
-        },
-        "dev-with-port": {
-          "command": "node dist/apps/api-server/main.js --SEED=seed --SALT=salt --PORT=8081"
-        }
+        "cwd": "{workspaceRoot}"
       }
     },
     "test": {
@@ -74,8 +62,9 @@
       "options": {
         "commands": [
           "cd dist/apps/api-server && npm install --production",
-          "node -e \"const fs=require('fs');const r=JSON.parse(fs.readFileSync('package.json','utf8'));const b=JSON.parse(fs.readFileSync('dist/apps/api-server/package.json','utf8'));if(!r.pkg)throw new Error('pkg config not found');b.pkg=r.pkg;fs.writeFileSync('dist/apps/api-server/package.json',JSON.stringify(b,null,2));\"",
-          "pkg dist/apps/api-server/package.json"
+          "node apps/api-server/scripts/prepare-pkg-manifest.js",
+          "node scripts/copy-web-to-api.mjs",
+          "npx pkg dist/apps/api-server/package.json"
         ],
         "parallel": false
       },
@@ -83,32 +72,36 @@
         "windows": {
           "commands": [
             "cd dist/apps/api-server && npm install --production",
-            "node -e \"const fs=require('fs');const r=JSON.parse(fs.readFileSync('package.json','utf8'));const b=JSON.parse(fs.readFileSync('dist/apps/api-server/package.json','utf8'));if(!r.pkg)throw new Error('pkg config not found');b.pkg={...r.pkg,targets:['node18-win-x64']};b.bin={'api-server':'main.js'};fs.writeFileSync('dist/apps/api-server/package.json',JSON.stringify(b,null,2));\"",
-            "pkg dist/apps/api-server/package.json --targets node18-win-x64 --output dist/executables/api-server.exe"
+            "node apps/api-server/scripts/prepare-pkg-manifest.js --target node18-win-x64",
+            "node scripts/copy-web-to-api.mjs",
+            "npx pkg dist/apps/api-server/package.json --targets node18-win-x64 --output dist/executables/cubrid-web-manager.exe"
           ],
           "parallel": false
         },
         "linux": {
           "commands": [
             "cd dist/apps/api-server && npm install --production",
-            "node -e \"const fs=require('fs');const r=JSON.parse(fs.readFileSync('package.json','utf8'));const b=JSON.parse(fs.readFileSync('dist/apps/api-server/package.json','utf8'));if(!r.pkg)throw new Error('pkg config not found');b.pkg={...r.pkg,targets:['node18-linux-x64']};b.bin={'api-server':'main.js'};fs.writeFileSync('dist/apps/api-server/package.json',JSON.stringify(b,null,2));\"",
-            "pkg dist/apps/api-server/package.json --targets node18-linux-x64 --output dist/executables/api-server-linux"
+            "node apps/api-server/scripts/prepare-pkg-manifest.js --target node18-linux-x64",
+            "node scripts/copy-web-to-api.mjs",
+            "npx pkg dist/apps/api-server/package.json --targets node18-linux-x64 --output dist/executables/cubrid-web-manager-linux"
           ],
           "parallel": false
         },
         "macos": {
           "commands": [
             "cd dist/apps/api-server && npm install --production",
-            "node -e \"const fs=require('fs');const r=JSON.parse(fs.readFileSync('package.json','utf8'));const b=JSON.parse(fs.readFileSync('dist/apps/api-server/package.json','utf8'));if(!r.pkg)throw new Error('pkg config not found');b.pkg={...r.pkg,targets:['node18-macos-x64']};b.bin={'api-server':'main.js'};fs.writeFileSync('dist/apps/api-server/package.json',JSON.stringify(b,null,2));\"",
-            "pkg dist/apps/api-server/package.json --targets node18-macos-x64 --output dist/executables/api-server-macos"
+            "node apps/api-server/scripts/prepare-pkg-manifest.js --target node18-macos-x64",
+            "node scripts/copy-web-to-api.mjs",
+            "npx pkg dist/apps/api-server/package.json --targets node18-macos-x64 --output dist/executables/cubrid-web-manager-macos"
           ],
           "parallel": false
         },
         "all": {
           "commands": [
             "cd dist/apps/api-server && npm install --production",
-            "node -e \"const fs=require('fs');const r=JSON.parse(fs.readFileSync('package.json','utf8'));const b=JSON.parse(fs.readFileSync('dist/apps/api-server/package.json','utf8'));if(!r.pkg)throw new Error('pkg config not found');b.pkg=r.pkg;b.bin={'api-server':'main.js'};fs.writeFileSync('dist/apps/api-server/package.json',JSON.stringify(b,null,2));\"",
-            "pkg dist/apps/api-server/package.json"
+            "node apps/api-server/scripts/prepare-pkg-manifest.js --set-bin",
+            "node scripts/copy-web-to-api.mjs",
+            "npx pkg dist/apps/api-server/package.json"
           ],
           "parallel": false
         }

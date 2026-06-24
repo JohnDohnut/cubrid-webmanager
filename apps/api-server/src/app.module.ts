@@ -16,10 +16,13 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { CmsAuthModule } from '@cms-auth/cms-auth.module';
 import { CmsConfigModule } from '@cms-config/cms-config.module';
+import { CmsUserModule } from '@cms-user';
 import { FileModule } from '@file/file.module';
 import { DatabaseModule } from '@database/database.module';
 import { CmsHttpsClientModule } from '@cms-https-client/cms-https-client.module';
 import { LogModule } from './log/log.module';
+import { HaModule } from '@ha';
+import { CmsJobModule } from '@cms-job/cms-job.module';
 
 /**
  * Root application module that configures all feature modules and global providers.
@@ -46,10 +49,13 @@ import { LogModule } from './log/log.module';
     LockModule,
     CmsAuthModule,
     CmsConfigModule,
+    CmsUserModule,
     FileModule,
     DatabaseModule,
+    CmsJobModule,
     CmsHttpsClientModule,
     LogModule,
+    HaModule,
   ],
   controllers: [AppController],
   providers: [

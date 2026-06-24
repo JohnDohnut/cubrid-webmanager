@@ -1,45 +1,49 @@
+import { loadRuntimeEnv } from './config/load-runtime-env';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import 'module-alias/register';
-import { getOrCreateSSLCert } from '@util/ssl-util';
+import * as path from 'path';
+import * as fs from 'fs';
+import * as express from 'express';
+import { getHttpsOptions } from '@util';
 import { GlobalExceptionFilter } from '@error/global-filter';
 import { ConfigService } from '@config/config.service';
 import { SuccessResponseInterceptor, LoggingInterceptor } from '@common'; // Updated import
 
 async function bootstrap() {
-  const httpsOptions = getOrCreateSSLCert();
-  const app = await NestFactory.create(AppModule, { httpsOptions });
+  loadRuntimeEnv();
+  const httpsOptions = getHttpsOptions();
+  const app = await NestFactory.create(AppModule, {
+    httpsOptions,
+    logger: ['error', 'warn'],
+  });
+  app.getHttpAdapter().getInstance().set('trust proxy', true);
   const configService = app.get(ConfigService);
   const port: string = configService.getPort();
+  const listenHost = configService.getListenHost();
   const allowedOrigins = configService.getAllowedOrigins();
+  const desktopMode = (process.env.CWM_DESKTOP ?? '').trim() === '1';
   console.log('[main.ts] Allowed Origins from ConfigService:', allowedOrigins);
 
   if (allowedOrigins.includes('*')) {
-    console.log('[main.ts] Enabling CORS for all origins.');
+    // Development mode: allow all origins.
+    console.log('[main.ts] Enabling CORS for all origins (dev).');
     app.enableCors({
       origin: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
       credentials: true,
     });
-  } else {
-    // Allow all origins starting with localhost
+  } else if (allowedOrigins.length > 0) {
+    // Production with explicit whitelist: only listed origins allowed cross-origin.
     const whitelist = [...allowedOrigins];
     console.log('[main.ts] Production CORS whitelist:', whitelist);
     app.enableCors({
-      origin: (origin, callback) => {
-        console.log('[main.ts] Received Origin header:', origin);
-        // Allow if origin is not present (same-origin requests, etc.)
+      origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
         if (!origin) {
           callback(null, true);
           return;
         }
-        // Allow all origins starting with localhost
-        if (origin.startsWith('http://localhost:') || origin.startsWith('https://localhost:')) {
-          callback(null, true);
-          return;
-        }
-        // Allow origins in whitelist
         if (whitelist.includes(origin)) {
           callback(null, true);
           return;
@@ -51,10 +55,83 @@ async function bootstrap() {
       credentials: true,
     });
   }
+  // else: ALLOWED_ORIGINS not configured = single-server mode.
+  // The browser never applies CORS restrictions to same-origin requests,
+  // so no enableCors() call is needed. Cross-origin requests are blocked
+  // automatically by the browser (no ACAO header = blocked).
 
+  // Desktop mode uses UDS + Electron proxy that strips /api — no prefix needed.
+  if (!desktopMode) {
+    app.setGlobalPrefix('api');
+  }
   app.useGlobalFilters(new GlobalExceptionFilter());
   app.useGlobalInterceptors(new LoggingInterceptor(), new SuccessResponseInterceptor());
+
+  // Serve web-manager static files.
+  // Both pkg (snapshot filesystem) and node use __dirname/public.
+  // pkg embeds public/ as assets so __dirname resolves inside the snapshot.
+  const publicDir = path.join(__dirname, 'public');
+  if (fs.existsSync(publicDir)) {
+    const expressApp = app.getHttpAdapter().getInstance();
+
+    // PWA Service Worker registration requires a trusted SSL cert.
+    // When ENABLE_PWA is not explicitly set to 'true' in cwm.conf,
+    // intercept /registerSW.js with an empty script so SW is never registered.
+    // This prevents SecurityError on self-signed certificates.
+    const enablePwa = (process.env.ENABLE_PWA ?? '').trim() === 'true';
+    if (!enablePwa) {
+      // Return a script that actively unregisters any previously installed SW.
+      // An empty response would leave stale service workers intercepting
+      // requests even after PWA is disabled.
+      expressApp.get('/registerSW.js', (_req: express.Request, res: express.Response) => {
+        res.setHeader('Content-Type', 'application/javascript');
+        res.send(
+          `if('serviceWorker'in navigator){` +
+          `navigator.serviceWorker.getRegistrations()` +
+          `.then(rs=>{for(const r of rs)r.unregister();});}`
+        );
+      });
+    }
+
+    expressApp.use(express.static(publicDir));
+    // Exclude both /api and /api/* from SPA fallback.
+    // Without (?:/|$) the lookahead /api\/ misses the bare /api path,
+    // causing probes and readiness checks to receive index.html 200.
+    expressApp.get(/^\/(?!api(?:\/|$)).*/, (_req: express.Request, res: express.Response) => {
+      res.sendFile(path.join(publicDir, 'index.html'));
+    });
+    console.log('\t@ serving web-manager from:', publicDir);
+  }
+
+  const unixSocket = configService.getListenUnixSocket();
+  if (unixSocket) {
+    removeStaleUnixSocket(unixSocket);
+    await app.listen(unixSocket);
+    console.log('\t@ server running on unix socket:', unixSocket);
+    return;
+  }
+
+  if (listenHost) {
+    await app.listen(port, listenHost);
+    console.log('\t@ server running on', `${listenHost}:${port}`);
+    return;
+  }
+
   await app.listen(port);
   console.log('\t@ server running port :', port);
 }
 bootstrap();
+
+function removeStaleUnixSocket(socketPath: string): void {
+  if (process.platform === 'win32') {
+    return;
+  }
+
+  try {
+    fs.unlinkSync(socketPath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw error;
+    }
+  }
+}

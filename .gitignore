@@ -4,6 +4,7 @@ node_modules/
 
 # Build outputs
 dist/
+dev-dist/
 out-tsc/
 *.tsbuildinfo
 
@@ -111,4 +112,16 @@ Desktop.ini
 *.bak
 *.swp
 *.swo
+*.xlsx
+~$*.xlsx
 docs/
+local-e2e/.env
+local-e2e/playwright-report/
+local-e2e/test-results/
+playwright-report/
+test-results/
+cwm-workspace/
+
+# Desktop Local Runtime Data
+desktop-settings.json
+cwm-vault/

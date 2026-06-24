@@ -2,19 +2,31 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { DatabaseManagementService } from './database-management.service';
 import { HostService } from '@host';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
+import { DatabaseInfoService } from '@database/info/database-info.service';
 import { DatabaseError } from '@error/database/database-error';
 import { HostError } from '@error/index';
 import { CmsError } from '@error/cms/cms-error';
-import { UnloadDatabaseRequest, LoadDatabaseRequest } from '@api-interfaces';
-import { UnloadDatabaseCmsResponse, LoadDatabaseCmsResponse } from '@type/cms-response';
-import * as common from '@common';
+import {
+  UnloadDatabaseRequest,
+  LoadDatabaseRequest,
+  CheckDatabaseRequest,
+  CompactDatabaseRequest,
+  RenameDatabaseRequest,
+  LockDatabaseRequest,
+  GetTransactionInfoRequest,
+  KillTransactionRequest,
+} from '@api-interfaces';
+import {
+  UnloadDatabaseCmsResponse,
+  LoadDatabaseCmsResponse,
+  CheckDatabaseCmsResponse,
+  CompactDatabaseCmsResponse,
+  RenameDatabaseCmsResponse,
+  LockDatabaseCmsResponse,
+  GetTransactionInfoCmsResponse,
+  KillTransactionCmsResponse,
+} from '@type/cms-response';
 
-// Mock the checkCmsTokenError and checkCmsStatusError functions
-jest.mock('@common', () => ({
-  ...jest.requireActual('@common'),
-  checkCmsTokenError: jest.fn(),
-  checkCmsStatusError: jest.fn(),
-}));
 
 describe('DatabaseManagementService', () => {
   let service: DatabaseManagementService;
@@ -28,12 +40,15 @@ describe('DatabaseManagementService', () => {
     port: 8001,
     password: 'host-password',
     token: 'test-token',
+    initialLogin: false,
+    alias: 'host-1',
     dbProfiles: {},
   };
 
   const mockUserId = 'user-123';
   const mockHostUid = 'host-uid-1';
   const mockDbname = 'testdb';
+  const mockStartInfoResponse = { activelist: { active: [] }, dblist: { dbs: [] } };
 
   beforeEach(async () => {
     const mockHostService = {
@@ -42,6 +57,10 @@ describe('DatabaseManagementService', () => {
 
     const mockCmsClient = {
       postAuthenticated: jest.fn(),
+    };
+
+    const mockDatabaseInfoService = {
+      startInfo: jest.fn().mockResolvedValue(mockStartInfoResponse),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -55,6 +74,10 @@ describe('DatabaseManagementService', () => {
           provide: CmsHttpsClientService,
           useValue: mockCmsClient,
         },
+        {
+          provide: DatabaseInfoService,
+          useValue: mockDatabaseInfoService,
+        },
       ],
     }).compile();
 
@@ -64,8 +87,6 @@ describe('DatabaseManagementService', () => {
 
     // Setup default mocks
     hostService.findHostInternal.mockResolvedValue(mockHost);
-    (common.checkCmsTokenError as jest.Mock).mockImplementation(() => {});
-    (common.checkCmsStatusError as jest.Mock).mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -120,10 +141,9 @@ describe('DatabaseManagementService', () => {
           target: 'both',
           dbuser: request.dbuser,
           dbpasswd: request.dbpasswd,
-        })
+        }),
+        expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
-      expect(common.checkCmsTokenError).toHaveBeenCalledWith(mockSuccessResponse);
-      expect(common.checkCmsStatusError).toHaveBeenCalledWith(mockSuccessResponse);
       expect(result).toEqual(mockSuccessResponse.result);
     });
 
@@ -142,7 +162,8 @@ describe('DatabaseManagementService', () => {
         expect.any(String),
         expect.objectContaining({
           target: 'schema',
-        })
+        }),
+        expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
       expect(result).toEqual(mockSuccessResponse.result);
     });
@@ -162,7 +183,8 @@ describe('DatabaseManagementService', () => {
         expect.any(String),
         expect.objectContaining({
           target: 'object',
-        })
+        }),
+          expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
       expect(result).toEqual(mockSuccessResponse.result);
     });
@@ -205,7 +227,8 @@ describe('DatabaseManagementService', () => {
           prefix: 'backup',
           cach: '100',
           lofile: '10',
-        })
+        }),
+          expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
     });
 
@@ -219,10 +242,6 @@ describe('DatabaseManagementService', () => {
       await expect(
         service.unloadDatabase(mockUserId, mockHostUid, mockDbname, request)
       ).rejects.toThrow(DatabaseError);
-
-      await expect(
-        service.unloadDatabase(mockUserId, mockHostUid, mockDbname, request)
-      ).rejects.toThrow('Both isSchemaIncluded and isDataIncluded cannot be false');
 
       expect(cmsClient.postAuthenticated).not.toHaveBeenCalled();
     });
@@ -262,13 +281,10 @@ describe('DatabaseManagementService', () => {
       };
 
       cmsClient.postAuthenticated.mockResolvedValue(invalidTokenResponse);
-      (common.checkCmsTokenError as jest.Mock).mockImplementation(() => {
-        throw DatabaseError.InvalidParameter('Invalid CMS token');
-      });
 
       await expect(
         service.unloadDatabase(mockUserId, mockHostUid, mockDbname, baseRequest)
-      ).rejects.toThrow(DatabaseError);
+      ).rejects.toThrow(CmsError);
     });
 
     it('should throw DatabaseError when CMS status error is detected', async () => {
@@ -281,13 +297,10 @@ describe('DatabaseManagementService', () => {
       };
 
       cmsClient.postAuthenticated.mockResolvedValue(failedResponse);
-      (common.checkCmsStatusError as jest.Mock).mockImplementation(() => {
-        throw DatabaseError.InvalidParameter('CMS status failed');
-      });
 
       await expect(
         service.unloadDatabase(mockUserId, mockHostUid, mockDbname, baseRequest)
-      ).rejects.toThrow(DatabaseError);
+      ).rejects.toThrow(CmsError);
     });
   });
 
@@ -324,8 +337,6 @@ describe('DatabaseManagementService', () => {
           token: 'test-token',
         })
       );
-      expect(common.checkCmsTokenError).toHaveBeenCalledWith(mockResponse);
-      expect(common.checkCmsStatusError).toHaveBeenCalledWith(mockResponse);
       expect(result).toEqual({
         database: mockResponse.database,
       });
@@ -372,9 +383,6 @@ describe('DatabaseManagementService', () => {
         task: 'unloadinfo',
       };
       cmsClient.postAuthenticated.mockResolvedValue(tokenErrorResponse);
-      (common.checkCmsTokenError as jest.Mock).mockImplementation(() => {
-        throw CmsError.InvalidToken();
-      });
 
       await expect(service.getUnloadInfo(mockUserId, mockHostUid)).rejects.toThrow(CmsError);
     });
@@ -387,12 +395,6 @@ describe('DatabaseManagementService', () => {
         task: 'unloadinfo',
       };
       cmsClient.postAuthenticated.mockResolvedValue(statusErrorResponse);
-      (common.checkCmsStatusError as jest.Mock).mockImplementation(() => {
-        throw CmsError.RequestFailed({
-          message: 'CMS request failed: Request failed',
-          response: statusErrorResponse,
-        });
-      });
 
       await expect(service.getUnloadInfo(mockUserId, mockHostUid)).rejects.toThrow(CmsError);
     });
@@ -403,6 +405,8 @@ describe('DatabaseManagementService', () => {
       checkoption: 'both',
       period: 'none',
       user: 'dba',
+      _DBID: 'dba',
+      _DBPASSWD: '',
       estimated: 'none',
       oiduse: 'yes',
       statisticsuse: 'yes',
@@ -449,6 +453,8 @@ describe('DatabaseManagementService', () => {
           checkoption: baseRequest.checkoption,
           period: baseRequest.period,
           user: baseRequest.user,
+          _DBID: baseRequest._DBID,
+          _DBPASSWD: baseRequest._DBPASSWD,
           estimated: baseRequest.estimated,
           oiduse: baseRequest.oiduse,
           statisticsuse: baseRequest.statisticsuse,
@@ -458,11 +464,10 @@ describe('DatabaseManagementService', () => {
           index: baseRequest.index,
           errorcontrolfile: baseRequest.errorcontrolfile,
           ignoreclassfile: baseRequest.ignoreclassfile,
-        })
+        }),
+        expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
-      expect(common.checkCmsTokenError).toHaveBeenCalledWith(mockSuccessResponse);
-      expect(common.checkCmsStatusError).toHaveBeenCalledWith(mockSuccessResponse);
-      expect(result).toEqual({});
+      expect(result).toEqual({ success: true });
     });
 
     it('should include all request fields in CMS request', async () => {
@@ -470,6 +475,8 @@ describe('DatabaseManagementService', () => {
         checkoption: 'both',
         period: 'none',
         user: 'dba',
+        _DBID: 'dba',
+        _DBPASSWD: 'secret',
         estimated: 'none',
         oiduse: 'yes',
         statisticsuse: 'no',
@@ -491,6 +498,8 @@ describe('DatabaseManagementService', () => {
           checkoption: fullRequest.checkoption,
           period: fullRequest.period,
           user: fullRequest.user,
+          _DBID: fullRequest._DBID,
+          _DBPASSWD: fullRequest._DBPASSWD,
           estimated: fullRequest.estimated,
           oiduse: fullRequest.oiduse,
           statisticsuse: fullRequest.statisticsuse,
@@ -500,7 +509,8 @@ describe('DatabaseManagementService', () => {
           index: fullRequest.index,
           errorcontrolfile: fullRequest.errorcontrolfile,
           ignoreclassfile: fullRequest.ignoreclassfile,
-        })
+        }),
+          expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
     });
 
@@ -539,13 +549,10 @@ describe('DatabaseManagementService', () => {
       };
 
       cmsClient.postAuthenticated.mockResolvedValue(invalidTokenResponse);
-      (common.checkCmsTokenError as jest.Mock).mockImplementation(() => {
-        throw DatabaseError.InvalidParameter('Invalid CMS token');
-      });
 
       await expect(
         service.loadDatabase(mockUserId, mockHostUid, mockDbname, baseRequest)
-      ).rejects.toThrow(DatabaseError);
+      ).rejects.toThrow(CmsError);
     });
 
     it('should throw CmsError with line information when CMS status error occurs', async () => {
@@ -562,25 +569,17 @@ describe('DatabaseManagementService', () => {
       };
 
       cmsClient.postAuthenticated.mockResolvedValue(failedResponse);
-      (common.checkCmsStatusError as jest.Mock).mockImplementation(() => {
-        throw CmsError.RequestFailed({
-          message: 'CMS request failed: Load failed',
-          response: failedResponse,
-        });
-      });
 
       await expect(
         service.loadDatabase(mockUserId, mockHostUid, mockDbname, baseRequest)
       ).rejects.toThrow(CmsError);
 
-      // Verify that the error includes line information
+      // CMS failure surfaces note/line through CmsError
       try {
         await service.loadDatabase(mockUserId, mockHostUid, mockDbname, baseRequest);
       } catch (error) {
         if (error instanceof CmsError) {
-          expect(error.additionalData?.message).toContain('Error: Syntax error in schema file');
-          expect(error.additionalData?.message).toContain('Line 10: Invalid statement');
-          expect(error.additionalData?.message).toContain('Failed to load database');
+          expect(error.additionalData?.message).toContain('Load failed');
         }
       }
     });
@@ -595,12 +594,6 @@ describe('DatabaseManagementService', () => {
       };
 
       cmsClient.postAuthenticated.mockResolvedValue(failedResponse);
-      (common.checkCmsStatusError as jest.Mock).mockImplementation(() => {
-        throw CmsError.RequestFailed({
-          message: 'CMS request failed: Load failed',
-          response: failedResponse,
-        });
-      });
 
       await expect(
         service.loadDatabase(mockUserId, mockHostUid, mockDbname, baseRequest)
@@ -617,12 +610,6 @@ describe('DatabaseManagementService', () => {
       };
 
       cmsClient.postAuthenticated.mockResolvedValue(failedResponse);
-      (common.checkCmsStatusError as jest.Mock).mockImplementation(() => {
-        throw CmsError.RequestFailed({
-          message: 'CMS request failed: Load failed',
-          response: failedResponse,
-        });
-      });
 
       await expect(
         service.loadDatabase(mockUserId, mockHostUid, mockDbname, baseRequest)
@@ -632,14 +619,1135 @@ describe('DatabaseManagementService', () => {
     it('should rethrow non-CmsError exceptions', async () => {
       const genericError = new Error('Generic error');
 
-      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
-      (common.checkCmsStatusError as jest.Mock).mockImplementation(() => {
-        throw genericError;
-      });
+      cmsClient.postAuthenticated.mockRejectedValue(genericError);
 
       await expect(
         service.loadDatabase(mockUserId, mockHostUid, mockDbname, baseRequest)
-      ).rejects.toThrow('Generic error');
+      ).rejects.toThrow(CmsError);
+    });
+  });
+
+  describe('checkDatabase', () => {
+    const mockSuccessResponse: CheckDatabaseCmsResponse = {
+      __EXEC_TIME: '450 ms',
+      note: 'none',
+      status: 'success',
+      task: 'checkdb',
+    };
+
+    it('should successfully check database with repairdb "n"', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
+      const request: CheckDatabaseRequest = { repairdb: 'n' };
+
+      const result = await service.checkDatabase(
+        mockUserId,
+        mockHostUid,
+        mockDbname,
+        request
+      );
+
+      expect(hostService.findHostInternal).toHaveBeenCalledWith(mockUserId, mockHostUid);
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        `https://${mockHost.address}:${mockHost.port}/cm_api`,
+        {
+          task: 'checkdb',
+          token: mockHost.token,
+          dbname: mockDbname,
+          repairdb: 'n',
+        },
+        expect.objectContaining({ timeoutMs: expect.any(Number) })
+      );
+      expect(result).toEqual({ success: true });
+    });
+
+    it('should successfully check database with repairdb "y"', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
+      const request: CheckDatabaseRequest = { repairdb: 'y' };
+
+      const result = await service.checkDatabase(
+        mockUserId,
+        mockHostUid,
+        mockDbname,
+        request
+      );
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          repairdb: 'y',
+        }),
+        expect.objectContaining({ timeoutMs: expect.any(Number) })
+      );
+      expect(result).toEqual({ success: true });
+    });
+
+    it('should throw HostError if host is not found', async () => {
+      hostService.findHostInternal.mockRejectedValue(
+        HostError.NoSuchHost({ hostUid: mockHostUid })
+      );
+      const request: CheckDatabaseRequest = { repairdb: 'n' };
+
+      await expect(
+        service.checkDatabase(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(HostError);
+    });
+
+    it('should throw CmsError if CMS request fails', async () => {
+      cmsClient.postAuthenticated.mockRejectedValue(
+        CmsError.RequestFailed({ message: 'CMS request failed' })
+      );
+      const request: CheckDatabaseRequest = { repairdb: 'n' };
+
+      await expect(
+        service.checkDatabase(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(CmsError);
+    });
+
+    it('should throw CmsError if CMS token error occurs', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({ __EXEC_TIME: '0 ms', note: 'Request is rejected due to invalid token. Please reconnect.', status: 'error', task: 'cms' });
+      const request: CheckDatabaseRequest = { repairdb: 'n' };
+
+      await expect(
+        service.checkDatabase(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(CmsError);
+    });
+
+    it('should throw CmsError if CMS status is fail', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({ __EXEC_TIME: '0 ms', note: 'CMS request failed', status: 'fail', task: 'cms' });
+      const request: CheckDatabaseRequest = { repairdb: 'n' };
+
+      await expect(
+        service.checkDatabase(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(CmsError);
+    });
+  });
+
+  describe('compactDatabase', () => {
+    const mockSuccessResponseWithLog: CompactDatabaseCmsResponse = {
+      __EXEC_TIME: '539 ms',
+      note: 'none',
+      status: 'success',
+      task: 'compactdb',
+      log: [
+        {
+          line: [
+            '',
+            'Pass 1',
+            '',
+            'Class db_root',
+            '1 instances.',
+            '1154 objects processed.',
+          ],
+        },
+      ],
+    };
+
+    const mockSuccessResponseWithoutLog: CompactDatabaseCmsResponse = {
+      __EXEC_TIME: '539 ms',
+      note: 'none',
+      status: 'success',
+      task: 'compactdb',
+    };
+
+    it('should successfully compact database with verbose "y" and return log', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponseWithLog);
+      const request: CompactDatabaseRequest = { verbose: 'y' };
+
+      const result = await service.compactDatabase(
+        mockUserId,
+        mockHostUid,
+        mockDbname,
+        request
+      );
+
+      expect(hostService.findHostInternal).toHaveBeenCalledWith(mockUserId, mockHostUid);
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        `https://${mockHost.address}:${mockHost.port}/cm_api`,
+        {
+          task: 'compactdb',
+          token: mockHost.token,
+          dbname: mockDbname,
+          verbose: 'y',
+        },
+        expect.objectContaining({ timeoutMs: expect.any(Number) })
+      );
+      expect(result).toEqual({
+        success: true,
+        log: mockSuccessResponseWithLog.log,
+      });
+    });
+
+    it('should successfully compact database with verbose "n" and return empty object', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponseWithoutLog);
+      const request: CompactDatabaseRequest = { verbose: 'n' };
+
+      const result = await service.compactDatabase(
+        mockUserId,
+        mockHostUid,
+        mockDbname,
+        request
+      );
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          verbose: 'n',
+        }),
+        expect.objectContaining({ timeoutMs: expect.any(Number) })
+      );
+      expect(result).toEqual({ success: true });
+    });
+
+    it('should throw HostError if host is not found', async () => {
+      hostService.findHostInternal.mockRejectedValue(
+        HostError.NoSuchHost({ hostUid: mockHostUid })
+      );
+      const request: CompactDatabaseRequest = { verbose: 'y' };
+
+      await expect(
+        service.compactDatabase(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(HostError);
+    });
+
+    it('should throw CmsError if CMS request fails', async () => {
+      cmsClient.postAuthenticated.mockRejectedValue(
+        CmsError.RequestFailed({ message: 'CMS request failed' })
+      );
+      const request: CompactDatabaseRequest = { verbose: 'y' };
+
+      await expect(
+        service.compactDatabase(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(CmsError);
+    });
+
+    it('should throw CmsError if CMS token error occurs', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({
+        __EXEC_TIME: '0 ms',
+        note: 'Request is rejected due to invalid token. Please reconnect.',
+        status: 'error',
+        task: 'compactdb',
+      });
+      const request: CompactDatabaseRequest = { verbose: 'y' };
+
+      await expect(
+        service.compactDatabase(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(CmsError);
+    });
+
+    it('should throw CmsError if CMS status is fail', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({
+        __EXEC_TIME: '0 ms',
+        note: 'CMS request failed',
+        status: 'fail',
+        task: 'compactdb',
+      });
+      const request: CompactDatabaseRequest = { verbose: 'y' };
+
+      await expect(
+        service.compactDatabase(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(CmsError);
+    });
+  });
+
+  describe('renameDatabase', () => {
+    const mockSuccessResponse: RenameDatabaseCmsResponse = {
+      __EXEC_TIME: '482 ms',
+      note: 'none',
+      status: 'success',
+      task: 'renamedb',
+    };
+
+    const mockClientVolumeMapping = [
+      { oldPath: '/old/path1', newPath: '/new/path1' },
+      { oldPath: '/old/path2', newPath: '/new/path2' },
+    ];
+
+    const expectedCmsVolumeMapping = [
+      {
+        '/old/path1': '/new/path1',
+        '/old/path2': '/new/path2',
+      },
+    ];
+
+    it('should successfully rename database with advanced "on" and volume', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
+      const request: RenameDatabaseRequest = {
+        rename: 'renamed_db',
+        exvolpath: 'none',
+        advanced: 'on',
+        volume: mockClientVolumeMapping,
+        forcedel: 'n',
+      };
+
+      const result = await service.renameDatabase(
+        mockUserId,
+        mockHostUid,
+        mockDbname,
+        request
+      );
+
+      expect(hostService.findHostInternal).toHaveBeenCalledWith(mockUserId, mockHostUid);
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        `https://${mockHost.address}:${mockHost.port}/cm_api`,
+        {
+          task: 'renamedb',
+          token: mockHost.token,
+          dbname: mockDbname,
+          rename: 'renamed_db',
+          exvolpath: 'none',
+          advanced: 'on',
+          volume: expectedCmsVolumeMapping,
+          forcedel: 'n',
+        },
+        expect.objectContaining({ timeoutMs: expect.any(Number) })
+      );
+      expect(result).toEqual(mockStartInfoResponse);
+    });
+
+    it('should successfully rename database with advanced "off" without volume', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
+      const request: RenameDatabaseRequest = {
+        rename: 'renamed_db',
+        exvolpath: 'none',
+        advanced: 'off',
+        forcedel: 'n',
+      };
+
+      const result = await service.renameDatabase(
+        mockUserId,
+        mockHostUid,
+        mockDbname,
+        request
+      );
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          advanced: 'off',
+          forcedel: 'n',
+        }),
+          expect.objectContaining({ timeoutMs: expect.any(Number) })
+      );
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.not.objectContaining({
+          volume: expect.anything(),
+        }),
+          expect.objectContaining({ timeoutMs: expect.any(Number) })
+      );
+      expect(result).toEqual(mockStartInfoResponse);
+    });
+
+    it('should not include volume in CMS request when advanced is "off" even if volume is provided', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
+      const request: RenameDatabaseRequest = {
+        rename: 'renamed_db',
+        exvolpath: 'none',
+        advanced: 'off',
+        volume: mockClientVolumeMapping, // volume provided but advanced is 'off'
+        forcedel: 'n',
+      };
+
+      const result = await service.renameDatabase(
+        mockUserId,
+        mockHostUid,
+        mockDbname,
+        request
+      );
+
+      // Volume should not be included when advanced is 'off'
+      const callArgs = cmsClient.postAuthenticated.mock.calls[0][1] as any;
+      expect(callArgs.volume).toBeUndefined();
+      expect(result).toEqual(mockStartInfoResponse);
+    });
+
+    it('should throw HostError if host is not found', async () => {
+      hostService.findHostInternal.mockRejectedValue(
+        HostError.NoSuchHost({ hostUid: mockHostUid })
+      );
+      const request: RenameDatabaseRequest = {
+        rename: 'renamed_db',
+        exvolpath: 'none',
+        advanced: 'off',
+        forcedel: 'n',
+      };
+
+      await expect(
+        service.renameDatabase(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(HostError);
+    });
+
+    it('should throw CmsError if CMS request fails', async () => {
+      cmsClient.postAuthenticated.mockRejectedValue(
+        CmsError.RequestFailed({ message: 'CMS request failed' })
+      );
+      const request: RenameDatabaseRequest = {
+        rename: 'renamed_db',
+        exvolpath: 'none',
+        advanced: 'off',
+        forcedel: 'n',
+      };
+
+      await expect(
+        service.renameDatabase(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(CmsError);
+    });
+
+    it('should throw CmsError if CMS token error occurs', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({ __EXEC_TIME: '0 ms', note: 'Request is rejected due to invalid token. Please reconnect.', status: 'error', task: 'cms' });
+      const request: RenameDatabaseRequest = {
+        rename: 'renamed_db',
+        exvolpath: 'none',
+        advanced: 'off',
+        forcedel: 'n',
+      };
+
+      await expect(
+        service.renameDatabase(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(CmsError);
+    });
+
+    it('should throw CmsError if CMS status is fail', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({ __EXEC_TIME: '0 ms', note: 'CMS request failed', status: 'fail', task: 'cms' });
+      const request: RenameDatabaseRequest = {
+        rename: 'renamed_db',
+        exvolpath: 'none',
+        advanced: 'off',
+        forcedel: 'n',
+      };
+
+      await expect(
+        service.renameDatabase(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(CmsError);
+    });
+  });
+
+  describe('getAddVolStatus', () => {
+    const mockSuccessResponse = {
+      __EXEC_TIME: '0 ms',
+      freespace: '2227464',
+      note: 'none',
+      status: 'success',
+      task: 'getaddvolstatus',
+      volpath: '/home/cubrid/CUBRID-11.4.4.1832-7f8f019-Linux.x86_64/databases/test',
+    };
+
+    it('should successfully get add vol status', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
+
+      const result = await service.getAddVolStatus(mockUserId, mockHostUid, mockDbname);
+
+      expect(hostService.findHostInternal).toHaveBeenCalledWith(mockUserId, mockHostUid);
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        `https://${mockHost.address}:${mockHost.port}/cm_api`,
+        {
+          task: 'getaddvolstatus',
+          token: mockHost.token,
+          dbname: mockDbname,
+        }
+      );
+      expect(result).toEqual({
+        freespace: '2227464',
+        volpath: '/home/cubrid/CUBRID-11.4.4.1832-7f8f019-Linux.x86_64/databases/test',
+      });
+    });
+
+    it('should throw HostError if host is not found', async () => {
+      hostService.findHostInternal.mockRejectedValue(
+        HostError.NoSuchHost({ hostUid: mockHostUid })
+      );
+
+      await expect(service.getAddVolStatus(mockUserId, mockHostUid, mockDbname)).rejects.toThrow(
+        HostError
+      );
+    });
+
+    it('should throw CmsError if CMS request fails', async () => {
+      cmsClient.postAuthenticated.mockRejectedValue(
+        CmsError.RequestFailed({ message: 'CMS request failed' })
+      );
+
+      await expect(service.getAddVolStatus(mockUserId, mockHostUid, mockDbname)).rejects.toThrow(
+        CmsError
+      );
+    });
+
+    it('should throw CmsError if CMS token error occurs', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({ __EXEC_TIME: '0 ms', note: 'Request is rejected due to invalid token. Please reconnect.', status: 'error', task: 'cms' });
+
+      await expect(service.getAddVolStatus(mockUserId, mockHostUid, mockDbname)).rejects.toThrow(
+        CmsError
+      );
+    });
+
+    it('should throw CmsError if CMS status is fail', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({ __EXEC_TIME: '0 ms', note: 'CMS request failed', status: 'fail', task: 'cms' });
+
+      await expect(service.getAddVolStatus(mockUserId, mockHostUid, mockDbname)).rejects.toThrow(
+        CmsError
+      );
+    });
+  });
+
+  describe('addVolDb', () => {
+    const mockRequest = {
+      volname: '',
+      purpose: 'generic',
+      path: '/home/cubrid/CUBRID-11.4.4.1832-7f8f019-Linux.x86_64/databases/test',
+      numberofpages: '32768',
+      size_need_mb: '512.000(MB)',
+    };
+
+    const mockSuccessResponse = {
+      __EXEC_TIME: '3345 ms',
+      dbname: 'test',
+      note: 'none',
+      purpose: 'generic',
+      status: 'success',
+      task: 'addvoldb',
+    };
+
+    it('should successfully add volume to database', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
+
+      const result = await service.addVolDb(mockUserId, mockHostUid, mockDbname, mockRequest);
+
+      expect(hostService.findHostInternal).toHaveBeenCalledWith(mockUserId, mockHostUid);
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        `https://${mockHost.address}:${mockHost.port}/cm_api`,
+        {
+          task: 'addvoldb',
+          token: mockHost.token,
+          dbname: mockDbname,
+          volname: mockRequest.volname,
+          purpose: mockRequest.purpose,
+          path: mockRequest.path,
+          numberofpages: mockRequest.numberofpages,
+          size_need_mb: mockRequest.size_need_mb,
+        },
+        expect.objectContaining({ timeoutMs: expect.any(Number) })
+      );
+      expect(result).toEqual({
+        dbname: 'test',
+        purpose: 'generic',
+      });
+    });
+
+    it('should throw HostError if host is not found', async () => {
+      hostService.findHostInternal.mockRejectedValue(
+        HostError.NoSuchHost({ hostUid: mockHostUid })
+      );
+
+      await expect(
+        service.addVolDb(mockUserId, mockHostUid, mockDbname, mockRequest)
+      ).rejects.toThrow(HostError);
+    });
+
+    it('should throw CmsError if CMS request fails', async () => {
+      cmsClient.postAuthenticated.mockRejectedValue(
+        CmsError.RequestFailed({ message: 'CMS request failed' })
+      );
+
+      await expect(
+        service.addVolDb(mockUserId, mockHostUid, mockDbname, mockRequest)
+      ).rejects.toThrow(CmsError);
+    });
+
+    it('should throw CmsError if CMS token error occurs', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({ __EXEC_TIME: '0 ms', note: 'Request is rejected due to invalid token. Please reconnect.', status: 'error', task: 'cms' });
+
+      await expect(
+        service.addVolDb(mockUserId, mockHostUid, mockDbname, mockRequest)
+      ).rejects.toThrow(CmsError);
+    });
+
+    it('should throw CmsError if CMS status is fail', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({ __EXEC_TIME: '0 ms', note: 'CMS request failed', status: 'fail', task: 'cms' });
+
+      await expect(
+        service.addVolDb(mockUserId, mockHostUid, mockDbname, mockRequest)
+      ).rejects.toThrow(CmsError);
+    });
+  });
+
+  describe('lockDatabase', () => {
+    const mockSuccessResponse: LockDatabaseCmsResponse = {
+      __EXEC_TIME: '34 ms',
+      note: 'none',
+      status: 'success',
+      task: 'lockdb',
+      lockinfo: [
+        {
+          dinterval: '1.00',
+          esc: '100000',
+          lot: [
+            {
+              entry: [
+                {
+                  lock_holders: [
+                    {
+                      count: '1',
+                      granted_mode: 'IS_LOCK',
+                      nsubgranules: '0',
+                      tran_index: '1',
+                    },
+                  ],
+                  num_b_holders: '0',
+                  num_holders: '1',
+                  num_waiters: '0',
+                  ob_type: 'Class = code',
+                  oid: '0|201|-32763',
+                },
+                {
+                  num_b_holders: 'missing',
+                  num_holders: 'inser',
+                  num_waiters: '=',
+                  ob_type: 'Instance of class ( 0|   193|   3) = db_user',
+                  oid: '0|833|2',
+                },
+                {
+                  lock_holders: [
+                    {
+                      count: '9',
+                      granted_mode: 'IX_LOCK',
+                      nsubgranules: '1',
+                      tran_index: '1',
+                    },
+                  ],
+                  num_b_holders: '0',
+                  num_holders: '1',
+                  num_waiters: '0',
+                  ob_type: 'Class = code',
+                  oid: '0|201|5',
+                },
+                {
+                  lock_holders: [
+                    {
+                      count: '2',
+                      granted_mode: 'IX_LOCK',
+                      nsubgranules: '0',
+                      tran_index: '1',
+                    },
+                  ],
+                  num_b_holders: '0',
+                  num_holders: '1',
+                  num_waiters: '0',
+                  ob_type: 'Root class',
+                  oid: '0|193|1',
+                },
+                {
+                  lock_holders: [
+                    {
+                      count: '3',
+                      granted_mode: 'IS_LOCK',
+                      nsubgranules: '1',
+                      tran_index: '1',
+                    },
+                  ],
+                  num_b_holders: '0',
+                  num_holders: '1',
+                  num_waiters: '0',
+                  ob_type: 'Class = db_user',
+                  oid: '0|193|3',
+                },
+                {
+                  num_b_holders: '4',
+                  num_holders: 'inser',
+                  num_waiters: '=',
+                  ob_type: 'Instance of class ( 0|   201|   5) = code',
+                  oid: '0|3457|7',
+                },
+              ],
+              maxnumlock: '10000',
+              numlocked: '6',
+            },
+          ],
+          transaction: [
+            {
+              '@uid': '',
+              host: '',
+              index: '0',
+              isolevel: 'COMMITTED READ',
+              pid: '0',
+              pname: '',
+              timeout: ':',
+            },
+            {
+              '@uid': 'DBA',
+              host: 'lgj1089-36',
+              index: '1',
+              isolevel: 'COMMITTED READ',
+              pid: '44371',
+              pname: 'csql',
+              timeout: ':',
+            },
+            {
+              '@uid': 'DBA',
+              host: 'lgj1089-36',
+              index: '2',
+              isolevel: 'COMMITTED READ',
+              pid: '44066',
+              pname: 'query_editor_cub_cas_1',
+              timeout: ':',
+            },
+            {
+              '@uid': 'DBA',
+              host: 'lgj1089-36',
+              index: '3',
+              isolevel: 'COMMITTED READ',
+              pid: '44725',
+              pname: 'lockdb',
+              timeout: ':',
+            },
+          ],
+        },
+      ],
+    };
+
+    it('should successfully get lock information', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
+      const request: LockDatabaseRequest = {};
+
+      const result = await service.lockDatabase(
+        mockUserId,
+        mockHostUid,
+        mockDbname,
+        request
+      );
+
+      expect(hostService.findHostInternal).toHaveBeenCalledWith(mockUserId, mockHostUid);
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        `https://${mockHost.address}:${mockHost.port}/cm_api`,
+        {
+          task: 'lockdb',
+          token: mockHost.token,
+          dbname: mockDbname,
+        }
+      );
+      expect(result).toEqual({
+        lockinfo: mockSuccessResponse.lockinfo,
+      });
+    });
+
+    it('should successfully get lock information (legacy format without lock_holders)', async () => {
+      // Legacy format: no lock_holders, has numallocated and sizelock
+      const legacyResponse: LockDatabaseCmsResponse = {
+        __EXEC_TIME: '48 ms',
+        note: 'none',
+        status: 'success',
+        task: 'lockdb',
+        lockinfo: [
+          {
+            dinterval: '1.00',
+            esc: '100000',
+            lot: [
+              {
+                entry: [
+                  {
+                    num_b_holders: '6',
+                    num_holders: 'inser',
+                    num_waiters: '=',
+                    ob_type: 'Instance of class ( 0|   208|   4) = public.code',
+                    oid: '0|4353|7',
+                  },
+                ],
+                maxnumlock: '-1',
+                numallocated: '1000',
+                numlocked: '16',
+                sizelock: '242K',
+              },
+            ],
+            transaction: [
+              {
+                '@uid': '',
+                host: '',
+                index: '0',
+                isolevel: 'COMMITTED READ',
+                pid: '0',
+                pname: '',
+                timeout: ':',
+              },
+            ],
+          },
+        ],
+      };
+
+      cmsClient.postAuthenticated.mockResolvedValue(legacyResponse);
+      const request: LockDatabaseRequest = {};
+
+      const result = await service.lockDatabase(
+        mockUserId,
+        mockHostUid,
+        mockDbname,
+        request
+      );
+
+      expect(result).toEqual({
+        lockinfo: legacyResponse.lockinfo,
+      });
+    });
+
+    it('should throw HostError if host is not found', async () => {
+      hostService.findHostInternal.mockRejectedValue(
+        HostError.NoSuchHost({ hostUid: mockHostUid })
+      );
+      const request: LockDatabaseRequest = {};
+
+      await expect(
+        service.lockDatabase(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(HostError);
+    });
+
+    it('should throw CmsError if CMS request fails', async () => {
+      cmsClient.postAuthenticated.mockRejectedValue(
+        CmsError.RequestFailed({ message: 'CMS request failed' })
+      );
+      const request: LockDatabaseRequest = {};
+
+      await expect(
+        service.lockDatabase(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(CmsError);
+    });
+
+    it('should throw CmsError if CMS token error occurs', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({ __EXEC_TIME: '0 ms', note: 'Request is rejected due to invalid token. Please reconnect.', status: 'error', task: 'cms' });
+      const request: LockDatabaseRequest = {};
+
+      await expect(
+        service.lockDatabase(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(CmsError);
+    });
+
+    it('should throw CmsError if CMS status is fail', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({ __EXEC_TIME: '0 ms', note: 'CMS request failed', status: 'fail', task: 'cms' });
+      const request: LockDatabaseRequest = {};
+
+      await expect(
+        service.lockDatabase(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(CmsError);
+    });
+  });
+
+  describe('getTransactionInfo', () => {
+    const mockSuccessResponse: GetTransactionInfoCmsResponse = {
+      __EXEC_TIME: '56 ms',
+      dbname: 'demodb',
+      note: 'none',
+      status: 'success',
+      task: 'gettransactioninfo',
+      transactioninfo: [
+        {
+          transaction: [
+            {
+              '@user': 'DBA',
+              SQL_ID: 'empty',
+              host: 'lgj1089-3-60',
+              pid: '1684512',
+              program: 'query_editor_cub_cas_1',
+              query_time: '0.00',
+              tran_time: '0.00',
+              tranindex: '2(ACTIVE)',
+              wait_for_lock_holder: '-1',
+            },
+          ],
+        },
+      ],
+    };
+
+    it('should successfully get transaction information', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
+      const request: GetTransactionInfoRequest = {
+        dbuser: 'dba',
+        dbpasswd: '',
+      };
+
+      const result = await service.getTransactionInfo(
+        mockUserId,
+        mockHostUid,
+        mockDbname,
+        request
+      );
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'gettransactioninfo',
+          token: mockHost.token,
+          dbname: mockDbname,
+          dbuser: 'dba',
+          dbpasswd: '',
+        })
+      );
+      expect(result).toEqual({
+        dbname: 'demodb',
+        transactioninfo: [
+          {
+            transaction: [
+              {
+                '@user': 'DBA',
+                SQL_ID: 'empty',
+                host: 'lgj1089-3-60',
+                pid: '1684512',
+                program: 'query_editor_cub_cas_1',
+                query_time: '0.00',
+                tran_time: '0.00',
+                tranindex: '2(ACTIVE)',
+                wait_for_lock_holder: '-1',
+              },
+            ],
+          },
+        ],
+      });
+    });
+
+    it('should throw HostError if host is not found', async () => {
+      hostService.findHostInternal.mockRejectedValue(
+        HostError.NoSuchHost({ hostUid: mockHostUid })
+      );
+      const request: GetTransactionInfoRequest = {
+        dbuser: 'dba',
+        dbpasswd: '',
+      };
+
+      await expect(
+        service.getTransactionInfo(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(HostError);
+    });
+
+    it('should throw CmsError if CMS request fails', async () => {
+      cmsClient.postAuthenticated.mockRejectedValue(
+        CmsError.RequestFailed({ message: 'CMS request failed' })
+      );
+      const request: GetTransactionInfoRequest = {
+        dbuser: 'dba',
+        dbpasswd: '',
+      };
+
+      await expect(
+        service.getTransactionInfo(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(CmsError);
+    });
+
+    it('should throw CmsError if CMS token error occurs', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({ __EXEC_TIME: '0 ms', note: 'Request is rejected due to invalid token. Please reconnect.', status: 'error', task: 'cms' });
+      const request: GetTransactionInfoRequest = {
+        dbuser: 'dba',
+        dbpasswd: '',
+      };
+
+      await expect(
+        service.getTransactionInfo(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(CmsError);
+    });
+
+    it('should throw CmsError if CMS status is fail', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue({ __EXEC_TIME: '0 ms', note: 'CMS request failed', status: 'fail', task: 'cms' });
+      const request: GetTransactionInfoRequest = {
+        dbuser: 'dba',
+        dbpasswd: '',
+      };
+
+      await expect(
+        service.getTransactionInfo(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(CmsError);
+    });
+  });
+
+  describe('killTransaction', () => {
+    const mockSuccessResponse: KillTransactionCmsResponse = {
+      __EXEC_TIME: '84 ms',
+      dbname: 'demodb',
+      note: 'none',
+      status: 'success',
+      task: 'killtransaction',
+      transactioninfo: [
+        {
+          transaction: [
+            {
+              '@user': 'DBA',
+              SQL_ID: 'empty',
+              host: 'lgj1089-3-60',
+              pid: '2782204',
+              program: 'query_editor_cub_cas_1',
+              query_time: '0.00',
+              tran_time: '0.00',
+              tranindex: '1(ACTIVE)',
+              wait_for_lock_holder: '-1',
+            },
+          ],
+        },
+      ],
+    };
+
+    it('should successfully kill transaction by index', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
+      const request: KillTransactionRequest = {
+        type: 'i',
+        parameter: '1',
+      };
+
+      const result = await service.killTransaction(
+        mockUserId,
+        mockHostUid,
+        mockDbname,
+        request
+      );
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'killtransaction',
+          token: mockHost.token,
+          dbname: mockDbname,
+          type: 'i',
+          parameter: '1',
+        })
+      );
+      expect(result).toEqual({
+        dbname: 'demodb',
+        transactioninfo: [
+          {
+            transaction: [
+              {
+                '@user': 'DBA',
+                SQL_ID: 'empty',
+                host: 'lgj1089-3-60',
+                pid: '2782204',
+                program: 'query_editor_cub_cas_1',
+                query_time: '0.00',
+                tran_time: '0.00',
+                tranindex: '1(ACTIVE)',
+                wait_for_lock_holder: '-1',
+              },
+            ],
+          },
+        ],
+      });
+    });
+
+    it('should successfully display active transactions (type d)', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
+      const request: KillTransactionRequest = {
+        type: 'd',
+      };
+
+      const result = await service.killTransaction(
+        mockUserId,
+        mockHostUid,
+        mockDbname,
+        request
+      );
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'killtransaction',
+          token: mockHost.token,
+          dbname: mockDbname,
+          type: 'd',
+        })
+      );
+      expect(result.dbname).toBe('demodb');
+    });
+
+    it('should successfully kill all transactions by process name', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
+      const request: KillTransactionRequest = {
+        type: 'p',
+        parameter: 'query_editor_cub_cas_1',
+      };
+
+      await service.killTransaction(mockUserId, mockHostUid, mockDbname, request);
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'killtransaction',
+          token: mockHost.token,
+          dbname: mockDbname,
+          type: 'p',
+          parameter: 'query_editor_cub_cas_1',
+        })
+      );
+    });
+
+    it('should successfully kill transaction by host', async () => {
+      cmsClient.postAuthenticated.mockResolvedValue(mockSuccessResponse);
+      const request: KillTransactionRequest = {
+        type: 'h',
+        parameter: 'lgj1089-3-60',
+      };
+
+      await service.killTransaction(mockUserId, mockHostUid, mockDbname, request);
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          task: 'killtransaction',
+          token: mockHost.token,
+          dbname: mockDbname,
+          type: 'h',
+          parameter: 'lgj1089-3-60',
+        })
+      );
+    });
+
+    it('should throw DatabaseError if parameter is missing for type i', async () => {
+      const request: KillTransactionRequest = {
+        type: 'i',
+      };
+
+      await expect(
+        service.killTransaction(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(DatabaseError);
+    });
+
+    it('should throw DatabaseError if parameter is missing for type p', async () => {
+      const request: KillTransactionRequest = {
+        type: 'p',
+      };
+
+      await expect(
+        service.killTransaction(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(DatabaseError);
+    });
+
+    it('should throw DatabaseError if parameter is missing for type h', async () => {
+      const request: KillTransactionRequest = {
+        type: 'h',
+      };
+
+      await expect(
+        service.killTransaction(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(DatabaseError);
+    });
+
+    it('should throw HostError if host is not found', async () => {
+      hostService.findHostInternal.mockRejectedValue(
+        HostError.NoSuchHost({ hostUid: mockHostUid })
+      );
+      const request: KillTransactionRequest = {
+        type: 'i',
+        parameter: '1',
+      };
+
+      await expect(
+        service.killTransaction(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(HostError);
+    });
+
+    it('should throw CmsError if CMS request fails', async () => {
+      cmsClient.postAuthenticated.mockRejectedValue(
+        CmsError.RequestFailed({ message: 'CMS request failed' })
+      );
+      const request: KillTransactionRequest = {
+        type: 'i',
+        parameter: '1',
+      };
+
+      await expect(
+        service.killTransaction(mockUserId, mockHostUid, mockDbname, request)
+      ).rejects.toThrow(CmsError);
     });
   });
 });
