@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { closeBackupDatabaseModal, backupDatabase, fetchBackupDbInfo } from '../databaseSlice';
+import { closeBackupDatabaseModal, fetchBackupDbInfo } from '../databaseSlice';
+import { databaseJobApi } from '../databaseJobApi';
+import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
+import { getCmsJobLoadingSubtitle } from '../../../infrastructure/cmsJob/cmsJobUi';
 
 import { Modal } from '../../../components/ds/layout/Modal';
 import {
@@ -56,16 +59,18 @@ export default function BackupDatabaseModal() {
   const { backupDbInfo: databaseBackupInfo } = useSelector((state) => state.databaseOperation, shallowEqual);
   const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
 
-  const { 
-    error, 
-    startAction, 
-    endSuccess, 
-    endError, 
+  const {
+    error,
+    startAction,
+    endSuccess,
+    endError,
     resetAction,
     isLoading,
     isSuccess,
     isError
   } = useActionState();
+  const { runJob } = useCmsJob();
+  const [jobStatus, setJobStatus] = useState(null);
 
   const [formData, setFormData] = useState({
     volPath: `${selectedDatabase}_backup_lv0`,
@@ -192,10 +197,13 @@ export default function BackupDatabaseModal() {
         zip: formData.compress ? 'y' : 'n',
         safereplication: 'n'
       };
-      await dispatch(backupDatabase({ hostUid: selectedHostUid, dbname: selectedDatabase, payload })).unwrap();
-      endSuccess(`Database "${selectedDatabase}" has been successfully backed up to "${formData.backupDir}".`);
+      await runJob(
+        () => databaseJobApi.submitBackup(selectedHostUid, selectedDatabase, payload),
+        { onProgress: (j) => setJobStatus(j.jobStatus ?? j.status) }
+      );
+      endSuccess();
     } catch (err) {
-      endError(err);
+      endError(typeof err === 'string' ? err : err.message || CM.failure);
     }
   };
 
@@ -291,9 +299,9 @@ export default function BackupDatabaseModal() {
   if (isLoading) {
     return (
       <Modal isOpen title={CM.backupDatabase} icon="backup" onClose={handleClose} maxWidth="720px" showCloseButton={false}>
-        <ModalStatusLoading 
-          title={CM.snapshotInProgress} 
-          subtitle={selectedDatabase} 
+        <ModalStatusLoading
+          title={CM.snapshotInProgress}
+          subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
         />
       </Modal>
     );

@@ -79,6 +79,9 @@ export const databaseJobApi = {
 
   submitRename: (hostUid, dbname, payload) =>
     submitJob(`/${hostUid}/database/rename/${encodeURIComponent(dbname)}`, payload),
+
+  submitBackup: (hostUid, dbname, payload) =>
+    submitJob(`/${hostUid}/database/backup-db/${encodeURIComponent(dbname)}`, payload),
 };
 
 const POLL_MAX_RETRIES = 3;
