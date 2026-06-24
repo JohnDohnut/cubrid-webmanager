@@ -251,7 +251,7 @@ export default function SetAutomationVolumeModal() {
       isOpen={isSetAutomationVolumeModalOpen}
       onClose={handleClose}
       title={CM.autoVolume}
-      subtitle={selectedDatabase ? `Configure expansion policies for "${selectedDatabase}"` : ''}
+      subtitle={selectedDatabase ? CM.setAutomationVolumeSubtitle(selectedDatabase) : ''}
       icon="settings_suggest"
       maxWidth="max-w-[580px]"
       footer={
@@ -282,7 +282,7 @@ export default function SetAutomationVolumeModal() {
             <Icon name="database" size="14px" weight={300} className="text-amber-500" />
           </div>
           <div className="min-w-0 flex-1">
-            <Typography variant="caption" className="text-[9px] font-semibold text-amber-600/70 uppercase tracking-widest block">Target database</Typography>
+            <Typography variant="caption" className="text-[9px] font-semibold text-amber-600/70 uppercase tracking-widest block">{CM.targetDatabase}</Typography>
             <Typography variant="p" className="text-[12px] font-bold text-amber-700 dark:text-amber-400 font-mono truncate">{selectedDatabase}</Typography>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
@@ -306,7 +306,7 @@ export default function SetAutomationVolumeModal() {
             <PolicyCard
               title={CM.dataVolume}
               icon="database"
-              description="Permanent data volumes"
+              description={CM.permanentDataVolDesc}
               enabled={dataEnabled}
               onToggle={setDataEnabled}
               threshold={dataThreshold}
@@ -317,7 +317,7 @@ export default function SetAutomationVolumeModal() {
             <PolicyCard
               title={CM.indexVolume}
               icon="list_alt"
-              description="Index & search volumes"
+              description={CM.indexSearchVolDesc}
               enabled={indexEnabled}
               onToggle={setIndexEnabled}
               threshold={indexThreshold}

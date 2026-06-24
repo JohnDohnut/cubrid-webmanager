@@ -535,7 +535,7 @@ export const CM_KO = {
   leaveBlankNoPassword: '비밀번호 없음은 비워 두세요',
   repeatPassword: '비밀번호 확인',
   addVolume: '볼륨 추가',
-  clickAddVolumeHint: '"볼륨 추가"를 클릭하여 추가 스토리지 세그먼트를 할당하세요.',
+  clickAddVolumeHint: '"볼륨 추가"를 클릭하여 스토리지 볼륨을 추가하세요.',
   identifier: '식별자',
   segment: '세그먼트',
   sizeMb: '크기(MB)',
@@ -1057,6 +1057,33 @@ export const CM_KO = {
   refreshVolumeData: '볼륨 데이터 새로 고침',
   refreshCategoryMetrics: '카테고리 지표 새로 고침',
   refreshSpaceMetrics: '공간 지표 새로 고침',
+
+  // VolumeCategoryMonitor
+  volumeCategoryMonitor: '볼륨 카테고리 모니터',
+  capacity: '용량',
+  usageLabel: '사용률',
+  overallUtilization: '전체 사용률',
+  volumesLabel: '볼륨',
+  pagesLabel: '페이지',
+  freeLabel: '여유',
+
+  // Auto log modals / CASLogModal
+  timeLabel: '시간',
+  outcomeLabel: '결과',
+  executionTime: '실행 시간',
+  globalAutomationHistory: '전역 자동화 이력',
+  globalQueryHistory: '전역 질의 실행 이력',
+  casSqlLog: 'CAS SQL 로그',
+  casSlowQueryLog: 'CAS 느린 쿼리 로그',
+
+  // Modal subtitles (automation modals)
+  addQueryPlanSubtitle: (db) => `${db} 데이터베이스의 SQL 자동화를 설정합니다`,
+  editQueryPlanSubtitle: (db) => `${db} 데이터베이스의 SQL 자동화를 수정합니다`,
+  addBackupPlanSubtitle: (db) => `${db} 데이터베이스의 자동 백업 일정을 설정합니다`,
+  editBackupPlanSubtitle: (db) => `${db} 데이터베이스의 자동 백업 일정을 수정합니다`,
+  setAutomationVolumeSubtitle: (db) => `"${db}" 볼륨 자동 확장 정책을 설정합니다`,
+  permanentDataVolDesc: '영구 데이터 볼륨',
+  indexSearchVolDesc: '인덱스 볼륨',
 
   // DatabaseSpaceMonitor
   storageAnalysisError: '스토리지 분석 오류',

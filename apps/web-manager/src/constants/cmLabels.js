@@ -514,7 +514,7 @@ export const CM = {
   performanceTuning: 'Performance Tuning',
   noMatches: 'No Matches',
   optimizationScope: 'Optimization Scope',
-  provisionVolume: 'Provision Storage Volume',
+  provisionVolume: 'Add Volume',
   autoVolume: 'Auto Volume',
   triggerThreshold: 'Trigger threshold',
   dataVolume: 'Data Volume',
@@ -552,7 +552,7 @@ export const CM = {
   leaveBlankNoPassword: 'Leave blank for no password',
   repeatPassword: 'Repeat password',
   addVolume: 'Add Volume',
-  clickAddVolumeHint: 'Click "Add Volume" to provision extra storage segments.',
+  clickAddVolumeHint: 'Click "Add Volume" to add extra storage volumes.',
   identifier: 'Identifier',
   segment: 'Segment',
   sizeMb: 'Size MB',
@@ -1079,6 +1079,33 @@ export const CM = {
   refreshVolumeData: 'Refresh volume data',
   refreshCategoryMetrics: 'Refresh category metrics',
   refreshSpaceMetrics: 'Refresh space metrics',
+
+  // VolumeCategoryMonitor
+  volumeCategoryMonitor: 'Volume Category Monitor',
+  capacity: 'Capacity',
+  usageLabel: 'Usage',
+  overallUtilization: 'Overall Utilization',
+  volumesLabel: 'Volumes',
+  pagesLabel: 'Pages',
+  freeLabel: 'Free',
+
+  // Auto log modals / CASLogModal
+  timeLabel: 'Time',
+  outcomeLabel: 'Outcome',
+  executionTime: 'Execution Time',
+  globalAutomationHistory: 'Global Automation History',
+  globalQueryHistory: 'Global Query Execution History',
+  casSqlLog: 'CAS SQL Log',
+  casSlowQueryLog: 'CAS Slow Query Log',
+
+  // Modal subtitles (automation modals)
+  addQueryPlanSubtitle: (db) => `Schedule automated SQL execution for ${db}`,
+  editQueryPlanSubtitle: (db) => `Modify automated SQL execution for ${db}`,
+  addBackupPlanSubtitle: (db) => `Configure automated scheduled backups for ${db}`,
+  editBackupPlanSubtitle: (db) => `Modify automated scheduled backup for ${db}`,
+  setAutomationVolumeSubtitle: (db) => `Configure expansion policies for "${db}"`,
+  permanentDataVolDesc: 'Permanent data volumes',
+  indexSearchVolDesc: 'Index & search volumes',
 
   // DatabaseSpaceMonitor
   storageAnalysisError: 'Storage Analysis Error',
