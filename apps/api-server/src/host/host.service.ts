@@ -16,6 +16,7 @@ import {
   findDuplicateHost,
   findHostRef,
   getHost,
+  moveHostToGroup,
   removeHostFromUser,
   sanitizeHostGroups,
   updateGroup,
@@ -84,7 +85,14 @@ export class HostService {
         }
         addHostToGroup(user, groupId, newHost);
       } else {
-        createGroupWithHost(user, newHost, { name: alias });
+        const existingGroupId = Object.entries(groups).find(
+          ([, g]) => (g.name ?? '').trim() === alias
+        )?.[0];
+        if (existingGroupId) {
+          addHostToGroup(user, existingGroupId, newHost);
+        } else {
+          createGroupWithHost(user, newHost, { name: alias });
+        }
       }
 
       this.logger.log(`Host added: ${newHost.uid}`);
@@ -137,10 +145,7 @@ export class HostService {
   @HandleHostErrors()
   async deleteHostGroup(userId: string, groupId: string): Promise<SafeHostGroupsMap> {
     const updatedUser = await this.repository.atomicUpdateUser(userId, async (user: User) => {
-      const ok = deleteGroup(user, groupId);
-      if (!ok) {
-        throw HostError.InvalidFormat({ field: 'groupId', reason: 'GROUP_NOT_FOUND' });
-      }
+      deleteGroup(user, groupId);
       return user;
     });
     return sanitizeHostGroups(updatedUser);
@@ -197,6 +202,26 @@ export class HostService {
       return user;
     });
 
+    return sanitizeHostGroups(updatedUser);
+  }
+
+  @HandleHostErrors()
+  async moveHost(
+    userId: string,
+    hostUid: string,
+    targetGroupId: string
+  ): Promise<SafeHostGroupsMap> {
+    const updatedUser = await this.repository.atomicUpdateUser(userId, async (user: User) => {
+      const ok = moveHostToGroup(user, hostUid, targetGroupId);
+      if (!ok) {
+        const ref = findHostRef(user, hostUid);
+        if (!ref) {
+          throw HostError.NoSuchHost({ hostUid });
+        }
+        throw HostError.InvalidFormat({ field: 'targetGroupId', reason: 'GROUP_NOT_FOUND' });
+      }
+      return user;
+    });
     return sanitizeHostGroups(updatedUser);
   }
 

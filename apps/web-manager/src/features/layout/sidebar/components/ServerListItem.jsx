@@ -6,22 +6,33 @@ import { Icon } from '../../../../components/ds/foundation/Icon';
 const HA_ROLE_CONFIG = {
   master: {
     icon: 'star',
-    label: 'M',
+    label: 'Master',
     className: 'bg-amber-500/15 border-amber-500/30 text-amber-600 dark:text-amber-400',
   },
   slave: {
     icon: 'settings_backup_restore',
-    label: 'S',
+    label: 'Slave',
     className: 'bg-slate-500/10 border-slate-400/20 text-slate-500 dark:text-slate-400',
   },
   replica: {
     icon: 'copy_all',
-    label: 'R',
+    label: 'Replica',
     className: 'bg-blue-500/10 border-blue-400/20 text-blue-600 dark:text-blue-400',
   },
 };
 
-export default function ServerListItem({ host, isSelected, isAuthorized, haInfo, onContextMenu, compact = false }) {
+export default function ServerListItem({
+  host,
+  isSelected,
+  isAuthorized,
+  haInfo,
+  onContextMenu,
+  compact = false,
+  draggable = false,
+  isDragging = false,
+  onDragStart,
+  onDragEnd,
+}) {
   const dispatch = useDispatch();
 
   const getInferredHaInfo = () => {
@@ -47,7 +58,12 @@ export default function ServerListItem({ host, isSelected, isAuthorized, haInfo,
   return (
     <div
       title={`${host.address}:${host.port}`}
-      className={`relative flex items-center gap-2.5 py-1.5 cursor-pointer select-none transition-all duration-150 group
+      draggable={draggable}
+      onDragStart={draggable ? onDragStart : undefined}
+      onDragEnd={draggable ? onDragEnd : undefined}
+      className={`relative flex items-center gap-2.5 py-1.5 select-none transition-all duration-150 group
+        ${draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}
+        ${isDragging ? 'opacity-40' : ''}
         ${compact ? 'pl-6 pr-2' : 'pl-3 pr-2'}
         ${isSelected
           ? 'bg-amber-500/8 dark:bg-amber-500/10'
@@ -100,7 +116,7 @@ export default function ServerListItem({ host, isSelected, isAuthorized, haInfo,
 
       {/* Right side: HA role badge */}
       {roleConfig && (
-        <span className={`shrink-0 inline-flex items-center justify-center w-4 h-4 rounded border text-[9px] font-black leading-none transition-all ${roleConfig.className}`}>
+        <span className={`shrink-0 inline-flex items-center justify-center px-1.5 h-4 rounded border text-[8.5px] font-black leading-none transition-all ${roleConfig.className}`}>
           {roleConfig.label}
         </span>
       )}

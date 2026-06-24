@@ -77,3 +77,4 @@ export * from './update-dbmt-user-response';
 export * from './get-dbmt-user-info-client-response';
 export * from './delete-dbmt-user-client-response';
 export * from './set-dbmt-passwd-client-response';
+export * from './cms-job-response';

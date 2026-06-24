@@ -4,18 +4,17 @@ import { useSelector, useDispatch , shallowEqual } from 'react-redux';
 import {
   fetchHosts,
   setSelectedHost,
-  loginToHost,
-  markGroupHa,
+  loginToHostWithSideEffects,
+  loginHostsBatch,
   openDeleteHostModal,
   openEditHostModal,
   openChangePasswordModal,
   revokeHostLogin,
   openServerVersionModal,
   fetchHostEnv,
-  setSuggestedHaNodes,
-  clearLastAddedHostUid,
-  editHost,
-  openCmsUserManagementModal
+  openCmsUserManagementModal,
+  startService,
+  stopService
 } from '../../host/hostSlice';
 import {
   fetchDatabaseStartInfo, startDatabase, stopDatabase, loginDatabase, registerDatabase,
@@ -29,7 +28,7 @@ import {
 
 import {
   createDatabase, copyDatabase, deleteDatabase, renameDatabase, fetchCreateDatabaseInfo,
-  addVolume, backupDatabase, restoreDatabase, fetchBackupSchedule, addBackupSchedule,
+  addVolume, restoreDatabase, fetchBackupSchedule, addBackupSchedule,
   editBackupSchedule, deleteBackupSchedule, fetchBackupList, fetchBackupDbInfo,
   fetchAutoBackupLog, checkDatabase, compactDatabase, optimizeDatabase, loadDatabase,
   unloadDatabase, fetchQueryPlan, setAutoExecQuery, fetchQueryPlanLog, fetchLockInfo,
@@ -56,6 +55,10 @@ import {
 } from '../../database/databaseUISlice';
 import {
   fetchBrokerList,
+  fetchBrokerLogs,
+  fetchAdminLogs,
+  fetchCMSLogs,
+  fetchDatabaseLogs,
   startBroker,
   stopBroker,
   openBrokerPropertyModal,
@@ -73,6 +76,7 @@ import { Spinner } from '../../../components/ds/foundation/Spinner';
 import { useActionState } from '../../../infrastructure/hooks/useActionState';
 import { ModalStatusError } from '../../../components/ds/feedback/ActionStatus';
 import { Modal } from '../../../components/ds/layout/Modal';
+import { ConfirmDialog } from '../../../components/ds/layout/ConfirmDialog';
 import { Button } from '../../../components/ds/foundation/Button';
 import { StatusBadge } from '../../../components/ds/foundation/StatusBadge';
 import { useCM } from '../../../constants/useCM';
@@ -95,9 +99,8 @@ import DeleteQueryPlanModal from '../../database/components/DeleteQueryPlanModal
 import AutoVolumeLogModal from '../../database/components/AutoVolumeLogModal';
 import CMSUserManagementModal from '../../host/components/CMSUserManagementModal';
 import EditCMSUserModal from '../../host/components/EditCMSUserModal';
-import { findGroupIdForHost } from '../../host/hostGroupUtils';
-import { store } from '../../../app/store';
-import { openCreateGroupModal, openDeleteGroupModal, openRenameGroupModal } from '../../host/hostSlice';
+import { openCreateGroupModal, openDeleteGroupModal, openRenameGroupModal, openAddHostModal } from '../../host/hostSlice';
+import { getUnauthorizedHostUids } from '../../host/hostGroupUtils';
 
 export default function Sidebar({ isCollapsed, onAddHost }) {
   const CM = useCM();
@@ -129,6 +132,11 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
   const [backupItemContextMenu, setBackupItemContextMenu] = useState(null);
   const [sqlLogContextMenu, setSqlLogContextMenu] = useState(null);
   const [dbLogContextMenu, setDbLogContextMenu] = useState(null);
+  const [brokerLogRootContextMenu, setBrokerLogRootContextMenu] = useState(null);
+  const [brokerErrorLogContextMenu, setBrokerErrorLogContextMenu] = useState(null);
+  const [adminLogContextMenu, setAdminLogContextMenu] = useState(null);
+  const [managerLogContextMenu, setManagerLogContextMenu] = useState(null);
+  const [serverLogRootContextMenu, setServerLogRootContextMenu] = useState(null);
 
   const dispatch = useDispatch();
   const { 
@@ -141,8 +149,13 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
   } = useActionState();
 
   const [loadingText, setLoadingText] = useState(CM.processing);
+  const [stopServiceConfirm, setStopServiceConfirm] = useState({
+    isOpen: false,
+    hostUid: null,
+    serverName: '',
+  });
 
-  const { hosts, hostGroups, selectedHostUid, selectedGroupUid, loading: hostsLoading, authorizedHosts, isLoggingIntoHost, hostAuthErrors, haInfo, lastAddedHostUid } = useSelector((state) => state.host, shallowEqual);
+  const { hosts, hostGroups, selectedHostUid, selectedGroupUid, loading: hostsLoading, authorizedHosts, isLoggingIntoHost, hostAuthErrors, haInfo, skipAutoHostLogin } = useSelector((state) => state.host, shallowEqual);
   const { databases, activeDatabases, loggedInDatabases } = useSelector((state) => state.database, shallowEqual);
   const { brokers } = useSelector((state) => state.broker, shallowEqual);
 
@@ -167,72 +180,115 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
     setBackupItemContextMenu(null);
     setSqlLogContextMenu(null);
     setDbLogContextMenu(null);
+    setBrokerLogRootContextMenu(null);
+    setBrokerErrorLogContextMenu(null);
+    setAdminLogContextMenu(null);
+    setManagerLogContextMenu(null);
+    setServerLogRootContextMenu(null);
   }, []);
 
   const handleHostLogin = useCallback((uid) => {
     if (!uid) return;
-    
-    dispatch(loginToHost(uid))
+    // Use a ref so concurrent clicks in the same render frame are also blocked.
+    // isLoggingIntoHost is a stale-closure value and misses same-frame double-clicks.
+    if (loginInProgressRef.current) return;
+
+    if (authorizedHosts.includes(uid)) {
+      dispatch(setActiveMainTab('host:' + uid));
+      dispatch(fetchDatabaseStartInfo(uid));
+      dispatch(fetchBrokerList(uid));
+      dispatch(fetchHostEnv(uid));
+      return;
+    }
+
+    loginInProgressRef.current = true;
+
+    dispatch(loginToHostWithSideEffects(uid))
       .unwrap()
-      .then(async (response) => {
+      .then(() => {
         dispatch(setActiveMainTab('host:' + uid));
         dispatch(fetchDatabaseStartInfo(uid));
         dispatch(fetchBrokerList(uid));
         dispatch(fetchHostEnv(uid));
-
-        const isNewlyAdded = lastAddedHostUid === uid;
-
-        if (response.isHA) {
-          // Group name should not auto-change based on which node was selected.
-          // Group rename is handled explicitly via group CRUD.
-          await dispatch(markGroupHa({ hostUid: uid })).unwrap().catch(() => {});
-        }
-
-        if (response.isHA && response.haNodes?.length > 0 && isNewlyAdded) {
-          const undiscovered = response.haNodes.filter(node => {
-            const isSelf = hosts.find(h => {
-              const hAddr = h.address.toLowerCase();
-              const nIp = (node.ip || '').toLowerCase();
-              const nHost = (node.hostname || '').toLowerCase();
-              if (hAddr === nIp || hAddr === nHost) return true;
-              const isLoopback = (addr) => addr === 'localhost' || addr === '127.0.0.1';
-              if (isLoopback(hAddr) && (isLoopback(nIp) || isLoopback(nHost))) return true;
-              return false;
-            });
-            return !isSelf;
-          });
-          if (undiscovered.length > 0) {
-            const freshGroups = store.getState().host.hostGroups;
-            dispatch(setSuggestedHaNodes({
-              nodes: undiscovered,
-              groupId: findGroupIdForHost(freshGroups, uid),
-            }));
-          }
-        }
-
-        if (isNewlyAdded) {
-          dispatch(clearLastAddedHostUid());
-        }
-
-        const host = hosts.find(h => h.uid === uid);
-        if (host && response.currentNodeType === 'master' && !host.alias?.toLowerCase().includes('(master)')) {
-          const newAlias = `${host.alias || host.id} (master)`;
-          dispatch(editHost({ hostUid: uid, payload: { ...host, alias: newAlias } }));
-        }
       })
       .catch((err) => {
         console.error('Failed to log into host:', err);
+      })
+      .finally(() => {
+        loginInProgressRef.current = false;
       });
-  }, [dispatch, hosts, lastAddedHostUid]);
+  }, [dispatch, authorizedHosts]);
+
+  const pendingLoginAllUids = getUnauthorizedHostUids(hostGroups, authorizedHosts, null);
+  const pendingLoginCount = pendingLoginAllUids.length;
+
+  const handleLoginAll = useCallback((groupId = null) => {
+    const uids = getUnauthorizedHostUids(hostGroups, authorizedHosts, groupId);
+    if (uids.length === 0) return;
+
+    dispatch(loginHostsBatch(uids))
+      .unwrap()
+      .then(({ successCount, failed }) => {
+        let message = `Connected ${successCount} host(s).`;
+        if (failed.length > 0) {
+          message += ` Failed: ${failed.join(', ')}.`;
+        }
+        dispatch(showStatusModal({
+          type: failed.length > 0 && successCount === 0 ? 'error' : 'success',
+          title: CM.loginAll,
+          message,
+        }));
+      })
+      .catch(() => {
+        dispatch(showStatusModal({
+          type: 'error',
+          title: CM.loginAll,
+          message: 'Failed to log in to hosts.',
+        }));
+      });
+  }, [dispatch, hostGroups, authorizedHosts, CM.loginAll]);
+
+  const handleServiceAction = async (hostUid, action) => {
+    if (!hostUid) return;
+    setLoadingText(action === 'start' ? CM.startingService : CM.stoppingService);
+    startAction();
+    try {
+      if (action === 'start') {
+        await dispatch(startService(hostUid)).unwrap();
+      } else {
+        await dispatch(stopService(hostUid)).unwrap();
+      }
+      resetAction();
+    } catch (err) {
+      endError(err);
+    }
+  };
+
+  const closeStopServiceConfirm = () => {
+    setStopServiceConfirm(prev => ({ ...prev, isOpen: false }));
+  };
+
+  const requestStopService = (hostUid, serverName) => {
+    if (!hostUid) return;
+    setStopServiceConfirm({
+      isOpen: true,
+      hostUid,
+      serverName: serverName || hostUid,
+    });
+  };
 
   useEffect(() => {
     if (selectedHostUid && selectedHostUid !== lastProcessedHostUid.current) {
-      handleHostLogin(selectedHostUid);
-      lastProcessedHostUid.current = selectedHostUid;
+      if (skipAutoHostLogin) {
+        lastProcessedHostUid.current = selectedHostUid;
+      } else {
+        handleHostLogin(selectedHostUid);
+        lastProcessedHostUid.current = selectedHostUid;
+      }
     } else if (!selectedHostUid) {
       lastProcessedHostUid.current = null;
     }
-  }, [selectedHostUid, handleHostLogin]);
+  }, [selectedHostUid, handleHostLogin, skipAutoHostLogin]);
 
   const handleContextMenu = (e, serverName, hostUid, alias) => {
     e.preventDefault();
@@ -286,6 +342,41 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
     e.stopPropagation();
     closeAllContextMenus();
     setDbLogContextMenu({ mouseX: e.clientX, mouseY: e.clientY, db: dbName });
+  };
+
+  const handleBrokerLogRootContextMenu = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    closeAllContextMenus();
+    setBrokerLogRootContextMenu({ mouseX: e.clientX, mouseY: e.clientY });
+  };
+
+  const handleBrokerErrorLogContextMenu = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    closeAllContextMenus();
+    setBrokerErrorLogContextMenu({ mouseX: e.clientX, mouseY: e.clientY });
+  };
+
+  const handleAdminLogContextMenu = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    closeAllContextMenus();
+    setAdminLogContextMenu({ mouseX: e.clientX, mouseY: e.clientY });
+  };
+
+  const handleManagerLogContextMenu = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    closeAllContextMenus();
+    setManagerLogContextMenu({ mouseX: e.clientX, mouseY: e.clientY });
+  };
+
+  const handleServerLogRootContextMenu = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    closeAllContextMenus();
+    setServerLogRootContextMenu({ mouseX: e.clientX, mouseY: e.clientY });
   };
 
   const handleUsersContextMenu = (e, dbName) => {
@@ -360,17 +451,17 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
   }, [closeAllContextMenus]);
 
   const [isServerListCollapsed, setIsServerListCollapsed] = useState(false);
-  const [serverListSize, setServerListSize] = useState(320);
-  const [prevServerListSize, setPrevServerListSize] = useState(320);
+  const [serverListSize, setServerListSize] = useState(380);
+  const [prevServerListSize, setPrevServerListSize] = useState(380);
   const [isTreeCollapsed, setIsTreeCollapsed] = useState(false);
   const lastProcessedHostUid = useRef(null);
+  const loginInProgressRef = useRef(false);
 
   const toggleServerListCollapse = () => {
     setIsServerListCollapsed(!isServerListCollapsed);
     if (!isServerListCollapsed) {
       setPrevServerListSize(serverListSize);
       setServerListSize(40);
-      setIsTreeCollapsed(false);
     } else {
       setServerListSize(prevServerListSize > 40 ? prevServerListSize : 260);
     }
@@ -379,14 +470,6 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
   const toggleTreeCollapse = () => {
     const nextState = !isTreeCollapsed;
     setIsTreeCollapsed(nextState);
-    if (nextState) {
-      setPrevServerListSize(serverListSize);
-      setServerListSize(800); // Push to bottom
-    } else {
-      // Expanding: Restore to balanced middle position or previous size
-      setIsServerListCollapsed(false);
-      setServerListSize(prevServerListSize < 750 && prevServerListSize > 50 ? prevServerListSize : 260);
-    }
   };
 
   return (
@@ -452,10 +535,32 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                   <button
                     onClick={(e) => { e.stopPropagation(); dispatch(openCreateGroupModal()); }}
                     className="flex items-center gap-1 h-6 px-2 rounded-sm border border-slate-200 dark:border-white/10 bg-white dark:bg-white/4 text-slate-400 hover:text-amber-500 hover:border-amber-400/50 hover:bg-amber-500/5 dark:hover:bg-amber-500/10 transition-all active:scale-95 shadow-xs"
-                    title="New Group"
+                    title={CM.newGroup}
                   >
                     <Icon name="create_new_folder" size="12px" weight={400} />
-                    <span className="text-[10px] font-semibold tracking-wide">New Group</span>
+                    <span className="text-[10px] font-semibold tracking-wide">{CM.newGroup}</span>
+                  </button>
+                )}
+                {!isServerListCollapsed && hosts.length > 0 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (pendingLoginCount === 0) {
+                        dispatch(showStatusModal({
+                          type: 'info',
+                          title: CM.loginAll,
+                          message: 'All hosts are already connected.',
+                        }));
+                        return;
+                      }
+                      handleLoginAll(null);
+                    }}
+                    disabled={isLoggingIntoHost}
+                    className="flex items-center gap-1 h-6 px-2 rounded-sm border border-slate-200 dark:border-white/10 bg-white dark:bg-white/4 text-slate-400 hover:text-amber-500 hover:border-amber-400/50 hover:bg-amber-500/5 dark:hover:bg-amber-500/10 transition-all active:scale-95 shadow-xs disabled:opacity-50 disabled:pointer-events-none"
+                    title={CM.loginAll}
+                  >
+                    <Icon name="login" size="12px" weight={400} />
+                    <span className="text-[10px] font-semibold tracking-wide">{CM.loginAll}</span>
                   </button>
                 )}
               </div>
@@ -470,11 +575,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
               onContextMenu={handleHostRootContextMenu}
             >
               {!isServerListCollapsed && (
-                hostsLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Spinner size="md" />
-                  </div>
-                ) : hosts.length === 0 ? (
+                Object.keys(hostGroups).length === 0 && !hostsLoading ? (
                   <button
                     onClick={onAddHost}
                     className="w-full mt-1 flex flex-col items-center justify-center gap-2 py-6 px-3 rounded-lg border border-dashed border-slate-300 dark:border-white/10 bg-white dark:bg-white/2 hover:border-amber-400/60 hover:bg-amber-500/5 dark:hover:bg-amber-500/10 transition-all group/add-host cursor-pointer"
@@ -488,15 +589,20 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                     </div>
                   </button>
                 ) : (
-                  <HostGroupTree
-                    hostGroups={hostGroups}
-                    selectedGroupUid={selectedGroupUid}
-                    selectedHostUid={selectedHostUid}
-                    authorizedHosts={authorizedHosts}
-                    haInfo={haInfo}
-                    onContextMenu={handleContextMenu}
-                    onGroupContextMenu={handleGroupContextMenu}
-                  />
+                  <div className="relative">
+                    {hostsLoading && (
+                      <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 dark:bg-black/20 rounded" />
+                    )}
+                    <HostGroupTree
+                      hostGroups={hostGroups}
+                      selectedGroupUid={selectedGroupUid}
+                      selectedHostUid={selectedHostUid}
+                      authorizedHosts={authorizedHosts}
+                      haInfo={haInfo}
+                      onContextMenu={handleContextMenu}
+                      onGroupContextMenu={handleGroupContextMenu}
+                    />
+                  </div>
                 )
               )}
             </div>
@@ -610,7 +716,15 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                       />
                     </div>
                     <div className={activeTab !== 'log' ? 'hidden' : ''}>
-                      <LogTree hostUid={selectedHostUid} onDbLogContextMenu={handleDbLogContextMenu} />
+                      <LogTree
+                        hostUid={selectedHostUid}
+                        onDbLogContextMenu={handleDbLogContextMenu}
+                        onBrokerLogRootContextMenu={handleBrokerLogRootContextMenu}
+                        onBrokerErrorLogContextMenu={handleBrokerErrorLogContextMenu}
+                        onAdminLogContextMenu={handleAdminLogContextMenu}
+                        onManagerLogContextMenu={handleManagerLogContextMenu}
+                        onServerLogRootContextMenu={handleServerLogRootContextMenu}
+                      />
                     </div>
                   </div>
                     </div>
@@ -669,6 +783,28 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
             />
           )}
           <MenuDivider />
+          <MenuItem
+            icon="play_arrow"
+            label={CM.startService}
+            disabled={!authorizedHosts.includes(contextMenu.hostUid) || sidebarActionLoading}
+            onClick={() => {
+              const hostUid = contextMenu.hostUid;
+              setContextMenu(null);
+              handleServiceAction(hostUid, 'start');
+            }}
+          />
+          <MenuItem
+            icon="stop"
+            label={CM.stopService}
+            disabled={!authorizedHosts.includes(contextMenu.hostUid) || sidebarActionLoading}
+            onClick={() => {
+              const hostUid = contextMenu.hostUid;
+              const serverName = contextMenu.alias || contextMenu.server || hostUid;
+              setContextMenu(null);
+              requestStopService(hostUid, serverName);
+            }}
+          />
+          <MenuDivider />
           <MenuItem icon="add_box" label={CM.addHost} onClick={() => { onAddHost(); setContextMenu(null); }} />
           <MenuItem icon="edit" label={CM.editHost} onClick={() => { dispatch(openEditHostModal(contextMenu.hostUid)); setContextMenu(null); }} />
           <MenuItem icon="delete" label={CM.deleteHost} onClick={() => { dispatch(openDeleteHostModal({ hostUid: contextMenu.hostUid, alias: contextMenu.alias })); setContextMenu(null); }} />
@@ -699,17 +835,41 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           </div>
           <MenuItem
             icon="create_new_folder"
-            label="New Group"
+            label={CM.newGroup}
             onClick={() => {
               dispatch(openCreateGroupModal());
               setGroupContextMenu(null);
             }}
           />
+          {hosts.length > 0 && (
+            <MenuItem
+              icon="login"
+              label={CM.loginAll}
+              disabled={isLoggingIntoHost || pendingLoginCount === 0}
+              onClick={() => {
+                handleLoginAll(null);
+                setGroupContextMenu(null);
+              }}
+            />
+          )}
           {groupContextMenu.groupId && (
             <>
             <MenuItem
+              icon="login"
+              label={CM.loginAll}
+              disabled={
+                isLoggingIntoHost
+                || getUnauthorizedHostUids(hostGroups, authorizedHosts, groupContextMenu.groupId).length === 0
+              }
+              onClick={() => {
+                handleLoginAll(groupContextMenu.groupId);
+                setGroupContextMenu(null);
+              }}
+            />
+            <MenuDivider />
+            <MenuItem
             icon="add_link"
-            label="Add Node"
+            label={CM.addNode}
             onClick={() => {
               dispatch(openAddHostModal({ groupId: groupContextMenu.groupId, alias: '', address: '', port: '8001', id: 'admin', password: '' }));
               setGroupContextMenu(null);
@@ -717,7 +877,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           />
           <MenuItem
             icon="edit"
-            label="Rename Group"
+            label={CM.renameGroup}
             onClick={() => {
               dispatch(openRenameGroupModal({ groupId: groupContextMenu.groupId, name: groupContextMenu.groupName }));
               setGroupContextMenu(null);
@@ -726,7 +886,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           <MenuDivider />
           <MenuItem
             icon="delete"
-            label="Delete Group"
+            label={CM.deleteGroup}
             onClick={() => {
               dispatch(openDeleteGroupModal({ groupId: groupContextMenu.groupId, name: groupContextMenu.groupName }));
               setGroupContextMenu(null);
@@ -1024,9 +1184,12 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           <MenuItem
             icon="refresh"
             label={CM.refresh}
-            onClick={() => {
+            onClick={async () => {
               setBrokerRootContextMenu(null);
-              dispatch(fetchBrokerList(selectedHostUid));
+              const updatedBrokers = await dispatch(fetchBrokerList(selectedHostUid)).unwrap().catch(() => brokers);
+              updatedBrokers.forEach(broker => {
+                dispatch(fetchBrokerLogs({ hostUid: selectedHostUid, brokerName: broker.name }));
+              });
             }}
           />
         </ContextMenuWrapper>
@@ -1086,13 +1249,24 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
               setBrokerContextMenu(null);
             }} 
           />
-          <MenuItem 
-            icon="tune" 
-            label="Properties" 
-            onClick={() => { 
+          <MenuItem
+            icon="tune"
+            label={CM.properties}
+            onClick={() => {
                 dispatch(openBrokerPropertyModal({ hostUid: selectedHostUid, brokerName: brokerContextMenu.broker }));
-                setBrokerContextMenu(null); 
-            }} 
+                setBrokerContextMenu(null);
+            }}
+          />
+          <MenuDivider />
+          <MenuItem
+            icon="refresh"
+            label={CM.refresh}
+            onClick={() => {
+              const bName = brokerContextMenu.broker;
+              setBrokerContextMenu(null);
+              dispatch(fetchBrokerList(selectedHostUid));
+              dispatch(fetchBrokerLogs({ hostUid: selectedHostUid, brokerName: bName }));
+            }}
           />
         </ContextMenuWrapper>
       )}
@@ -1105,7 +1279,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           </div>
           <MenuItem
             icon="visibility"
-            label="View All Logs"
+            label={CM.viewAllLogs}
             onClick={() => {
               if (selectedHostUid) {
                 dispatch(openTab(`all_logs:${selectedHostUid}:${sqlLogContextMenu.broker}`));
@@ -1124,12 +1298,115 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           </div>
           <MenuItem
             icon="visibility"
-            label="View All Logs"
+            label={CM.viewAllLogs}
             onClick={() => {
               if (selectedHostUid) {
                 dispatch(openTab(`all_db_logs:${selectedHostUid}:${dbLogContextMenu.db}`));
               }
               setDbLogContextMenu(null);
+            }}
+          />
+          <MenuDivider />
+          <MenuItem
+            icon="refresh"
+            label={CM.refresh}
+            onClick={() => {
+              if (selectedHostUid) {
+                dispatch(fetchDatabaseLogs({ hostUid: selectedHostUid, dbname: dbLogContextMenu.db }));
+              }
+              setDbLogContextMenu(null);
+            }}
+          />
+        </ContextMenuWrapper>
+      )}
+
+      {brokerLogRootContextMenu && (
+        <ContextMenuWrapper x={brokerLogRootContextMenu.mouseX} y={brokerLogRootContextMenu.mouseY} onClose={() => setBrokerLogRootContextMenu(null)}>
+          <div className="px-3 py-2 border-b border-slate-100 dark:border-white/5 mb-1 flex items-center justify-between">
+            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">Broker Logs</Typography>
+            <Icon name="hub" size="xs" className="opacity-30" weight={300} />
+          </div>
+          <MenuItem
+            icon="refresh"
+            label={CM.refresh}
+            onClick={async () => {
+              setBrokerLogRootContextMenu(null);
+              const updatedBrokers = await dispatch(fetchBrokerList(selectedHostUid)).unwrap().catch(() => brokers);
+              updatedBrokers.forEach(broker => {
+                dispatch(fetchBrokerLogs({ hostUid: selectedHostUid, brokerName: broker.name }));
+              });
+            }}
+          />
+        </ContextMenuWrapper>
+      )}
+
+      {brokerErrorLogContextMenu && (
+        <ContextMenuWrapper x={brokerErrorLogContextMenu.mouseX} y={brokerErrorLogContextMenu.mouseY} onClose={() => setBrokerErrorLogContextMenu(null)}>
+          <div className="px-3 py-2 border-b border-slate-100 dark:border-white/5 mb-1 flex items-center justify-between">
+            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">Error Logs</Typography>
+            <Icon name="report" size="xs" className="opacity-30" weight={300} />
+          </div>
+          <MenuItem
+            icon="refresh"
+            label={CM.refresh}
+            onClick={() => {
+              brokers.forEach(broker => {
+                dispatch(fetchBrokerLogs({ hostUid: selectedHostUid, brokerName: broker.name }));
+              });
+              setBrokerErrorLogContextMenu(null);
+            }}
+          />
+        </ContextMenuWrapper>
+      )}
+
+      {adminLogContextMenu && (
+        <ContextMenuWrapper x={adminLogContextMenu.mouseX} y={adminLogContextMenu.mouseY} onClose={() => setAdminLogContextMenu(null)}>
+          <div className="px-3 py-2 border-b border-slate-100 dark:border-white/5 mb-1 flex items-center justify-between">
+            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">Admin Logs</Typography>
+            <Icon name="admin_panel_settings" size="xs" className="opacity-30" weight={300} />
+          </div>
+          <MenuItem
+            icon="refresh"
+            label={CM.refresh}
+            onClick={() => {
+              dispatch(fetchAdminLogs(selectedHostUid));
+              setAdminLogContextMenu(null);
+            }}
+          />
+        </ContextMenuWrapper>
+      )}
+
+      {managerLogContextMenu && (
+        <ContextMenuWrapper x={managerLogContextMenu.mouseX} y={managerLogContextMenu.mouseY} onClose={() => setManagerLogContextMenu(null)}>
+          <div className="px-3 py-2 border-b border-slate-100 dark:border-white/5 mb-1 flex items-center justify-between">
+            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">Manager Logs</Typography>
+            <Icon name="manage_accounts" size="xs" className="opacity-30" weight={300} />
+          </div>
+          <MenuItem
+            icon="refresh"
+            label={CM.refresh}
+            onClick={() => {
+              dispatch(fetchCMSLogs(selectedHostUid));
+              setManagerLogContextMenu(null);
+            }}
+          />
+        </ContextMenuWrapper>
+      )}
+
+      {serverLogRootContextMenu && (
+        <ContextMenuWrapper x={serverLogRootContextMenu.mouseX} y={serverLogRootContextMenu.mouseY} onClose={() => setServerLogRootContextMenu(null)}>
+          <div className="px-3 py-2 border-b border-slate-100 dark:border-white/5 mb-1 flex items-center justify-between">
+            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">Server Logs</Typography>
+            <Icon name="dns" size="xs" className="opacity-30" weight={300} />
+          </div>
+          <MenuItem
+            icon="refresh"
+            label={CM.refresh}
+            onClick={() => {
+              (databases || []).forEach(db => {
+                dispatch(fetchDatabaseLogs({ hostUid: selectedHostUid, dbname: db.dbname }));
+              });
+              setServerLogRootContextMenu(null);
             }}
           />
         </ContextMenuWrapper>
@@ -1238,7 +1515,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           </div>
           <MenuItem
             icon="add_to_drive"
-            label="Add Volume"
+            label={CM.addVolume}
             onClick={() => {
               dispatch(setSelectedDatabase(spaceContextMenu.db));
               dispatch(openAddVolumeModal());
@@ -1247,7 +1524,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           />
           <MenuItem
             icon="settings_suggest"
-            label="Set Automation Volume"
+            label={CM.setAutomationVolume}
             onClick={() => {
               dispatch(setSelectedDatabase(spaceContextMenu.db));
               dispatch(openSetAutomationVolumeModal());
@@ -1266,7 +1543,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           <MenuDivider />
           <MenuItem
             icon="visibility"
-            label="View Database"
+            label={CM.viewDatabase}
             onClick={() => {
               dispatch(setActiveMainTab(`db_space:${selectedHostUid}:${spaceContextMenu.db}`));
               setSpaceContextMenu(null);
@@ -1406,6 +1683,19 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
       <AutoVolumeLogModal />
       <CMSUserManagementModal />
       <EditCMSUserModal />
+      <ConfirmDialog
+        isOpen={stopServiceConfirm.isOpen}
+        title={CM.stopServicesConfirmTitle}
+        description={CM.stopServicesConfirmDesc(stopServiceConfirm.serverName)}
+        confirmLabel={CM.stopAllServices}
+        variant="danger"
+        onConfirm={() => {
+          const { hostUid } = stopServiceConfirm;
+          closeStopServiceConfirm();
+          handleServiceAction(hostUid, 'stop');
+        }}
+        onCancel={closeStopServiceConfirm}
+      />
       {isSidebarActionError && (
         <Modal isOpen title={CM.actionFailed} icon="error" iconVariant="danger" onClose={resetAction} maxWidth="400px">
           <ModalStatusError 

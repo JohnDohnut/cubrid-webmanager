@@ -18,17 +18,70 @@ import { Modal } from '../../../components/ds/layout/Modal';
 import { ModalStatusError } from '../../../components/ds/feedback/ActionStatus';
 import { useCM } from '../../../constants/useCM';
 
-const Component = function DatabaseDashboard({ dbname }) {
+const Component = function DatabaseDashboard({ hostUid: propHostUid, dbname }) {
   const CM = useCM();
   const dispatch = useDispatch();
-  const { selectedHostUid, hosts } = useSelector((state) => state.host, shallowEqual);
+  const { selectedHostUid, hosts, haInfo } = useSelector((state) => state.host, shallowEqual);
+  
+  const hostUid = propHostUid || selectedHostUid;
+  const hostHaInfo = haInfo[hostUid] || {};
+  const isHA = hostHaInfo.isHA;
+
+  const hostData = useSelector((state) => state.monitoring.hostsData[hostUid] || {});
+  const haHeartbeat = hostData?.haHeartbeat;
+  const isDbInHa = React.useMemo(() => {
+    const raw = haHeartbeat?.hadbinfolist;
+    if (!raw) return false;
+
+    const ensureArray = (val) => {
+      if (!val) return [];
+      return Array.isArray(val) ? val : [val];
+    };
+
+    let found = false;
+    ensureArray(raw).forEach((entry) => {
+      const servers = entry?.server;
+      if (!servers) return;
+
+      ensureArray(servers).forEach((server) => {
+        if (!server) return;
+
+        ensureArray(server.dbmode).forEach((row) => {
+          if (row?.dbname === dbname) found = true;
+        });
+
+        ensureArray(server.dbprocinfo).forEach((row) => {
+          if (row?.dbname === dbname) found = true;
+        });
+
+        ensureArray(server.applylogdb).forEach((block) => {
+          if (block?.element) {
+            ensureArray(block.element).forEach((el) => {
+              if (el?.dbname === dbname) found = true;
+            });
+          }
+        });
+
+        ensureArray(server.copylogdb).forEach((block) => {
+          if (block?.element) {
+            ensureArray(block.element).forEach((el) => {
+              if (el?.dbname === dbname) found = true;
+            });
+          }
+        });
+      });
+    });
+
+    return found;
+  }, [haHeartbeat, dbname]);
+  
   const { dashboardData, dashboardLoading } = useSelector((state) => state.databaseMonitoring, shallowEqual);
   const { preferences } = useSelector((state) => state.user, shallowEqual);
   const { refreshCounter, activeMainTab } = useSelector((state) => state.layout, shallowEqual);
 
   const [logModal, setLogModal] = useState({ isOpen: false, brokerName: '', casId: '', type: 'sql' });
   
-  const hostUid = selectedHostUid;
+
 
   const { 
     startAction, 
@@ -41,7 +94,7 @@ const Component = function DatabaseDashboard({ dbname }) {
 
   const { isManualRefreshing, lastRefreshed, handleRefresh } = usePollingRefresh({
     hostUid,
-    tabId: `db:${dbname}`,
+    tabId: propHostUid ? `db:${hostUid}:${dbname}` : `db:${dbname}`,
     pollingIntervalSeconds: preferences.dashboardInterval,
     onFetch: (silent) => (dispatch) => dispatch(fetchDashboardData({ hostUid, dbname, isBackground: silent }))
   });
@@ -170,6 +223,11 @@ const Component = function DatabaseDashboard({ dbname }) {
             <div className="flex items-center gap-1.5 mt-0.5">
               <div className="w-1.5 h-1.5 rounded-full bg-amber-500/60" />
               <Typography variant="label" className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">@{dbname}</Typography>
+              {isHA && isDbInHa && (
+                <span className="px-1 py-0.5 rounded-sm bg-amber-500/10 border border-amber-500/20 text-[8px] font-bold text-amber-600 dark:text-amber-400 tracking-wide uppercase leading-none">
+                  HA
+                </span>
+              )}
             </div>
           </div>
         </div>

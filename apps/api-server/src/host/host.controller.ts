@@ -6,6 +6,7 @@ import {
   HostResponse,
   UpdateHostGroupRequest,
   UpdateHostClientRequest,
+  MoveHostRequest,
 } from '@api-interfaces';
 import { HostService, AddHostPayload } from './host.service';
 import { validateRequiredFields } from '@util';
@@ -77,6 +78,19 @@ export class HostController {
   ): Promise<GetHostsResponse> {
     const userId = request.user.sub;
     return { host_groups: await this.hostService.updateHost(userId, hostUid, hostInfo) };
+  }
+
+  @Post(':hostUid/move')
+  async moveHost(
+    @Request() request,
+    @Param('hostUid') hostUid: string,
+    @Body() body: MoveHostRequest
+  ): Promise<GetHostsResponse> {
+    const userId = request.user.sub;
+    validateRequiredFields(body, ['targetGroupId'], 'host/move', this.logger);
+    return {
+      host_groups: await this.hostService.moveHost(userId, hostUid, body.targetGroupId),
+    };
   }
 
   @Delete(':hostUid')

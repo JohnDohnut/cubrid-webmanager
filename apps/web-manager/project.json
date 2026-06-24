@@ -6,6 +6,13 @@
   "tags": [],
   "// targets": "to see all targets run: nx show project web-manager --web",
   "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vitest run",
+        "cwd": "apps/web-manager"
+      }
+    },
     "build-electron": {
       "executor": "nx:run-commands",
       "options": {

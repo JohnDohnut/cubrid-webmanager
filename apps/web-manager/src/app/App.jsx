@@ -75,6 +75,8 @@ import DatabasePropertyModal from '../features/database/components/DatabasePrope
 import RenameDatabaseModal from '../features/database/components/RenameDatabaseModal';
 import AddVolumeModal from '../features/database/components/AddVolumeModal';
 import SuggestedHaNodesModal from '../features/host/components/SuggestedHaNodesModal';
+import HaPeerMergeModal from '../features/host/components/HaPeerMergeModal';
+import HaClusterLinkedModal from '../features/host/components/HaClusterLinkedModal';
 
 import { Icon } from '../components/ds/foundation/Icon';
 import { useCM } from '../constants/useCM';
@@ -111,7 +113,8 @@ function DashboardLayout() {
       const host = hosts.find(h => h.uid === uid);
       acc[tabId] = host ? (host.alias || host.id) : uid;
     } else if (tabId.startsWith('db:')) {
-      acc[tabId] = tabId.split(':')[1];
+      const parts = tabId.split(':');
+      acc[tabId] = parts.length > 2 ? parts[2] : parts[1];
     } else if (tabId.startsWith('edit_config:')) {
       acc[tabId] = CM.editConfigTab(tabId.split(':')[2]);
     } else if (tabId.startsWith('broker_config:')) {
@@ -153,14 +156,20 @@ function DashboardLayout() {
       if (activeMainTab.startsWith('host:')) {
         dispatch(setSelectedHost(activeMainTab.split(':')[1]));
       } else if (activeMainTab.startsWith('db:')) {
-        dispatch(setSelectedDatabase(activeMainTab.split(':')[1]));
+        const parts = activeMainTab.split(':');
+        if (parts.length > 2) {
+          dispatch(setSelectedHost(parts[1]));
+          dispatch(setSelectedDatabase(parts[2]));
+        } else {
+          dispatch(setSelectedDatabase(parts[1]));
+        }
       }
     }
   }, [activeMainTab, dispatch]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'F5') {
+      if (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R'))) {
         e.preventDefault();
         dispatch(triggerRefreshActiveTab());
       }
@@ -199,7 +208,7 @@ function DashboardLayout() {
         {/* Flash Overlay */}
         <div className={`fixed inset-0 bg-white/20 dark:bg-white/5 pointer-events-none z-[9999] transition-opacity duration-300 ${isFlashing ? 'opacity-100' : 'opacity-0'}`} />
         
-        <SplitPane split="vertical" defaultSize={320} minSize={240} maxSize={600} className="h-full w-full">
+        <SplitPane split="vertical" defaultSize={400} minSize={280} maxSize={640} className="h-full w-full">
           <Sidebar
             isCollapsed={isSidebarCollapsed}
             onToggleCollapse={() => dispatch(toggleSidebar())}
@@ -314,7 +323,12 @@ function DashboardLayout() {
               return (
                 <div key={tabId} className={`flex-1 flex flex-col overflow-hidden ${isActive ? '' : 'hidden'}`}>
                   {isHost && <ServerContent hostUid={resourceId} />}
-                  {isDb && <DatabaseDashboard dbname={resourceId} />}
+                  {isDb && (
+                    <DatabaseDashboard 
+                      hostUid={tabId.split(':').length > 2 ? tabId.split(':')[1] : undefined}
+                      dbname={tabId.split(':').length > 2 ? tabId.split(':')[2] : tabId.split(':')[1]} 
+                    />
+                  )}
                   {isDbSpace && (
                     <DatabaseSpaceMonitor 
                       hostUid={tabId.split(':')[1]} 
@@ -395,6 +409,8 @@ function DashboardLayout() {
         </SplitPane>
 
         <SuggestedHaNodesModal />
+        <HaPeerMergeModal />
+        <HaClusterLinkedModal />
 
         <HostGroupNameModal />
         <AddHostModal
@@ -478,6 +494,19 @@ function RootRedirect() {
 }
 
 function App() {
+  useEffect(() => {
+    if (window.desktopBridge?.onCloseActiveTab) {
+      const unsubscribe = window.desktopBridge.onCloseActiveTab(() => {
+        const event = new CustomEvent('in-app:close-active-tab', { cancelable: true });
+        window.dispatchEvent(event);
+        if (!event.defaultPrevented) {
+          window.desktopBridge.closeWindow();
+        }
+      });
+      return unsubscribe;
+    }
+  }, []);
+
   return (
     <Routes>
       <Route path="/" element={<RootRedirect />} />

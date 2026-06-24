@@ -11,7 +11,8 @@ export function isSensitiveLogKey(key: string): boolean {
     lower.includes('password') ||
     lower.includes('passwd') ||
     lower.includes('pass') ||
-    lower.includes('secret')
+    lower.includes('secret') ||
+    lower.includes('token')
   );
 }
 

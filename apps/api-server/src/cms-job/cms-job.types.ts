@@ -1,5 +1,6 @@
 import {
   AddVolDbRequest,
+  BackupDbClientRequest,
   CheckDatabaseRequest,
   CompactDatabaseRequest,
   CopyDbRequest,
@@ -21,7 +22,8 @@ export type CmsJobPayload =
   | CompactDatabaseRequest
   | CopyDbRequest
   | AddVolDbRequest
-  | RenameDatabaseRequest;
+  | RenameDatabaseRequest
+  | BackupDbClientRequest;
 
 export type CmsJobRecord = {
   jobId: string;
@@ -39,7 +41,7 @@ export type CmsJobRecord = {
 };
 
 export function buildOperationKey(userId: string, hostUid: string, dbname: string): string {
-  return `${userId}:${hostUid}:${dbname}`;
+  return JSON.stringify([userId, hostUid, dbname]);
 }
 
 export function resolveJobDbname(type: CmsJobType, dbname: string, payload: CmsJobPayload): string {

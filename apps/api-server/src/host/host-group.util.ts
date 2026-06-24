@@ -70,8 +70,7 @@ export function findDuplicateHost(
       host.address === candidate.address &&
       host.port === candidate.port &&
       host.id === candidate.id;
-    const sameAlias = hasSameDefinedAlias(host.alias, candidate.alias);
-    if (sameConnection || sameAlias) {
+    if (sameConnection) {
       found = host;
     }
   });
@@ -168,6 +167,39 @@ export function addHostToGroup(user: User, groupId: string, host: HostInfo): voi
   }
 }
 
+export function moveHostToGroup(user: User, hostUid: string, targetGroupId: string): boolean {
+  const ref = findHostRef(user, hostUid);
+  if (!ref) return false;
+
+  if (ref.groupId === targetGroupId) {
+    return true;
+  }
+
+  const targetGroup = readHostGroups(user)[targetGroupId];
+  if (!targetGroup) {
+    return false;
+  }
+
+  const host = ref.host;
+  const sourceHosts = ensureGroupHostsWritable(ref.group);
+  delete sourceHosts[hostUid];
+
+  if (ref.group.defaultHostUid === hostUid) {
+    const remaining = Object.values(sourceHosts);
+    ref.group.defaultHostUid = remaining[0]?.uid;
+  }
+
+  // Empty groups are preserved — users created them intentionally and may
+  // want to add more hosts later. Deletion is an explicit user action only.
+
+  ensureGroupHostsWritable(targetGroup)[hostUid] = host;
+  if (!targetGroup.defaultHostUid) {
+    targetGroup.defaultHostUid = hostUid;
+  }
+
+  return true;
+}
+
 export function removeHostFromUser(user: User, hostUid: string): boolean {
   const ref = findHostRef(user, hostUid);
   if (!ref) return false;
@@ -177,9 +209,7 @@ export function removeHostFromUser(user: User, hostUid: string): boolean {
     const remaining = Object.values(hosts);
     ref.group.defaultHostUid = remaining[0]?.uid;
   }
-  if (Object.keys(hosts).length === 0) {
-    delete ensureHostGroupsWritable(user)[ref.groupId];
-  }
+  // Empty groups are preserved after host deletion.
   return true;
 }
 

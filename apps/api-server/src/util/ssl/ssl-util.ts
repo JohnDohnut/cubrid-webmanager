@@ -11,29 +11,29 @@ export type HttpsKeyCert = { key: Buffer; cert: Buffer };
 export function getHttpsOptions(): HttpsKeyCert {
   const certPath = process.env.SSL_CERT_PATH?.trim();
   const keyPath = process.env.SSL_KEY_PATH?.trim();
-  const env = (process.env.ENVIRONMENT || '').toLowerCase();
 
-  if (certPath && keyPath) {
-    if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
-      return {
-        cert: fs.readFileSync(certPath),
-        key: fs.readFileSync(keyPath),
-      };
-    }
-
-    if (env === 'production') {
+  // If either path is explicitly configured, both must be present and readable.
+  // Silently falling back to a self-signed cert would give operators a false
+  // sense of security — the server identity would be wrong and TLS would fail.
+  if (certPath || keyPath) {
+    if (!certPath || !keyPath) {
       throw new Error(
-        `SSL_CERT_PATH or SSL_KEY_PATH not found (cert=${certPath}, key=${keyPath}).`
+        `SSL misconfiguration: both SSL_CERT_PATH and SSL_KEY_PATH must be set (got cert=${certPath ?? '(unset)'}, key=${keyPath ?? '(unset)'}).`
       );
     }
+    if (!fs.existsSync(certPath)) {
+      throw new Error(`SSL_CERT_PATH file not found: ${certPath}`);
+    }
+    if (!fs.existsSync(keyPath)) {
+      throw new Error(`SSL_KEY_PATH file not found: ${keyPath}`);
+    }
+    return {
+      cert: fs.readFileSync(certPath),
+      key: fs.readFileSync(keyPath),
+    };
   }
 
-  if (env === 'production') {
-    throw new Error(
-      'Production requires SSL_CERT_PATH and SSL_KEY_PATH (PEM files, e.g. under /etc).'
-    );
-  }
-
+  // Neither path configured — auto-generate self-signed cert.
   return getOrCreateSSLCert();
 }
 
@@ -50,6 +50,7 @@ function resolveSslDir(): string {
   if (configured) {
     return path.resolve(configured);
   }
+
 
   const isPkg = !!(process as any).pkg;
   const baseDir = isPkg ? path.dirname(process.execPath) : path.resolve(__dirname, '..', '..');

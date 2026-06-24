@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } 
 import { v4 as uuidv4 } from 'uuid';
 import {
   AddVolDbRequest,
+  BackupDbClientRequest,
   CheckDatabaseRequest,
   CompactDatabaseRequest,
   CopyDbRequest,
@@ -19,6 +20,7 @@ import { extractCmsLongJobFailureMessage, isCmsLongJobFailure } from '@common';
 import { DatabaseError } from '@error/database/database-error';
 import { DatabaseManagementService } from '@database/management/database-management.service';
 import { DatabaseLifecycleService } from '@database/lifecycle/database-lifecycle.service';
+import { DatabaseBackupService } from '@database/backup/database-backup.service';
 import { EncryptionService } from '@security';
 import { LockService } from '@lock/lock.service';
 import {
@@ -28,7 +30,7 @@ import {
   resolveJobDbname,
 } from './cms-job.types';
 import { CmsJobStore } from './cms-job.store';
-import { CMS_JOB_CLEANUP_INTERVAL_MS } from './cms-job.cleanup';
+import { CMS_JOB_CLEANUP_INTERVAL_MS, isTerminalJobStatus } from './cms-job.cleanup';
 
 @Injectable()
 export class CmsJobService implements OnModuleInit, OnModuleDestroy {
@@ -40,7 +42,8 @@ export class CmsJobService implements OnModuleInit, OnModuleDestroy {
     private readonly lockService: LockService,
     private readonly encryptionService: EncryptionService,
     private readonly managementService: DatabaseManagementService,
-    private readonly lifecycleService: DatabaseLifecycleService
+    private readonly lifecycleService: DatabaseLifecycleService,
+    private readonly backupService: DatabaseBackupService
   ) {}
 
   private userKey(userId: string): string {
@@ -118,12 +121,25 @@ export class CmsJobService implements OnModuleInit, OnModuleDestroy {
 
     await this.lockService.withLock(this.opsLockFile(uKey), async () => {
       const ops = await this.store.readOperations(uKey);
-      if (ops[operationKey]) {
-        throw DatabaseError.OperationInProgress({
-          hostUid,
-          dbname: lockDbname,
-          existingJobId: ops[operationKey],
-        });
+      const existingJobId = ops[operationKey];
+      if (existingJobId) {
+        // Stale lock check: the referenced job may have finished or been deleted without
+        // releasing the lock (e.g. server crash before finally block ran).
+        // Without this check a dead lock blocks the same DB operation for up to 1 hour.
+        const existingJob = await this.store.getJob(uKey, existingJobId);
+        const isStale = !existingJob || isTerminalJobStatus(existingJob.status);
+        if (isStale) {
+          this.logger.warn(
+            `Clearing stale operation lock for ${operationKey} (job ${existingJobId} is ${existingJob?.status ?? 'missing'})`
+          );
+          delete ops[operationKey];
+        } else {
+          throw DatabaseError.OperationInProgress({
+            hostUid,
+            dbname: lockDbname,
+            existingJobId,
+          });
+        }
       }
       ops[operationKey] = jobId;
       await this.store.writeOperations(uKey, ops);
@@ -140,7 +156,6 @@ export class CmsJobService implements OnModuleInit, OnModuleDestroy {
       payload,
     };
     await this.store.saveJob(uKey, record);
-    void this.runJobCleanup('create');
 
     setImmediate(() => {
       void this.runJob(uKey, jobId, operationKey).catch((err) => {
@@ -306,6 +321,13 @@ export class CmsJobService implements OnModuleInit, OnModuleDestroy {
           hostUid,
           job.dbname,
           payload as RenameDatabaseRequest
+        );
+      case 'backupdb':
+        return this.backupService.backupDb(
+          userId,
+          hostUid,
+          job.dbname,
+          payload as BackupDbClientRequest
         );
       default:
         throw new Error(`Unsupported job type: ${type}`);

@@ -62,11 +62,23 @@ export default defineConfig(({ mode }) => {
     watch: {
       usePolling: true,
     },
+    proxy: {
+      '/api': {
+        target: 'https://127.0.0.1:8080',
+        changeOrigin: true,
+        secure: false, // self-signed cert in dev
+      },
+    },
   },
   preview: {
     host: '0.0.0.0',
     port: 5173,
     allowedHosts: true,
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    passWithNoTests: true,
   },
   }
 })

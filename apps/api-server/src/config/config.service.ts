@@ -155,7 +155,11 @@ export class ConfigService {
       return parseBooleanEnv(raw);
     }
 
-    return !this.isProduction();
+    // Default: registration is open.
+    // This is a self-hosted management tool — network access is the security boundary.
+    // Operators who want to lock down sign-ups after initial setup can set
+    // AUTH_REGISTRATION_ENABLED=false in cwm.conf.
+    return true;
   }
 
   private resolveCmsCaCert(args: Record<string, string>): string | undefined {

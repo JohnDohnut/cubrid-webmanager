@@ -14,6 +14,8 @@ export const Modal = ({
   children,
   /** When false, hides the header X and ignores Escape (e.g. synchronous in-flight requests). */
   showCloseButton = true,
+  /** Tailwind z-index class for overlay (StatusModal uses z-[2100]). */
+  zIndexClass = 'z-2000',
 }) => {
   const modalRef = useRef(null);
 
@@ -47,7 +49,7 @@ export const Modal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-2000 flex items-center justify-center p-4">
+    <div className={`fixed inset-0 ${zIndexClass} flex items-center justify-center p-4`}>
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-bk-main/40 backdrop-blur-xs transition-opacity"
