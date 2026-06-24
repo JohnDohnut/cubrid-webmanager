@@ -210,10 +210,10 @@ export default function BackupDatabaseModal() {
       if (exactMatch) {
         jobId = pendingBackupJob.jobId;
       } else {
-        if (pendingBackupJob) dispatch(clearPendingBackupJob());
         const created = await databaseJobApi.submitBackup(selectedHostUid, selectedDatabase, payload);
         jobId = created?.jobId;
         if (!jobId) throw new Error('Server did not return a job id');
+        // Replace only after confirmed acceptance — preserves the previous pending job if submit fails
         dispatch(setPendingBackupJob({ jobId, hostUid: selectedHostUid, dbname: selectedDatabase, payload }));
       }
 
