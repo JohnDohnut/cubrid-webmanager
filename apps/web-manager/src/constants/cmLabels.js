@@ -579,6 +579,7 @@ export const CM = {
   storageConfiguration: 'Backup Information',
   revisionId: 'Backup Level',
   backupDirectory: 'Backup Directory',
+  backupDirFetchError: 'Could not retrieve the default backup directory. Please enter the path manually.',
   restoringDatabase: 'Restoring Database',
   reconstructingInstance: 'Restoring Database',
   restoreCompleted: 'Restore Completed',
