@@ -54,12 +54,20 @@ const LEVEL_META = {
 };
 
 /* ── date helpers ────────────────────────────────────────────── */
-// "dd-mm-yyyy:HH:MM:SS" → Date (best-effort; no timezone conversion)
+// Handles multiple CMS date formats (best-effort; no timezone conversion):
+//   "dd-mm-yyyy:HH:MM:SS"   — restoredb date param
+//   "yyyy.MM.dd.HH.mm"      — getbackuplist date field (no seconds)
+//   "yyyy.MM.dd.HH.mm.ss"   — getbackuplist date field (with seconds)
 const parseCmsDate = (cmsDate) => {
   if (!cmsDate) return null;
-  const m = cmsDate.match(/^(\d{2})-(\d{2})-(\d{4}):(\d{2}):(\d{2}):(\d{2})$/);
-  if (!m) return null;
-  return new Date(`${m[3]}-${m[2]}-${m[1]}T${m[4]}:${m[5]}:${m[6]}`);
+
+  let m = cmsDate.match(/^(\d{2})-(\d{2})-(\d{4}):(\d{2}):(\d{2}):(\d{2})$/);
+  if (m) return new Date(`${m[3]}-${m[2]}-${m[1]}T${m[4]}:${m[5]}:${m[6]}`);
+
+  m = cmsDate.match(/^(\d{4})\.(\d{2})\.(\d{2})\.(\d{2})\.(\d{2})(?:\.(\d{2}))?$/);
+  if (m) return new Date(`${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6] ?? '00'}`);
+
+  return null;
 };
 
 // "dd-mm-yyyy:HH:MM:SS" → "yyyy-MM-ddTHH:mm" (datetime-local min value)
@@ -132,8 +140,8 @@ export default function RestoreDatabaseModal() {
     ...(Array.isArray(backupData.level1) ? backupData.level1.map(b => ({ ...b, level: 1 })) : parseBackupString(backupData.level1, 1)),
     ...(Array.isArray(backupData.level2) ? backupData.level2.map(b => ({ ...b, level: 2 })) : parseBackupString(backupData.level2, 2)),
   ].filter(b => b.pathname).sort((a, b) => {
-    const tA = (a.date && !isNaN(new Date(a.date).getTime())) ? new Date(a.date).getTime() : 0;
-    const tB = (b.date && !isNaN(new Date(b.date).getTime())) ? new Date(b.date).getTime() : 0;
+    const tA = parseCmsDate(a.date)?.getTime() ?? 0;
+    const tB = parseCmsDate(b.date)?.getTime() ?? 0;
     return tB - tA;
   });
 
