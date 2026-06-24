@@ -10,12 +10,8 @@ import React, {
 import { useSelector, shallowEqual } from 'react-redux';
 import { databaseJobApi } from '../../features/database/databaseJobApi';
 import { runCmsJobInBackground, isCmsJobPolling, cancelAllCmsJobPolls } from '../services/cmsJobRunner';
-import { useToast } from '../hooks/useToast';
-import { useCM } from '../../constants/useCM';
-import {
-  getCmsJobTypeLabel,
-  isTerminalCmsJobStatus,
-} from '../cmsJob/cmsJobLabels';
+import { JobResultModal } from '../cmsJob/JobResultModal';
+import { isTerminalCmsJobStatus } from '../cmsJob/cmsJobLabels';
 import { normalizeTrackedJob } from '../cmsJob/cmsJobUtils';
 
 export const CmsJobContext = createContext(null);
@@ -29,11 +25,10 @@ function sortJobs(a, b) {
 }
 
 export function CmsJobProvider({ children }) {
-  const CM = useCM();
-  const toast = useToast();
   const { isAuthenticated } = useSelector((state) => state.auth, shallowEqual);
   const [jobs, setJobs] = useState([]);
   const [panelExpanded, setPanelExpanded] = useState(false);
+  const [jobResult, setJobResult] = useState(null);
   const trackingRef = useRef(new Set());
 
   const upsertJob = useCallback((jobId, patch) => {
@@ -51,19 +46,17 @@ export function CmsJobProvider({ children }) {
   const notifyTerminal = useCallback(
     (job, { notify, successMessage, errorMessage }) => {
       if (notify === false) return;
-      const op = getCmsJobTypeLabel(job.type, CM);
-      const db = job.dbname || '—';
-      if (job.jobStatus === 'succeeded') {
-        toast.success(successMessage || CM.jobNotifySucceeded(op, db), { duration: 5000 });
-      } else if (job.jobStatus === 'failed') {
-        const msg =
-          errorMessage ||
-          job.error?.message ||
-          CM.jobNotifyFailed(op, db);
-        toast.error(msg, { duration: 6000 });
-      }
+      if (job.jobStatus !== 'succeeded' && job.jobStatus !== 'failed') return;
+      setJobResult({
+        type: job.type,
+        dbname: job.dbname,
+        status: job.jobStatus,
+        error: job.error,
+        successMessage,
+        errorMessage,
+      });
     },
-    [CM, toast]
+    []
   );
 
   const startTracking = useCallback(
@@ -247,7 +240,14 @@ export function CmsJobProvider({ children }) {
     ]
   );
 
-  return <CmsJobContext.Provider value={value}>{children}</CmsJobContext.Provider>;
+  return (
+    <CmsJobContext.Provider value={value}>
+      {children}
+      {jobResult && (
+        <JobResultModal result={jobResult} onClose={() => setJobResult(null)} />
+      )}
+    </CmsJobContext.Provider>
+  );
 }
 
 export function useCmsJobs() {

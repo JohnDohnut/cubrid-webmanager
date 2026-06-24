@@ -246,6 +246,7 @@ export const CM_KO = {
   jobTypeCopy: '복사',
   jobTypeAddVol: '볼륨 추가',
   jobTypeRename: '이름 변경',
+  jobTypeBackupDb: '백업',
   databaseAction: '데이터베이스 작업',
   brokerAction: '브로커 작업',
   actionFailed: '작업 실패',
