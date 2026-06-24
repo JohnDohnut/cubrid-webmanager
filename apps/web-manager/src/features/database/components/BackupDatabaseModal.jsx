@@ -201,7 +201,7 @@ export default function BackupDatabaseModal() {
         () => databaseJobApi.submitBackup(selectedHostUid, selectedDatabase, payload),
         { onProgress: (j) => setJobStatus(j.jobStatus ?? j.status) }
       );
-      endSuccess();
+      endSuccess(`Database "${selectedDatabase}" has been successfully backed up to "${formData.backupDir}".`);
     } catch (err) {
       endError(typeof err === 'string' ? err : err.message || CM.failure);
     }
