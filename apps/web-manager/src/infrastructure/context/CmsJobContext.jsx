@@ -28,7 +28,7 @@ export function CmsJobProvider({ children }) {
   const { isAuthenticated } = useSelector((state) => state.auth, shallowEqual);
   const [jobs, setJobs] = useState([]);
   const [panelExpanded, setPanelExpanded] = useState(false);
-  const [jobResult, setJobResult] = useState(null);
+  const [jobResults, setJobResults] = useState([]);
   const trackingRef = useRef(new Set());
 
   const upsertJob = useCallback((jobId, patch) => {
@@ -47,14 +47,17 @@ export function CmsJobProvider({ children }) {
     (job, { notify, successMessage, errorMessage }) => {
       if (notify === false) return;
       if (job.jobStatus !== 'succeeded' && job.jobStatus !== 'failed') return;
-      setJobResult({
-        type: job.type,
-        dbname: job.dbname,
-        status: job.jobStatus,
-        error: job.error,
-        successMessage,
-        errorMessage,
-      });
+      setJobResults((prev) => [
+        ...prev,
+        {
+          type: job.type,
+          dbname: job.dbname,
+          status: job.jobStatus,
+          error: job.error,
+          successMessage,
+          errorMessage,
+        },
+      ]);
     },
     []
   );
@@ -168,6 +171,7 @@ export function CmsJobProvider({ children }) {
     if (!isAuthenticated) {
       cancelAllCmsJobPolls();
       setJobs([]);
+      setJobResults([]);
       trackingRef.current.clear();
       return;
     }
@@ -243,8 +247,11 @@ export function CmsJobProvider({ children }) {
   return (
     <CmsJobContext.Provider value={value}>
       {children}
-      {jobResult && (
-        <JobResultModal result={jobResult} onClose={() => setJobResult(null)} />
+      {jobResults.length > 0 && (
+        <JobResultModal
+          result={jobResults[0]}
+          onClose={() => setJobResults((prev) => prev.slice(1))}
+        />
       )}
     </CmsJobContext.Provider>
   );
