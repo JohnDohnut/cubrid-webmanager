@@ -222,6 +222,9 @@ export default function BackupDatabaseModal() {
       endSuccess(`Database "${selectedDatabase}" has been successfully backed up to "${formData.backupDir}".`);
     } catch (err) {
       if (!err?.cancelled) {
+        // Terminal job failure on the server — clear pending so retry submits a new backup.
+        // Transient polling failures keep pendingBackupJob to allow reconnect on retry.
+        if (err?.jobTerminalFailure) dispatch(clearPendingBackupJob());
         endError(typeof err === 'string' ? err : err.message || CM.failure);
       }
     }
