@@ -22,7 +22,7 @@ export {
 
 export {
   createDatabase, copyDatabase, deleteDatabase, renameDatabase, fetchCreateDatabaseInfo,
-  addVolume, backupDatabase, restoreDatabase, fetchBackupSchedule, addBackupSchedule,
+  addVolume, restoreDatabase, fetchBackupSchedule, addBackupSchedule,
   editBackupSchedule, deleteBackupSchedule, fetchBackupList, fetchBackupDbInfo,
   fetchAutoBackupLog, checkDatabase, compactDatabase, optimizeDatabase, loadDatabase,
   unloadDatabase, fetchQueryPlan, setAutoExecQuery, appendAutoExecQueryPlan, removeAutoExecQueryPlan, fetchQueryPlanLog, fetchLockInfo,

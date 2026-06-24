@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeBackupDatabaseModal, fetchBackupDbInfo } from '../databaseSlice';
 import { databaseJobApi } from '../databaseJobApi';
-import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
+import { useCmsJobs } from '../../../infrastructure/context/CmsJobContext';
 import { getCmsJobLoadingSubtitle } from '../../../infrastructure/cmsJob/cmsJobUi';
 
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -69,8 +69,9 @@ export default function BackupDatabaseModal() {
     isSuccess,
     isError
   } = useActionState();
-  const { runJob } = useCmsJob();
+  const { trackJob } = useCmsJobs();
   const [jobStatus, setJobStatus] = useState(null);
+  const pendingJobIdRef = useRef(null);
 
   const [formData, setFormData] = useState({
     volPath: `${selectedDatabase}_backup_lv0`,
@@ -186,28 +187,41 @@ export default function BackupDatabaseModal() {
     }
 
     startAction();
+    const progressOpts = { onProgress: (j) => setJobStatus(j.jobStatus ?? j.status) };
     try {
-      const payload = {
-        level: formData.backupLevel,
-        volname: formData.volPath,
-        backupdir: formData.backupDir,
-        removelog: formData.deleteUnnecessary ? 'y' : 'n',
-        check: formData.checkConsistency ? 'y' : 'n',
-        mt: formData.parallelBackup,
-        zip: formData.compress ? 'y' : 'n',
-        safereplication: 'n'
-      };
-      await runJob(
-        () => databaseJobApi.submitBackup(selectedHostUid, selectedDatabase, payload),
-        { onProgress: (j) => setJobStatus(j.jobStatus ?? j.status) }
-      );
+      // Reuse the accepted jobId on retry to avoid submitting a second backup
+      let jobId = pendingJobIdRef.current;
+      if (!jobId) {
+        const payload = {
+          level: formData.backupLevel,
+          volname: formData.volPath,
+          backupdir: formData.backupDir,
+          removelog: formData.deleteUnnecessary ? 'y' : 'n',
+          check: formData.checkConsistency ? 'y' : 'n',
+          mt: formData.parallelBackup,
+          zip: formData.compress ? 'y' : 'n',
+          safereplication: 'n'
+        };
+        const created = await databaseJobApi.submitBackup(selectedHostUid, selectedDatabase, payload);
+        jobId = created?.jobId;
+        if (!jobId) throw new Error('Server did not return a job id');
+        pendingJobIdRef.current = jobId;
+      }
+
+      await trackJob(jobId, progressOpts);
+      pendingJobIdRef.current = null;
       endSuccess(`Database "${selectedDatabase}" has been successfully backed up to "${formData.backupDir}".`);
     } catch (err) {
-      endError(typeof err === 'string' ? err : err.message || CM.failure);
+      if (!err?.cancelled) {
+        endError(typeof err === 'string' ? err : err.message || CM.failure);
+      }
     }
   };
 
-  const handleClose = () => dispatch(closeBackupDatabaseModal());
+  const handleClose = () => {
+    pendingJobIdRef.current = null;
+    dispatch(closeBackupDatabaseModal());
+  };
 
   const flags = [
     { field: 'checkConsistency', label: CM.checkDatabaseConsistency },
