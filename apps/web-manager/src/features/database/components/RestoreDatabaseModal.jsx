@@ -88,7 +88,7 @@ export default function RestoreDatabaseModal() {
     isError
   } = useActionState();
 
-  const [formData, setFormData] = useState({ selectedBackup: null, recoveryPath: '', isPartial: false });
+  const [formData, setFormData] = useState({ selectedBackup: null, recoveryPath: '', isPartial: false, usePointInTime: false, restoreDate: '' });
   const [filter, setFilter] = useState('all'); // 'all' | 0 | 1 | 2
 
   const parseBackupString = (str, level) => {
@@ -118,7 +118,7 @@ export default function RestoreDatabaseModal() {
 
   useEffect(() => {
     if (isRestoreDatabaseModalOpen && selectedHostUid && selectedDatabase) {
-      setFormData({ selectedBackup: null, recoveryPath: '', isPartial: false });
+      setFormData({ selectedBackup: null, recoveryPath: '', isPartial: false, usePointInTime: false, restoreDate: '' });
       setFilter('all');
       resetAction();
       dispatch(fetchBackupList({ hostUid: selectedHostUid, dbname: selectedDatabase }));
@@ -129,6 +129,12 @@ export default function RestoreDatabaseModal() {
 
   const handleInputChange = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
 
+  const formatCmsDate = (datetimeLocal) => {
+    const [datePart, timePart] = datetimeLocal.split('T');
+    const [year, month, day] = datePart.split('-');
+    return `${day}-${month}-${year}:${timePart}:00`;
+  };
+
   const handleRestore = async () => {
     if (!formData.selectedBackup) {
       endError(CM.selectBackupFirst);
@@ -138,15 +144,18 @@ export default function RestoreDatabaseModal() {
     startAction();
     try {
       const backup = allBackups.find(b => b.pathname === formData.selectedBackup);
+      const date = (formData.usePointInTime && formData.restoreDate)
+        ? formatCmsDate(formData.restoreDate)
+        : 'backuptime';
       await dispatch(restoreDatabase({
         hostUid: selectedHostUid,
         dbname: selectedDatabase,
         payload: {
-          date: backup.date,
+          date,
           level: String(backup.level),
           partial: formData.isPartial ? 'y' : 'n',
-          pathname: backup.pathname,
-          recoverypath: formData.recoveryPath || '',
+          pathname: backup.pathname || 'none',
+          recoverypath: formData.recoveryPath || 'none',
         }
       })).unwrap();
       endSuccess(selectedDatabase);
@@ -416,6 +425,48 @@ export default function RestoreDatabaseModal() {
                 icon="drive_file_move"
               />
               <p className="text-[9px] text-slate-400 dark:text-slate-500 italic px-0.5">{CM.restoreInPlaceHint}</p>
+            </div>
+
+            {/* Point-in-time recovery */}
+            <div className="col-span-2 space-y-2">
+              <div
+                className={`flex items-center gap-3 p-4 rounded-xl border transition-all duration-200 cursor-pointer group
+                  ${formData.usePointInTime
+                    ? 'bg-amber-500/5 border-amber-500/30 dark:border-amber-500/25 shadow-xs'
+                    : 'bg-slate-50/50 dark:bg-white/2 border-slate-200 dark:border-white/8 hover:border-slate-300 dark:hover:border-white/15'
+                  }`}
+                onClick={() => handleInputChange('usePointInTime', !formData.usePointInTime)}
+              >
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border transition-all
+                  ${formData.usePointInTime
+                    ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20 border-amber-400'
+                    : 'bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-400 group-hover:text-slate-600'
+                  }`}
+                >
+                  <Icon name="schedule" size="sm" weight={300} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-[12px] font-bold transition-colors ${formData.usePointInTime ? 'text-slate-800 dark:text-white' : 'text-slate-600 dark:text-slate-400'}`}>
+                    {CM.pointInTimeRecovery}
+                  </p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-tight">{CM.pointInTimeHint}</p>
+                </div>
+                <div onClick={(e) => e.stopPropagation()}>
+                  <Toggle checked={formData.usePointInTime} onChange={() => handleInputChange('usePointInTime', !formData.usePointInTime)} />
+                </div>
+              </div>
+              {formData.usePointInTime && (
+                <div className="px-1 space-y-1.5">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{CM.restoreToDate}</p>
+                  <Input
+                    type="datetime-local"
+                    value={formData.restoreDate}
+                    onChange={(e) => handleInputChange('restoreDate', e.target.value)}
+                    icon="schedule"
+                  />
+                  <p className="text-[9px] text-slate-400 dark:text-slate-500 italic">{CM.restoreDateFormatHint}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
