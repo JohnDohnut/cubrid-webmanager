@@ -53,6 +53,30 @@ const LEVEL_META = {
   },
 };
 
+/* ── date helpers ────────────────────────────────────────────── */
+// "dd-mm-yyyy:HH:MM:SS" → Date (best-effort; no timezone conversion)
+const parseCmsDate = (cmsDate) => {
+  if (!cmsDate) return null;
+  const m = cmsDate.match(/^(\d{2})-(\d{2})-(\d{4}):(\d{2}):(\d{2}):(\d{2})$/);
+  if (!m) return null;
+  return new Date(`${m[3]}-${m[2]}-${m[1]}T${m[4]}:${m[5]}:${m[6]}`);
+};
+
+// "dd-mm-yyyy:HH:MM:SS" → "yyyy-MM-ddTHH:mm" (datetime-local min value)
+const toDatetimeLocal = (cmsDate) => {
+  const d = parseCmsDate(cmsDate);
+  if (!d || isNaN(d.getTime())) return undefined;
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+
+// datetime-local "yyyy-MM-ddTHH:mm" → CMS "dd-mm-yyyy:HH:mm:ss"
+const formatCmsDate = (datetimeLocal) => {
+  const [datePart, timePart] = datetimeLocal.split('T');
+  const [year, month, day] = datePart.split('-');
+  return `${day}-${month}-${year}:${timePart}:00`;
+};
+
 /* ── helpers ─────────────────────────────────────────────────── */
 const SectionLabel = ({ children, count }) => (
   <div className="flex items-center gap-3 mb-3">
@@ -129,22 +153,30 @@ export default function RestoreDatabaseModal() {
 
   const handleInputChange = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
 
-  const formatCmsDate = (datetimeLocal) => {
-    const [datePart, timePart] = datetimeLocal.split('T');
-    const [year, month, day] = datePart.split('-');
-    return `${day}-${month}-${year}:${timePart}:00`;
-  };
-
   const handleRestore = async () => {
     if (!formData.selectedBackup) {
       endError(CM.selectBackupFirst);
       return;
     }
 
+    if (formData.usePointInTime && !formData.restoreDate) {
+      endError(CM.restoreDateRequired);
+      return;
+    }
+
+    const backup = allBackups.find(b => b.pathname === formData.selectedBackup);
+
+    if (formData.usePointInTime && formData.restoreDate && backup?.date) {
+      const backupDate = parseCmsDate(backup.date);
+      if (backupDate && new Date(formData.restoreDate) < backupDate) {
+        endError(CM.restoreDateBeforeBackup);
+        return;
+      }
+    }
+
     startAction();
     try {
-      const backup = allBackups.find(b => b.pathname === formData.selectedBackup);
-      const date = (formData.usePointInTime && formData.restoreDate)
+      const date = formData.usePointInTime
         ? formatCmsDate(formData.restoreDate)
         : 'backuptime';
       await dispatch(restoreDatabase({
@@ -167,6 +199,8 @@ export default function RestoreDatabaseModal() {
   const handleClose = () => dispatch(closeRestoreDatabaseModal());
 
   const levelCounts = { 0: allBackups.filter(b => b.level === 0).length, 1: allBackups.filter(b => b.level === 1).length, 2: allBackups.filter(b => b.level === 2).length };
+  const selectedBackupObj = formData.selectedBackup ? allBackups.find(b => b.pathname === formData.selectedBackup) ?? null : null;
+  const backupMinDatetime = selectedBackupObj?.date ? toDatetimeLocal(selectedBackupObj.date) : undefined;
 
   /* ─── LOADING view ─── */
   if (isLoading) {
@@ -463,6 +497,7 @@ export default function RestoreDatabaseModal() {
                     value={formData.restoreDate}
                     onChange={(e) => handleInputChange('restoreDate', e.target.value)}
                     icon="schedule"
+                    min={backupMinDatetime}
                   />
                   <p className="text-[9px] text-slate-400 dark:text-slate-500 italic">{CM.restoreDateFormatHint}</p>
                 </div>
