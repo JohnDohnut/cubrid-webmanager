@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { closeBackupDatabaseModal, fetchBackupDbInfo } from '../databaseSlice';
+import { closeBackupDatabaseModal, fetchBackupDbInfo, setPendingBackupJob, clearPendingBackupJob } from '../databaseSlice';
 import { databaseJobApi } from '../databaseJobApi';
 import { useCmsJobs } from '../../../infrastructure/context/CmsJobContext';
 import { getCmsJobLoadingSubtitle } from '../../../infrastructure/cmsJob/cmsJobUi';
@@ -54,7 +54,7 @@ const deriveBackupDir = (dbdir) => {
 export default function BackupDatabaseModal() {
   const CM = useCM();
   const dispatch = useDispatch();
-  const { isBackupDatabaseModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
+  const { isBackupDatabaseModalOpen, pendingBackupJob } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
   const { backupDbInfo: databaseBackupInfo } = useSelector((state) => state.databaseOperation, shallowEqual);
   const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
@@ -71,6 +71,7 @@ export default function BackupDatabaseModal() {
   } = useActionState();
   const { trackJob } = useCmsJobs();
   const [jobStatus, setJobStatus] = useState(null);
+  // pendingJobIdRef mirrors Redux pendingBackupJob for the current render cycle
   const pendingJobIdRef = useRef(null);
 
   const [formData, setFormData] = useState({
@@ -161,12 +162,16 @@ export default function BackupDatabaseModal() {
     // Init backupDir immediately from cached backupInfo so the field is never
     // blank when reopening the same DB. If no cache, stays '' until fetch returns.
     setFormData(prev => ({ ...prev, backupDir: deriveBackupDir(backupInfoRef.current?.dbdir) }));
+    // Reconnect to an accepted-but-unfinished job from a previous modal session.
+    // The jobId is persisted in Redux so it survives component unmount on close.
+    pendingJobIdRef.current =
+      pendingBackupJob?.dbname === selectedDatabase ? pendingBackupJob.jobId : null;
     if (selectedDatabase && selectedHostUid) {
       dispatch(fetchBackupDbInfo({ hostUid: selectedHostUid, dbname: selectedDatabase }))
         .unwrap()
         .catch(() => setBackupInfoFetchError(true));
     }
-  }, [isBackupDatabaseModalOpen, selectedDatabase, selectedHostUid, dispatch, resetAction]);
+  }, [isBackupDatabaseModalOpen, selectedDatabase, selectedHostUid, dispatch, resetAction, pendingBackupJob]);
 
   if (!isBackupDatabaseModalOpen) return null;
 
@@ -206,10 +211,13 @@ export default function BackupDatabaseModal() {
         jobId = created?.jobId;
         if (!jobId) throw new Error('Server did not return a job id');
         pendingJobIdRef.current = jobId;
+        // Persist to Redux so jobId survives modal close/reopen
+        dispatch(setPendingBackupJob({ jobId, dbname: selectedDatabase }));
       }
 
       await trackJob(jobId, progressOpts);
       pendingJobIdRef.current = null;
+      dispatch(clearPendingBackupJob());
       endSuccess(`Database "${selectedDatabase}" has been successfully backed up to "${formData.backupDir}".`);
     } catch (err) {
       if (!err?.cancelled) {
@@ -218,10 +226,8 @@ export default function BackupDatabaseModal() {
     }
   };
 
-  const handleClose = () => {
-    pendingJobIdRef.current = null;
-    dispatch(closeBackupDatabaseModal());
-  };
+  // Don't clear pendingBackupJob on close — the open effect reconnects on reopen
+  const handleClose = () => dispatch(closeBackupDatabaseModal());
 
   const flags = [
     { field: 'checkConsistency', label: CM.checkDatabaseConsistency },
