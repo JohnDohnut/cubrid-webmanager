@@ -30,6 +30,9 @@ export function CmsJobProvider({ children }) {
   const [panelExpanded, setPanelExpanded] = useState(false);
   const [jobResults, setJobResults] = useState([]);
   const trackingRef = useRef(new Set());
+  // Incremented on logout so in-flight continuations that already have a terminal
+  // result cannot enqueue a JobResultModal for the next session.
+  const sessionRef = useRef(0);
 
   const upsertJob = useCallback((jobId, patch) => {
     setJobs((prev) => {
@@ -44,9 +47,10 @@ export function CmsJobProvider({ children }) {
   }, []);
 
   const notifyTerminal = useCallback(
-    (job, { notify, successMessage, errorMessage }) => {
+    (job, { notify, successMessage, errorMessage }, session) => {
       if (notify === false) return;
       if (job.jobStatus !== 'succeeded' && job.jobStatus !== 'failed') return;
+      if (session !== sessionRef.current) return;
       setJobResults((prev) => [
         ...prev,
         {
@@ -67,6 +71,7 @@ export function CmsJobProvider({ children }) {
       if (!jobId) {
         throw new Error('Job id is required');
       }
+      const session = sessionRef.current;
 
       if (trackingRef.current.has(jobId) || isCmsJobPolling(jobId)) {
         return runCmsJobInBackground(jobId, {
@@ -116,7 +121,7 @@ export function CmsJobProvider({ children }) {
         const result = await pollPromise;
         const final = normalizeTrackedJob(result);
         upsertJob(jobId, final);
-        notifyTerminal(final, { notify, successMessage, errorMessage });
+        notifyTerminal(final, { notify, successMessage, errorMessage }, session);
         return result;
       } catch (err) {
         // Cancelled polls (logout / unmount) are not job failures — skip UI update and toast.
@@ -129,7 +134,7 @@ export function CmsJobProvider({ children }) {
             { ...(cur || {}), jobId, jobStatus: 'failed', error: { message: err?.message } },
             cur || {}
           );
-          notifyTerminal(failed, { notify, successMessage, errorMessage });
+          notifyTerminal(failed, { notify, successMessage, errorMessage }, session);
           return prev.map((j) => (j.jobId === jobId ? { ...j, ...failed } : j));
         });
         throw err;
@@ -169,6 +174,7 @@ export function CmsJobProvider({ children }) {
 
   useEffect(() => {
     if (!isAuthenticated) {
+      sessionRef.current += 1;
       cancelAllCmsJobPolls();
       setJobs([]);
       setJobResults([]);
