@@ -71,8 +71,6 @@ export default function BackupDatabaseModal() {
   } = useActionState();
   const { trackJob } = useCmsJobs();
   const [jobStatus, setJobStatus] = useState(null);
-  // pendingJobIdRef mirrors Redux pendingBackupJob for the current render cycle
-  const pendingJobIdRef = useRef(null);
 
   const [formData, setFormData] = useState({
     volPath: `${selectedDatabase}_backup_lv0`,
@@ -162,16 +160,12 @@ export default function BackupDatabaseModal() {
     // Init backupDir immediately from cached backupInfo so the field is never
     // blank when reopening the same DB. If no cache, stays '' until fetch returns.
     setFormData(prev => ({ ...prev, backupDir: deriveBackupDir(backupInfoRef.current?.dbdir) }));
-    // Reconnect to an accepted-but-unfinished job from a previous modal session.
-    // The jobId is persisted in Redux so it survives component unmount on close.
-    pendingJobIdRef.current =
-      pendingBackupJob?.dbname === selectedDatabase ? pendingBackupJob.jobId : null;
     if (selectedDatabase && selectedHostUid) {
       dispatch(fetchBackupDbInfo({ hostUid: selectedHostUid, dbname: selectedDatabase }))
         .unwrap()
         .catch(() => setBackupInfoFetchError(true));
     }
-  }, [isBackupDatabaseModalOpen, selectedDatabase, selectedHostUid, dispatch, resetAction, pendingBackupJob]);
+  }, [isBackupDatabaseModalOpen, selectedDatabase, selectedHostUid, dispatch, resetAction]);
 
   if (!isBackupDatabaseModalOpen) return null;
 
@@ -194,29 +188,36 @@ export default function BackupDatabaseModal() {
     startAction();
     const progressOpts = { onProgress: (j) => setJobStatus(j.jobStatus ?? j.status) };
     try {
-      // Reuse the accepted jobId on retry to avoid submitting a second backup
-      let jobId = pendingJobIdRef.current;
-      if (!jobId) {
-        const payload = {
-          level: formData.backupLevel,
-          volname: formData.volPath,
-          backupdir: formData.backupDir,
-          removelog: formData.deleteUnnecessary ? 'y' : 'n',
-          check: formData.checkConsistency ? 'y' : 'n',
-          mt: formData.parallelBackup,
-          zip: formData.compress ? 'y' : 'n',
-          safereplication: 'n'
-        };
+      const payload = {
+        level: formData.backupLevel,
+        volname: formData.volPath,
+        backupdir: formData.backupDir,
+        removelog: formData.deleteUnnecessary ? 'y' : 'n',
+        check: formData.checkConsistency ? 'y' : 'n',
+        mt: formData.parallelBackup,
+        zip: formData.compress ? 'y' : 'n',
+        safereplication: 'n'
+      };
+
+      // Reuse an accepted job only when host, db, AND full payload all match.
+      // Any change (different host, path, level, or flags) means a new backup is needed.
+      const exactMatch =
+        pendingBackupJob?.hostUid === selectedHostUid &&
+        pendingBackupJob?.dbname === selectedDatabase &&
+        JSON.stringify(pendingBackupJob?.payload) === JSON.stringify(payload);
+
+      let jobId;
+      if (exactMatch) {
+        jobId = pendingBackupJob.jobId;
+      } else {
+        if (pendingBackupJob) dispatch(clearPendingBackupJob());
         const created = await databaseJobApi.submitBackup(selectedHostUid, selectedDatabase, payload);
         jobId = created?.jobId;
         if (!jobId) throw new Error('Server did not return a job id');
-        pendingJobIdRef.current = jobId;
-        // Persist to Redux so jobId survives modal close/reopen
-        dispatch(setPendingBackupJob({ jobId, dbname: selectedDatabase }));
+        dispatch(setPendingBackupJob({ jobId, hostUid: selectedHostUid, dbname: selectedDatabase, payload }));
       }
 
       await trackJob(jobId, progressOpts);
-      pendingJobIdRef.current = null;
       dispatch(clearPendingBackupJob());
       endSuccess(`Database "${selectedDatabase}" has been successfully backed up to "${formData.backupDir}".`);
     } catch (err) {
