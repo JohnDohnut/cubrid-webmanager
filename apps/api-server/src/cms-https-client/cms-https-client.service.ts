@@ -212,9 +212,17 @@ export class CmsHttpsClientService {
 
   private createHttpsAgent(): https.Agent {
     const ca = this.configService.getCmsCaCert();
-    return new https.Agent({
+    const agent = new https.Agent({
       rejectUnauthorized: this.configService.getCmsRejectUnauthorized(),
       ...(ca ? { ca } : {}),
     });
+    // TCP keepalive: prevent NAT from silently dropping idle long-running connections.
+    // Without this, NAT removes the connection table entry after its idle timeout
+    // (~30-60 min), and the socket hang-up is only detected when CMS tries to send
+    // the response at job completion.
+    agent.on('socket', (socket) => {
+      socket.setKeepAlive(true, 30_000);
+    });
+    return agent;
   }
 }
