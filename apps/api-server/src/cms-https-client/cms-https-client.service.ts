@@ -8,6 +8,7 @@ import * as https from 'https';
 import { ConfigService } from '@config/config.service';
 import { HostService } from '@host';
 import { EncryptionService } from '@security';
+import { AxiosError } from 'axios';
 import { checkCmsTokenError, checkCmsStatusError } from '@common';
 import { formatAuditLog } from '@util';
 
@@ -64,7 +65,9 @@ export class CmsHttpsClientService {
     };
     const startedAt = Date.now();
     this.logCmsRequest('public', url, data);
-    const response = await firstValueFrom(this.httpService.post<P>(url, data, config));
+    const response = await this.withCmsRetry(() =>
+      firstValueFrom(this.httpService.post<P>(url, data, config))
+    );
     this.logCmsResponse('public', url, data, response.data, Date.now() - startedAt);
     return response.data;
   }
@@ -90,7 +93,9 @@ export class CmsHttpsClientService {
     };
     const startedAt = Date.now();
     this.logCmsRequest('authenticated', url, data);
-    const response = await firstValueFrom(this.httpService.post<P>(url, data, config));
+    const response = await this.withCmsRetry(() =>
+      firstValueFrom(this.httpService.post<P>(url, data, config))
+    );
     this.logCmsResponse('authenticated', url, data, response.data, Date.now() - startedAt);
     return response.data;
   }
@@ -175,6 +180,34 @@ export class CmsHttpsClientService {
 
     const task = (data as { task?: unknown }).task;
     return typeof task === 'string' ? task : undefined;
+  }
+
+  /**
+   * Retries a CMS HTTP call on socket hang-up / no-response errors.
+   * CMS is single-threaded; while a long job (e.g. backupdb) runs, concurrent
+   * requests receive an immediate socket hang-up. Three retries with exponential
+   * back-off give short read requests a chance to succeed once CMS is free again.
+   */
+  private async withCmsRetry<T>(
+    fn: () => Promise<T>,
+    maxRetries = 3,
+    baseDelayMs = 2_000
+  ): Promise<T> {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        return await fn();
+      } catch (err) {
+        const axiosErr = err as AxiosError;
+        const isNoResponse = Boolean(axiosErr?.isAxiosError && axiosErr.request && !axiosErr.response);
+        if (!isNoResponse) throw err;
+        const delayMs = Math.min(baseDelayMs * 2 ** attempt, 10_000);
+        this.logger.warn(
+          `CMS socket hang-up, retrying (${attempt + 1}/${maxRetries}) in ${delayMs}ms`
+        );
+        await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+    return fn();
   }
 
   private createHttpsAgent(): https.Agent {
