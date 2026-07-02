@@ -194,6 +194,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
     if (loginInProgressRef.current) return;
 
     if (authorizedHosts.includes(uid)) {
+      dispatch(resetBrokerState());
       dispatch(setActiveMainTab('host:' + uid));
       dispatch(fetchDatabaseStartInfo(uid));
       dispatch(fetchBrokerList(uid));
