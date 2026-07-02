@@ -25,7 +25,8 @@ export function isCmsStatusFailure(response: any): boolean {
 }
 
 const CMS_ERROR_LINE_PREFIX = /^\s*ERROR:/i;
-const CMS_ERROR_LINE_PHRASE = /error occurred/i;
+const CMS_ERROR_LINE_PHRASE =
+  /error occurred|can't open file|cannot open file|load failed|stopped with error/i;
 
 export function getCmsErrorLines(response: any): string[] {
   if (!response || !Array.isArray(response.line)) {
