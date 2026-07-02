@@ -1,6 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { closeBackupDatabaseModal, backupDatabase, fetchBackupDbInfo } from '../databaseSlice';
+import { closeBackupDatabaseModal, fetchBackupDbInfo, setPendingBackupJob, clearPendingBackupJob } from '../databaseSlice';
+import { databaseJobApi } from '../databaseJobApi';
+import { useCmsJobs } from '../../../infrastructure/context/CmsJobContext';
+import { getCmsJobLoadingSubtitle } from '../../../infrastructure/cmsJob/cmsJobUi';
 
 import { Modal } from '../../../components/ds/layout/Modal';
 import {
@@ -21,6 +24,7 @@ import {
   ModalStatusError 
 } from '../../../components/ds/feedback/ActionStatus';
 import { useCM } from '../../../constants/useCM';
+import { InfoBanner } from '../../../components/ds/foundation/InfoBanner';
 
 const TAB_INFO = 'info';
 const TAB_HISTORY = 'history';
@@ -40,24 +44,33 @@ const formatBackupSize = (value) => {
   return (size / 1024 / 1024).toLocaleString(undefined, { maximumFractionDigits: 2 });
 };
 
+// Strip all trailing /backup segments then re-append one canonical /backup.
+// Handles cases like /home/db/backup/backup or /home/db/backup/ from CMS.
+const deriveBackupDir = (dbdir) => {
+  if (!dbdir) return '';
+  return `${dbdir.replace(/(?:\/backup)+\/?$/, '')}/backup`;
+};
+
 export default function BackupDatabaseModal() {
   const CM = useCM();
   const dispatch = useDispatch();
-  const { isBackupDatabaseModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
+  const { isBackupDatabaseModalOpen, pendingBackupJob } = useSelector((state) => state.databaseUI, shallowEqual);
   const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
   const { backupDbInfo: databaseBackupInfo } = useSelector((state) => state.databaseOperation, shallowEqual);
   const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
 
-  const { 
-    error, 
-    startAction, 
-    endSuccess, 
-    endError, 
+  const {
+    error,
+    startAction,
+    endSuccess,
+    endError,
     resetAction,
     isLoading,
     isSuccess,
     isError
   } = useActionState();
+  const { trackJob } = useCmsJobs();
+  const [jobStatus, setJobStatus] = useState(null);
 
   const [formData, setFormData] = useState({
     volPath: `${selectedDatabase}_backup_lv0`,
@@ -69,8 +82,14 @@ export default function BackupDatabaseModal() {
     compress: true
   });
   const [activeTab, setActiveTab] = useState(TAB_INFO);
+  const [backupInfoFetchError, setBackupInfoFetchError] = useState(false);
 
   const backupInfo = selectedDatabase ? databaseBackupInfo[selectedDatabase] : null;
+
+  // Keep a ref so the modal-open effect can read the latest backupInfo
+  // synchronously without adding it to its own dependency array.
+  const backupInfoRef = useRef(null);
+  useEffect(() => { backupInfoRef.current = backupInfo; }, [backupInfo]);
   const backupHistory = useMemo(() => {
     if (!backupInfo) return [];
     return [0, 1, 2].flatMap((level) => {
@@ -109,20 +128,18 @@ export default function BackupDatabaseModal() {
   useEffect(() => {
     if (selectedDatabase) {
       setFormData(prev => ({ ...prev, volPath: `${selectedDatabase}_backup_lv${prev.backupLevel}` }));
-      if (isBackupDatabaseModalOpen && selectedHostUid) {
-        dispatch(fetchBackupDbInfo({ hostUid: selectedHostUid, dbname: selectedDatabase }));
-      }
     }
-  }, [selectedDatabase, isBackupDatabaseModalOpen, selectedHostUid, dispatch]);
+  }, [selectedDatabase]);
 
+  // When backupInfo loads (fetch completes after modal open), fill backupDir only if still empty.
+  // Uses functional updater so prev.backupDir is always current — no stale-closure race.
   useEffect(() => {
-    if (backupInfo) {
-      const { dbdir } = backupInfo;
-      if (dbdir && !formData.backupDir) {
-        setFormData(prev => ({ ...prev, backupDir: dbdir }));
-      }
-    }
-  }, [backupInfo, formData.backupDir]);
+    if (!isBackupDatabaseModalOpen || !backupInfo?.dbdir) return;
+    setFormData(prev => {
+      if (prev.backupDir) return prev;
+      return { ...prev, backupDir: deriveBackupDir(backupInfo.dbdir) };
+    });
+  }, [backupInfo, isBackupDatabaseModalOpen]);
 
   useEffect(() => {
     if (!availableLevels.includes(formData.backupLevel)) {
@@ -136,11 +153,19 @@ export default function BackupDatabaseModal() {
   }, [availableLevels, formData.backupLevel, selectedDatabase]);
 
   useEffect(() => {
-    if (isBackupDatabaseModalOpen) {
-      resetAction();
-      setActiveTab(TAB_INFO);
+    if (!isBackupDatabaseModalOpen) return;
+    resetAction();
+    setActiveTab(TAB_INFO);
+    setBackupInfoFetchError(false);
+    // Init backupDir immediately from cached backupInfo so the field is never
+    // blank when reopening the same DB. If no cache, stays '' until fetch returns.
+    setFormData(prev => ({ ...prev, backupDir: deriveBackupDir(backupInfoRef.current?.dbdir) }));
+    if (selectedDatabase && selectedHostUid) {
+      dispatch(fetchBackupDbInfo({ hostUid: selectedHostUid, dbname: selectedDatabase }))
+        .unwrap()
+        .catch(() => setBackupInfoFetchError(true));
     }
-  }, [isBackupDatabaseModalOpen, resetAction]);
+  }, [isBackupDatabaseModalOpen, selectedDatabase, selectedHostUid, dispatch, resetAction]);
 
   if (!isBackupDatabaseModalOpen) return null;
 
@@ -161,6 +186,7 @@ export default function BackupDatabaseModal() {
     }
 
     startAction();
+    const progressOpts = { onProgress: (j) => setJobStatus(j.jobStatus ?? j.status) };
     try {
       const payload = {
         level: formData.backupLevel,
@@ -172,13 +198,39 @@ export default function BackupDatabaseModal() {
         zip: formData.compress ? 'y' : 'n',
         safereplication: 'n'
       };
-      await dispatch(backupDatabase({ hostUid: selectedHostUid, dbname: selectedDatabase, payload })).unwrap();
+
+      // Reuse an accepted job only when host, db, AND full payload all match.
+      // Any change (different host, path, level, or flags) means a new backup is needed.
+      const exactMatch =
+        pendingBackupJob?.hostUid === selectedHostUid &&
+        pendingBackupJob?.dbname === selectedDatabase &&
+        JSON.stringify(pendingBackupJob?.payload) === JSON.stringify(payload);
+
+      let jobId;
+      if (exactMatch) {
+        jobId = pendingBackupJob.jobId;
+      } else {
+        const created = await databaseJobApi.submitBackup(selectedHostUid, selectedDatabase, payload);
+        jobId = created?.jobId;
+        if (!jobId) throw new Error('Server did not return a job id');
+        // Replace only after confirmed acceptance — preserves the previous pending job if submit fails
+        dispatch(setPendingBackupJob({ jobId, hostUid: selectedHostUid, dbname: selectedDatabase, payload }));
+      }
+
+      await trackJob(jobId, progressOpts);
+      dispatch(clearPendingBackupJob());
       endSuccess(`Database "${selectedDatabase}" has been successfully backed up to "${formData.backupDir}".`);
     } catch (err) {
-      endError(err);
+      if (!err?.cancelled) {
+        // Terminal job failure on the server — clear pending so retry submits a new backup.
+        // Transient polling failures keep pendingBackupJob to allow reconnect on retry.
+        if (err?.jobTerminalFailure) dispatch(clearPendingBackupJob());
+        endError(typeof err === 'string' ? err : err.message || CM.failure);
+      }
     }
   };
 
+  // Don't clear pendingBackupJob on close — the open effect reconnects on reopen
   const handleClose = () => dispatch(closeBackupDatabaseModal());
 
   const flags = [
@@ -218,6 +270,14 @@ export default function BackupDatabaseModal() {
           onChange={(e) => handleInputChange('backupDir', e.target.value)}
         />
       </CaDialogField>
+
+      {backupInfoFetchError && !formData.backupDir && (
+        <CaDialogField fullWidth>
+          <InfoBanner variant="warning" title={CM.warning} icon="warning">
+            {CM.backupDirFetchError}
+          </InfoBanner>
+        </CaDialogField>
+      )}
 
       <CaDialogField label={CM.parallelThreads}>
         <Input
@@ -263,9 +323,9 @@ export default function BackupDatabaseModal() {
   if (isLoading) {
     return (
       <Modal isOpen title={CM.backupDatabase} icon="backup" onClose={handleClose} maxWidth="720px" showCloseButton={false}>
-        <ModalStatusLoading 
-          title={CM.snapshotInProgress} 
-          subtitle={selectedDatabase} 
+        <ModalStatusLoading
+          title={CM.snapshotInProgress}
+          subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
         />
       </Modal>
     );

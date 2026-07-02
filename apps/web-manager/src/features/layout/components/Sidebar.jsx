@@ -28,7 +28,7 @@ import {
 
 import {
   createDatabase, copyDatabase, deleteDatabase, renameDatabase, fetchCreateDatabaseInfo,
-  addVolume, backupDatabase, restoreDatabase, fetchBackupSchedule, addBackupSchedule,
+  addVolume, restoreDatabase, fetchBackupSchedule, addBackupSchedule,
   editBackupSchedule, deleteBackupSchedule, fetchBackupList, fetchBackupDbInfo,
   fetchAutoBackupLog, checkDatabase, compactDatabase, optimizeDatabase, loadDatabase,
   unloadDatabase, fetchQueryPlan, setAutoExecQuery, fetchQueryPlanLog, fetchLockInfo,
@@ -462,7 +462,6 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
     if (!isServerListCollapsed) {
       setPrevServerListSize(serverListSize);
       setServerListSize(40);
-      setIsTreeCollapsed(false);
     } else {
       setServerListSize(prevServerListSize > 40 ? prevServerListSize : 260);
     }
@@ -471,14 +470,6 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
   const toggleTreeCollapse = () => {
     const nextState = !isTreeCollapsed;
     setIsTreeCollapsed(nextState);
-    if (nextState) {
-      setPrevServerListSize(serverListSize);
-      setServerListSize(800); // Push to bottom
-    } else {
-      // Expanding: Restore to balanced middle position or previous size
-      setIsServerListCollapsed(false);
-      setServerListSize(prevServerListSize < 750 && prevServerListSize > 50 ? prevServerListSize : 260);
-    }
   };
 
   return (

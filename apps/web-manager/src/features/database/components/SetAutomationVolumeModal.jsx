@@ -19,11 +19,6 @@ import {
 const PAGE_SIZE_BYTES = 16384;
 const BYTES_TO_MB = 1024 * 1024;
 
-const VIEW_FORM    = 'form';
-const VIEW_LOADING = 'loading';
-const VIEW_SUCCESS = 'success';
-const VIEW_ERROR   = 'error';
-
 // ── Slider Field ───────────────────────────────────────────────
 const SliderField = memo(({ label, value, min, max, step = 1, onChange, unit = '%', disabled }) => {
   const pct = Math.max(0, ((value - min) / (max - min)) * 100);
@@ -140,7 +135,6 @@ export default function SetAutomationVolumeModal() {
   const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
 
   const { 
-    state, 
     error: actionError, 
     startAction, 
     endSuccess, 
@@ -151,14 +145,15 @@ export default function SetAutomationVolumeModal() {
     isError
   } = useActionState();
 
-  const [permanentEnabled, setPermanentEnabled] = useState(false);
-  const [permanentThreshold, setPermanentThreshold] = useState(15);
-  const [permanentAddSize, setPermanentAddSize] = useState(2048);
+  const [combinedEnabled, setCombinedEnabled] = useState(false);
+  const [combinedThreshold, setCombinedThreshold] = useState(15);
+  const [combinedAddSize, setCombinedAddSize] = useState(2048);
 
   useEffect(() => {
     if (isSetAutomationVolumeModalOpen && selectedHostUid && selectedDatabase) {
       resetAction();
-      setPermanentEnabled(false);
+      // Reset local state before fetching new config to avoid stale view
+      setCombinedEnabled(false);
       dispatch(fetchAutoVolumeConfig({ hostUid: selectedHostUid, dbname: selectedDatabase }));
     }
   }, [isSetAutomationVolumeModalOpen, selectedHostUid, selectedDatabase, dispatch, resetAction]);
@@ -167,24 +162,29 @@ export default function SetAutomationVolumeModal() {
     if (!selectedDatabase || !autoVolumeConfigs) return;
     const config = autoVolumeConfigs[selectedDatabase];
     if (config) {
-      setPermanentEnabled(config.data === 'ON' || config.index === 'ON');
-      setPermanentThreshold(config.data_warn_outofspace ? Math.max(5, Math.round(parseFloat(config.data_warn_outofspace) * 100)) : 15);
-      setPermanentAddSize(config.data_ext_page ? Math.round(parseInt(config.data_ext_page) * PAGE_SIZE_BYTES / BYTES_TO_MB) : 2048);
+      const primaryVolume = config.data === 'ON' ? 'data' : (config.index === 'ON' ? 'index' : 'data');
+      const fallbackVolume = primaryVolume === 'data' ? 'index' : 'data';
+      const warnOutOfSpace = config[`${primaryVolume}_warn_outofspace`] || config[`${fallbackVolume}_warn_outofspace`];
+      const extensionPages = config[`${primaryVolume}_ext_page`] || config[`${fallbackVolume}_ext_page`];
+
+      setCombinedEnabled(config.data === 'ON' || config.index === 'ON');
+      setCombinedThreshold(warnOutOfSpace ? Math.max(5, Math.round(parseFloat(warnOutOfSpace) * 100)) : 15);
+      setCombinedAddSize(extensionPages ? Math.round(parseInt(extensionPages) * PAGE_SIZE_BYTES / BYTES_TO_MB) : 2048);
     }
   }, [autoVolumeConfigs, selectedDatabase]);
 
   const handleSave = useCallback(async () => {
     startAction();
-    const state = permanentEnabled ? 'ON' : 'OFF';
-    const warnRatio = (permanentThreshold / 100).toFixed(2);
-    const extPage = Math.floor(permanentAddSize * BYTES_TO_MB / PAGE_SIZE_BYTES).toString();
+    const enabledValue = combinedEnabled ? 'ON' : 'OFF';
+    const thresholdValue = (combinedThreshold / 100).toFixed(2);
+    const extensionPageValue = Math.floor(combinedAddSize * BYTES_TO_MB / PAGE_SIZE_BYTES).toString();
     const payload = {
-      data: state,
-      data_warn_outofspace: warnRatio,
-      data_ext_page: extPage,
-      index: state,
-      index_warn_outofspace: warnRatio,
-      index_ext_page: extPage,
+      data: enabledValue,
+      data_warn_outofspace: thresholdValue,
+      data_ext_page: extensionPageValue,
+      index: enabledValue,
+      index_warn_outofspace: thresholdValue,
+      index_ext_page: extensionPageValue,
     };
     try {
       await dispatch(updateAutoVolumeConfig({ hostUid: selectedHostUid, dbname: selectedDatabase, payload })).unwrap();
@@ -192,7 +192,7 @@ export default function SetAutomationVolumeModal() {
     } catch (err) {
       endError(typeof err === 'string' ? err : (err?.message || 'Failed to save configuration. Please try again.'));
     }
-  }, [permanentEnabled, permanentThreshold, permanentAddSize, selectedHostUid, selectedDatabase, dispatch, startAction, endSuccess, endError]);
+  }, [combinedEnabled, combinedThreshold, combinedAddSize, selectedHostUid, selectedDatabase, dispatch, startAction, endSuccess, endError]);
 
   const handleClose = () => dispatch(closeSetAutomationVolumeModal());
 
@@ -246,7 +246,7 @@ export default function SetAutomationVolumeModal() {
       isOpen={isSetAutomationVolumeModalOpen}
       onClose={handleClose}
       title={CM.autoVolume}
-      subtitle={selectedDatabase ? `Configure expansion policies for "${selectedDatabase}"` : ''}
+      subtitle={selectedDatabase ? CM.setAutomationVolumeSubtitle(selectedDatabase) : ''}
       icon="settings_suggest"
       maxWidth="max-w-[580px]"
       footer={
@@ -277,12 +277,14 @@ export default function SetAutomationVolumeModal() {
             <Icon name="database" size="14px" weight={300} className="text-amber-500" />
           </div>
           <div className="min-w-0 flex-1">
-            <Typography variant="caption" className="text-[9px] font-semibold text-amber-600/70 uppercase tracking-widest block">Target database</Typography>
+            <Typography variant="caption" className="text-[9px] font-semibold text-amber-600/70 uppercase tracking-widest block">{CM.targetDatabase}</Typography>
             <Typography variant="p" className="text-[12px] font-bold text-amber-700 dark:text-amber-400 font-mono truncate">{selectedDatabase}</Typography>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-            <span className="text-[9px] font-semibold text-amber-600 dark:text-amber-400">{CM.autoVolumeActive}</span>
+            <div className={`w-1.5 h-1.5 rounded-full ${combinedEnabled ? 'bg-amber-500 animate-pulse' : 'bg-slate-300 dark:bg-slate-600'}`} />
+            <span className="text-[9px] font-semibold text-amber-600 dark:text-amber-400">
+              {combinedEnabled ? CM.autoVolumeEnabled : CM.autoVolumeDisabled}
+            </span>
           </div>
         </div>
 
@@ -299,15 +301,15 @@ export default function SetAutomationVolumeModal() {
 
           <div className="space-y-3">
             <PolicyCard
-              title="PERMANENT"
+              title={CM.dataIndexVolume}
               icon="database"
-              description="Data &amp; index volumes (both)"
-              enabled={permanentEnabled}
-              onToggle={setPermanentEnabled}
-              threshold={permanentThreshold}
-              onThresholdChange={setPermanentThreshold}
-              addSize={permanentAddSize}
-              onSizeChange={setPermanentAddSize}
+              description={CM.dataIndexVolumeDescription}
+              enabled={combinedEnabled}
+              onToggle={setCombinedEnabled}
+              threshold={combinedThreshold}
+              onThresholdChange={setCombinedThreshold}
+              addSize={combinedAddSize}
+              onSizeChange={setCombinedAddSize}
             />
           </div>
         </div>
