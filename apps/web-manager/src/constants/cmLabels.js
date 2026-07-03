@@ -183,7 +183,7 @@ export const CM = {
   // Common actions
   save: 'Save',
   retry: 'Retry',
-  dismiss: 'Dismiss',
+  dismiss: 'Close',
   apply: 'Apply',
   discard: 'Discard',
   connect: 'Connect',
