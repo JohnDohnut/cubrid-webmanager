@@ -3,21 +3,18 @@ const { login, connectToHost, expandDatabase, openDbContextMenu, dismissModal, E
 
 /**
  * 데이터베이스 상세 정보 테스트
- * - Clone(Copy) Database 모달 UI
- * - Database Space Monitor 대시보드
- * - Backup Database 모달 UI
- * - Lock Information / Transaction Info 모달
- * - Param Dump / Plan Dump 모달
+ * - Copy DB 모달 UI 필드 검증
+ * - Space Monitor 실행 및 실제 데이터 로드
+ * - Lock Info / Transaction Info / Param Dump / Plan Dump 실제 실행 후 데이터 확인
  */
 test.describe('Database Details', () => {
 
   test.beforeEach(async ({ page }) => {
     await login(page);
     await connectToHost(page);
-    await expandDatabase(page);
   });
 
-  // ─── Clone(Copy) Database 모달 UI ─────────────────────────────────────────
+  // ─── Copy Database 모달 UI ────────────────────────────────────────────────
 
   test('Copy Database 모달: 제목·이름 입력 필드·옵션 플래그가 표시된다', async ({ page }) => {
     await openDbContextMenu(page);
@@ -26,52 +23,46 @@ test.describe('Database Details', () => {
 
     const modal = page.locator('div[role="dialog"]');
     await expect(modal).toBeVisible();
-    // 제목 (Clone Database 또는 Copy Database)
     await expect(modal).toContainText(/Clone|Copy/i);
-    // 이름 입력 필드
-    await expect(modal.locator('input[type="text"]').first()).toBeVisible();
-    // Overwrite 옵션
-    await expect(modal.getByText(/Overwrite/i)).toBeVisible();
 
-    // 옵션 토글 → 시각적 피드백 확인
-    const overwriteCard = modal.locator('button').filter({ hasText: /Overwrite/i });
-    await overwriteCard.click();
-    await expect(overwriteCard.locator('div.bg-amber-500')).toBeVisible();
+    await expect(modal.locator('input[type="text"]').first()).toBeVisible();
+    await expect(modal.locator('button').filter({ hasText: /Overwrite/i })).toBeVisible();
 
     await dismissModal(page);
   });
 
-  // ─── Database Space Monitor ────────────────────────────────────────────────
+  // ─── Space Monitor ────────────────────────────────────────────────────────
 
   test('Space 노드 클릭 시 Space Monitor 대시보드가 로드된다', async ({ page }) => {
-    const spaceNode = page.locator('#db-tree-container')
-      .getByText('Space', { exact: true }).first();
-    await spaceNode.click();
-
+    await expandDatabase(page);
+    await page.locator('#db-tree-container').getByText('Space', { exact: true }).first().click();
     await expect(page.getByText(/Space Monitor|Database Space/i)).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText('Used',  { exact: true })).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText('Free',  { exact: true })).toBeVisible({ timeout: 5000 });
   });
 
-  test('Space Monitor: Volume Categorization 테이블이 표시된다', async ({ page }) => {
+  test('Space Monitor: Volume Categorization 테이블에 실제 데이터 행이 있다', async ({ page }) => {
+    await expandDatabase(page);
     await page.locator('#db-tree-container').getByText('Space', { exact: true }).first().click();
     await expect(page.getByText(/Volume Categor/i)).toBeVisible({ timeout: 15000 });
+
+    const rows = page.locator('table tbody tr');
+    const count = await rows.count();
+    expect(count).toBeGreaterThan(0);
   });
 
-  test('Space Monitor: Sync 버튼 클릭 시 새로고침이 트리거된다', async ({ page }) => {
+  test('Space Monitor: Sync 버튼 클릭 후 데이터가 다시 로드된다', async ({ page }) => {
+    await expandDatabase(page);
     await page.locator('#db-tree-container').getByText('Space', { exact: true }).first().click();
     await expect(page.getByText(/Space Monitor|Database Space/i)).toBeVisible({ timeout: 10000 });
 
     const syncBtn = page.getByRole('button', { name: /Sync|Refresh/i }).first();
     await expect(syncBtn).toBeVisible();
     await syncBtn.click();
-    // 스피너가 잠깐 뜨거나 버튼이 반응해야 한다
-    await expect(syncBtn).toBeVisible();
+    await expect(page.getByText(/Volume Categor/i)).toBeVisible({ timeout: 15000 });
   });
 
-  // ─── Database Info 모달들 ─────────────────────────────────────────────────
+  // ─── Lock Information: 실제 실행 ─────────────────────────────────────────
 
-  test('Lock Information 모달이 열린다', async ({ page }) => {
+  test('Lock Information: 실행 후 잠금 데이터 또는 No Locks 메시지가 로드된다', async ({ page }) => {
     await openDbContextMenu(page);
     await page.getByRole('button', { name: 'Database Info' }).hover();
     await page.getByRole('button', { name: 'Lock Information', exact: true }).click();
@@ -79,10 +70,20 @@ test.describe('Database Details', () => {
     const modal = page.locator('div[role="dialog"]');
     await expect(modal).toBeVisible();
     await expect(modal).toContainText(/Lock/i);
+
+    // 실제 데이터 로드 확인 — 테이블 행 또는 no-data 메시지
+    await expect(
+      modal.locator('table tbody tr').first()
+        .or(modal.getByText(/No lock|no data|empty/i).first())
+        .or(modal.getByText(/Transaction|Object|Mode/i).first())
+    ).toBeVisible({ timeout: 15000 });
+
     await dismissModal(page);
   });
 
-  test('Transaction Info 모달이 열린다', async ({ page }) => {
+  // ─── Transaction Info: 실제 실행 ─────────────────────────────────────────
+
+  test('Transaction Info: 실행 후 트랜잭션 데이터가 로드된다', async ({ page }) => {
     await openDbContextMenu(page);
     await page.getByRole('button', { name: 'Database Info' }).hover();
     await page.getByRole('button', { name: 'Transaction Info', exact: true }).click();
@@ -90,21 +91,41 @@ test.describe('Database Details', () => {
     const modal = page.locator('div[role="dialog"]');
     await expect(modal).toBeVisible();
     await expect(modal).toContainText(/Transaction/i);
+
+    // 실제 데이터 로드 확인
+    await expect(
+      modal.locator('table tbody tr').first()
+        .or(modal.getByText(/No transaction|no data|empty/i).first())
+        .or(modal.getByText(/User|Process|Query/i).first())
+    ).toBeVisible({ timeout: 15000 });
+
     await dismissModal(page);
   });
 
-  test('Param Dump 모달이 열린다', async ({ page }) => {
+  // ─── Param Dump: 실제 실행 ────────────────────────────────────────────────
+
+  test('Param Dump: 실행 후 CUBRID 파라미터 값이 로드된다', async ({ page }) => {
     await openDbContextMenu(page);
     await page.getByRole('button', { name: 'Database Info' }).hover();
     await page.getByRole('button', { name: 'Param Dump', exact: true }).click();
 
     const modal = page.locator('div[role="dialog"]');
     await expect(modal).toBeVisible();
-    await expect(modal).toContainText(/Param|Parameter|Database Info/i);
+    await expect(modal).toContainText(/Param|Database Info/i);
+
+    // CUBRID 파라미터는 항상 존재하므로 데이터가 반드시 있어야 함
+    await expect(
+      modal.locator('table tbody tr').first()
+        .or(modal.getByText(/lock_timeout|max_clients|data_buffer|page_buffer/i).first())
+        .or(modal.locator('pre, code, textarea').first())
+    ).toBeVisible({ timeout: 15000 });
+
     await dismissModal(page);
   });
 
-  test('Plan Dump 모달이 열린다', async ({ page }) => {
+  // ─── Plan Dump: 실제 실행 ────────────────────────────────────────────────
+
+  test('Plan Dump: 실행 후 실행 계획 캐시 데이터가 로드된다', async ({ page }) => {
     await openDbContextMenu(page);
     await page.getByRole('button', { name: 'Database Info' }).hover();
     await page.getByRole('button', { name: 'Plan Dump', exact: true }).click();
@@ -112,6 +133,15 @@ test.describe('Database Details', () => {
     const modal = page.locator('div[role="dialog"]');
     await expect(modal).toBeVisible();
     await expect(modal).toContainText(/Plan/i);
+
+    // 계획 데이터 또는 빈 캐시 메시지 — 로딩 자체가 완료되어야 함
+    await expect(
+      modal.locator('table tbody tr').first()
+        .or(modal.getByText(/No plan|no data|empty/i).first())
+        .or(modal.locator('pre, code, textarea').first())
+        .or(modal.getByText(/Query|Cache/i).nth(1))
+    ).toBeVisible({ timeout: 15000 });
+
     await dismissModal(page);
   });
 

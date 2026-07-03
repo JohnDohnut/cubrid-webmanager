@@ -3,101 +3,141 @@ const { login, connectToHost } = require('./helpers');
 
 /**
  * 설정 에디터 테스트
- * - CUBRID Config 에디터 열기 및 내용 확인
- * - Broker Config 에디터 열기 및 내용 확인
- * - 에디터 저장 버튼 동작 확인
+ * - CUBRID Config: 열기, 내용 로드, 편집 후 저장, 원복
+ * - Broker Config: 열기, 내용 로드, 편집 후 저장, 원복
  */
-test.describe('Configuration Editor', () => {
+test.describe('Config Editor', () => {
 
   test.beforeEach(async ({ page }) => {
     await login(page);
     await connectToHost(page);
   });
 
-  // ─── CUBRID Config ─────────────────────────────────────────────────────────
+  // ─── CUBRID Config ────────────────────────────────────────────────────────
 
   test('호스트 우클릭 → CUBRID Config 에디터가 열린다', async ({ page }) => {
     const hostItem = page.locator('#host-section div[title*=":"]').first();
     await hostItem.click({ button: 'right' });
-
-    const menuItem = page.getByRole('button', { name: /CUBRID Config|cubrid\.conf/i });
-    if (!await menuItem.isVisible({ timeout: 3000 }).catch(() => false)) {
-      test.skip(); return;
-    }
-    await menuItem.click();
+    await page.getByRole('button', { name: /CUBRID Config|cubrid\.conf/i }).click();
 
     await expect(
-      page.getByText(/CUBRID Config/i).or(page.locator('.monaco-editor'))
-    ).toBeVisible({ timeout: 15000 });
+      page.getByText(/cubrid\.conf|CUBRID Config/i).first()
+    ).toBeVisible({ timeout: 10000 });
   });
 
-  test('CUBRID Config 에디터에 cubrid.conf 내용이 로드된다', async ({ page }) => {
+  test('CUBRID Config 에디터에 cubrid.conf 실제 내용이 로드된다', async ({ page }) => {
     const hostItem = page.locator('#host-section div[title*=":"]').first();
     await hostItem.click({ button: 'right' });
+    await page.getByRole('button', { name: /CUBRID Config|cubrid\.conf/i }).click();
 
-    const menuItem = page.getByRole('button', { name: /CUBRID Config|cubrid\.conf/i });
-    if (!await menuItem.isVisible({ timeout: 3000 }).catch(() => false)) {
-      test.skip(); return;
-    }
-    await menuItem.click();
+    // 에디터에 실제 파라미터 내용이 있어야 함
+    const editor = page.locator('textarea, .cm-editor, .CodeMirror').first();
+    await expect(editor).toBeVisible({ timeout: 10000 });
 
-    // 에디터가 초기화되면 cubrid.conf 관련 키워드가 보여야 한다
-    const editor = page.locator('.monaco-editor').or(page.locator('textarea'));
-    await expect(editor.first()).toBeVisible({ timeout: 15000 });
+    await expect(
+      page.getByText(/\[common\]|max_clients|data_buffer_pages|sort_buffer_pages/i).first()
+    ).toBeVisible({ timeout: 10000 });
   });
 
-  // ─── Broker Config ─────────────────────────────────────────────────────────
+  test('CUBRID Config: 내용을 수정하고 저장하면 성공 메시지가 표시된다', async ({ page }) => {
+    const hostItem = page.locator('#host-section div[title*=":"]').first();
+    await hostItem.click({ button: 'right' });
+    await page.getByRole('button', { name: /CUBRID Config|cubrid\.conf/i }).click();
+
+    const editor = page.locator('textarea, .cm-editor .cm-content, .CodeMirror-code').first();
+    await expect(editor).toBeVisible({ timeout: 10000 });
+
+    // 에디터 포커스 후 끝으로 이동하여 주석 한 줄 추가 (무해한 변경)
+    await editor.click();
+    await page.keyboard.press('Control+End');
+    await page.keyboard.press('End');
+    await page.keyboard.type('\n# e2e-test-marker');
+
+    const saveBtn = page.getByRole('button', { name: /Save/i }).first();
+    await expect(saveBtn).toBeVisible();
+    await saveBtn.click();
+
+    // 저장 성공 확인
+    await expect(
+      page.getByText(/success|saved|저장/i).first()
+        .or(page.locator('[class*="toast"], [class*="alert"]').first())
+    ).toBeVisible({ timeout: 10000 });
+
+    // ── 원복: 추가한 주석 줄 제거 ────────────────────────────────────────────
+    await editor.click();
+    await page.keyboard.press('Control+End');
+    // 마지막 줄(# e2e-test-marker) 선택 후 삭제
+    await page.keyboard.press('Home');
+    await page.keyboard.press('Shift+End');
+    await page.keyboard.press('Backspace'); // 줄 내용 삭제
+    await page.keyboard.press('Backspace'); // 줄 자체 삭제 (개행 포함)
+    await saveBtn.click();
+    await expect(
+      page.getByText(/success|saved|저장/i).first()
+        .or(page.locator('[class*="toast"], [class*="alert"]').first())
+    ).toBeVisible({ timeout: 10000 });
+  });
+
+  // ─── Broker Config ────────────────────────────────────────────────────────
 
   test('Broker 탭 루트 우클릭 → Broker Config 에디터가 열린다', async ({ page }) => {
-    await page.locator('#tree-section-container')
-      .getByRole('button', { name: /Broker/i }).click();
-    await expect(
-      page.locator('#db-tree-container').getByText('Brokers', { exact: true })
-    ).toBeVisible({ timeout: 5000 });
-
-    await page.locator('#db-tree-container').click({ button: 'right' });
-
-    const configAction = page.getByRole('button', { name: /Edit Broker Config/i });
-    await expect(configAction).toBeVisible({ timeout: 5000 });
-    await configAction.click();
+    await page.getByRole('button', { name: /^Broker$/i }).click();
+    const brokerRoot = page.locator('#broker-tree-container, #broker-section').first();
+    await brokerRoot.click({ button: 'right' });
+    await page.getByRole('button', { name: /Broker Config|cubrid_broker\.conf/i }).click();
 
     await expect(
-      page.getByText('Broker Config', { exact: true })
-        .or(page.locator('.monaco-editor'))
-    ).toBeVisible({ timeout: 15000 });
+      page.getByText(/cubrid_broker\.conf|Broker Config/i).first()
+    ).toBeVisible({ timeout: 10000 });
   });
 
-  test('Broker Config 에디터에 cubrid_broker.conf 섹션이 로드된다', async ({ page }) => {
-    await page.locator('#tree-section-container')
-      .getByRole('button', { name: /Broker/i }).click();
-    await page.locator('#db-tree-container').click({ button: 'right' });
+  test('Broker Config 에디터에 cubrid_broker.conf 섹션이 실제로 로드된다', async ({ page }) => {
+    await page.getByRole('button', { name: /^Broker$/i }).click();
+    const brokerRoot = page.locator('#broker-tree-container, #broker-section').first();
+    await brokerRoot.click({ button: 'right' });
+    await page.getByRole('button', { name: /Broker Config|cubrid_broker\.conf/i }).click();
 
-    const configAction = page.getByRole('button', { name: /Edit Broker Config/i });
-    if (!await configAction.isVisible({ timeout: 3000 }).catch(() => false)) {
-      test.skip(); return;
-    }
-    await configAction.click();
-
-    const editor = page.locator('.monaco-editor').or(page.locator('textarea'));
-    await expect(editor.first()).toBeVisible({ timeout: 15000 });
+    // 실제 broker.conf 내용 확인
+    await expect(
+      page.getByText(/\[broker\]|\[%query_editor\]|BROKER_PORT|MIN_NUM_APPL_SERVER/i).first()
+    ).toBeVisible({ timeout: 10000 });
   });
 
-  test('Broker Config 에디터에 Save 버튼이 있다', async ({ page }) => {
-    await page.locator('#tree-section-container')
-      .getByRole('button', { name: /Broker/i }).click();
-    await page.locator('#db-tree-container').click({ button: 'right' });
+  test('Broker Config: 내용을 수정하고 저장하면 성공 메시지가 표시된다', async ({ page }) => {
+    await page.getByRole('button', { name: /^Broker$/i }).click();
+    const brokerRoot = page.locator('#broker-tree-container, #broker-section').first();
+    await brokerRoot.click({ button: 'right' });
+    await page.getByRole('button', { name: /Broker Config|cubrid_broker\.conf/i }).click();
 
-    const configAction = page.getByRole('button', { name: /Edit Broker Config/i });
-    if (!await configAction.isVisible({ timeout: 3000 }).catch(() => false)) {
-      test.skip(); return;
-    }
-    await configAction.click();
+    const editor = page.locator('textarea, .cm-editor .cm-content, .CodeMirror-code').first();
+    await expect(editor).toBeVisible({ timeout: 10000 });
 
-    await expect(page.locator('.monaco-editor').or(page.locator('textarea')).first())
-      .toBeVisible({ timeout: 15000 });
+    await editor.click();
+    await page.keyboard.press('Control+End');
+    await page.keyboard.press('End');
+    await page.keyboard.type('\n# e2e-test-marker');
 
-    const saveBtn = page.getByRole('button', { name: /Save|Apply/i }).first();
-    await expect(saveBtn).toBeVisible({ timeout: 5000 });
+    const saveBtn = page.getByRole('button', { name: /Save/i }).first();
+    await expect(saveBtn).toBeVisible();
+    await saveBtn.click();
+
+    await expect(
+      page.getByText(/success|saved|저장/i).first()
+        .or(page.locator('[class*="toast"], [class*="alert"]').first())
+    ).toBeVisible({ timeout: 10000 });
+
+    // ── 원복 ─────────────────────────────────────────────────────────────────
+    await editor.click();
+    await page.keyboard.press('Control+End');
+    await page.keyboard.press('Home');
+    await page.keyboard.press('Shift+End');
+    await page.keyboard.press('Backspace');
+    await page.keyboard.press('Backspace');
+    await saveBtn.click();
+    await expect(
+      page.getByText(/success|saved|저장/i).first()
+        .or(page.locator('[class*="toast"], [class*="alert"]').first())
+    ).toBeVisible({ timeout: 10000 });
   });
 
 });
