@@ -34,7 +34,7 @@ test.describe('Database Modal Interactions', () => {
     await input.fill('DEMO_RENAMED_IT');
 
     // 2. Toggle Overwrite (Check)
-    const overwriteRow = modal.getByText('Overwrite Existing Registry');
+    const overwriteRow = modal.getByText('Overwrite Existing Target');
     await overwriteRow.click();
     // Verify checkbox in that row is checked
     await expect(modal.locator('input[type="checkbox"]')).toBeChecked();
