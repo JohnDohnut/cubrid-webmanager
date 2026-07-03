@@ -83,10 +83,10 @@ export default function RegisterPage() {
     if (/[A-Z]/.test(password)) score++;
     if (/[0-9]/.test(password)) score++;
     if (/[^A-Za-z0-9]/.test(password)) score++;
-    if (score <= 1) return { level: 1, label: 'Weak',        color: 'bg-rose-500',    text: 'text-rose-500' };
-    if (score <= 2) return { level: 2, label: 'Average',     color: 'bg-amber-500',   text: 'text-amber-500' };
-    if (score <= 3) return { level: 3, label: 'Good',        color: 'bg-blue-500',    text: 'text-blue-500' };
-    return             { level: 4, label: 'Strong',       color: 'bg-emerald-500', text: 'text-emerald-500' };
+    if (score <= 1) return { level: 1, label: CM.passwordStrengthWeak,    color: 'bg-rose-500',    text: 'text-rose-500' };
+    if (score <= 2) return { level: 2, label: CM.passwordStrengthAverage, color: 'bg-amber-500',   text: 'text-amber-500' };
+    if (score <= 3) return { level: 3, label: CM.passwordStrengthGood,    color: 'bg-blue-500',    text: 'text-blue-500' };
+    return             { level: 4, label: CM.passwordStrengthStrong,   color: 'bg-emerald-500', text: 'text-emerald-500' };
   };
   const strength = getPasswordStrength();
 

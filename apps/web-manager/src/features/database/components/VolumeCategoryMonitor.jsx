@@ -13,11 +13,11 @@ import { useCM } from '../../../constants/useCM';
 
 // ── Helpers ──
 const CATEGORY_META = {
-  Permanent_PermanentData: { label: 'Permanent Data', icon: 'hard_drive', color: 'text-sky-500', bg: 'bg-sky-500/10', border: 'border-sky-500/20', dot: 'bg-sky-500' },
-  Permanent_TemporaryData: { label: 'Permanent Temp', icon: 'storage', color: 'text-violet-500', bg: 'bg-violet-500/10', border: 'border-violet-500/20', dot: 'bg-violet-500' },
-  Temporary_TemporaryData: { label: 'Temporary Data', icon: 'timer', color: 'text-amber-500', bg: 'bg-amber-500/10', border: 'border-amber-500/20', dot: 'bg-amber-500' },
-  Active: { label: 'Active Log', icon: 'article', color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', dot: 'bg-emerald-500' },
-  Archive: { label: 'Archive Log', icon: 'inventory_2', color: 'text-slate-400', bg: 'bg-slate-500/10', border: 'border-slate-400/20', dot: 'bg-slate-400' },
+  Permanent_PermanentData: { cmKey: 'permanentData', icon: 'hard_drive', color: 'text-sky-500', bg: 'bg-sky-500/10', border: 'border-sky-500/20', dot: 'bg-sky-500' },
+  Permanent_TemporaryData: { cmKey: 'permanentTemp', icon: 'storage', color: 'text-violet-500', bg: 'bg-violet-500/10', border: 'border-violet-500/20', dot: 'bg-violet-500' },
+  Temporary_TemporaryData: { cmKey: 'temporaryData', icon: 'timer', color: 'text-amber-500', bg: 'bg-amber-500/10', border: 'border-amber-500/20', dot: 'bg-amber-500' },
+  Active:  { cmKey: 'activeLog',  icon: 'article',    color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', dot: 'bg-emerald-500' },
+  Archive: { cmKey: 'archiveLog', icon: 'inventory_2', color: 'text-slate-400',  bg: 'bg-slate-500/10',  border: 'border-slate-400/20',  dot: 'bg-slate-400'  },
 };
 
 
@@ -49,7 +49,7 @@ const CategoryHeader = memo(({ meta, summary, usageSeverity, pageSize, onRefresh
           <Typography variant="label" className="text-[9px] text-slate-400 font-mono tracking-tight">{dbname}</Typography>
           <span className="text-slate-300 dark:text-slate-700">·</span>
           <Typography variant="label" className={`text-[9px] font-bold uppercase tracking-widest ${meta.color}`}>
-            {meta.label}
+            {CM[meta.cmKey]}
           </Typography>
         </div>
       </div>

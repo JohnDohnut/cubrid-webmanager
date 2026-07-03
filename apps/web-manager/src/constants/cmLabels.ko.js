@@ -463,6 +463,14 @@ export const CM_KO = {
   monitoring: '모니터링',
   copyVisibleEntries: '표시 항목을 클립보드에 복사',
   connected: '연결됨',
+  jobQueue: '작업 대기열',
+  autoAddAS: 'AS 자동 추가',
+  sqlLogMode: 'SQL 로그 모드',
+  longTranLabel: '장기 트랜잭션',
+  longQueryLabel: '장기 쿼리',
+  rawLog: '원시 로그',
+  parsedSQL: '파싱된 SQL',
+  topSQL: 'Top SQL',
 
   criticalWarning: '중요 경고',
   volumesToDelete: '삭제될 볼륨',
@@ -1018,11 +1026,19 @@ export const CM_KO = {
   loadingVolumeInfo: '볼륨 정보 불러오는 중',
   loadingVolumeInfoSub: '볼륨 할당 데이터를 가져오는 중...',
   volumeNotFound: '볼륨을 찾을 수 없음',
+  location: '위치',
+  pageSizeLabel: '페이지 크기',
+  totalPages: '전체 페이지',
+  freePages: '여유 페이지',
+  totalSize: '전체 크기',
 
   // Log modals
   filterLogsById: 'ID 또는 설명으로 필터',
   buffering: '버퍼링 중',
   synchronizedStatus: '동기화됨',
+  logAllLevels: '전체 레벨',
+  infoLog: '정보',
+  statusNotice: '알림',
 
   // Monitoring / misc
   monitoringSync: '모니터링 동기화',
@@ -1032,6 +1048,11 @@ export const CM_KO = {
   // Config editors
   undoAllChanges: '모든 변경 사항 되돌리기',
   brokerConfigPlaceholder: '# 여기에 브로커 설정을 입력하세요...',
+  initializingEditor: '편집기 초기화 중...',
+  brokerConfigFile: 'Configuration: cubrid_broker.conf',
+  brokerConfigFetchError: '브로커 설정을 불러오지 못했습니다.',
+  brokerConfigSaveSuccess: '브로커 설정이 성공적으로 저장되었습니다.',
+  brokerConfigSaveError: '브로커 설정 저장 중 오류가 발생했습니다.',
 
   // EditCMSUserModal
   savingChanges: '저장 중',
@@ -1097,6 +1118,8 @@ export const CM_KO = {
   setAutomationVolumeSubtitle: (db) => `"${db}" 볼륨 자동 확장 정책을 설정합니다`,
   permanentDataVolDesc: '영구 데이터 볼륨',
   indexSearchVolDesc: '인덱스 볼륨',
+  permanentData: '영구 데이터',
+  temporaryData: '임시 데이터',
 
   // DatabaseSpaceMonitor
   storageAnalysisError: '스토리지 분석 오류',

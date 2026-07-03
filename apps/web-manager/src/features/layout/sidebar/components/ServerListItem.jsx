@@ -2,23 +2,12 @@ import { useDispatch } from 'react-redux';
 import { setSelectedHost } from '../../../host/hostSlice';
 import { setActiveMainTab } from '../../layoutSlice';
 import { Icon } from '../../../../components/ds/foundation/Icon';
+import { useCM } from '../../../../constants/useCM';
 
 const HA_ROLE_CONFIG = {
-  master: {
-    icon: 'star',
-    label: 'Master',
-    className: 'bg-amber-500/15 border-amber-500/30 text-amber-600 dark:text-amber-400',
-  },
-  slave: {
-    icon: 'settings_backup_restore',
-    label: 'Slave',
-    className: 'bg-slate-500/10 border-slate-400/20 text-slate-500 dark:text-slate-400',
-  },
-  replica: {
-    icon: 'copy_all',
-    label: 'Replica',
-    className: 'bg-blue-500/10 border-blue-400/20 text-blue-600 dark:text-blue-400',
-  },
+  master:  { cmKey: 'haMaster',  icon: 'star',                    className: 'bg-amber-500/15 border-amber-500/30 text-amber-600 dark:text-amber-400' },
+  slave:   { cmKey: 'haSlave',   icon: 'settings_backup_restore', className: 'bg-slate-500/10 border-slate-400/20 text-slate-500 dark:text-slate-400' },
+  replica: { cmKey: 'haReplica', icon: 'copy_all',                className: 'bg-blue-500/10 border-blue-400/20 text-blue-600 dark:text-blue-400'   },
 };
 
 export default function ServerListItem({
@@ -33,6 +22,7 @@ export default function ServerListItem({
   onDragStart,
   onDragEnd,
 }) {
+  const CM = useCM();
   const dispatch = useDispatch();
 
   const getInferredHaInfo = () => {
@@ -117,7 +107,7 @@ export default function ServerListItem({
       {/* Right side: HA role badge */}
       {roleConfig && (
         <span className={`shrink-0 inline-flex items-center justify-center px-1.5 h-4 rounded border text-[8.5px] font-black leading-none transition-all ${roleConfig.className}`}>
-          {roleConfig.label}
+          {CM[roleConfig.cmKey]}
         </span>
       )}
     </div>

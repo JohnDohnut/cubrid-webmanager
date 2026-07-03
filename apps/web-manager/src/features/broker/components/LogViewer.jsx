@@ -5,10 +5,10 @@ import { Icon } from '../../../components/ds/foundation/Icon';
 import { useCM } from '../../../constants/useCM';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const MODES = [
-  { key: 'raw', label: 'Raw Log',    icon: 'subject'      },
-  { key: 'sql', label: 'Parsed SQL', icon: 'code'         },
-  { key: 'top', label: 'Top SQL',    icon: 'query_stats'  },
+const MODE_KEYS = [
+  { key: 'raw', cmKey: 'rawLog',    icon: 'subject'     },
+  { key: 'sql', cmKey: 'parsedSQL', icon: 'code'        },
+  { key: 'top', cmKey: 'topSQL',    icon: 'query_stats' },
 ];
 
 const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -235,7 +235,7 @@ ${data.map(d => `<Row ss:AutoFitHeight="1"><Cell><Data ss:Type="String">${d.id}<
         {/* Center: mode switcher */}
         {!isErrorLogFile && (
           <div className="flex items-center bg-slate-100 dark:bg-white/5 rounded-lg p-0.5 shrink-0">
-            {MODES.map(m => (
+            {MODE_KEYS.map(m => (
               <button
                 key={m.key}
                 onClick={() => setViewMode(m.key)}
@@ -246,7 +246,7 @@ ${data.map(d => `<Row ss:AutoFitHeight="1"><Cell><Data ss:Type="String">${d.id}<
                 }`}
               >
                 <Icon name={m.icon} size="sm" />
-                {m.label}
+                {CM[m.cmKey]}
               </button>
             ))}
           </div>

@@ -479,6 +479,14 @@ export const CM = {
   monitoring: 'Monitoring',
   copyVisibleEntries: 'Copy visible entries to clipboard',
   connected: 'Connected',
+  jobQueue: 'Job Queue',
+  autoAddAS: 'Auto Add AS',
+  sqlLogMode: 'SQL Log Mode',
+  longTranLabel: 'Long Trans',
+  longQueryLabel: 'Long Query',
+  rawLog: 'Raw Log',
+  parsedSQL: 'Parsed SQL',
+  topSQL: 'Top SQL',
 
   // Database modals (extra)
   criticalWarning: 'Critical Warning',
@@ -1039,11 +1047,19 @@ export const CM = {
   loadingVolumeInfo: 'Loading Volume Information',
   loadingVolumeInfoSub: 'Fetching volume allocation data...',
   volumeNotFound: 'Volume Not Found',
+  location: 'Location',
+  pageSizeLabel: 'Page Size',
+  totalPages: 'Total Pages',
+  freePages: 'Free Pages',
+  totalSize: 'Total Size',
 
   // Log modals
   filterLogsById: 'Filter by ID or description...',
   buffering: 'Buffering',
   synchronizedStatus: 'Synchronized',
+  logAllLevels: 'All Levels',
+  infoLog: 'Info',
+  statusNotice: 'Notice',
 
   // Monitoring / misc
   monitoringSync: 'Monitoring Synchronization',
@@ -1053,6 +1069,11 @@ export const CM = {
   // Config editors
   undoAllChanges: 'Undo all changes',
   brokerConfigPlaceholder: '# Enter broker configuration here...',
+  initializingEditor: 'Initializing Editor...',
+  brokerConfigFile: 'Configuration: cubrid_broker.conf',
+  brokerConfigFetchError: 'Could not retrieve broker configuration.',
+  brokerConfigSaveSuccess: 'Broker configuration updated successfully.',
+  brokerConfigSaveError: 'An error occurred while saving broker configuration.',
 
   // EditCMSUserModal
   savingChanges: 'Saving Changes',
@@ -1118,6 +1139,8 @@ export const CM = {
   setAutomationVolumeSubtitle: (db) => `Configure expansion policies for "${db}"`,
   permanentDataVolDesc: 'Permanent data volumes',
   indexSearchVolDesc: 'Index & search volumes',
+  permanentData: 'Permanent Data',
+  temporaryData: 'Temporary Data',
 
   // DatabaseSpaceMonitor
   storageAnalysisError: 'Storage Analysis Error',

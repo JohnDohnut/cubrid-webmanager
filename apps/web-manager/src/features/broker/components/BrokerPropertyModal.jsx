@@ -220,8 +220,8 @@ export default function BrokerPropertyModal() {
   const handleClose = () => dispatch(closeBrokerPropertyModal());
   const modifiedCount = Object.keys(localParams).filter(k => localParams[k] !== initialParams[k]).length;
   const tabs = [
-    { id: 'common',   label: 'Common',   icon: 'settings' },
-    { id: 'advance',  label: 'Advanced',  icon: 'tune' },
+    { id: 'common',   label: CM.common,   icon: 'settings' },
+    { id: 'advance',  label: CM.advanced, icon: 'tune' },
   ];
 
   if (!isOpen) return null;

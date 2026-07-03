@@ -74,14 +74,14 @@ export default function VolumeInfoMonitor({ tabId }) {
   const severity = usedPct > 85 ? 'text-rose-500' : usedPct > 60 ? 'text-amber-500' : 'text-emerald-500';
 
   const infoRows = [
-    { label: 'Volume Name', val: volume.spacename?.split(/[/\\]/).pop() || volume.spacename },
-    { label: 'Location',    val: volume.location },
-    { label: 'Type',        val: volume.type },
-    { label: 'Purpose',     val: volume.purpose || '—' },
-    { label: 'Page Size',   val: `${parseInt(pageSize).toLocaleString()} B` },
-    { label: 'Total Pages', val: parseInt(totalPages).toLocaleString() },
-    { label: 'Free Pages',  val: parseInt(freePages).toLocaleString() },
-    { label: 'Total Size',  val: `${totalM.toFixed(2)} MB` },
+    { label: CM.volumeName,   val: volume.spacename?.split(/[/\\]/).pop() || volume.spacename },
+    { label: CM.location,     val: volume.location },
+    { label: CM.type,         val: volume.type },
+    { label: CM.purpose,      val: volume.purpose || '—' },
+    { label: CM.pageSizeLabel,val: `${parseInt(pageSize).toLocaleString()} B` },
+    { label: CM.totalPages,   val: parseInt(totalPages).toLocaleString() },
+    { label: CM.freePages,    val: parseInt(freePages).toLocaleString() },
+    { label: CM.totalSize,    val: `${totalM.toFixed(2)} MB` },
   ];
 
   return (

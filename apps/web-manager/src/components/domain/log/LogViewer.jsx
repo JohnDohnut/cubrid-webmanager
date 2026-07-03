@@ -3,6 +3,7 @@ import { Badge } from '../../ds/foundation/Badge';
 import { SearchInput } from '../../ds/forms/SearchInput';
 import { EmptyState } from '../../ds/layout/EmptyState';
 import { Skeleton } from '../../ds/layout/Skeleton';
+import { useCM } from '../../../constants/useCM';
 import { Select } from '../../ds/forms/Select';
 
 export const LogViewer = ({
@@ -12,6 +13,7 @@ export const LogViewer = ({
   filter = { level: 'all', search: '' },
   onFilterChange,
 }) => {
+  const CM = useCM();
   const scrollRef = useRef(null);
 
   useEffect(() => {
@@ -21,10 +23,10 @@ export const LogViewer = ({
   }, [lines, autoScroll]);
 
   const levelOptions = [
-    { label: 'All Levels', value: 'all' },
-    { label: 'Error', value: 'error' },
-    { label: 'Warning', value: 'warn' },
-    { label: 'Info', value: 'info' },
+    { label: CM.logAllLevels, value: 'all' },
+    { label: CM.error,        value: 'error' },
+    { label: CM.warning,      value: 'warn' },
+    { label: CM.infoLog,      value: 'info' },
   ];
 
   const getBadgeVariant = (level) => {
