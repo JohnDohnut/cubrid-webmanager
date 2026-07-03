@@ -623,7 +623,7 @@ export const CM = {
   cloningContext: 'Copy Information',
   targetEnvironment: 'Destination',
   executionStrategy: 'Copy Options',
-  overwriteExistingEnvironment: 'Overwrite Existing',
+  overwriteExistingEnvironment: 'Overwrite Existing Files',
   transformToMove: 'Delete Source After Copy',
   executeCopy: 'Copy',
   consolidatingBlocks: 'Compacting Database',
