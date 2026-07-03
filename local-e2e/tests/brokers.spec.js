@@ -16,12 +16,17 @@ test.describe('Broker Management', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
     await connectToHost(page);
-    // Broker 탭으로 전환
-    await page.getByRole('button', { name: /^Broker$/i }).click();
+    // Broker 탭으로 전환 — 탭 버튼 텍스트는 material icon "hub" 포함이므로 /Broker/i 사용
+    await page.locator('#tree-section-container').getByRole('button', { name: /Broker/i }).click();
   });
 
-  const brokerTree = (page) =>
-    page.locator('#broker-tree-container, #broker-section');
+  // BrokerTree 는 #db-tree-container 내에 렌더링됨
+  const brokerTree = (page) => page.locator('#db-tree-container');
+
+  // 브로커 <details> 노드 — TreeNode가 <details id="query_editor"> 로 렌더링됨
+  const brokerNode = (page) =>
+    page.locator('#db-tree-container details')
+      .filter({ hasText: /query_editor|broker1/i }).first();
 
   // ─── 브로커 목록 ──────────────────────────────────────────────────────────
 
@@ -32,8 +37,9 @@ test.describe('Broker Management', () => {
   });
 
   test('각 브로커 노드에 On/Off 상태 뱃지가 표시된다', async ({ page }) => {
-    await expect(brokerTree(page).locator('div').filter({ hasText: /query_editor/i }).first())
-      .toBeVisible({ timeout: 10000 });
+    await expect(
+      brokerTree(page).locator('details').filter({ hasText: /query_editor/i }).first()
+    ).toBeVisible({ timeout: 10000 });
 
     // On 또는 Off 뱃지가 반드시 있어야 함
     await expect(
@@ -44,17 +50,16 @@ test.describe('Broker Management', () => {
   // ─── 브로커 시작/중지 토글: 실제 실행 ───────────────────────────────────
 
   test('브로커 시작/중지 토글 → 상태가 변경된다', async ({ page }) => {
-    const brokerNode = brokerTree(page)
-      .locator('div').filter({ hasText: /query_editor|broker1/i }).first();
-    await expect(brokerNode).toBeVisible({ timeout: 10000 });
+    const node = brokerNode(page);
+    await expect(node).toBeVisible({ timeout: 10000 });
 
     const statusBefore = await brokerTree(page)
       .getByText(/^On$|^Off$|^Running$|^Stopped$/i).first().textContent();
 
-    // 토글 버튼 클릭
-    const toggleBtn = brokerNode
+    // 토글 버튼 클릭 (On/Off 버튼은 summary 내부에 있음)
+    const toggleBtn = node
       .getByRole('button', { name: /Start|Stop|On|Off/i }).first()
-      .or(brokerNode.locator('button').first());
+      .or(node.locator('button').first());
     await toggleBtn.click();
 
     // 상태가 바뀔 때까지 대기
@@ -72,10 +77,10 @@ test.describe('Broker Management', () => {
   // ─── 브로커 상세 패널: 실제 데이터 로드 ─────────────────────────────────
 
   test('브로커 노드 클릭 → PID·Port 등 실제 상세 데이터가 표시된다', async ({ page }) => {
-    const brokerNode = brokerTree(page)
-      .locator('div').filter({ hasText: /query_editor|broker1/i }).first();
-    await expect(brokerNode).toBeVisible({ timeout: 10000 });
-    await brokerNode.click();
+    const node = brokerNode(page);
+    await expect(node).toBeVisible({ timeout: 10000 });
+    // TreeNode summary 클릭 → 브로커 상세 로드
+    await node.locator('> summary').click();
 
     // 실제 브로커 상세 정보가 로드되어야 함
     await expect(
@@ -92,10 +97,9 @@ test.describe('Broker Management', () => {
   // ─── Properties 모달: 실제 파라미터 로드 ─────────────────────────────────
 
   test('브로커 Properties 모달에 실제 파라미터 값이 로드된다', async ({ page }) => {
-    const brokerNode = brokerTree(page)
-      .locator('div').filter({ hasText: /query_editor|broker1/i }).first();
-    await expect(brokerNode).toBeVisible({ timeout: 10000 });
-    await brokerNode.click({ button: 'right' });
+    const node = brokerNode(page);
+    await expect(node).toBeVisible({ timeout: 10000 });
+    await node.locator('> summary').click({ button: 'right' });
     await page.getByRole('button', { name: 'Properties' }).click();
 
     const modal = page.locator('div[role="dialog"]');
@@ -123,9 +127,10 @@ test.describe('Broker Management', () => {
 
   // ─── Broker Config Editor: 실제 내용 로드 ────────────────────────────────
 
-  test('브로커 루트 우클릭 → Broker Config 에디터에 실제 내용이 로드된다', async ({ page }) => {
-    const brokerRoot = brokerTree(page).first();
-    await brokerRoot.click({ button: 'right' });
+  test('브로커 탭 우클릭 → Broker Config 에디터에 실제 내용이 로드된다', async ({ page }) => {
+    // Broker Config 컨텍스트 메뉴는 TreeTabHeader의 Broker 탭 버튼을 우클릭하면 나타남
+    await page.locator('#tree-section-container').getByRole('button', { name: /Broker/i })
+      .click({ button: 'right' });
     await page.getByRole('button', { name: /Broker Config|Edit.*Config|cubrid_broker/i }).click();
 
     const editor = page.locator('textarea, .cm-editor, .CodeMirror').first();
@@ -140,12 +145,11 @@ test.describe('Broker Management', () => {
   // ─── AS 세션: 실제 데이터 로드 ───────────────────────────────────────────
 
   test('브로커 하위 AS 세션 노드에 실제 세션 정보가 표시된다', async ({ page }) => {
-    const brokerNode = brokerTree(page)
-      .locator('div').filter({ hasText: /query_editor|broker1/i }).first();
-    await expect(brokerNode).toBeVisible({ timeout: 10000 });
+    const node = brokerNode(page);
+    await expect(node).toBeVisible({ timeout: 10000 });
 
     // 브로커 노드 펼치기
-    await brokerNode.click();
+    await node.locator('> summary').click();
 
     // AS 세션 정보 또는 "No sessions" 메시지
     await expect(
@@ -157,10 +161,9 @@ test.describe('Broker Management', () => {
   // ─── SQL Log: 실제 로그 뷰어 열기 ────────────────────────────────────────
 
   test('브로커 우클릭 → SQL Log 메뉴 클릭 → 로그 뷰어가 열리고 데이터가 로드된다', async ({ page }) => {
-    const brokerNode = brokerTree(page)
-      .locator('div').filter({ hasText: /query_editor|broker1/i }).first();
-    await expect(brokerNode).toBeVisible({ timeout: 10000 });
-    await brokerNode.click({ button: 'right' });
+    const node = brokerNode(page);
+    await expect(node).toBeVisible({ timeout: 10000 });
+    await node.locator('> summary').click({ button: 'right' });
 
     const sqlLogBtn = page.getByRole('button', { name: /SQL Log/i });
     await expect(sqlLogBtn).toBeVisible({ timeout: 5000 });
@@ -185,10 +188,9 @@ test.describe('Broker Management', () => {
   // ─── 브로커 파라미터 실시간 조회 ─────────────────────────────────────────
 
   test('브로커 상세 패널에서 요청 수(Num Requests) 수치가 표시된다', async ({ page }) => {
-    const brokerNode = brokerTree(page)
-      .locator('div').filter({ hasText: /query_editor|broker1/i }).first();
-    await expect(brokerNode).toBeVisible({ timeout: 10000 });
-    await brokerNode.click();
+    const node = brokerNode(page);
+    await expect(node).toBeVisible({ timeout: 10000 });
+    await node.locator('> summary').click();
 
     await expect(
       page.getByText(/Num Requests|Request|TPS|QPS/i).first()

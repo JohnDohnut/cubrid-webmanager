@@ -90,9 +90,8 @@ test.describe('Database Create', () => {
 
     await page.getByRole('button', { name: /Close|OK|Dismiss/i }).first().click().catch(() => {});
 
-    // ── 정리: 생성된 DB 삭제 ────────────────────────────────────────────────
-    const newDbNode = page.locator('#db-tree-container')
-      .locator('div').filter({ hasText: new RegExp(`^${dbName}$`) }).first();
+    // ── 정리: 생성된 DB 삭제 — TreeNode → <details id="dbName"> > summary
+    const newDbNode = page.locator(`#db-tree-container details#${dbName} > summary`);
 
     if (await newDbNode.isVisible({ timeout: 5000 }).catch(() => false)) {
       await newDbNode.click({ button: 'right' });

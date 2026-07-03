@@ -29,19 +29,20 @@ test.describe('Database Lifecycle', () => {
   // ─── 시작/중지 토글 ───────────────────────────────────────────────────────
 
   test('demodb 시작/중지를 토글하면 상태가 바뀐다', async ({ page }) => {
-    const dbNode = page.locator('#db-tree-container')
-      .locator('div').filter({ hasText: new RegExp(`^${E2E_DB}$`) }).first();
-    await expect(dbNode).toBeVisible({ timeout: 10000 });
+    // TreeNode → <details id="{E2E_DB}"> 렌더링; summary를 기준으로 조작
+    const dbDetails  = page.locator(`#db-tree-container details#${E2E_DB}`);
+    const dbSummary  = dbDetails.locator('> summary');
+    await expect(dbSummary).toBeVisible({ timeout: 10000 });
 
-    const badge       = dbNode.locator('span.inline-flex');
-    const statusText  = await badge.innerText();
-    const isStarted   = statusText.includes('On');
+    const badge      = dbSummary.locator('span.inline-flex');
+    const statusText = await badge.innerText();
+    const isStarted  = statusText.includes('On');
 
-    await dbNode.click({ button: 'right' });
+    await dbSummary.click({ button: 'right' });
     const action = isStarted ? /Stop Database/i : /Start Database/i;
     await page.getByRole('button', { name: action }).click();
 
-    const expected = isStarted ? 'Off' : 'On';
+    const expected   = isStarted ? 'Off' : 'On';
     await expect(badge).toContainText(expected, { timeout: 20000 });
   });
 

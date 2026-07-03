@@ -81,8 +81,8 @@ test.describe('Server Info', () => {
   });
 
   test('호스트 연결 후 demodb가 DB 목록에 있다', async ({ page }) => {
-    const demodb = page.locator('#db-tree-container')
-      .locator('div').filter({ hasText: /^demodb$/ }).first();
+    // TreeNode가 <details id="demodb"> 로 렌더링됨 — div.filter 패턴은 동작하지 않음
+    const demodb = page.locator('#db-tree-container details#demodb > summary');
     await expect(demodb).toBeVisible({ timeout: 10000 });
   });
 

@@ -94,9 +94,8 @@ test.describe('Database Modal Interactions', () => {
     await waitForJobOrSuccess(page, 120000);
     await page.getByRole('button', { name: /Close|OK|Dismiss/i }).first().click().catch(() => {});
 
-    // DB 트리에 복사본이 생겼는지 확인
-    const copyNode = page.locator('#db-tree-container')
-      .locator('div').filter({ hasText: new RegExp(`^${copyName}$`) }).first();
+    // DB 트리에 복사본이 생겼는지 확인 — TreeNode → <details id="copyName"> > summary
+    const copyNode = page.locator(`#db-tree-container details#${copyName} > summary`);
     await expect(copyNode).toBeVisible({ timeout: 30000 });
 
     // ── 정리: 복사본 삭제 ────────────────────────────────────────────────────
@@ -245,9 +244,8 @@ test.describe('Database Modal Interactions', () => {
     await waitForJobOrSuccess(page, 60000);
     await page.getByRole('button', { name: /Close|OK|Dismiss/i }).first().click().catch(() => {});
 
-    // 트리에 새 DB 확인
-    const targetNode = page.locator('#db-tree-container')
-      .locator('div').filter({ hasText: new RegExp(`^${targetDb}$`) }).first();
+    // 트리에 새 DB 확인 — TreeNode → <details id="targetDb"> > summary
+    const targetNode = page.locator(`#db-tree-container details#${targetDb} > summary`);
     await expect(targetNode).toBeVisible({ timeout: 30000 });
 
     // ── 3단계: Load ──────────────────────────────────────────────────────────

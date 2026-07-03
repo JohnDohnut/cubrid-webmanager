@@ -20,11 +20,14 @@ test.describe('Navigation', () => {
     const hostList = page.locator('#host-section');
     await expect(hostList).toBeVisible();
 
-    const hasHosts = await page.locator('#host-section div[title*=":"]').count() > 0;
+    // API 응답 대기: 그룹(details) 또는 빈 상태 버튼이 나타날 때까지
+    await page.waitForSelector('#host-section details, #host-section button', { timeout: 15000 });
+
+    const hasHosts = await page.locator('#host-section details').count() > 0;
     if (hasHosts) {
-      await expect(page.locator('#host-section div[title*=":"]').first()).toBeVisible();
+      await expect(page.locator('#host-section details').first()).toBeVisible();
     } else {
-      await expect(page.getByRole('button', { name: /Add your first host/i })).toBeVisible();
+      await expect(page.getByRole('button', { name: /Add|first host/i })).toBeVisible();
     }
   });
 
@@ -38,12 +41,14 @@ test.describe('Navigation', () => {
   test('demodb 노드를 펼치면 하위 폴더가 나타난다', async ({ page }) => {
     await connectToHost(page);
 
-    const dbNode = page.locator('#db-tree-container')
-      .locator('div').filter({ hasText: /^demodb$/ }).first();
+    // TreeNode → <details id="demodb"> でレンダリング; summary クリックで展開
+    const dbDetails = page.locator('#db-tree-container details#demodb');
+    const dbSummary = dbDetails.locator('> summary');
 
-    if (await dbNode.isVisible()) {
-      const chevron = dbNode.locator('span.material-symbols-outlined:has-text("chevron_right")');
-      if (await chevron.isVisible()) await chevron.click();
+    if (await dbSummary.isVisible({ timeout: 5000 }).catch(() => false)) {
+      const isOpen = await dbDetails.evaluate(el => el.open);
+      if (!isOpen) await dbSummary.click();
+      await page.waitForTimeout(300);
 
       await expect(page.getByText('Users',        { exact: true })).toBeVisible({ timeout: 5000 });
       await expect(page.getByText('Space',         { exact: true })).toBeVisible({ timeout: 5000 });
@@ -63,19 +68,20 @@ test.describe('Navigation', () => {
     const logTab       = treeSection.getByRole('button', { name: /Log/i });
     const dbTab        = treeSection.getByRole('button', { name: /Database/i });
 
-    // Broker 탭
+    // Broker 탭 — BrokerTree div (#db-tree-container의 2번째 직계 자식)이 visible 해짐
     await brokerTab.click();
-    await expect(page.locator('#db-tree-container').getByText('Brokers', { exact: true }))
-      .toBeVisible({ timeout: 5000 });
+    await expect(
+      page.locator('#db-tree-container > div').nth(1)
+    ).toBeVisible({ timeout: 5000 });
 
-    // Log 탭
+    // Log 탭 — LogTree 루트 노드 레이블: CM.broker = "Broker"
     await logTab.click();
-    await expect(page.locator('#db-tree-container').getByText('Logs', { exact: true }))
+    await expect(page.locator('#db-tree-container').getByText('Broker', { exact: true }))
       .toBeVisible({ timeout: 5000 });
 
-    // DB 탭으로 복귀
+    // DB 탭으로 복귀 — DB tree wrapper (#db-tree-container 첫 번째 직계 자식)이 visible 해짐
     await dbTab.click();
-    await expect(page.locator('#db-tree-container').getByText('Databases', { exact: true }))
+    await expect(page.locator('#db-tree-container > div').first())
       .toBeVisible({ timeout: 5000 });
   });
 

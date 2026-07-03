@@ -59,7 +59,7 @@ test.describe('Account Registration', () => {
 
     await expect(page).toHaveURL(/login/, { timeout: 10000 });
 
-    await page.getByPlaceholder(/Enter username/i).fill(user);
+    await page.getByPlaceholder(/Username/i).fill(user);
     await page.getByPlaceholder(/••••••••/).fill(pass);
     await page.getByRole('button', { name: /Authorize Access/i }).click();
     await expect(page.getByTitle(/Logout/i)).toBeVisible({ timeout: 10000 });

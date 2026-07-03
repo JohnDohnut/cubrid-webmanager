@@ -12,14 +12,18 @@ test.describe('Modernized UI Branding', () => {
   test('로그인 페이지에 올바른 브랜딩과 로고가 표시된다', async ({ page }) => {
     await page.goto('/');
 
-    await expect(page.getByText('CUBRID', { exact: true })).toBeVisible();
-    await expect(page.getByText('Web Manager', { exact: true })).toBeVisible();
+    // h1 텍스트는 "CUBRID Manager" (두 텍스트 노드)
+    await expect(page.getByRole('heading', { name: /CUBRID Manager/i })).toBeVisible();
+    // 서브타이틀 "Sign In"
+    await expect(page.getByText('Sign In')).toBeVisible();
 
-    const logoImg = page.getByAltText(/CUBRID Logo/i);
+    // 로그인 페이지 로고의 alt 속성은 "CUBRID"
+    const logoImg = page.getByAltText('CUBRID');
     await expect(logoImg).toBeVisible();
 
+    // 법적 footer — Website / GitHub 링크
     await expect(
-      page.getByText(/Powered by CUBRID/i).or(page.getByText(/All rights reserved/i))
+      page.getByText('GitHub').or(page.getByText('Website')).first()
     ).toBeVisible();
   });
 
@@ -51,19 +55,20 @@ test.describe('Modernized UI Branding', () => {
     const sidebar = page.locator('#sidebar');
     await expect(sidebar).toBeVisible();
 
-    // 사이드바 내부 Admin / Manager Console 텍스트
-    await expect(sidebar.getByText('Admin')).toBeVisible();
-    await expect(sidebar.getByText('Manager Console')).toBeVisible();
+    // 사이드바 헤더 — CUBRID / Admin badge / Manager Console (exact 사용해 다른 텍스트와 구별)
+    await expect(sidebar.getByText('CUBRID', { exact: true }).first()).toBeVisible();
+    await expect(sidebar.getByText('Admin', { exact: true }).first()).toBeVisible();
+    await expect(sidebar.getByText('Manager Console', { exact: true })).toBeVisible();
 
-    // SplitPane 리사이즈 핸들 존재 확인
-    const resizeHandle = page.locator('.Resizer.horizontal, .Resizer.vertical').first();
+    // SplitPane 리사이즈 핸들 (Tailwind 커스텀 컴포넌트, title 속성으로 식별)
+    const resizeHandle = page.locator('[title="Drag to resize"]').first();
     await expect(resizeHandle).toBeVisible();
   });
 
   test('로그인 페이지에 사용자 이름·비밀번호 입력 필드가 표시된다', async ({ page }) => {
     await page.goto('/');
 
-    await expect(page.getByPlaceholder(/Enter username/i)).toBeVisible();
+    await expect(page.getByPlaceholder(/Username/i)).toBeVisible();
     await expect(page.locator('input[type="password"]')).toBeVisible();
     await expect(page.getByRole('button', { name: /Authorize Access/i })).toBeVisible();
   });

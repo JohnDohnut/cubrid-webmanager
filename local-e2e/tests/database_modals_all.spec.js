@@ -17,8 +17,8 @@ test.describe('Database All Modals — Full Execution', () => {
   });
 
   async function openManage(page, action) {
-    const dbNode = page.locator('#db-tree-container')
-      .locator('div').filter({ hasText: new RegExp(`^${E2E_DB}$`) }).first();
+    // TreeNode → <details id="{E2E_DB}"> で렌더링; summary を右クリック
+    const dbNode = page.locator(`#db-tree-container details#${E2E_DB} > summary`);
     await expect(dbNode).toBeVisible({ timeout: 10000 });
     await dbNode.click({ button: 'right' });
     await page.getByRole('button', { name: 'Manage Database' }).hover();
@@ -27,8 +27,7 @@ test.describe('Database All Modals — Full Execution', () => {
   }
 
   async function openInfo(page, action) {
-    const dbNode = page.locator('#db-tree-container')
-      .locator('div').filter({ hasText: new RegExp(`^${E2E_DB}$`) }).first();
+    const dbNode = page.locator(`#db-tree-container details#${E2E_DB} > summary`);
     await expect(dbNode).toBeVisible({ timeout: 10000 });
     await dbNode.click({ button: 'right' });
     await page.getByRole('button', { name: 'Database Info' }).hover();
@@ -206,8 +205,7 @@ test.describe('Database All Modals — Full Execution', () => {
   // ─── 직접 액션 ────────────────────────────────────────────────────────────
 
   test('Properties 모달에 실제 DB 상세 정보가 로드된다', async ({ page }) => {
-    const dbNode = page.locator('#db-tree-container')
-      .locator('div').filter({ hasText: new RegExp(`^${E2E_DB}$`) }).first();
+    const dbNode = page.locator(`#db-tree-container details#${E2E_DB} > summary`);
     await expect(dbNode).toBeVisible({ timeout: 10000 });
     await dbNode.click({ button: 'right' });
     await page.getByRole('button', { name: 'Properties', exact: true }).click();

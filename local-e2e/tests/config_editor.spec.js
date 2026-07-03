@@ -81,9 +81,10 @@ test.describe('Config Editor', () => {
   // ─── Broker Config ────────────────────────────────────────────────────────
 
   test('Broker 탭 루트 우클릭 → Broker Config 에디터가 열린다', async ({ page }) => {
-    await page.getByRole('button', { name: /^Broker$/i }).click();
-    const brokerRoot = page.locator('#broker-tree-container, #broker-section').first();
-    await brokerRoot.click({ button: 'right' });
+    // Broker Config는 TreeTabHeader의 Broker 탭 버튼을 우클릭하면 나타남
+    // tab button 텍스트는 material icon "hub"가 붙으므로 /Broker/i 사용 (^Broker$ 아님)
+    await page.locator('#tree-section-container').getByRole('button', { name: /Broker/i })
+      .click({ button: 'right' });
     await page.getByRole('button', { name: /Broker Config|cubrid_broker\.conf/i }).click();
 
     await expect(
@@ -92,9 +93,8 @@ test.describe('Config Editor', () => {
   });
 
   test('Broker Config 에디터에 cubrid_broker.conf 섹션이 실제로 로드된다', async ({ page }) => {
-    await page.getByRole('button', { name: /^Broker$/i }).click();
-    const brokerRoot = page.locator('#broker-tree-container, #broker-section').first();
-    await brokerRoot.click({ button: 'right' });
+    await page.locator('#tree-section-container').getByRole('button', { name: /Broker/i })
+      .click({ button: 'right' });
     await page.getByRole('button', { name: /Broker Config|cubrid_broker\.conf/i }).click();
 
     // 실제 broker.conf 내용 확인
@@ -104,9 +104,8 @@ test.describe('Config Editor', () => {
   });
 
   test('Broker Config: 내용을 수정하고 저장하면 성공 메시지가 표시된다', async ({ page }) => {
-    await page.getByRole('button', { name: /^Broker$/i }).click();
-    const brokerRoot = page.locator('#broker-tree-container, #broker-section').first();
-    await brokerRoot.click({ button: 'right' });
+    await page.locator('#tree-section-container').getByRole('button', { name: /Broker/i })
+      .click({ button: 'right' });
     await page.getByRole('button', { name: /Broker Config|cubrid_broker\.conf/i }).click();
 
     const editor = page.locator('textarea, .cm-editor .cm-content, .CodeMirror-code').first();

@@ -26,16 +26,8 @@ module.exports = defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
-  webServer: {
-    // build:server must run before e2e so that dist/apps/api-server/main.js exists.
-    // reuseExistingServer:true reuses a running server so repeated runs skip the build.
-    command: 'npm run build:server && npm run start',
-    cwd: path.join(__dirname, '..'),
-    url: BASE_URL,
-    reuseExistingServer: true,
-    timeout: 180_000,
-    ignoreHTTPSErrors: true,
-  },
+  timeout: 60000,
+  // webServer 블록 없음 — npm run stack (또는 npm run dev:stack)을 먼저 실행한 뒤 playwright를 시작하세요.
   use: {
     baseURL: BASE_URL,
     trace: 'on-first-retry',
