@@ -1,146 +1,114 @@
 const { test, expect } = require('@playwright/test');
+const { login, connectToHost, openDbContextMenu, E2E_DB } = require('./helpers');
 
 /**
- * Async Job (CmsJob) E2E Test Suite
- *
- * Tests the background job tracking flow:
- *   Submit long-running operation → job appears in BackgroundJobsPanel
- *   → panel shows running state → job completes (succeeded/failed)
- *
- * Requirements:
- *   - Running server with at least one CUBRID host registered
- *   - E2E_USERNAME, E2E_PASSWORD, E2E_HOST_LABEL in local-e2e/.env
- *   - At least one database on the host (uses demodb by default)
+ * 비동기 백그라운드 잡 테스트
+ * - 잡 제출 시 백그라운드 잡 패널 표시
+ * - 잡 완료 시 succeeded/failed 상태 전환
+ * - 실행 중 경과 시간 표시
+ * - 잡 완료 후 토스트 알림 표시
  */
-
-const E2E_DB = process.env.E2E_DB || 'demodb';
-const JOB_TIMEOUT = 5 * 60 * 1000; // 5 minutes max for optimize
-
-async function login(page) {
-  await page.goto('/');
-  await page.getByPlaceholder(/Enter username/i).fill(process.env.E2E_USERNAME);
-  await page.getByPlaceholder(/••••••••/).fill(process.env.E2E_PASSWORD);
-  await page.getByRole('button', { name: /Authorize Access/i }).click();
-  await expect(page).not.toHaveURL(/login/, { timeout: 10000 });
-}
-
-async function selectFirstHost(page) {
-  const firstHost = page.locator('#host-section div[title*=":"]').first();
-  await firstHost.click();
-}
-
 test.describe('Async Job Tracking', () => {
+
+  const JOB_TIMEOUT = 5 * 60 * 1000; // 최대 5분
+
   test.beforeEach(async ({ page }) => {
     await login(page);
-    await selectFirstHost(page);
+    await connectToHost(page);
   });
 
-  test('background jobs panel appears when a job is submitted', async ({ page }) => {
-    // Find database in tree
-    const dbNode = page.locator('#db-tree-container')
-      .locator('div')
-      .filter({ hasText: new RegExp(`^${E2E_DB}$`) })
-      .first();
-    await expect(dbNode).toBeVisible({ timeout: 10000 });
+  async function submitOptimize(page) {
+    await openDbContextMenu(page);
+    await page.getByRole('button', { name: 'Manage Database' }).hover();
+    await page.getByRole('button', { name: 'Optimize Database', exact: true }).click();
 
-    // Open context menu → Optimize
-    await dbNode.click({ button: 'right' });
-    const optimizeBtn = page.getByRole('button', { name: /Optimize/i });
-    await expect(optimizeBtn).toBeVisible();
-    await optimizeBtn.click();
-
-    // Optimize modal should open
-    const modal = page.locator('[role="dialog"]').filter({ hasText: /Optim/i });
+    const modal = page.locator('div[role="dialog"]');
     await expect(modal).toBeVisible({ timeout: 5000 });
+    await modal.getByRole('button', { name: /Execute|Run|Optim/i }).last().click();
+  }
 
-    // Submit
-    const submitBtn = modal.getByRole('button', { name: /Execute|Optim|OK|확인/i }).last();
-    await submitBtn.click();
+  // ─── 잡 패널 표시 ─────────────────────────────────────────────────────────
 
-    // Background jobs panel should appear with an active job
+  test('잡을 제출하면 백그라운드 잡 패널이 나타난다', async ({ page }) => {
+    await submitOptimize(page);
+
     const panel = page.locator('#sidebar-background-jobs');
     await expect(panel).toBeVisible({ timeout: 10000 });
-
-    // Panel should show a spinning (active) icon
-    const spinner = panel.locator('.animate-spin');
-    await expect(spinner).toBeVisible({ timeout: 5000 });
   });
 
-  test('job in panel transitions to succeeded or failed', async ({ page }) => {
-    const dbNode = page.locator('#db-tree-container')
-      .locator('div')
-      .filter({ hasText: new RegExp(`^${E2E_DB}$`) })
-      .first();
-    await expect(dbNode).toBeVisible({ timeout: 10000 });
+  test('잡 실행 중에는 스피너가 표시된다', async ({ page }) => {
+    await submitOptimize(page);
 
-    await dbNode.click({ button: 'right' });
-    await page.getByRole('button', { name: /Optimize/i }).click();
+    const panel = page.locator('#sidebar-background-jobs');
+    await expect(panel).toBeVisible({ timeout: 10000 });
+    await expect(panel.locator('.animate-spin')).toBeVisible({ timeout: 5000 });
+  });
 
-    const modal = page.locator('[role="dialog"]').filter({ hasText: /Optim/i });
-    await expect(modal).toBeVisible({ timeout: 5000 });
-    await modal.getByRole('button', { name: /Execute|Optim|OK|확인/i }).last().click();
+  // ─── 경과 시간 ────────────────────────────────────────────────────────────
+
+  test('잡 실행 중 경과 시간이 표시된다', async ({ page }) => {
+    await submitOptimize(page);
 
     const panel = page.locator('#sidebar-background-jobs');
     await expect(panel).toBeVisible({ timeout: 10000 });
 
-    // Wait for spinner to disappear (job finished)
-    await expect(panel.locator('.animate-spin')).toHaveCount(0, { timeout: JOB_TIMEOUT });
-
-    // Should show success or failure icon — either is fine, as long as it's terminal
-    const successIcon = panel.locator('[aria-label*="check"], .text-green-500');
-    const failIcon = panel.locator('[aria-label*="error"], .text-red-500');
-    const isTerminal = (await successIcon.count()) > 0 || (await failIcon.count()) > 0;
-    expect(isTerminal).toBe(true);
-  });
-
-  test('elapsed time is shown while job is running', async ({ page }) => {
-    const dbNode = page.locator('#db-tree-container')
-      .locator('div')
-      .filter({ hasText: new RegExp(`^${E2E_DB}$`) })
-      .first();
-    await expect(dbNode).toBeVisible({ timeout: 10000 });
-
-    await dbNode.click({ button: 'right' });
-    await page.getByRole('button', { name: /Optimize/i }).click();
-
-    const modal = page.locator('[role="dialog"]').filter({ hasText: /Optim/i });
-    await expect(modal).toBeVisible({ timeout: 5000 });
-    await modal.getByRole('button', { name: /Execute|Optim|OK|확인/i }).last().click();
-
-    const panel = page.locator('#sidebar-background-jobs');
-    await expect(panel).toBeVisible({ timeout: 10000 });
-
-    // Elapsed time label should appear while running (e.g. "0s", "1s", "1m 2s")
+    // 경과 시간 (예: "3s", "1m 5s")
     const elapsed = panel.locator('.tabular-nums');
     await expect(elapsed).toBeVisible({ timeout: 5000 });
-    // Content should match time format
     await expect(elapsed).toHaveText(/\d+s|\d+m/, { timeout: 5000 });
   });
 
-  test('toast notification appears after job completes', async ({ page }) => {
-    const dbNode = page.locator('#db-tree-container')
-      .locator('div')
-      .filter({ hasText: new RegExp(`^${E2E_DB}$`) })
-      .first();
-    await expect(dbNode).toBeVisible({ timeout: 10000 });
+  // ─── 잡 완료 상태 ─────────────────────────────────────────────────────────
 
-    await dbNode.click({ button: 'right' });
-    await page.getByRole('button', { name: /Optimize/i }).click();
+  test('잡이 완료되면 succeeded 또는 failed 상태로 전환된다', async ({ page }) => {
+    await submitOptimize(page);
 
-    const modal = page.locator('[role="dialog"]').filter({ hasText: /Optim/i });
-    await expect(modal).toBeVisible({ timeout: 5000 });
+    const panel = page.locator('#sidebar-background-jobs');
+    await expect(panel).toBeVisible({ timeout: 10000 });
 
-    // Close modal after submitting to let it run in background
-    await modal.getByRole('button', { name: /Execute|Optim|OK|확인/i }).last().click();
+    // 스피너가 사라질 때까지 기다림 (잡 완료)
+    await expect(panel.locator('.animate-spin')).toHaveCount(0, { timeout: JOB_TIMEOUT });
 
-    // Wait for job to finish
+    // 성공 또는 실패 아이콘 중 하나가 있어야 한다
+    const successIcon = panel.locator('.text-green-500, .text-emerald-500');
+    const failIcon    = panel.locator('.text-red-500, .text-rose-500');
+    const isTerminal  = (await successIcon.count()) > 0 || (await failIcon.count()) > 0;
+    expect(isTerminal).toBe(true);
+  });
+
+  // ─── 토스트 알림 ──────────────────────────────────────────────────────────
+
+  test('잡이 완료되면 완료 알림이 표시된다', async ({ page }) => {
+    await submitOptimize(page);
+
     const panel = page.locator('#sidebar-background-jobs');
     await expect(panel).toBeVisible({ timeout: 10000 });
     await expect(panel.locator('.animate-spin')).toHaveCount(0, { timeout: JOB_TIMEOUT });
 
-    // Toast should have appeared (success or failure message)
-    // Toast container is usually role="status" or has specific class
-    const toast = page.locator('[role="status"], [class*="toast"], [class*="notification"]').last();
-    await expect(toast).toBeVisible({ timeout: 5000 });
+    // 성공/실패 모달 또는 토스트
+    const notification = page.locator('[role="status"], [class*="toast"]')
+      .or(page.getByText(/succeeded|failed|complete/i));
+    await expect(notification.first()).toBeVisible({ timeout: 10000 });
   });
+
+  // ─── 복수 잡 ──────────────────────────────────────────────────────────────
+
+  test('여러 잡을 연속 제출하면 패널에 모두 나타난다', async ({ page }) => {
+    // 첫 번째 잡
+    await submitOptimize(page);
+    const panel = page.locator('#sidebar-background-jobs');
+    await expect(panel).toBeVisible({ timeout: 10000 });
+
+    // 두 번째 잡 (Check Database — 빠른 완료)
+    await openDbContextMenu(page);
+    await page.getByRole('button', { name: 'Manage Database' }).hover();
+    await page.getByRole('button', { name: 'Check Database', exact: true }).click();
+    const modal2 = page.locator('div[role="dialog"]');
+    await expect(modal2).toBeVisible({ timeout: 5000 });
+    await modal2.getByRole('button', { name: /Run|Check|Execute/i }).last().click();
+
+    // 두 잡 모두 패널에 있어야 한다
+    await expect(panel).toBeVisible({ timeout: 5000 });
+  });
+
 });

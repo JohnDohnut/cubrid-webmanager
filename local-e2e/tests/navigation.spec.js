@@ -1,98 +1,99 @@
 const { test, expect } = require('@playwright/test');
+const { login, connectToHost } = require('./helpers');
 
 /**
- * Navigation & Resource Tree Test Suite
- * Verifies that hosts can be expanded and database resources are correctly browsed.
+ * 사이드바 네비게이션 테스트
+ * - 호스트 목록 표시
+ * - DB 트리 확장/탐색
+ * - DB·Broker·Log 탭 전환
+ * - 다크/라이트 모드 토글
  */
-test.describe('Navigation Tree', () => {
-  
-  test.beforeEach(async ({ page }) => {
-    // 1. Login required for all navigation tests
-    await page.goto('/');
-    await page.getByPlaceholder(/Enter username/i).fill(process.env.E2E_USERNAME);
-    await page.getByPlaceholder(/••••••••/).fill(process.env.E2E_PASSWORD);
-    await page.getByRole('button', { name: /Authorize Access/i }).click();
+test.describe('Navigation', () => {
 
-    // 2. Wait for landing on dashboard
-    await expect(page.getByTitle(/Logout/i)).toBeVisible();
+  test.beforeEach(async ({ page }) => {
+    await login(page);
   });
 
-  test('should show host list and select a host', async ({ page }) => {
-    // Check if the "Server List" section is visible using a more specific locator to avoid duplicates
-    const serverHeader = page.getByText('Server List', { exact: true });
-    await expect(serverHeader).toBeVisible();
+  // ─── 호스트 목록 ──────────────────────────────────────────────────────────
 
-    // Look for any host item
+  test('로그인 후 호스트 목록 또는 호스트 추가 안내가 표시된다', async ({ page }) => {
     const hostList = page.locator('#host-section');
     await expect(hostList).toBeVisible();
 
-    // Check if we have at least one host or the "Add your first host" CTA
-    const hosts = hostList.locator('div[title*=":"]');
-    const addHostBtn = page.getByRole('button', { name: /Add your first host/i });
-
-    if (await hosts.count() > 0) {
-      // Select the first host
-      const firstHost = hosts.first();
-      await firstHost.click();
-
-      // Verify resource tree updates
-      await expect(page.locator('#tree-section-container')).toBeVisible();
-      await expect(page.getByText('Resources', { exact: true })).toBeVisible();
+    const hasHosts = await page.locator('#host-section div[title*=":"]').count() > 0;
+    if (hasHosts) {
+      await expect(page.locator('#host-section div[title*=":"]').first()).toBeVisible();
     } else {
-      await expect(addHostBtn).toBeVisible();
+      await expect(page.getByRole('button', { name: /Add your first host/i })).toBeVisible();
     }
   });
 
-  test('should expand database and browse folders', async ({ page }) => {
-    const hosts = page.locator('#host-section div[title*=":"]');
-    if (await hosts.count() > 0) {
-      await hosts.first().click();
-      
-      const dbTree = page.locator('#db-tree-container');
-      await expect(dbTree).toBeVisible();
+  test('호스트를 클릭하면 DB 트리가 표시된다', async ({ page }) => {
+    await connectToHost(page);
+    await expect(page.locator('#tree-section-container')).toBeVisible();
+  });
 
-      // Find standard DB node
-      const dbNode = dbTree.locator('div').filter({ hasText: /^demodb$/ }).first();
-      if (await dbNode.isVisible()) {
-        await dbNode.click(); 
-        
-        const expandBtn = dbNode.locator('span.material-symbols-outlined:has-text("chevron_right")');
-        if (await expandBtn.isVisible()) {
-          await expandBtn.click();
-          
-          await expect(page.getByText('Users', { exact: true })).toBeVisible();
-          await expect(page.getByText('Job automation', { exact: true })).toBeVisible();
-          await expect(page.getByText('Space', { exact: true })).toBeVisible();
-        }
-      }
+  // ─── DB 트리 탐색 ─────────────────────────────────────────────────────────
+
+  test('demodb 노드를 펼치면 하위 폴더가 나타난다', async ({ page }) => {
+    await connectToHost(page);
+
+    const dbNode = page.locator('#db-tree-container')
+      .locator('div').filter({ hasText: /^demodb$/ }).first();
+
+    if (await dbNode.isVisible()) {
+      const chevron = dbNode.locator('span.material-symbols-outlined:has-text("chevron_right")');
+      if (await chevron.isVisible()) await chevron.click();
+
+      await expect(page.getByText('Users',        { exact: true })).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText('Space',         { exact: true })).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText('Job automation',{ exact: true }).or(
+        page.getByText('Backup Plan', { exact: true }))
+      ).toBeVisible({ timeout: 5000 });
     }
   });
 
-  test('should switch between DB, Broker, and Log tabs', async ({ page }) => {
-    const hosts = page.locator('#host-section div[title*=":"]');
-    if (await hosts.count() > 0) {
-      await hosts.first().click();
+  // ─── 탭 전환 ──────────────────────────────────────────────────────────────
 
-      // Scope to the resource tree container to avoid global conflicts (like "Logout")
-      const treeSection = page.locator('#tree-section-container');
-      
-      const dbTab = treeSection.getByRole('button', { name: /Database/i });
-      const brokerTab = treeSection.getByRole('button', { name: /Broker/i });
-      const logTab = treeSection.getByRole('button', { name: /Log/i });
+  test('DB·Broker·Log 탭을 순서대로 전환하면 각 트리가 표시된다', async ({ page }) => {
+    await connectToHost(page);
 
-      // 1. Check Broker Tab
-      await brokerTab.click();
-      // Look for the header label "Brokers" exactly within the tree area
-      await expect(page.locator('#db-tree-container').getByText('Brokers', { exact: true })).toBeVisible();
-      
-      // 2. Check Log Tab
-      await logTab.click();
-      await expect(page.locator('#db-tree-container').getByText('Logs', { exact: true })).toBeVisible();
+    const treeSection  = page.locator('#tree-section-container');
+    const brokerTab    = treeSection.getByRole('button', { name: /Broker/i });
+    const logTab       = treeSection.getByRole('button', { name: /Log/i });
+    const dbTab        = treeSection.getByRole('button', { name: /Database/i });
 
-      // 3. Back to DB Tab
-      await dbTab.click();
-      await expect(page.locator('#db-tree-container').getByText('Databases', { exact: true })).toBeVisible();
-    }
+    // Broker 탭
+    await brokerTab.click();
+    await expect(page.locator('#db-tree-container').getByText('Brokers', { exact: true }))
+      .toBeVisible({ timeout: 5000 });
+
+    // Log 탭
+    await logTab.click();
+    await expect(page.locator('#db-tree-container').getByText('Logs', { exact: true }))
+      .toBeVisible({ timeout: 5000 });
+
+    // DB 탭으로 복귀
+    await dbTab.click();
+    await expect(page.locator('#db-tree-container').getByText('Databases', { exact: true }))
+      .toBeVisible({ timeout: 5000 });
+  });
+
+  // ─── 다크/라이트 모드 ─────────────────────────────────────────────────────
+
+  test('다크/라이트 모드 토글 버튼이 동작한다', async ({ page }) => {
+    const toggle = page.locator('button:has-text("dark_mode"), button:has-text("light_mode")').first();
+    await expect(toggle).toBeVisible({ timeout: 5000 });
+
+    const isDark = await page.evaluate(() =>
+      document.documentElement.classList.contains('dark')
+    );
+    await toggle.click();
+
+    const isNowDark = await page.evaluate(() =>
+      document.documentElement.classList.contains('dark')
+    );
+    expect(isNowDark).not.toBe(isDark);
   });
 
 });

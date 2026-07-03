@@ -1,93 +1,76 @@
 const { test, expect } = require('@playwright/test');
 
 /**
- * Registration Test Suite
+ * 계정 등록 테스트
  */
 test.describe('Account Registration', () => {
-  
+
   test.beforeEach(async ({ page }) => {
-    // Navigate to registration page via login link
     await page.goto('/');
-    const registerLink = page.getByRole('link', { name: /Create Account/i });
-    await registerLink.click();
+    await page.getByRole('link', { name: /Create Account/i }).click();
     await expect(page).toHaveURL(/register/);
   });
 
-  test('should show validation errors for empty fields', async ({ page }) => {
-    const submitBtn = page.getByRole('button', { name: /Create Account/i });
-    await submitBtn.click();
-
+  test('빈 폼 제출 시 필수 항목 오류가 표시된다', async ({ page }) => {
+    await page.getByRole('button', { name: /Create Account/i }).click();
     await expect(page.getByText(/Username is required/i)).toBeVisible();
     await expect(page.getByText(/Password is required/i)).toBeVisible();
   });
 
-  test('should show error for short username or password', async ({ page }) => {
+  test('사용자명이 2자이면 최소 길이 오류를 표시한다', async ({ page }) => {
     await page.getByPlaceholder(/unique username/i).fill('ab');
+    await page.getByPlaceholder(/strong password/i).fill('123456');
+    await page.getByPlaceholder(/Repeat your password/i).fill('123456');
+    await page.getByRole('button', { name: /Create Account/i }).click();
+    await expect(page.getByText(/At least 3 characters/i)).toBeVisible();
+  });
+
+  test('비밀번호가 5자 이하이면 최소 길이 오류를 표시한다', async ({ page }) => {
+    await page.getByPlaceholder(/unique username/i).fill('validuser');
     await page.getByPlaceholder(/strong password/i).fill('123');
     await page.getByPlaceholder(/Repeat your password/i).fill('123');
-    
-    const submitBtn = page.getByRole('button', { name: /Create Account/i });
-    await submitBtn.click();
-
-    await expect(page.getByText(/At least 3 characters/i)).toBeVisible();
+    await page.getByRole('button', { name: /Create Account/i }).click();
     await expect(page.getByText(/At least 6 characters/i)).toBeVisible();
   });
 
-  test('should show error for password mismatch', async ({ page }) => {
-    await page.getByPlaceholder(/unique username/i).fill('tester');
-    await page.getByPlaceholder(/strong password/i).fill('password123');
-    await page.getByPlaceholder(/Repeat your password/i).fill('password456');
-    
-    const submitBtn = page.getByRole('button', { name: /Create Account/i });
-    await submitBtn.click();
-
+  test('비밀번호가 일치하지 않으면 오류가 표시된다', async ({ page }) => {
+    await page.getByPlaceholder(/unique username/i).fill('testuser');
+    await page.getByPlaceholder(/strong password/i).fill('Password123!');
+    await page.getByPlaceholder(/Repeat your password/i).fill('Password456!');
+    await page.getByRole('button', { name: /Create Account/i }).click();
     await expect(page.getByText(/Passwords do not match/i)).toBeVisible();
   });
 
-  test('should successfully register a new unique account', async ({ page }) => {
-    const uniqueId = Date.now().toString().slice(-6);
-    const testUser = `user_${uniqueId}`;
-    const testPass = 'Password123!';
-
-    await page.getByPlaceholder(/unique username/i).fill(testUser);
-    await page.getByPlaceholder(/strong password/i).fill(testPass);
-    await page.getByPlaceholder(/Repeat your password/i).fill(testPass);
-
-    // Verify password strength meter reflects "Good" or "Strong"
-    const strengthLabel = page.locator('p:has-text("Good"), p:has-text("Strong")');
+  test('강한 비밀번호 입력 시 강도 표시기가 Good 또는 Strong을 표시한다', async ({ page }) => {
+    await page.getByPlaceholder(/strong password/i).fill('Password123!@#');
+    const strengthLabel = page.locator('p').filter({ hasText: /^(Good|Strong)$/i });
     await expect(strengthLabel).toBeVisible();
-
-    // Submit registration
-    const submitBtn = page.getByRole('button', { name: /Create Account/i });
-    await submitBtn.click();
-
-    // After success, should redirect to login
-    await expect(page).toHaveURL(/login/);
-
-    // Verify we can now log in with this new account
-    await page.getByPlaceholder(/Enter username/i).fill(testUser);
-    await page.getByPlaceholder(/••••••••/).fill(testPass);
-    await page.getByRole('button', { name: /Authorize Access/i }).click();
-
-    // Verify successful login (Logout button visible)
-    await expect(page.getByTitle(/Logout/i)).toBeVisible();
   });
 
-  test('should show error if username is already taken', async ({ page }) => {
-    // Assuming 'admin' or our existing user already exists
-    const existingUser = 'rathana12'; 
-    
-    await page.getByPlaceholder(/unique username/i).fill(existingUser);
+  test('신규 계정 등록 성공 후 로그인 페이지로 이동하고 실제 로그인이 된다', async ({ page }) => {
+    const uid  = Date.now().toString().slice(-6);
+    const user = `e2e_user_${uid}`;
+    const pass = 'Password123!';
+
+    await page.getByPlaceholder(/unique username/i).fill(user);
+    await page.getByPlaceholder(/strong password/i).fill(pass);
+    await page.getByPlaceholder(/Repeat your password/i).fill(pass);
+    await page.getByRole('button', { name: /Create Account/i }).click();
+
+    await expect(page).toHaveURL(/login/, { timeout: 10000 });
+
+    await page.getByPlaceholder(/Enter username/i).fill(user);
+    await page.getByPlaceholder(/••••••••/).fill(pass);
+    await page.getByRole('button', { name: /Authorize Access/i }).click();
+    await expect(page.getByTitle(/Logout/i)).toBeVisible({ timeout: 10000 });
+  });
+
+  test('이미 존재하는 사용자명으로 등록하면 오류가 표시된다', async ({ page }) => {
+    await page.getByPlaceholder(/unique username/i).fill(process.env.E2E_USERNAME);
     await page.getByPlaceholder(/strong password/i).fill('Password123!');
     await page.getByPlaceholder(/Repeat your password/i).fill('Password123!');
-    
-    const submitBtn = page.getByRole('button', { name: /Create Account/i });
-    await submitBtn.click();
-
-    // Should show API error overlay
-    // The exact message depends on backend, but we check for general failure
-    const errorMsg = page.getByText(/failed/i).or(page.getByText(/already exists/i));
-    await expect(errorMsg).toBeVisible();
+    await page.getByRole('button', { name: /Create Account/i }).click();
+    await expect(page.getByText(/failed|already exists|taken/i)).toBeVisible({ timeout: 5000 });
   });
 
 });

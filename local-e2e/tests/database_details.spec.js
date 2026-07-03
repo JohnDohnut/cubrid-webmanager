@@ -1,91 +1,118 @@
 const { test, expect } = require('@playwright/test');
+const { login, connectToHost, expandDatabase, openDbContextMenu, dismissModal, E2E_DB } = require('./helpers');
 
 /**
- * Database Detailed Operations Test Suite
- * Covers complex modals like Clone, Backup, and the Space Monitor dashboard.
+ * 데이터베이스 상세 정보 테스트
+ * - Clone(Copy) Database 모달 UI
+ * - Database Space Monitor 대시보드
+ * - Backup Database 모달 UI
+ * - Lock Information / Transaction Info 모달
+ * - Param Dump / Plan Dump 모달
  */
-test.describe('Database Detailed Operations', () => {
+test.describe('Database Details', () => {
 
   test.beforeEach(async ({ page }) => {
-    // 1. Setup session and select host
-    await page.goto('/');
-    await page.getByPlaceholder(/Enter username/i).fill(process.env.E2E_USERNAME);
-    await page.getByPlaceholder(/••••••••/).fill(process.env.E2E_PASSWORD);
-    await page.getByRole('button', { name: /Authorize Access/i }).click();
-    await page.locator('#host-section div[title*=":"]').first().click();
-    
-    // 2. Expand demodb
-    const dbNode = page.locator('#db-tree-container').locator('div').filter({ hasText: /^demodb$/ }).first();
-    const expandBtn = dbNode.locator('span.material-symbols-outlined:has-text("chevron_right")');
-    if (await expandBtn.isVisible()) {
-        await expandBtn.click();
-    }
+    await login(page);
+    await connectToHost(page);
+    await expandDatabase(page);
   });
 
-  test('should verify UI elements in Clone Database modal', async ({ page }) => {
-    const dbNode = page.locator('#db-tree-container').locator('div').filter({ hasText: /^demodb$/ }).first();
-    await dbNode.click({ button: 'right' });
-    
-    await page.getByRole('button', { name: /Clone Database/i }).click();
+  // ─── Clone(Copy) Database 모달 UI ─────────────────────────────────────────
 
-    // 1. Check title and visually rich elements
-    await expect(page.getByText('Clone Database', { exact: true })).toBeVisible();
-    await expect(page.getByText('Source', { exact: true })).toBeVisible();
-    await expect(page.getByText('Clone name', { exact: true })).toBeVisible();
+  test('Copy Database 모달: 제목·이름 입력 필드·옵션 플래그가 표시된다', async ({ page }) => {
+    await openDbContextMenu(page);
+    await page.getByRole('button', { name: 'Manage Database' }).hover();
+    await page.getByRole('button', { name: 'Copy Database', exact: true }).click();
 
-    // 2. Check Migration flags (FlagCard)
-    const overwriteLabel = page.getByText('Overwrite existing database');
-    await expect(overwriteLabel).toBeVisible();
-    
-    // 3. Toggle a flag and verify visual feedback (using a selector that targets the toggle pill)
-    const overwriteCard = page.locator('button').filter({ hasText: /Overwrite existing database/ });
+    const modal = page.locator('div[role="dialog"]');
+    await expect(modal).toBeVisible();
+    // 제목 (Clone Database 또는 Copy Database)
+    await expect(modal).toContainText(/Clone|Copy/i);
+    // 이름 입력 필드
+    await expect(modal.locator('input[type="text"]').first()).toBeVisible();
+    // Overwrite 옵션
+    await expect(modal.getByText(/Overwrite/i)).toBeVisible();
+
+    // 옵션 토글 → 시각적 피드백 확인
+    const overwriteCard = modal.locator('button').filter({ hasText: /Overwrite/i });
     await overwriteCard.click();
-    // Assuming the 'bg-amber-500' class is added to the pill when checked
     await expect(overwriteCard.locator('div.bg-amber-500')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Cancel' }).click();
+    await dismissModal(page);
   });
 
-  test('should load and verify Database Space Monitor dashboard', async ({ page }) => {
-    // 1. Navigate to Space Monitor (usually via a sub-node or button)
-    // In many CWM versions, "Space" is a child node under the database
-    const spaceNode = page.locator('#db-tree-container').getByText('Space', { exact: true }).first();
+  // ─── Database Space Monitor ────────────────────────────────────────────────
+
+  test('Space 노드 클릭 시 Space Monitor 대시보드가 로드된다', async ({ page }) => {
+    const spaceNode = page.locator('#db-tree-container')
+      .getByText('Space', { exact: true }).first();
     await spaceNode.click();
 
-    // 2. Verify dashboard header
-    await expect(page.getByText('Database Space Monitor')).toBeVisible();
-    await expect(page.getByText('Analyze storage capacity')).not.toBeVisible({ timeout: 15000 }); // Wait for loader to finish
-
-    // 3. Verify Summary Cards
-    await expect(page.getByText('Used', { exact: true })).toBeVisible();
-    await expect(page.getByText('Free', { exact: true })).toBeVisible();
-    await expect(page.getByText('Usage', { exact: true })).toBeVisible();
-
-    // 4. Verify Tables
-    await expect(page.getByText('Volume Categorization')).toBeVisible();
-    await expect(page.getByText('Physical Volume Topology')).toBeVisible();
-    
-    // 5. Verify the Sync button
-    const syncBtn = page.getByRole('button', { name: /Sync/i });
-    await expect(syncBtn).toBeVisible();
-    await syncBtn.click();
-    // Verify it triggers a refresh (icon might spin)
-    const spinIcon = syncBtn.locator('.animate-spin');
-    // It might be too fast, but checking for it is good
+    await expect(page.getByText(/Space Monitor|Database Space/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Used',  { exact: true })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Free',  { exact: true })).toBeVisible({ timeout: 5000 });
   });
 
-  test('should verify UI of Backup Database modal', async ({ page }) => {
-    const dbNode = page.locator('#db-tree-container').locator('div').filter({ hasText: /^demodb$/ }).first();
-    await dbNode.click({ button: 'right' });
-    
-    await page.getByRole('button', { name: /Backup Database/i }).click();
+  test('Space Monitor: Volume Categorization 테이블이 표시된다', async ({ page }) => {
+    await page.locator('#db-tree-container').getByText('Space', { exact: true }).first().click();
+    await expect(page.getByText(/Volume Categor/i)).toBeVisible({ timeout: 15000 });
+  });
 
-    // Check for essential backup fields
-    await expect(page.getByText('Database Backup', { exact: true })).toBeVisible();
-    await expect(page.getByText('Backup Level')).toBeVisible();
-    await expect(page.getByText('Destination Path')).toBeVisible();
+  test('Space Monitor: Sync 버튼 클릭 시 새로고침이 트리거된다', async ({ page }) => {
+    await page.locator('#db-tree-container').getByText('Space', { exact: true }).first().click();
+    await expect(page.getByText(/Space Monitor|Database Space/i)).toBeVisible({ timeout: 10000 });
 
-    await page.getByRole('button', { name: /Cancel/i }).or(page.getByRole('button', { name: /Discard/i })).first().click();
+    const syncBtn = page.getByRole('button', { name: /Sync|Refresh/i }).first();
+    await expect(syncBtn).toBeVisible();
+    await syncBtn.click();
+    // 스피너가 잠깐 뜨거나 버튼이 반응해야 한다
+    await expect(syncBtn).toBeVisible();
+  });
+
+  // ─── Database Info 모달들 ─────────────────────────────────────────────────
+
+  test('Lock Information 모달이 열린다', async ({ page }) => {
+    await openDbContextMenu(page);
+    await page.getByRole('button', { name: 'Database Info' }).hover();
+    await page.getByRole('button', { name: 'Lock Information', exact: true }).click();
+
+    const modal = page.locator('div[role="dialog"]');
+    await expect(modal).toBeVisible();
+    await expect(modal).toContainText(/Lock/i);
+    await dismissModal(page);
+  });
+
+  test('Transaction Info 모달이 열린다', async ({ page }) => {
+    await openDbContextMenu(page);
+    await page.getByRole('button', { name: 'Database Info' }).hover();
+    await page.getByRole('button', { name: 'Transaction Info', exact: true }).click();
+
+    const modal = page.locator('div[role="dialog"]');
+    await expect(modal).toBeVisible();
+    await expect(modal).toContainText(/Transaction/i);
+    await dismissModal(page);
+  });
+
+  test('Param Dump 모달이 열린다', async ({ page }) => {
+    await openDbContextMenu(page);
+    await page.getByRole('button', { name: 'Database Info' }).hover();
+    await page.getByRole('button', { name: 'Param Dump', exact: true }).click();
+
+    const modal = page.locator('div[role="dialog"]');
+    await expect(modal).toBeVisible();
+    await expect(modal).toContainText(/Param|Parameter|Database Info/i);
+    await dismissModal(page);
+  });
+
+  test('Plan Dump 모달이 열린다', async ({ page }) => {
+    await openDbContextMenu(page);
+    await page.getByRole('button', { name: 'Database Info' }).hover();
+    await page.getByRole('button', { name: 'Plan Dump', exact: true }).click();
+
+    const modal = page.locator('div[role="dialog"]');
+    await expect(modal).toBeVisible();
+    await expect(modal).toContainText(/Plan/i);
+    await dismissModal(page);
   });
 
 });

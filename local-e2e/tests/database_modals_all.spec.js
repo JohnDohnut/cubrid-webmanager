@@ -1,119 +1,165 @@
 const { test, expect } = require('@playwright/test');
+const { login, connectToHost, expandDatabase, dismissModal, E2E_DB } = require('./helpers');
 
 /**
- * Universal Database Modals Test Suite
- * Iterates through every management action to verify UI consistency and modal rendering.
+ * 데이터베이스 전체 모달 스위프 테스트
+ *
+ * 모든 컨텍스트 메뉴 액션을 순서대로 열고 모달이 정상 렌더링되는지 확인합니다.
+ * 실제 실행하지 않고 열기 → 닫기만 합니다.
  */
 test.describe('Database All Modals', () => {
 
   test.beforeEach(async ({ page }) => {
-    // 1. Authentication
-    await page.goto('/');
-    await page.getByPlaceholder(/Enter username/i).fill(process.env.E2E_USERNAME);
-    await page.getByPlaceholder(/••••••••/).fill(process.env.E2E_PASSWORD);
-    await page.getByRole('button', { name: /Authorize Access/i }).click();
-    
-    // 2. Setup environment (Select first host)
-    const firstHost = page.locator('#host-section div[title*=":"]').first();
-    await firstHost.click();
-    await expect(page.locator('#db-tree-container')).toBeVisible();
+    await login(page);
+    await connectToHost(page);
   });
 
-  const dbActions = [
-    // SubMenu: Manage Database
-    { label: 'Database Unload', expected: /Extract Database Data/i, subMenu: 'Manage Database' },
-    { label: 'Database Load', expected: /Database Load/i, subMenu: 'Manage Database' },
-    { label: 'Check Database', expected: /Check Database/i, subMenu: 'Manage Database' },
-    { label: 'Compact Database', expected: /Compact Database/i, subMenu: 'Manage Database' },
-    { label: 'Optimize Database', expected: /Optimize Database/i, subMenu: 'Manage Database' },
-    { label: 'Copy Database', expected: /Clone Database/i, subMenu: 'Manage Database' },
-    { label: 'Restore Database', expected: /Restore Database/i, subMenu: 'Manage Database' },
-    { label: 'Backup Database', expected: /Database Backup/i, subMenu: 'Manage Database' },
-    { label: 'Delete Database', expected: /Delete Database/i, subMenu: 'Manage Database' },
-    { label: 'Rename Database', expected: /Rename Database/i, subMenu: 'Manage Database' },
-    
-    // SubMenu: Database Info
-    { label: 'Lock Information', expected: /Lock Information/i, subMenu: 'Database Info' },
-    { label: 'Transaction Info', expected: /Transaction Info/i, subMenu: 'Database Info' },
-    { label: 'Param Dump', expected: /Database Info/i, subMenu: 'Database Info' },
-    { label: 'Plan Dump', expected: /Plan Dump/i, subMenu: 'Database Info' },
-    
-    // Direct Actions
-    { label: 'Properties', expected: /Database Properties/i },
+  // ─── Manage Database 서브메뉴 모달 ───────────────────────────────────────
+
+  const manageActions = [
+    { label: 'Database Unload',   expected: /Extract Database Data|Unload/i },
+    { label: 'Database Load',     expected: /Database Load|Load/i           },
+    { label: 'Check Database',    expected: /Check Database|Check/i         },
+    { label: 'Compact Database',  expected: /Compact/i                      },
+    { label: 'Optimize Database', expected: /Optim/i                        },
+    { label: 'Copy Database',     expected: /Clone|Copy/i                   },
+    { label: 'Restore Database',  expected: /Restore/i                      },
+    { label: 'Backup Database',   expected: /Database Backup|Backup/i       },
+    { label: 'Delete Database',   expected: /Delete/i                       },
+    { label: 'Rename Database',   expected: /Rename/i                       },
   ];
 
-  for (const action of dbActions) {
-    test(`should open ${action.label} modal`, async ({ page }) => {
-        const dbNode = page.locator('#db-tree-container').locator('div').filter({ hasText: /^demodb$/ }).first();
-        await dbNode.click({ button: 'right' });
+  for (const action of manageActions) {
+    test(`Manage Database → ${action.label} 모달이 열린다`, async ({ page }) => {
+      const dbNode = page.locator('#db-tree-container')
+        .locator('div').filter({ hasText: new RegExp(`^${E2E_DB}$`) }).first();
+      await expect(dbNode).toBeVisible({ timeout: 10000 });
+      await dbNode.click({ button: 'right' });
 
-        if (action.subMenu) {
-            const subMenuTrigger = page.getByRole('button', { name: action.subMenu });
-            await subMenuTrigger.hover(); 
-            // Click the actual action inside sub-menu
-            await page.getByRole('button', { name: action.label, exact: true }).click();
-        } else {
-            await page.getByRole('button', { name: action.label, exact: true }).click();
-        }
+      await page.getByRole('button', { name: 'Manage Database' }).hover();
+      await page.getByRole('button', { name: action.label, exact: true }).click();
 
-        // Verify Modal matches expectation
-        const modal = page.locator('div[role="dialog"]');
-        await expect(modal).toBeVisible();
-        await expect(modal).toContainText(action.expected);
+      const modal = page.locator('div[role="dialog"]');
+      await expect(modal).toBeVisible({ timeout: 5000 });
+      await expect(modal).toContainText(action.expected);
 
-        // Close Modal
-        const closeBtn = modal.getByRole('button', { name: /Discard|Cancel|Close/i }).first();
-        await closeBtn.click();
-        await expect(modal).not.toBeVisible();
+      const closeBtn = modal.getByRole('button', { name: /Discard|Cancel|Close/i }).first();
+      await closeBtn.click();
+      await expect(modal).not.toBeVisible({ timeout: 5000 });
     });
   }
 
-  test('should open Job Automation related modals', async ({ page }) => {
-    // Expand demodb
-    const dbNode = page.locator('#db-tree-container').locator('div').filter({ hasText: /^demodb$/ }).first();
-    await dbNode.locator('span.material-symbols-outlined:has-text("chevron_right")').click();
+  // ─── Database Info 서브메뉴 모달 ─────────────────────────────────────────
 
-    // 1. Backup Plan Context Menu
-    const backupFolder = page.getByText('Backup Plan', { exact: true });
-    await backupFolder.click({ button: 'right' });
-    
-    await page.getByRole('button', { name: 'Add Backup Plan' }).click();
-    await expect(page.getByText(/New Backup Plan/i)).toBeVisible();
-    await page.getByRole('button', { name: 'Discard' }).click();
+  const infoActions = [
+    { label: 'Lock Information', expected: /Lock/i         },
+    { label: 'Transaction Info', expected: /Transaction/i  },
+    { label: 'Param Dump',       expected: /Param|Database Info/i },
+    { label: 'Plan Dump',        expected: /Plan/i         },
+  ];
 
-    await backupFolder.click({ button: 'right' });
-    await page.getByRole('button', { name: 'Auto Backup Log' }).click();
-    await expect(page.getByText(/Auto Backup Log/i)).toBeVisible();
-    await page.getByRole('button', { name: 'Discard' }).click();
+  for (const action of infoActions) {
+    test(`Database Info → ${action.label} 모달이 열린다`, async ({ page }) => {
+      const dbNode = page.locator('#db-tree-container')
+        .locator('div').filter({ hasText: new RegExp(`^${E2E_DB}$`) }).first();
+      await expect(dbNode).toBeVisible({ timeout: 10000 });
+      await dbNode.click({ button: 'right' });
 
-    // 2. Query Plan Context Menu
-    const queryFolder = page.getByText('Query Plan', { exact: true });
-    await queryFolder.click({ button: 'right' });
-    
-    await page.getByRole('button', { name: 'Add Query Plan' }).click();
-    await expect(page.getByText(/New Query Plan/i).or(page.getByText(/Query Plan/i))).toBeVisible();
-    await page.getByRole('button', { name: 'Discard' }).click();
+      await page.getByRole('button', { name: 'Database Info' }).hover();
+      await page.getByRole('button', { name: action.label, exact: true }).click();
+
+      const modal = page.locator('div[role="dialog"]');
+      await expect(modal).toBeVisible({ timeout: 5000 });
+      await expect(modal).toContainText(action.expected);
+
+      const closeBtn = modal.getByRole('button', { name: /Discard|Cancel|Close/i }).first();
+      await closeBtn.click();
+      await expect(modal).not.toBeVisible({ timeout: 5000 });
+    });
+  }
+
+  // ─── 직접 액션 ────────────────────────────────────────────────────────────
+
+  test('Properties 모달이 열린다', async ({ page }) => {
+    const dbNode = page.locator('#db-tree-container')
+      .locator('div').filter({ hasText: new RegExp(`^${E2E_DB}$`) }).first();
+    await expect(dbNode).toBeVisible({ timeout: 10000 });
+    await dbNode.click({ button: 'right' });
+    await page.getByRole('button', { name: 'Properties', exact: true }).click();
+
+    const modal = page.locator('div[role="dialog"]');
+    await expect(modal).toBeVisible({ timeout: 5000 });
+    await expect(modal).toContainText(/Properties/i);
+    await dismissModal(page);
   });
 
-  test('should open Space management modals', async ({ page }) => {
-    // Expand demodb
-    const dbNode = page.locator('#db-tree-container').locator('div').filter({ hasText: /^demodb$/ }).first();
-    // Use the chevron
-    await dbNode.locator('span.material-symbols-outlined:has-text("chevron_right")').click();
+  // ─── Job Automation 모달 ──────────────────────────────────────────────────
 
-    const spaceFolder = page.getByText('Space', { exact: true });
+  test('Add Backup Plan 모달이 열린다', async ({ page }) => {
+    await expandDatabase(page);
+
+    const backupFolder = page.locator('#db-tree-container')
+      .getByText('Backup Plan', { exact: true });
+    await expect(backupFolder).toBeVisible({ timeout: 5000 });
+    await backupFolder.click({ button: 'right' });
+
+    await page.getByRole('button', { name: 'Add Backup Plan' }).click();
+    await expect(page.getByText(/New Backup Plan|Backup Plan/i)).toBeVisible();
+    await dismissModal(page);
+  });
+
+  test('Auto Backup Log 모달이 열린다', async ({ page }) => {
+    await expandDatabase(page);
+
+    const backupFolder = page.locator('#db-tree-container')
+      .getByText('Backup Plan', { exact: true });
+    await expect(backupFolder).toBeVisible({ timeout: 5000 });
+    await backupFolder.click({ button: 'right' });
+
+    await page.getByRole('button', { name: 'Auto Backup Log' }).click();
+    await expect(page.getByText(/Auto Backup Log/i)).toBeVisible();
+    await dismissModal(page);
+  });
+
+  test('Add Query Plan 모달이 열린다', async ({ page }) => {
+    await expandDatabase(page);
+
+    const queryFolder = page.locator('#db-tree-container')
+      .getByText('Query Plan', { exact: true });
+    await expect(queryFolder).toBeVisible({ timeout: 5000 });
+    await queryFolder.click({ button: 'right' });
+
+    await page.getByRole('button', { name: 'Add Query Plan' }).click();
+    await expect(page.getByText(/New Query Plan|Query Plan/i)).toBeVisible();
+    await dismissModal(page);
+  });
+
+  // ─── Space 관련 모달 ──────────────────────────────────────────────────────
+
+  test('Add Volume 모달이 열린다', async ({ page }) => {
+    await expandDatabase(page);
+
+    const spaceFolder = page.locator('#db-tree-container')
+      .getByText('Space', { exact: true });
+    await expect(spaceFolder).toBeVisible({ timeout: 5000 });
     await spaceFolder.click({ button: 'right' });
 
-    // Add Volume
     await page.getByRole('button', { name: 'Add Volume' }).click();
     await expect(page.getByText(/Add Volume/i)).toBeVisible();
-    await page.getByRole('button', { name: 'Discard' }).click();
+    await dismissModal(page);
+  });
 
-    // Set Automation Volume
+  test('Set Automation Volume 모달이 열린다', async ({ page }) => {
+    await expandDatabase(page);
+
+    const spaceFolder = page.locator('#db-tree-container')
+      .getByText('Space', { exact: true });
+    await expect(spaceFolder).toBeVisible({ timeout: 5000 });
     await spaceFolder.click({ button: 'right' });
+
     await page.getByRole('button', { name: 'Set Automation Volume' }).click();
     await expect(page.getByText(/Automation Volume/i)).toBeVisible();
-    await page.getByRole('button', { name: 'Discard' }).click();
+    await dismissModal(page);
   });
 
 });

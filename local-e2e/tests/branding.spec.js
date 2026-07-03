@@ -1,72 +1,71 @@
 const { test, expect } = require('@playwright/test');
+const { login } = require('./helpers');
 
 /**
- * Modernized UI Branding Test Suite
- * Verifies that logos, color schemes, and premium design elements are correctly displayed across pages.
+ * UI 브랜딩·디자인 테스트
+ * - 로그인 페이지 로고·텍스트 확인
+ * - Dark/Light 모드 전환
+ * - 사이드바 디자인 토큰 확인
  */
 test.describe('Modernized UI Branding', () => {
 
-  test('should show correct branding and logo on Login Page', async ({ page }) => {
+  test('로그인 페이지에 올바른 브랜딩과 로고가 표시된다', async ({ page }) => {
     await page.goto('/');
-    
-    // 1. Core Branding
+
     await expect(page.getByText('CUBRID', { exact: true })).toBeVisible();
     await expect(page.getByText('Web Manager', { exact: true })).toBeVisible();
-    
-    // 2. Logo check
+
     const logoImg = page.getByAltText(/CUBRID Logo/i);
     await expect(logoImg).toBeVisible();
-    
-    // 3. Modernized footer/credits
-    await expect(page.getByText(/Powered by CUBRID/i).or(page.getByText(/All rights reserved/i))).toBeVisible();
+
+    await expect(
+      page.getByText(/Powered by CUBRID/i).or(page.getByText(/All rights reserved/i))
+    ).toBeVisible();
   });
 
-  test('should verify Dark/Light mode toggle works in Dashboard', async ({ page }) => {
-    // 1. Initial Login
-    await page.goto('/');
-    await page.getByPlaceholder(/Enter username/i).fill(process.env.E2E_USERNAME);
-    await page.getByPlaceholder(/••••••••/).fill(process.env.E2E_PASSWORD);
-    await page.getByRole('button', { name: /Authorize Access/i }).click();
+  test('다크/라이트 모드 토글이 작동한다', async ({ page }) => {
+    await login(page);
 
-    // 2. Find Dark/Light toggle (usually a sun/moon icon)
-    const toggleBtn = page.locator('button:has-text("dark_mode"), button:has-text("light_mode")').first();
+    // 테마 토글 버튼 (태양/달 아이콘)
+    const toggleBtn = page
+      .locator('button:has-text("dark_mode"), button:has-text("light_mode")')
+      .or(page.getByRole('button', { name: /dark|light|theme/i }))
+      .first();
     await expect(toggleBtn).toBeVisible();
 
-    // 3. Initial check for theme class on <html>
-    const isInitiallyDark = await page.evaluate(() => document.documentElement.classList.contains('dark'));
+    const isInitiallyDark = await page.evaluate(
+      () => document.documentElement.classList.contains('dark')
+    );
 
-    // 4. Toggle it
     await toggleBtn.click();
-    
-    // 5. Verify transition
-    const isNowDark = await page.evaluate(() => document.documentElement.classList.contains('dark'));
+
+    const isNowDark = await page.evaluate(
+      () => document.documentElement.classList.contains('dark')
+    );
     expect(isNowDark).not.toBe(isInitiallyDark);
-    
-    // 6. Color check (verify premium colors are used)
-    // Dark mode often uses bg-bk-main or similar
-    if (isNowDark) {
-        const bgColor = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-        // Add specific color assertions if needed (e.g. hex #121212)
-    }
   });
 
-  test('should check for consistent sidebar design tokens', async ({ page }) => {
-    // 1. Inspect Sidebar after login
-    await page.goto('/');
-    await page.getByPlaceholder(/Enter username/i).fill(process.env.E2E_USERNAME);
-    await page.getByPlaceholder(/••••••••/).fill(process.env.E2E_PASSWORD);
-    await page.getByRole('button', { name: /Authorize Access/i }).click();
-    
+  test('로그인 후 사이드바가 올바른 디자인 토큰으로 렌더링된다', async ({ page }) => {
+    await login(page);
+
     const sidebar = page.locator('#sidebar');
     await expect(sidebar).toBeVisible();
 
-    // 2. Check for Sidebar Header Branding
+    // 사이드바 내부 Admin / Manager Console 텍스트
     await expect(sidebar.getByText('Admin')).toBeVisible();
     await expect(sidebar.getByText('Manager Console')).toBeVisible();
-    
-    // 3. Verify Sidebar resizability (SplitPane handle exists)
+
+    // SplitPane 리사이즈 핸들 존재 확인
     const resizeHandle = page.locator('.Resizer.horizontal, .Resizer.vertical').first();
     await expect(resizeHandle).toBeVisible();
+  });
+
+  test('로그인 페이지에 사용자 이름·비밀번호 입력 필드가 표시된다', async ({ page }) => {
+    await page.goto('/');
+
+    await expect(page.getByPlaceholder(/Enter username/i)).toBeVisible();
+    await expect(page.locator('input[type="password"]')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Authorize Access/i })).toBeVisible();
   });
 
 });
