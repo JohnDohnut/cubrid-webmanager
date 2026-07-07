@@ -23,10 +23,10 @@ export const LogViewer = ({
   }, [lines, autoScroll]);
 
   const levelOptions = [
-    { label: 'All Levels', value: 'all' },
+    { label: CM.allLevelsLabel, value: 'all' },
     { label: CM.error, value: 'error' },
     { label: CM.warning, value: 'warn' },
-    { label: 'Info', value: 'info' },
+    { label: CM.infoLabel, value: 'info' },
   ];
 
   const getBadgeVariant = (level) => {
@@ -54,7 +54,7 @@ export const LogViewer = ({
             value={filter.search}
             onChange={(val) => onFilterChange({ ...filter, search: val })}
             onClear={() => onFilterChange({ ...filter, search: '' })}
-            placeholder="Search logs..."
+            placeholder={CM.searchLogsPlaceholder}
           />
         </div>
       </div>
@@ -67,7 +67,7 @@ export const LogViewer = ({
             <Skeleton variant="text" width="90%" height="20px" />
           </div>
         ) : lines.length === 0 ? (
-          <EmptyState title="No logs found" description="Adjust your filters or wait for new logs." icon="receipt_long" />
+          <EmptyState title={CM.noLogsFoundTitle} description={CM.adjustFiltersDesc} icon="receipt_long" />
         ) : (
           <div className="space-y-1">
             {lines.map((line, idx) => (

@@ -28,10 +28,10 @@ export const JobTimeline = ({
 
   const handleDelete = async (job) => {
     const ok = await confirm({
-      title: 'Delete Job?',
-      description: `Are you sure you want to delete the job "${job.name}"? This cannot be undone.`,
+      title: CM.deleteJobConfirmTitle,
+      description: CM.deleteJobConfirmDesc(job.name),
       variant: 'danger',
-      confirmLabel: 'Delete',
+      confirmLabel: CM.deleteBtn,
     });
     if (ok && onDelete) {
       onDelete(job.id);
@@ -46,17 +46,17 @@ export const JobTimeline = ({
       render: (val) => <Badge variant={getStatusVariant(val)}>{val.toUpperCase()}</Badge>,
     },
     {
-      header: 'Job Name',
+      header: CM.jobNameLabel,
       accessor: 'name',
       className: 'font-medium',
     },
     {
-      header: 'Cron Expression',
+      header: CM.cronExpressionLabel,
       accessor: 'cronExpr',
       render: (val) => <span className="font-mono text-xs text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-sm">{val}</span>,
     },
     {
-      header: 'Next Run',
+      header: CM.nextRunLabel,
       accessor: 'nextRun',
       render: (val) => <span className="text-slate-500">{val}</span>,
     },
@@ -76,9 +76,9 @@ export const JobTimeline = ({
       width: '140px',
       render: (_, row) => (
         <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-          <Button variant="ghost" size="icon" icon="play_arrow" onClick={() => onRunNow && onRunNow(row.id)} title="Run Now" />
+          <Button variant="ghost" size="icon" icon="play_arrow" onClick={() => onRunNow && onRunNow(row.id)} title={CM.runNowTitle} />
           <Button variant="ghost" size="icon" icon="edit" onClick={() => onEdit && onEdit(row)} title={CM.edit} />
-          <Button variant="ghost" size="icon" icon="delete" className="text-rose-500 hover:text-rose-600 dark:hover:text-rose-400" onClick={() => handleDelete(row)} title="Delete" />
+          <Button variant="ghost" size="icon" icon="delete" className="text-rose-500 hover:text-rose-600 dark:hover:text-rose-400" onClick={() => handleDelete(row)} title={CM.deleteBtn} />
         </div>
       ),
     },
@@ -89,7 +89,7 @@ export const JobTimeline = ({
       <Table
         columns={columns}
         data={jobs}
-        emptyMessage="No automated jobs scheduled."
+        emptyMessage={CM.noAutomatedJobsMsg}
       />
     </div>
   );
