@@ -1215,6 +1215,27 @@ export const CM_KO = {
   desktopOnly: '데스크톱 전용',
   desktopBridgeUnavailable: '데스크톱 브리지를 사용할 수 없음',
 
+  // DesktopWorkspaceSettingsPage
+  workspaceSettingsLoadFailedMsg: '워크스페이스 설정을 불러오지 못했습니다.',
+  applyingWorkspaceMsg: '워크스페이스를 적용하는 중…',
+  workspaceSaveFailedMsg: '워크스페이스를 저장하지 못했습니다.',
+  workspaceAppliedRelogMsg: '워크스페이스가 적용되었습니다. 다시 로그인해 주세요.',
+  workspaceResetFailedMsg: '워크스페이스를 초기화하지 못했습니다.',
+  workspaceDesktopOnlyDesc: '워크스페이스 설정은 CUBRID Web Manager 데스크톱 앱에서 사용할 수 있습니다.',
+  desktopConnectFailedMsg: '데스크톱 앱에 연결할 수 없습니다. 종료 후 다음 명령으로 다시 실행하세요:',
+  selectWorkspaceTitle: '워크스페이스 선택',
+  workspaceTitle: '워크스페이스',
+  workspaceDescPrefix: '데이터·인증서·설정이 저장될 ',
+  workspaceDescFolderPhrase: '폴더 하나',
+  workspaceDescMiddle: '만 지정하면 됩니다. 앱이 그 안에 ',
+  workspaceDescSuffix: ' 을 자동으로 만듭니다.',
+  workspaceFolderLabel: '워크스페이스 폴더',
+  defaultLocationLabel: (path) => `기본 위치: ${path}`,
+  defaultLocationBtn: '기본 위치',
+  settingsFileLabel: (path) => `설정 파일: ${path}`,
+  selectFolderEllipsis: '폴더 선택…',
+  continueBtn: '계속',
+
   // CAS Log Viewer
   casSqlTransactionLog: 'CAS SQL 로그 조회',
   casSlowQueryRegistry: 'CAS SLOW Query 로그 조회',

@@ -1237,6 +1237,27 @@ export const CM = {
   desktopOnly: 'Desktop only',
   desktopBridgeUnavailable: 'Desktop bridge unavailable',
 
+  // DesktopWorkspaceSettingsPage
+  workspaceSettingsLoadFailedMsg: 'Failed to load workspace settings',
+  applyingWorkspaceMsg: 'Applying workspace…',
+  workspaceSaveFailedMsg: 'Failed to save workspace',
+  workspaceAppliedRelogMsg: 'Workspace applied. Please log in again.',
+  workspaceResetFailedMsg: 'Failed to reset workspace',
+  workspaceDesktopOnlyDesc: 'Workspace settings are available in the CUBRID Web Manager desktop app.',
+  desktopConnectFailedMsg: 'Could not connect to the desktop app. Quit and run again with',
+  selectWorkspaceTitle: 'Select Workspace',
+  workspaceTitle: 'Workspace',
+  workspaceDescPrefix: 'You only need to specify ',
+  workspaceDescFolderPhrase: 'a single folder',
+  workspaceDescMiddle: ' to store your data, certificates, and settings. The app will automatically create ',
+  workspaceDescSuffix: ' inside it automatically.',
+  workspaceFolderLabel: 'Workspace folder',
+  defaultLocationLabel: (path) => `Default location: ${path}`,
+  defaultLocationBtn: 'Default location',
+  settingsFileLabel: (path) => `Settings file: ${path}`,
+  selectFolderEllipsis: 'Select folder…',
+  continueBtn: 'Continue',
+
   // CAS Log Viewer
   casSqlTransactionLog: 'CAS SQL Log',
   casSlowQueryRegistry: 'CAS Slow Query Log',
