@@ -104,12 +104,12 @@ export default function DeleteDatabaseModal() {
         })).unwrap();
         
         dispatch(fetchDatabaseStartInfo(selectedHostUid));
-        endSuccess(`Database "${selectedDatabase}" was deleted.`);
+        endSuccess(CM.databaseDeletedMsg(selectedDatabase));
       } else {
         throw loginRes;
       }
     } catch (err) {
-      endError(typeof err === 'string' ? err : (err.message || 'Authentication or operation failed. Verify credentials and instance state.'));
+      endError(typeof err === 'string' ? err : (err.message || CM.authOrOperationFailedMsg));
     }
   };
 
@@ -218,14 +218,14 @@ export default function DeleteDatabaseModal() {
           </div>
 
           <InfoBanner title={CM.criticalWarning} variant="warning">
-            This action is <span className="text-amber-500 font-bold non-italic">permanent</span>. All database files and logs listed below will be erased and cannot be recovered.
+            {CM.deleteDatabaseWarningDesc}
           </InfoBanner>
 
           <div>
             <SectionHeader 
               title={CM.volumesToDelete} 
               icon="hard_drive" 
-              badge={volumeInfo.length > 0 ? `${volumeInfo.length} Assets` : null} 
+              badge={volumeInfo.length > 0 ? CM.assetsCountLabel(volumeInfo.length) : null}
             />
             <div className="rounded-xl border border-slate-100 dark:border-white/5 overflow-hidden">
 
@@ -253,7 +253,7 @@ export default function DeleteDatabaseModal() {
                     </span>
                     <div className="shrink-0 text-right min-w-[60px]">
                       <p className="text-[11px] font-mono font-bold text-slate-700 dark:text-slate-200 leading-none tabular-nums">{v.sizeMB} MB</p>
-                      <p className="text-[9px] text-slate-400 font-medium tabular-nums">{v.free} free</p>
+                      <p className="text-[9px] text-slate-400 font-medium tabular-nums">{CM.freeSpaceLabel(v.free)}</p>
                     </div>
                   </div>
                 ))}
@@ -296,7 +296,7 @@ export default function DeleteDatabaseModal() {
       ) : (
         <div className="space-y-5 py-2 animate-in fade-in duration-200 max-w-[400px] mx-auto">
           <InfoBanner title={CM.authorizationPointTitle}>
-            Confirm your database credentials to permanently delete <span className="text-rose-500 font-bold non-italic">{selectedDatabase}</span>.
+            {CM.confirmCredentialsToDeleteDesc(selectedDatabase)}
           </InfoBanner>
 
           <div className="space-y-3">
@@ -320,7 +320,7 @@ export default function DeleteDatabaseModal() {
           </div>
 
           <Typography variant="caption" className="text-slate-400 dark:text-slate-500 font-medium text-center leading-relaxed block px-2">
-            This is the final step. After confirmation, all data for this instance will be permanently erased.
+            {CM.finalDeleteStepDesc}
           </Typography>
         </div>
       )}

@@ -206,7 +206,7 @@ export default function EditQueryPlanModal() {
 
     try {
       await dispatch(setAutoExecQuery({ hostUid: selectedHostUid, dbname: selectedDatabase, payload })).unwrap();
-      endSuccess(`Plan "${formData.queryId}" has been successfully updated.`);
+      endSuccess(CM.planUpdatedMsg(formData.queryId));
       dispatch(fetchQueryPlan({ hostUid: selectedHostUid, dbname: selectedDatabase }));
     } catch (err) {
       endError(typeof err === 'string' ? err : (err.message || CM.operationFailed));
