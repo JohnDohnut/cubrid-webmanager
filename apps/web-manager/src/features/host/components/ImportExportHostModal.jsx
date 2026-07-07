@@ -494,7 +494,7 @@ export default function ImportExportHostModal() {
                   }}
                   disabled={isProcessing}
                 >
-                  No
+                  {CM.no}
                 </Button>
                 <Button
                   variant="primary"
@@ -522,7 +522,7 @@ export default function ImportExportHostModal() {
               }}
               disabled={isProcessing}
             >
-              {isPasswordStep ? 'Skip' : 'Discard'}
+              {isPasswordStep ? 'Skip' : CM.discard}
             </Button>
             {isPasswordStep && (
               <Button
@@ -696,7 +696,7 @@ export default function ImportExportHostModal() {
                     },
                     {
                       accessor: 'alias',
-                      header: 'Name',
+                      header: CM.name,
                       render: (alias, host) => (
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-2">
@@ -718,8 +718,8 @@ export default function ImportExportHostModal() {
                         </div>
                       )
                     },
-                    { accessor: 'address', header: 'Address' },
-                    { accessor: 'port', header: 'Port' },
+                    { accessor: 'address', header: CM.address },
+                    { accessor: 'port', header: CM.port },
                     ...(fileHasPrefsGroups ? [{
                       accessor: 'importGroupName',
                       header: 'Group',

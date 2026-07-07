@@ -300,7 +300,7 @@ export default function AddQueryPlanModal() {
           <div className="mt-[-10px] animate-in fade-in slide-in-from-top-2 duration-300">
             {formData.periodType === 'WEEK' && (
             <div className="grid grid-cols-7 gap-2">
-              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, ix) => {
+              {CM.weekdaysShort.map((day, ix) => {
                 const isSel = formData.periodDetail.includes(ix + 1);
                 return (
                   <button 

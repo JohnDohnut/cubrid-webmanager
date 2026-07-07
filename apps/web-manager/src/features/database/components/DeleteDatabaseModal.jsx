@@ -205,7 +205,7 @@ export default function DeleteDatabaseModal() {
       {step === 1 ? (
         <div className="space-y-4 animate-in fade-in duration-200">
           <div>
-            <SectionHeader title={CM.targetSelection} icon="database" badge="Permanent" />
+            <SectionHeader title={CM.targetSelection} icon="database" badge={CM.permanent} />
             <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-rose-500/5 border border-rose-500/20">
               <div className="w-8 h-8 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center shrink-0">
                 <Icon name="database" size="sm" weight={300} className="text-rose-500" />

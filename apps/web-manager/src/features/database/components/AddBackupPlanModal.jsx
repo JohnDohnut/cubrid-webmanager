@@ -133,7 +133,7 @@ export default function AddBackupPlanModal() {
 
     let periodDateValue = '';
     if (formData.periodType === 'Weekly') {
-      const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      const dayNames = CM.weekdaysFull;
       const selectedDays = Array.isArray(formData.periodDetail) ? formData.periodDetail : [];
       periodDateValue = selectedDays.map(dayNum => dayNames[dayNum - 1]).join(',');
     } else if (formData.periodType === 'Monthly') {
@@ -334,7 +334,7 @@ export default function AddBackupPlanModal() {
 
               {formData.periodType === 'Weekly' && (
                 <div className="grid grid-cols-7 gap-2 p-3.5 bg-white/50 dark:bg-black/20 border border-slate-200 dark:border-white/5 rounded-2xl">
-                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => {
+                  {CM.weekdaysShort.map((day, index) => {
                     const dayValue = index + 1;
                     const isActive = formData.periodDetail.includes(dayValue);
                     return (

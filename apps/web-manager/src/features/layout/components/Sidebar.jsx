@@ -310,7 +310,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
   const handleHostRootContextMenu = (e) => {
     e.preventDefault();
     closeAllContextMenus();
-    setGroupContextMenu({ mouseX: e.clientX, mouseY: e.clientY, groupId: null, groupName: 'Server List' });
+    setGroupContextMenu({ mouseX: e.clientX, mouseY: e.clientY, groupId: null, groupName: CM.serverListHeader });
   };
 
   const handleDbContextMenu = (e, dbName, isActive) => {
@@ -672,7 +672,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                           weight={400}
                         />
                         <span className="text-[9px] font-bold text-amber-600 dark:text-amber-500 uppercase tracking-tight">
-                          {activeTab === 'db' ? 'DB' : activeTab === 'broker' ? 'Broker' : 'Log'}
+                          {activeTab === 'db' ? 'DB' : activeTab === 'broker' ? CM.broker : CM.log}
                         </span>
                       </div>
                     ) : (
@@ -780,7 +780,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
       {contextMenu && (
         <ContextMenuWrapper x={contextMenu.mouseX} y={contextMenu.mouseY} onClose={() => setContextMenu(null)}>
           <div className="px-3 py-2 border-b border-slate-100 dark:border-white/5 mb-1 flex items-center justify-between">
-            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">Server: {contextMenu.server}</Typography>
+            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">{CM.serverColon(contextMenu.server)}</Typography>
             <Icon name="dns" size="xs" className="opacity-30" weight={300} />
           </div>
           {authorizedHosts.includes(contextMenu.hostUid) ? (
@@ -929,7 +929,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
       {dbContextMenu && (
         <ContextMenuWrapper x={dbContextMenu.mouseX} y={dbContextMenu.mouseY} onClose={() => setDbContextMenu(null)}>
           <div className="px-3 py-2 border-b border-slate-100 dark:border-white/5 mb-1 flex items-center justify-between">
-            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">Database: {dbContextMenu.db}</Typography>
+            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">{CM.databaseColon(dbContextMenu.db)}</Typography>
             <Icon name="database" size="xs" className="opacity-30" weight={300} />
           </div>
           {dbContextMenu.isActive ? (
@@ -1227,7 +1227,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
       {brokerContextMenu && (
         <ContextMenuWrapper x={brokerContextMenu.mouseX} y={brokerContextMenu.mouseY} onClose={() => setBrokerContextMenu(null)}>
           <div className="px-3 py-2 border-b border-slate-100 dark:border-white/5 mb-1 flex items-center justify-between">
-            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">Broker: {brokerContextMenu.broker}</Typography>
+            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">{CM.brokerColon(brokerContextMenu.broker)}</Typography>
             <Icon name="hub" size="xs" className="opacity-30" weight={300} />
           </div>
           {brokerContextMenu.state === 'ON' ? (

@@ -22,7 +22,7 @@ export default function MonitoringSettingsPopover() {
   const [brokerPresetActive, setBrokerPresetActive] = useState(true);
 
   const intervals = [
-    { label: 'Off', value: 0 },
+    { label: CM.statusOff, value: 0 },
     { label: '1s', value: 1 },
     { label: '3s', value: 3 },
     { label: '5s', value: 5 },
@@ -145,7 +145,7 @@ export default function MonitoringSettingsPopover() {
             <Typography variant="caption" className="font-black text-slate-900 dark:text-white uppercase tracking-widest">{CM.globalHeartbeat}</Typography>
             <div className="flex items-center gap-1.5">
                <div className={`w-1.5 h-1.5 rounded-full ${hasActiveMonitoring ? 'bg-green-500 animate-pulse' : 'bg-slate-300'}`}></div>
-               <span className="text-[8px] font-black uppercase text-slate-400 tracking-tighter">{hasActiveMonitoring ? 'Active' : 'Manual'}</span>
+               <span className="text-[8px] font-black uppercase text-slate-400 tracking-tighter">{hasActiveMonitoring ? CM.active : 'Manual'}</span>
             </div>
           </div>
           

@@ -18,6 +18,12 @@ export default function HaClusterLinkedModal() {
   const dispatch = useDispatch();
   const { haClusterLinkNotice, isHaClusterLinkModalOpen } = useSelector((state) => state.host, shallowEqual);
 
+  const HA_ROLE_LABEL = {
+    master: CM.haMaster,
+    slave: CM.haSlave,
+    replica: CM.haReplica,
+  };
+
   if (!haClusterLinkNotice?.peers?.length) return null;
 
   const { targetGroupName, peers } = haClusterLinkNotice;
@@ -61,7 +67,7 @@ export default function HaClusterLinkedModal() {
                 </p>
                 <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
                   {peer.address}:{peer.port}
-                  {peer.haRole ? ` · ${peer.haRole}` : ''}
+                  {peer.haRole ? ` · ${HA_ROLE_LABEL[peer.haRole] || peer.haRole}` : ''}
                 </p>
               </div>
             </div>

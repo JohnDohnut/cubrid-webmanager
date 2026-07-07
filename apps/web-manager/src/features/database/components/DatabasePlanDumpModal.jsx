@@ -98,7 +98,7 @@ export default function DatabasePlanDumpModal() {
       footer={
         <div className="flex justify-end gap-3 w-full">
           <Button variant="secondary" onClick={handleClose}>
-            {step === 'setup' ? 'Cancel' : 'Close'}
+            {step === 'setup' ? CM.cancel : CM.close}
           </Button>
           {step === 'setup' ? (
             <Button variant="primary" onClick={handleRunDump} loading={planDumpLoading} icon="play_circle">
@@ -110,7 +110,7 @@ export default function DatabasePlanDumpModal() {
               onClick={() => setStep('setup')}
               icon="arrow_back"
             >
-              Back
+              {CM.back}
             </Button>
           )}
         </div>

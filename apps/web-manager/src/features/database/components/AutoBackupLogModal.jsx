@@ -119,7 +119,7 @@ export default function AutoBackupLogModal() {
     <div className="flex items-center justify-between w-full px-1">
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-2.5">
-          <Typography variant="caption" className="font-bold text-slate-400 dark:text-slate-500 text-[10px]">Status:</Typography>
+          <Typography variant="caption" className="font-bold text-slate-400 dark:text-slate-500 text-[10px]">{CM.status}:</Typography>
           {logsLoading ? (
             <StatusBadge label={CM.buffering} variant="amber" pulse={true} className="rounded-full" />
           ) : (

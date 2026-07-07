@@ -184,7 +184,10 @@ export default function SystemStatusSection({ hostUid, isTabActive = true }) {
                   } 
                   size="12px" 
                 />
-                {hostHaInfo.currentNodeType}
+                {hostHaInfo.currentNodeType === 'master' ? CM.haMaster :
+                  hostHaInfo.currentNodeType === 'slave' ? CM.haSlave :
+                  hostHaInfo.currentNodeType === 'replica' ? CM.haReplica :
+                  hostHaInfo.currentNodeType}
               </div>
             )}
             <span className="text-[10px] text-slate-400 font-normal ml-1">

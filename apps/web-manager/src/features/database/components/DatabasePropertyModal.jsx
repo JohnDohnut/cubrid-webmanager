@@ -97,6 +97,7 @@ const GENERAL_PARAMS_KEYS = Object.keys(GENERAL_PARAMS_SCHEMA);
 
 /* ─── BufferCard ─── */
 function BufferCard({ type, label, pagesKey, sizeKey, params, bufferSettings, units, setParams, setBufferSettings, setUnits }) {
+  const CM = useCM();
   const isPages = bufferSettings[type] === 'pages';
   const isSize = bufferSettings[type] === 'size';
   const hasPages = params[pagesKey] !== undefined;
@@ -138,7 +139,7 @@ function BufferCard({ type, label, pagesKey, sizeKey, params, bufferSettings, un
             value={hasPages ? params[pagesKey] : (GENERAL_PARAMS_SCHEMA[pagesKey] || '')}
             onChange={e => setParams({ ...params, [pagesKey]: e.target.value })}
             disabled={!isPages}
-            placeholder="Default"
+            placeholder={CM.defaultValuePlaceholder}
             className={isPages ? '' : 'opacity-40'}
             onClick={e => e.stopPropagation()}
           />
@@ -172,7 +173,7 @@ function BufferCard({ type, label, pagesKey, sizeKey, params, bufferSettings, un
               value={hasSize ? params[sizeKey] : (GENERAL_PARAMS_SCHEMA[sizeKey]?.replace(/[A-Z]/g, '') || '')}
               onChange={e => setParams({ ...params, [sizeKey]: e.target.value })}
               disabled={!isSize}
-              placeholder="Default"
+              placeholder={CM.defaultValuePlaceholder}
               className="flex-1 min-w-0"
             />
             <div className="w-[86px] shrink-0" onClick={e => e.stopPropagation()}>
@@ -649,7 +650,7 @@ export default function DatabasePropertyModal() {
                 </div>
 
                 <InfoBanner title={CM.synchronizationNotice}>
-                  Broker parameters define how the Web Manager communicates with the CUBRID Broker. Changes only impact <span className="text-amber-500 font-bold non-italic">Manager-to-Host</span> synchronization logic.
+                  {CM.brokerParamsNotice}
                 </InfoBanner>
               </div>
 

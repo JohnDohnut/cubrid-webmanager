@@ -68,7 +68,7 @@ function CMSLogViewer({ hostUid, type }) {
           {/* Copy */}
           <button
             onClick={() => {
-              const text = paginatedLogs.map(l => `[${l.time}] [${l['@user'] || 'System'}] [${l.taskname}] ${type === 'error' ? l.errornote : 'SUCCESS'}`).join('\n');
+              const text = paginatedLogs.map(l => `[${l.time}] [${l['@user'] || 'System'}] [${l.taskname}] ${type === 'error' ? l.errornote : CM.successLabel}`).join('\n');
               navigator.clipboard.writeText(text);
               setCopying(true);
               setTimeout(() => setCopying(false), 2000);

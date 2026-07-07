@@ -1420,5 +1420,7 @@ export const CM = {
   operationCouldNotBeCompleted: 'The operation could not be completed.',
   viewAll: 'View All',
   paginated: 'Paginated',
+  weekdaysShort: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+  weekdaysFull: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
 };
 

@@ -4,12 +4,14 @@ import { Table } from '../../../components/ds/layout/Table';
 import { Typography } from '../../../components/ds/foundation/Typography';
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { StatusBadge } from '../../../components/ds/foundation/StatusBadge';
+import { useCM } from '../../../constants/useCM';
 
 export default function Databases() {
+  const CM = useCM();
   const columns = [
-    { header: 'Database', accessor: 'dbname', className: 'font-bold' },
-    { 
-      header: 'Auto startup', 
+    { header: CM.database, accessor: 'dbname', className: 'font-bold' },
+    {
+      header: CM.autoStartup,
       accessor: 'autoStart',
       render: (val) => (
         <StatusBadge 

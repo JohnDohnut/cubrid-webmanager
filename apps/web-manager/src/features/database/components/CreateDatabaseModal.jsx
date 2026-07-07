@@ -513,7 +513,7 @@ export default function CreateDatabaseModal() {
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                        <Icon name="storage" size="14px" weight={400} className="text-amber-500" />
-                      Generic Volume
+                      {CM.genericVolume}
                     </span>
                     <span className="text-[9px] font-black uppercase bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded-sm border border-amber-500/20">System</span>
                   </div>
@@ -525,7 +525,7 @@ export default function CreateDatabaseModal() {
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                       <Icon name="history" size="14px" weight={400} className="text-amber-500" />
-                      Log Volume
+                      {CM.logVolume}
                     </span>
                     <span className="text-[9px] font-black uppercase bg-rose-500/10 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 rounded-sm border border-rose-500/20">Critical</span>
                   </div>
@@ -684,9 +684,9 @@ export default function CreateDatabaseModal() {
                     <Icon name="database" size="sm" weight={300} />
                   </div>
                   <div>
-                    <p className={`text-[12px] font-bold leading-tight transition-colors ${
+                    <p className={`text-[12px] font-bold uppercase leading-tight transition-colors ${
                       formData.autoAddVol.permanent === 'ON' ? 'text-slate-800 dark:text-slate-100' : 'text-slate-400 dark:text-slate-600'
-                    }`}>PERMANENT</p>
+                    }`}>{CM.permanent}</p>
                     <p className="text-[9px] text-slate-400 font-mono">data &amp; index auto-expansion policy</p>
                   </div>
                 </div>
@@ -791,7 +791,7 @@ export default function CreateDatabaseModal() {
                   <SummaryRow label={CM.genericVolume} value={`${formData.genericVolSize} MB`} />
                   <SummaryRow label={CM.logVolume} value={`${formData.logVolSize} MB`} />
                   <div className="flex items-center justify-between pt-3 mt-1.5 border-t border-slate-100 dark:border-white/4">
-                    <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Total</span>
+                    <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{CM.totalLabel}</span>
                     <span className="text-[16px] font-black font-mono text-emerald-500 tracking-tight">{totalStorage} MB</span>
                   </div>
                 </div>
@@ -808,7 +808,7 @@ export default function CreateDatabaseModal() {
                 <div className="flex items-center justify-between px-4 py-2.5 border-b border-inherit">
                   <div className="flex items-center gap-2">
                     <Icon name="database" size="sm" weight={300} className={formData.autoAddVol.permanent === 'ON' ? 'text-amber-500' : 'text-slate-400'} />
-                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">PERMANENT</span>
+                    <span className="text-[11px] font-bold uppercase text-slate-700 dark:text-slate-300">{CM.permanent}</span>
                   </div>
                   <span className={`text-[9px] font-black px-2 py-0.5 rounded-md border ${
                     formData.autoAddVol.permanent === 'ON'

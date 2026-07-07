@@ -4,6 +4,7 @@ import { Toggle } from '../../ds/forms/Toggle';
 import { Badge } from '../../ds/foundation/Badge';
 import { Button } from '../../ds/foundation/Button';
 import { useConfirm } from '../../../infrastructure/hooks/useConfirm';
+import { useCM } from '../../../constants/useCM';
 
 export const JobTimeline = ({
   jobs = [],
@@ -12,6 +13,7 @@ export const JobTimeline = ({
   onEdit,
   onDelete,
 }) => {
+  const CM = useCM();
   const confirm = useConfirm();
 
   const getStatusVariant = (status) => {
@@ -38,7 +40,7 @@ export const JobTimeline = ({
 
   const columns = [
     {
-      header: 'Status',
+      header: CM.status,
       accessor: 'status',
       width: '100px',
       render: (val) => <Badge variant={getStatusVariant(val)}>{val.toUpperCase()}</Badge>,
@@ -59,7 +61,7 @@ export const JobTimeline = ({
       render: (val) => <span className="text-slate-500">{val}</span>,
     },
     {
-      header: 'Active',
+      header: CM.active,
       accessor: 'active',
       width: '100px',
       render: (val, row) => (
@@ -69,13 +71,13 @@ export const JobTimeline = ({
       ),
     },
     {
-      header: 'Actions',
+      header: CM.actions,
       accessor: 'actions',
       width: '140px',
       render: (_, row) => (
         <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
           <Button variant="ghost" size="icon" icon="play_arrow" onClick={() => onRunNow && onRunNow(row.id)} title="Run Now" />
-          <Button variant="ghost" size="icon" icon="edit" onClick={() => onEdit && onEdit(row)} title="Edit" />
+          <Button variant="ghost" size="icon" icon="edit" onClick={() => onEdit && onEdit(row)} title={CM.edit} />
           <Button variant="ghost" size="icon" icon="delete" className="text-rose-500 hover:text-rose-600 dark:hover:text-rose-400" onClick={() => handleDelete(row)} title="Delete" />
         </div>
       ),

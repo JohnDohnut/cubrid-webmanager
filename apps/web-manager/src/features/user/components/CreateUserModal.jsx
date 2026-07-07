@@ -52,13 +52,12 @@ const encodeCUBRIDAuth = (authObj) => {
   return String(mask);
 };
 
-const TABS = [
-  { id: 'general', label: 'Identity', icon: 'person' },
-  { id: 'auth', label: 'Permissions', icon: 'shield_lock' },
-];
-
 export default function CreateUserModal({ isOpen, onClose, dbname, editingUser }) {
   const CM = useCM();
+  const TABS = [
+    { id: 'general', label: CM.identity, icon: 'person' },
+    { id: 'auth', label: CM.permissions, icon: 'shield_lock' },
+  ];
   const dispatch = useDispatch();
   const isEditMode = !!editingUser;
   const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
@@ -370,7 +369,7 @@ export default function CreateUserModal({ isOpen, onClose, dbname, editingUser }
                 <div className="flex items-center gap-2.5 mb-1">
                   <span className="w-1 h-3.5 rounded-full bg-slate-400 shrink-0" />
                   <Typography variant="caption" className="font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest text-[10px]">
-                    Password
+                    {CM.password}
                   </Typography>
                   {isEditMode && (
                     <span className="text-[9px] font-bold text-slate-400 bg-slate-100 dark:bg-white/5 px-2 py-0.5 rounded-full">
@@ -385,7 +384,7 @@ export default function CreateUserModal({ isOpen, onClose, dbname, editingUser }
                 {formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword && (
                   <div className="flex items-center gap-2 text-[11px] text-rose-500 font-bold px-1">
                     <Icon name="error" size="xs" />
-                    Passwords do not match
+                    {CM.passwordsDoNotMatch}
                   </div>
                 )}
               </section>
@@ -595,7 +594,7 @@ export default function CreateUserModal({ isOpen, onClose, dbname, editingUser }
                 {/* Object list sidebar */}
                 <div className="w-[220px] border-r border-slate-100 dark:border-white/5 flex flex-col shrink-0">
                   <div className="p-2.5 border-b border-slate-100 dark:border-white/5 shrink-0">
-                    <SearchInput placeholder="Filter objects..." value={objectSearchTerm} onChange={setObjectSearchTerm} onClear={() => setObjectSearchTerm('')} size="sm" />
+                    <SearchInput placeholder={CM.filterObjects} value={objectSearchTerm} onChange={setObjectSearchTerm} onClear={() => setObjectSearchTerm('')} size="sm" />
                   </div>
                   <div className="flex-1 overflow-y-auto custom-scrollbar p-1.5 space-y-0.5">
                     {isClassesLoading ? (
@@ -655,7 +654,7 @@ export default function CreateUserModal({ isOpen, onClose, dbname, editingUser }
                         </div>
                         <div className="flex gap-1.5">
                           <button onClick={() => handleSelectAll(selectedObjectId)} className="px-3 py-1.5 text-[10px] font-bold rounded-lg border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:border-green-400/50 hover:text-green-500 hover:bg-green-500/5 transition-all">
-                            All
+                            {CM.all}
                           </button>
                           <button onClick={() => handleClearAll(selectedObjectId)} className="px-3 py-1.5 text-[10px] font-bold rounded-lg border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:border-rose-400/50 hover:text-rose-500 hover:bg-rose-500/5 transition-all">
                             Clear

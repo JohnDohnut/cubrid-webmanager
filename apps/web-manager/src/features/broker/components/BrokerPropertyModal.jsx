@@ -220,8 +220,8 @@ export default function BrokerPropertyModal() {
   const handleClose = () => dispatch(closeBrokerPropertyModal());
   const modifiedCount = Object.keys(localParams).filter(k => localParams[k] !== initialParams[k]).length;
   const tabs = [
-    { id: 'common',   label: 'Common',   icon: 'settings' },
-    { id: 'advance',  label: 'Advanced',  icon: 'tune' },
+    { id: 'common',   label: CM.common,   icon: 'settings' },
+    { id: 'advance',  label: CM.advanced,  icon: 'tune' },
   ];
 
   if (!isOpen) return null;
@@ -274,7 +274,7 @@ export default function BrokerPropertyModal() {
             {config.loading ? (
               <div className="flex flex-col items-center justify-center h-full gap-4">
                 <div className="h-10 w-10 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
-                <p className="text-[12px] text-slate-400 font-medium">Synchronizing…</p>
+                <p className="text-[12px] text-slate-400 font-medium">{CM.synchronizing}</p>
               </div>
             ) : (
               <div>

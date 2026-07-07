@@ -19,6 +19,12 @@ export default function HaPeerMergeModal() {
   const { pendingHaMerge, isHaMergeModalOpen, loading } = useSelector((state) => state.host, shallowEqual);
   const [isMerging, setIsMerging] = useState(false);
 
+  const HA_ROLE_LABEL = {
+    master: CM.haMaster,
+    slave: CM.haSlave,
+    replica: CM.haReplica,
+  };
+
   if (!pendingHaMerge?.peers?.length) return null;
 
   const { targetGroupName, targetGroupId, peers } = pendingHaMerge;
@@ -85,7 +91,7 @@ export default function HaPeerMergeModal() {
                   </p>
                   <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
                     {peer.address}:{peer.port}
-                    {peer.haRole ? ` · ${peer.haRole}` : ''}
+                    {peer.haRole ? ` · ${HA_ROLE_LABEL[peer.haRole] || peer.haRole}` : ''}
                   </p>
                   <p className="text-[10px] text-slate-400 truncate">
                     from {peer.fromGroupName}

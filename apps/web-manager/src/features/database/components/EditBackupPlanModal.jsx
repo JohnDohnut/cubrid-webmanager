@@ -349,7 +349,7 @@ export default function EditBackupPlanModal() {
 
               {formData.periodType === 'Weekly' && (
                 <div className="grid grid-cols-7 gap-2 p-3.5 bg-white/50 dark:bg-black/20 border border-slate-200 dark:border-white/5 rounded-2xl">
-                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => {
+                  {CM.weekdaysShort.map((day, index) => {
                     const dayValue = index + 1;
                     const isActive = Array.isArray(formData.periodDetail) && formData.periodDetail.includes(dayValue);
                     return (

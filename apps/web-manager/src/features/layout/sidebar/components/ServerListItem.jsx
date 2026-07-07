@@ -2,24 +2,7 @@ import { useDispatch } from 'react-redux';
 import { setSelectedHost } from '../../../host/hostSlice';
 import { setActiveMainTab } from '../../layoutSlice';
 import { Icon } from '../../../../components/ds/foundation/Icon';
-
-const HA_ROLE_CONFIG = {
-  master: {
-    icon: 'star',
-    label: 'Master',
-    className: 'bg-amber-500/15 border-amber-500/30 text-amber-600 dark:text-amber-400',
-  },
-  slave: {
-    icon: 'settings_backup_restore',
-    label: 'Slave',
-    className: 'bg-slate-500/10 border-slate-400/20 text-slate-500 dark:text-slate-400',
-  },
-  replica: {
-    icon: 'copy_all',
-    label: 'Replica',
-    className: 'bg-blue-500/10 border-blue-400/20 text-blue-600 dark:text-blue-400',
-  },
-};
+import { useCM } from '../../../../constants/useCM';
 
 export default function ServerListItem({
   host,
@@ -34,6 +17,25 @@ export default function ServerListItem({
   onDragEnd,
 }) {
   const dispatch = useDispatch();
+  const CM = useCM();
+
+  const HA_ROLE_CONFIG = {
+    master: {
+      icon: 'star',
+      label: CM.haMaster,
+      className: 'bg-amber-500/15 border-amber-500/30 text-amber-600 dark:text-amber-400',
+    },
+    slave: {
+      icon: 'settings_backup_restore',
+      label: CM.haSlave,
+      className: 'bg-slate-500/10 border-slate-400/20 text-slate-500 dark:text-slate-400',
+    },
+    replica: {
+      icon: 'copy_all',
+      label: CM.haReplica,
+      className: 'bg-blue-500/10 border-blue-400/20 text-blue-600 dark:text-blue-400',
+    },
+  };
 
   const getInferredHaInfo = () => {
     if (haInfo?.isHA) return haInfo;

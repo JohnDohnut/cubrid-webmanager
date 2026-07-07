@@ -16,7 +16,7 @@ export default function BrokerConfigEditor({ hostUid }) {
   const dispatch = useDispatch();
   const { hosts } = useSelector((state) => state.host, shallowEqual);
   const currentHost = hosts.find(h => h.uid === hostUid);
-  const hostDisplayName = currentHost ? (currentHost.alias || currentHost.id) : 'unknown host';
+  const hostDisplayName = currentHost ? (currentHost.alias || currentHost.id) : CM.unknownHost;
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);

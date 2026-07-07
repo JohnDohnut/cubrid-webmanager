@@ -4,6 +4,7 @@ import { SearchInput } from '../../ds/forms/SearchInput';
 import { EmptyState } from '../../ds/layout/EmptyState';
 import { Skeleton } from '../../ds/layout/Skeleton';
 import { Select } from '../../ds/forms/Select';
+import { useCM } from '../../../constants/useCM';
 
 export const LogViewer = ({
   lines = [],
@@ -12,6 +13,7 @@ export const LogViewer = ({
   filter = { level: 'all', search: '' },
   onFilterChange,
 }) => {
+  const CM = useCM();
   const scrollRef = useRef(null);
 
   useEffect(() => {
@@ -22,8 +24,8 @@ export const LogViewer = ({
 
   const levelOptions = [
     { label: 'All Levels', value: 'all' },
-    { label: 'Error', value: 'error' },
-    { label: 'Warning', value: 'warn' },
+    { label: CM.error, value: 'error' },
+    { label: CM.warning, value: 'warn' },
     { label: 'Info', value: 'info' },
   ];
 

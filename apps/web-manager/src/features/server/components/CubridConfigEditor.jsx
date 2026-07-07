@@ -38,7 +38,7 @@ export default function CubridConfigEditor({ hostUid, confname }) {
   const dispatch = useDispatch();
   const { hosts } = useSelector((state) => state.host, shallowEqual);
   const currentHost = hosts.find(h => h.uid === hostUid);
-  const hostDisplayName = currentHost ? (currentHost.alias || currentHost.id) : 'unknown host';
+  const hostDisplayName = currentHost ? (currentHost.alias || currentHost.id) : CM.unknownHost;
 
   const [content, setContent] = useState('');
   const [originalContent, setOriginalContent] = useState('');
@@ -61,7 +61,7 @@ export default function CubridConfigEditor({ hostUid, confname }) {
       setHasChanges(false);
       dispatch(setTabDirty({ tabId, isDirty: false }));
     } catch (err) {
-      dispatch(showStatusModal({ type: 'error', title: 'Fetch failed', message: 'Could not retrieve configuration file contents.' }));
+      dispatch(showStatusModal({ type: 'error', title: CM.fetchFailed, message: 'Could not retrieve configuration file contents.' }));
     } finally {
       setLoading(false);
     }
@@ -91,9 +91,9 @@ export default function CubridConfigEditor({ hostUid, confname }) {
       setOriginalContent(content);
       setHasChanges(false);
       dispatch(setTabDirty({ tabId, isDirty: false }));
-      dispatch(showStatusModal({ type: 'success', title: 'Config saved', message: `${confname} has been updated successfully.` }));
+      dispatch(showStatusModal({ type: 'success', title: CM.configSaved, message: `${confname} has been updated successfully.` }));
     } catch (err) {
-      dispatch(showStatusModal({ type: 'error', title: 'Save failed', message: err.response?.data?.message || 'An error occurred while saving.' }));
+      dispatch(showStatusModal({ type: 'error', title: CM.saveFailed, message: err.response?.data?.message || 'An error occurred while saving.' }));
     } finally {
       setSaving(false);
     }

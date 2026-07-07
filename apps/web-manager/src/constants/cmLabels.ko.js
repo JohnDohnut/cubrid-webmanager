@@ -1398,5 +1398,7 @@ export const CM_KO = {
   operationCouldNotBeCompleted: '작업을 완료할 수 없습니다.',
   viewAll: '전체 보기',
   paginated: '페이지별 보기',
+  weekdaysShort: ['월', '화', '수', '목', '금', '토', '일'],
+  weekdaysFull: ['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일'],
 };
 

@@ -65,10 +65,10 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
   /* Table Columns Definitions */
   const asColumns = [
     { header: 'ID',  accessor: 'as_id',        width: '60px',  render: (v) => <span className="font-mono text-amber-600 dark:text-amber-400">{v}</span> },
-    { header: 'PID', accessor: 'as_pid',       width: '80px',  render: (v) => <span className="font-mono">{v}</span> },
-    { header: 'QPS', accessor: 'as_num_query', width: '60px',  render: (v) => <span className="font-mono">{v}</span> },
-    { header: 'TPS', accessor: 'as_num_tran',  width: '60px',  render: (v) => <span className="font-mono">{v}</span> },
-    { header: 'Port', accessor: 'as_port',     width: '80px',  render: (v) => <span className="font-mono">{v}</span> },
+    { header: CM.pid, accessor: 'as_pid',       width: '80px',  render: (v) => <span className="font-mono">{v}</span> },
+    { header: CM.qps, accessor: 'as_num_query', width: '60px',  render: (v) => <span className="font-mono">{v}</span> },
+    { header: CM.tps, accessor: 'as_num_tran',  width: '60px',  render: (v) => <span className="font-mono">{v}</span> },
+    { header: CM.port, accessor: 'as_port',     width: '80px',  render: (v) => <span className="font-mono">{v}</span> },
     { header: CM.memory, accessor: 'as_psize', width: '100px', render: (v) => <span className="font-mono">{(parseInt(v) / 1024).toFixed(1)} KB</span> },
     { 
       header: CM.status, 
@@ -169,9 +169,9 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
         >
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 text-left">
             {[
-              { label: 'PID',          value: basicInfo.pid                           || '—',    accent: 'emerald' },
-              { label: 'Port',         value: basicInfo.port                          || '—',    accent: 'amber'   },
-              { label: 'Job Queue',    value: basicInfo.job_queue                     ?? '0',    accent: 'slate'   },
+              { label: CM.pid,          value: basicInfo.pid                           || '—',    accent: 'emerald' },
+              { label: CM.port,         value: basicInfo.port                          || '—',    accent: 'amber'   },
+              { label: CM.jobQueue,    value: basicInfo.job_queue                     ?? '0',    accent: 'slate'   },
               { label: 'Auto Add AS',  value: basicInfo.auto_add_as                  || 'OFF',  badge: true       },
               { label: 'SQL Log Mode', value: basicInfo.sql_log_mode                 || 'OFF',  badge: true       },
               { label: 'Long Trans',   value: `${basicInfo.long_transaction_time      || '0'}s`, accent: 'slate'   },
