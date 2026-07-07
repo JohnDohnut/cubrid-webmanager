@@ -457,7 +457,7 @@ export const CM_KO = {
   tableEditor: '테이블 편집기',
 
   signIn: '로그인',
-  authorizeAccess: '접근 권한 부여',
+  authorizeAccess: '로그인',
   rememberDevice: '이 기기 기억',
   authenticationFailed: '인증 실패',
   createAccount: '계정 만들기',
