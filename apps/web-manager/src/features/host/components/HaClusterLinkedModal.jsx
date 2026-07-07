@@ -46,7 +46,7 @@ export default function HaClusterLinkedModal() {
         <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl flex gap-3">
           <Icon name="check_circle" className="text-emerald-500 shrink-0" size="sm" />
           <p className="text-[11.5px] text-slate-600 dark:text-slate-400 leading-relaxed">
-            This host is part of an HA cluster. {peers.length + 1} node(s) are registered in{' '}
+            {CM.haClusterLinkedDesc(peers.length + 1)}{' '}
             <span className="font-semibold">{targetGroupName}</span>.
           </p>
         </div>

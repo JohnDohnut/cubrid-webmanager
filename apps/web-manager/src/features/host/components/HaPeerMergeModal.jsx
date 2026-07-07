@@ -69,8 +69,8 @@ export default function HaPeerMergeModal() {
         <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-xl flex gap-3">
           <Icon name="info" className="text-amber-500 shrink-0" size="sm" />
           <p className="text-[11.5px] text-slate-600 dark:text-slate-400 leading-relaxed">
-            This host belongs to an HA cluster. {peers.length} registered peer(s) are in other groups.
-            Merge them into <span className="font-semibold">{targetGroupName}</span>?
+            {CM.haPeerMergeDesc(peers.length)}{' '}
+            <span className="font-semibold">{targetGroupName}</span>?
           </p>
         </div>
 
@@ -94,7 +94,7 @@ export default function HaPeerMergeModal() {
                     {peer.haRole ? ` · ${HA_ROLE_LABEL[peer.haRole] || peer.haRole}` : ''}
                   </p>
                   <p className="text-[10px] text-slate-400 truncate">
-                    from {peer.fromGroupName}
+                    {CM.fromGroupLabel(peer.fromGroupName)}
                   </p>
                 </div>
               </div>
