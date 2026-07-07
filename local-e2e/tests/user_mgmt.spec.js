@@ -7,6 +7,9 @@ const { login, connectToHost, expandDatabase, dismissModal, E2E_DB } = require('
  * - 사용자 상세/권한 조회
  * - 사용자 추가 (생성 후 삭제까지)
  * - 사용자 추가 유효성 검사
+ *
+ * Note: multiple DBs in tree → scope to details#E2E_DB [id="Users"] > summary
+ *       to avoid strict mode violations from 4+ matching "Users" nodes
  */
 test.describe('Database User Management', () => {
 
@@ -19,8 +22,7 @@ test.describe('Database User Management', () => {
   // ─── 목록 조회 ────────────────────────────────────────────────────────────
 
   test('Users 폴더를 클릭하면 dba 또는 public 사용자가 표시된다', async ({ page }) => {
-    const usersFolder = page.locator('#db-tree-container')
-      .getByText('Users', { exact: true });
+    const usersFolder = page.locator(`#db-tree-container details#${E2E_DB} [id="Users"] > summary`);
     await expect(usersFolder).toBeVisible();
     await usersFolder.click();
 
@@ -33,15 +35,13 @@ test.describe('Database User Management', () => {
   // ─── 사용자 상세 ──────────────────────────────────────────────────────────
 
   test('사용자 노드를 클릭하면 상세 패널 또는 권한 정보가 표시된다', async ({ page }) => {
-    await page.locator('#db-tree-container')
-      .getByText('Users', { exact: true }).click();
+    await page.locator(`#db-tree-container details#${E2E_DB} [id="Users"] > summary`).click();
 
     const dbaNode = page.locator('#db-tree-container')
       .getByText('dba', { exact: true }).first();
     await expect(dbaNode).toBeVisible({ timeout: 10000 });
     await dbaNode.click();
 
-    // 상세 패널 또는 권한 관련 텍스트가 있어야 한다
     await expect(
       page.getByText(/Permission|Privilege|Member|Group/i).first()
         .or(page.getByText(/dba/i).first())
@@ -51,8 +51,7 @@ test.describe('Database User Management', () => {
   // ─── 사용자 추가 모달 ─────────────────────────────────────────────────────
 
   test('Users 폴더 우클릭 → Add User 모달이 열린다', async ({ page }) => {
-    const usersFolder = page.locator('#db-tree-container')
-      .getByText('Users', { exact: true });
+    const usersFolder = page.locator(`#db-tree-container details#${E2E_DB} [id="Users"] > summary`);
     await usersFolder.click({ button: 'right' });
 
     await page.getByRole('button', { name: /Add.*User|Create.*User/i }).click();
@@ -61,15 +60,14 @@ test.describe('Database User Management', () => {
     await expect(modal).toBeVisible();
     await expect(modal).toContainText(/User|Create/i);
 
-    // 사용자명 입력 필드가 있어야 한다
     await expect(modal.locator('input').first()).toBeVisible();
 
     await dismissModal(page);
   });
 
   test('Add User 모달: 빈 폼 제출 시 유효성 오류가 표시된다', async ({ page }) => {
-    await page.locator('#db-tree-container')
-      .getByText('Users', { exact: true }).click({ button: 'right' });
+    await page.locator(`#db-tree-container details#${E2E_DB} [id="Users"] > summary`)
+      .click({ button: 'right' });
     await page.getByRole('button', { name: /Add.*User|Create.*User/i }).click();
 
     const modal = page.locator('div[role="dialog"]');
@@ -78,7 +76,6 @@ test.describe('Database User Management', () => {
     const submitBtn = modal.getByRole('button', { name: /Add|Create|Save/i }).last();
     await submitBtn.click();
 
-    // 필수 항목 오류가 표시되어야 한다
     const error = modal.getByText(/required|필수/i);
     await expect(error.first()).toBeVisible({ timeout: 3000 });
 
@@ -91,18 +88,16 @@ test.describe('Database User Management', () => {
     const testUser = `e2e_dbuser_${Date.now().toString().slice(-5)}`;
 
     // 추가
-    await page.locator('#db-tree-container')
-      .getByText('Users', { exact: true }).click({ button: 'right' });
+    await page.locator(`#db-tree-container details#${E2E_DB} [id="Users"] > summary`)
+      .click({ button: 'right' });
     await page.getByRole('button', { name: /Add.*User|Create.*User/i }).click();
 
     const modal = page.locator('div[role="dialog"]');
     await expect(modal).toBeVisible();
 
-    // 사용자명 입력
     const nameInput = modal.locator('input').first();
     await nameInput.fill(testUser);
 
-    // 비밀번호 입력 (있는 경우)
     const passInput = modal.locator('input[type="password"]').first();
     if (await passInput.isVisible()) {
       await passInput.fill('TestPass123!');
@@ -112,7 +107,6 @@ test.describe('Database User Management', () => {
 
     await modal.getByRole('button', { name: /Add|Create|Save/i }).last().click();
 
-    // 성공 결과 또는 목록 새로고침
     await expect(
       page.getByText(/success|created|added/i)
         .or(page.locator('#db-tree-container').getByText(testUser))
@@ -138,8 +132,8 @@ test.describe('Database User Management', () => {
   // ─── Identity / Permissions 탭 ────────────────────────────────────────────
 
   test('Add User 모달에 Identity와 Permissions 탭이 있다', async ({ page }) => {
-    await page.locator('#db-tree-container')
-      .getByText('Users', { exact: true }).click({ button: 'right' });
+    await page.locator(`#db-tree-container details#${E2E_DB} [id="Users"] > summary`)
+      .click({ button: 'right' });
     await page.getByRole('button', { name: /Add.*User|Create.*User/i }).click();
 
     const modal = page.locator('div[role="dialog"]');

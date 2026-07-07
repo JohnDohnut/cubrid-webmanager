@@ -7,6 +7,9 @@ const { login, connectToHost } = require('./helpers');
  * - DB 트리 확장/탐색
  * - DB·Broker·Log 탭 전환
  * - 다크/라이트 모드 토글
+ *
+ * Note: multiple DBs in tree → scope child node checks to details#demodb
+ * Note: Log tree summaries have icon-text prefix → use .filter({ hasText: /X/i })
  */
 test.describe('Navigation', () => {
 
@@ -20,7 +23,6 @@ test.describe('Navigation', () => {
     const hostList = page.locator('#host-section');
     await expect(hostList).toBeVisible();
 
-    // API 응답 대기: 그룹(details) 또는 빈 상태 버튼이 나타날 때까지
     await page.waitForSelector('#host-section details, #host-section button', { timeout: 15000 });
 
     const hasHosts = await page.locator('#host-section details').count() > 0;
@@ -41,7 +43,6 @@ test.describe('Navigation', () => {
   test('demodb 노드를 펼치면 하위 폴더가 나타난다', async ({ page }) => {
     await connectToHost(page);
 
-    // TreeNode → <details id="demodb"> でレンダリング; summary クリックで展開
     const dbDetails = page.locator('#db-tree-container details#demodb');
     const dbSummary = dbDetails.locator('> summary');
 
@@ -50,10 +51,12 @@ test.describe('Navigation', () => {
       if (!isOpen) await dbSummary.click();
       await page.waitForTimeout(300);
 
-      await expect(page.getByText('Users',        { exact: true })).toBeVisible({ timeout: 5000 });
-      await expect(page.getByText('Space',         { exact: true })).toBeVisible({ timeout: 5000 });
-      await expect(page.getByText('Job automation',{ exact: true }).or(
-        page.getByText('Backup Plan', { exact: true }))
+      // Scope child node checks to details#demodb to avoid strict mode with multiple DBs
+      await expect(dbDetails.locator('[id="Users"] > summary')).toBeVisible({ timeout: 5000 });
+      await expect(dbDetails.locator('[id="Space"] > summary')).toBeVisible({ timeout: 5000 });
+      await expect(
+        dbDetails.locator('[id="Job automation"] > summary')
+          .or(dbDetails.locator('[id="Backup Plan"] > summary'))
       ).toBeVisible({ timeout: 5000 });
     }
   });
@@ -68,18 +71,19 @@ test.describe('Navigation', () => {
     const logTab       = treeSection.getByRole('button', { name: /Log/i });
     const dbTab        = treeSection.getByRole('button', { name: /Database/i });
 
-    // Broker 탭 — BrokerTree div (#db-tree-container의 2번째 직계 자식)이 visible 해짐
+    // Broker 탭
     await brokerTab.click();
     await expect(
       page.locator('#db-tree-container > div').nth(1)
     ).toBeVisible({ timeout: 5000 });
 
-    // Log 탭 — LogTree 루트 노드 레이블: CM.broker = "Broker"
+    // Log 탭 — Log tree summaries have icon-text prefix → filter by hasText
     await logTab.click();
-    await expect(page.locator('#db-tree-container').getByText('Broker', { exact: true }))
-      .toBeVisible({ timeout: 5000 });
+    await expect(
+      page.locator('#db-tree-container').locator('summary').filter({ hasText: /Broker/i }).first()
+    ).toBeVisible({ timeout: 5000 });
 
-    // DB 탭으로 복귀 — DB tree wrapper (#db-tree-container 첫 번째 직계 자식)이 visible 해짐
+    // DB 탭으로 복귀
     await dbTab.click();
     await expect(page.locator('#db-tree-container > div').first())
       .toBeVisible({ timeout: 5000 });

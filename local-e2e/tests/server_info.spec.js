@@ -7,6 +7,9 @@ const { login, connectToHost } = require('./helpers');
  * - 서버 버전 정보 모달
  * - 서버 환경 변수 패널
  * - 호스트 정보 패널 (연결 후 클릭)
+ *
+ * Note: modal close button may be blocked by dialog backdrop → use { force: true }
+ * Note: DB tree shows individual DB nodes, no "Databases" label → check for details elements
  */
 test.describe('Server Info', () => {
 
@@ -21,7 +24,6 @@ test.describe('Server Info', () => {
     const hostItem = page.locator('#host-section div[title*=":"]').first();
     await hostItem.click({ button: 'right' });
 
-    // 적어도 하나의 메뉴 항목이 있어야 한다
     const menu = page.locator('[role="menu"]').or(page.locator('[class*="context"]'));
     await expect(menu.first()).toBeVisible({ timeout: 3000 });
 
@@ -44,7 +46,8 @@ test.describe('Server Info', () => {
     await expect(modal).toBeVisible();
     await expect(modal).toContainText(/Version|CUBRID/i);
 
-    await page.getByRole('button', { name: /Close|OK|Dismiss/i }).first().click();
+    // force: true bypasses any dialog backdrop overlay that blocks pointer events
+    await page.getByRole('button', { name: /Close|OK|Dismiss/i }).first().click({ force: true });
   });
 
   // ─── 호스트 상세 패널 ─────────────────────────────────────────────────────
@@ -53,14 +56,12 @@ test.describe('Server Info', () => {
     const hostItem = page.locator('#host-section div[title*=":"]').first();
     const titleAttr = await hostItem.getAttribute('title');
 
-    // title 속성에 "address:port" 형태로 연결 정보가 있다
     expect(titleAttr).toMatch(/\d+\.\d+\.\d+\.\d+:\d+|localhost:\d+/);
   });
 
   // ─── 환경 변수 ────────────────────────────────────────────────────────────
 
   test('호스트 탭에서 환경 변수 패널이 접근 가능하다', async ({ page }) => {
-    // 호스트 탭 (DB·Broker·Log 탭과 별도로 존재할 수 있음)
     const envTab = page.getByRole('button', { name: /Env|Environment/i })
       .or(page.getByText(/Environment/i).first());
 
@@ -74,14 +75,14 @@ test.describe('Server Info', () => {
 
   // ─── DB 트리 로드 확인 ────────────────────────────────────────────────────
 
-  test('호스트 연결 후 Databases 섹션이 표시된다', async ({ page }) => {
+  test('호스트 연결 후 DB 트리에 데이터베이스 목록이 표시된다', async ({ page }) => {
+    // DB tree renders individual <details> nodes per database, no "Databases" label
     await expect(
-      page.locator('#db-tree-container').getByText('Databases', { exact: true })
+      page.locator('#db-tree-container details').first()
     ).toBeVisible({ timeout: 10000 });
   });
 
   test('호스트 연결 후 demodb가 DB 목록에 있다', async ({ page }) => {
-    // TreeNode가 <details id="demodb"> 로 렌더링됨 — div.filter 패턴은 동작하지 않음
     const demodb = page.locator('#db-tree-container details#demodb > summary');
     await expect(demodb).toBeVisible({ timeout: 10000 });
   });

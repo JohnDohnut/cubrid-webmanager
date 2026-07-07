@@ -63,9 +63,13 @@ async function connectToHost(page) {
   // DB 트리 컨테이너가 나타날 때까지 기다린다 (selectedHostUid 설정 완료)
   await expect(page.locator('#db-tree-container')).toBeVisible({ timeout: 10000 });
 
-  // 호스트 인증(CMS 세션)이 완료되어 DB 목록이 로드될 때까지 기다린다.
-  // opacity-100 클래스가 부여되면 authorized 상태임을 의미한다.
+  // 1) CMS 세션 확립 대기 — opacity-100 클래스가 붙으면 authorized 상태
   await expect(page.locator('#db-tree-container')).toHaveClass(/opacity-100/, { timeout: 30000 });
+
+  // 2) DB 목록 렌더링 대기 — CMS 인증 완료 후 DB list API가 별도로 호출되어
+  //    <details id="dbname"> 노드가 DOM에 추가될 때까지 기다린다.
+  //    이 단계를 생략하면 바로 details#demodb를 조회할 때 "not found" 오류가 난다.
+  await page.locator('#db-tree-container details').first().waitFor({ state: 'visible', timeout: 15000 });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -99,8 +103,29 @@ async function expandDatabase(page, dbName = E2E_DB) {
 async function openDbContextMenu(page, dbName = E2E_DB) {
   const dbSummary = page.locator(`#db-tree-container details#${dbName} > summary`);
   await expect(dbSummary).toBeVisible({ timeout: 15000 });
+  // Left-click first to dispatch setSelectedDatabase to Redux
+  // (right-click alone does not call onSelect, so selectedDatabase stays null)
+  await dbSummary.click();
+  await page.waitForTimeout(150);
   await dbSummary.click({ button: 'right' });
   return dbSummary;
+}
+
+/**
+ * DB 트리에서 Job automation 폴더를 펼칩니다.
+ * expandDatabase(page) 호출 후에 사용하세요.
+ * Backup Plan / Query Plan 노드에 접근하려면 이 함수가 필요합니다.
+ */
+async function expandJobAutomation(page, dbName = E2E_DB) {
+  // Job automation 폴더는 demodb 내부에 있으며 id="Job automation" 으로 렌더링됩니다
+  const jaDetails = page.locator(`#db-tree-container details#${dbName} [id="Job automation"]`);
+  const jaSummary = jaDetails.locator('> summary');
+  await expect(jaSummary).toBeVisible({ timeout: 10000 });
+  const isOpen = await jaDetails.evaluate(el => el.open).catch(() => false);
+  if (!isOpen) {
+    await jaSummary.click();
+    await page.waitForTimeout(300);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -117,12 +142,79 @@ async function dismissModal(page) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// DB 시작/중지 (background job 아님 — RefreshingOverlay로 진행 표시)
+
+/**
+ * 데이터베이스가 실행 중이면 중지합니다. 이미 중지된 경우 아무 것도 하지 않습니다.
+ * Stop Database uses a sidebar RefreshingOverlay (not a background job).
+ */
+async function stopDatabase(page, dbName = E2E_DB) {
+  const dbSummary = page.locator(`#db-tree-container details#${dbName} > summary`);
+  await expect(dbSummary).toBeVisible({ timeout: 15000 });
+  await dbSummary.click();
+  await page.waitForTimeout(150);
+  await dbSummary.click({ button: 'right' });
+  const stopBtn = page.getByRole('button', { name: /Stop Database/i });
+  if (await stopBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await stopBtn.click();
+    await page.getByText(/Stopping database/i).waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
+    await page.getByText(/Stopping database/i).waitFor({ state: 'hidden', timeout: 30000 });
+    await page.waitForTimeout(300);
+  } else {
+    await page.keyboard.press('Escape');
+  }
+}
+
+/**
+ * 데이터베이스가 중지되어 있으면 시작합니다. 이미 실행 중이면 아무 것도 하지 않습니다.
+ */
+async function startDatabase(page, dbName = E2E_DB) {
+  const dbSummary = page.locator(`#db-tree-container details#${dbName} > summary`);
+  await expect(dbSummary).toBeVisible({ timeout: 15000 });
+  await dbSummary.click();
+  await page.waitForTimeout(150);
+  await dbSummary.click({ button: 'right' });
+  const startBtn = page.getByRole('button', { name: /Start Database/i });
+  if (await startBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await startBtn.click();
+    await page.getByText(/Starting database/i).waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
+    await page.getByText(/Starting database/i).waitFor({ state: 'hidden', timeout: 30000 });
+    await page.waitForTimeout(300);
+  } else {
+    await page.keyboard.press('Escape');
+  }
+}
+
+/**
+ * 호스트 섹션의 접혀있는 그룹(<details>)을 모두 펼칩니다.
+ * connectToHost 없이 호스트 항목에 직접 접근할 때 사용합니다.
+ */
+async function expandHostGroups(page) {
+  await expect(page.locator('#host-section')).toBeVisible({ timeout: 10000 });
+  await page.locator('#host-section details').first()
+    .waitFor({ state: 'attached', timeout: 15000 }).catch(() => {});
+  const groups = page.locator('#host-section details');
+  const groupCount = await groups.count();
+  for (let i = 0; i < groupCount; i++) {
+    const isOpen = await groups.nth(i).evaluate(el => el.open).catch(() => true);
+    if (!isOpen) {
+      await groups.nth(i).locator('summary').first().click();
+      await page.waitForTimeout(400);
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 module.exports = {
   E2E_DB,
   login,
   connectToHost,
+  expandHostGroups,
   expandDatabase,
+  expandJobAutomation,
   openDbContextMenu,
   dismissModal,
+  stopDatabase,
+  startDatabase,
 };

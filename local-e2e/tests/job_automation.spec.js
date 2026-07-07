@@ -1,11 +1,14 @@
 const { test, expect } = require('@playwright/test');
-const { login, connectToHost, expandDatabase, dismissModal, E2E_DB } = require('./helpers');
+const { login, connectToHost, expandDatabase, expandJobAutomation, dismissModal, E2E_DB } = require('./helpers');
 
 /**
  * 잡 자동화 테스트 (Backup Plan / Query Plan)
  * - Backup Plan: 추가 → 목록 확인 → 삭제
  * - Query Plan: 추가 → 목록 확인 → 삭제
  * - 자동화 로그 모달 열기
+ *
+ * Note: multiple DBs in tree → must scope to details#E2E_DB to avoid strict mode violations
+ * Note: context menu buttons have icon text prefix → use regex, never exact string
  */
 test.describe('Job Automation', () => {
 
@@ -13,23 +16,22 @@ test.describe('Job Automation', () => {
     await login(page);
     await connectToHost(page);
     await expandDatabase(page);
+    await expandJobAutomation(page);
   });
 
   // ─── Backup Plan ──────────────────────────────────────────────────────────
 
   test('Backup Plan 폴더가 DB 트리에 표시된다', async ({ page }) => {
-    const backupFolder = page.locator('#db-tree-container')
-      .getByText('Backup Plan', { exact: true });
+    const backupFolder = page.locator(`#db-tree-container details#${E2E_DB} [id="Backup Plan"] > summary`);
     await expect(backupFolder).toBeVisible({ timeout: 5000 });
   });
 
   test('Add Backup Plan 모달이 열린다', async ({ page }) => {
-    const backupFolder = page.locator('#db-tree-container')
-      .getByText('Backup Plan', { exact: true });
+    const backupFolder = page.locator(`#db-tree-container details#${E2E_DB} [id="Backup Plan"] > summary`);
     await expect(backupFolder).toBeVisible({ timeout: 5000 });
     await backupFolder.click({ button: 'right' });
 
-    await page.getByRole('button', { name: 'Add Backup Plan' }).click();
+    await page.getByRole('button', { name: /Add Backup Plan/i }).click();
     await expect(page.getByText(/New Backup Plan|Backup Plan/i)).toBeVisible();
 
     await dismissModal(page);
@@ -38,11 +40,10 @@ test.describe('Job Automation', () => {
   test('Backup Plan을 추가하면 목록에 나타나고 삭제할 수 있다', async ({ page }) => {
     const planName = `e2e_backup_${Date.now().toString().slice(-4)}`;
 
-    const backupFolder = page.locator('#db-tree-container')
-      .getByText('Backup Plan', { exact: true });
+    const backupFolder = page.locator(`#db-tree-container details#${E2E_DB} [id="Backup Plan"] > summary`);
     await expect(backupFolder).toBeVisible({ timeout: 5000 });
     await backupFolder.click({ button: 'right' });
-    await page.getByRole('button', { name: 'Add Backup Plan' }).click();
+    await page.getByRole('button', { name: /Add Backup Plan/i }).click();
 
     const modal = page.locator('div[role="dialog"]');
     await expect(modal).toBeVisible();
@@ -83,12 +84,11 @@ test.describe('Job Automation', () => {
   });
 
   test('Auto Backup Log 모달이 열린다', async ({ page }) => {
-    const backupFolder = page.locator('#db-tree-container')
-      .getByText('Backup Plan', { exact: true });
+    const backupFolder = page.locator(`#db-tree-container details#${E2E_DB} [id="Backup Plan"] > summary`);
     await expect(backupFolder).toBeVisible({ timeout: 5000 });
     await backupFolder.click({ button: 'right' });
 
-    await page.getByRole('button', { name: 'Auto Backup Log' }).click();
+    await page.getByRole('button', { name: /Auto Backup Log/i }).click();
     await expect(page.getByText(/Auto Backup Log/i)).toBeVisible();
 
     await dismissModal(page);
@@ -97,18 +97,16 @@ test.describe('Job Automation', () => {
   // ─── Query Plan ───────────────────────────────────────────────────────────
 
   test('Query Plan 폴더가 DB 트리에 표시된다', async ({ page }) => {
-    const queryFolder = page.locator('#db-tree-container')
-      .getByText('Query Plan', { exact: true });
+    const queryFolder = page.locator(`#db-tree-container details#${E2E_DB} [id="Query Plan"] > summary`);
     await expect(queryFolder).toBeVisible({ timeout: 5000 });
   });
 
   test('Add Query Plan 모달이 열린다', async ({ page }) => {
-    const queryFolder = page.locator('#db-tree-container')
-      .getByText('Query Plan', { exact: true });
+    const queryFolder = page.locator(`#db-tree-container details#${E2E_DB} [id="Query Plan"] > summary`);
     await expect(queryFolder).toBeVisible({ timeout: 5000 });
     await queryFolder.click({ button: 'right' });
 
-    await page.getByRole('button', { name: 'Add Query Plan' }).click();
+    await page.getByRole('button', { name: /Add Query Plan/i }).click();
     await expect(
       page.getByText(/New Query Plan|Query Plan/i)
     ).toBeVisible({ timeout: 5000 });
@@ -119,11 +117,10 @@ test.describe('Job Automation', () => {
   test('Query Plan을 추가하면 목록에 나타나고 삭제할 수 있다', async ({ page }) => {
     const planName = `e2e_query_${Date.now().toString().slice(-4)}`;
 
-    const queryFolder = page.locator('#db-tree-container')
-      .getByText('Query Plan', { exact: true });
+    const queryFolder = page.locator(`#db-tree-container details#${E2E_DB} [id="Query Plan"] > summary`);
     await expect(queryFolder).toBeVisible({ timeout: 5000 });
     await queryFolder.click({ button: 'right' });
-    await page.getByRole('button', { name: 'Add Query Plan' }).click();
+    await page.getByRole('button', { name: /Add Query Plan/i }).click();
 
     const modal = page.locator('div[role="dialog"]');
     await expect(modal).toBeVisible();

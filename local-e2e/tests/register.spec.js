@@ -70,7 +70,7 @@ test.describe('Account Registration', () => {
     await page.getByPlaceholder(/strong password/i).fill('Password123!');
     await page.getByPlaceholder(/Repeat your password/i).fill('Password123!');
     await page.getByRole('button', { name: /Create Account/i }).click();
-    await expect(page.getByText(/failed|already exists|taken/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/failed|already exists|taken/i).first()).toBeVisible({ timeout: 5000 });
   });
 
 });

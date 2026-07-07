@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { login, connectToHost, expandDatabase, dismissModal, E2E_DB } = require('./helpers');
+const { login, connectToHost, expandDatabase, expandJobAutomation, dismissModal, stopDatabase, startDatabase, E2E_DB } = require('./helpers');
 
 /**
  * 데이터베이스 전체 모달 실행 테스트
@@ -7,7 +7,7 @@ const { login, connectToHost, expandDatabase, dismissModal, E2E_DB } = require('
  * 모든 컨텍스트 메뉴 액션을 실제로 실행하고 결과를 확인합니다.
  * 실제 데이터 변경이 없는 조회성 작업은 데이터 로드까지 검증합니다.
  *
- * 단, Rename·Delete·Copy는 database_modal_interactions.spec.js에서 별도 처리합니다.
+ * Rename·Delete·Restore는 DB가 실행 중일 때 비활성화되므로 먼저 DB를 중지합니다.
  */
 test.describe('Database All Modals — Full Execution', () => {
 
@@ -16,22 +16,26 @@ test.describe('Database All Modals — Full Execution', () => {
     await connectToHost(page);
   });
 
+  // openManage: 좌클릭(setSelectedDatabase) 후 우클릭, exact 없이 서브메뉴 버튼 클릭
   async function openManage(page, action) {
-    // TreeNode → <details id="{E2E_DB}"> で렌더링; summary を右クリック
     const dbNode = page.locator(`#db-tree-container details#${E2E_DB} > summary`);
     await expect(dbNode).toBeVisible({ timeout: 10000 });
+    await dbNode.click();
+    await page.waitForTimeout(150);
     await dbNode.click({ button: 'right' });
     await page.getByRole('button', { name: 'Manage Database' }).hover();
-    await page.getByRole('button', { name: action, exact: true }).click();
+    await page.getByRole('button', { name: new RegExp(action.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }).click();
     return page.locator('div[role="dialog"]');
   }
 
   async function openInfo(page, action) {
     const dbNode = page.locator(`#db-tree-container details#${E2E_DB} > summary`);
     await expect(dbNode).toBeVisible({ timeout: 10000 });
+    await dbNode.click();
+    await page.waitForTimeout(150);
     await dbNode.click({ button: 'right' });
     await page.getByRole('button', { name: 'Database Info' }).hover();
-    await page.getByRole('button', { name: action, exact: true }).click();
+    await page.getByRole('button', { name: new RegExp(action.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }).click();
     return page.locator('div[role="dialog"]');
   }
 
@@ -46,8 +50,9 @@ test.describe('Database All Modals — Full Execution', () => {
 
   // ─── Manage Database: 조회·실행 작업 ──────────────────────────────────────
 
-  test('Database Unload: 실행 후 완료 결과를 확인한다', async ({ page }) => {
-    const modal = await openManage(page, 'Database Unload');
+  test('Unload Database: 실행 후 완료 결과를 확인한다', async ({ page }) => {
+    // 'Unload Database...' — icon "upload"
+    const modal = await openManage(page, 'Unload Database');
     await expect(modal).toBeVisible();
     await expect(modal).toContainText(/Unload|Extract/i);
 
@@ -125,43 +130,59 @@ test.describe('Database All Modals — Full Execution', () => {
     await page.getByRole('button', { name: /Close|OK|Dismiss/i }).first().click().catch(() => {});
   });
 
-  test('Restore Database: Backup 경로로 실행 후 완료를 확인한다', async ({ page }) => {
-    const modal = await openManage(page, 'Restore Database');
-    await expect(modal).toBeVisible();
-    await expect(modal).toContainText(/Restore/i);
+  // Restore·Rename·Delete 은 DB 실행 중 비활성 → 먼저 중지
+  test('Restore Database: DB 중지 후 Backup 경로로 실행 후 완료를 확인한다', async ({ page }) => {
+    await stopDatabase(page);
+    try {
+      const modal = await openManage(page, 'Restore Database');
+      await expect(modal).toBeVisible();
+      await expect(modal).toContainText(/Restore/i);
 
-    const pathInput = modal.locator('input[type="text"]').first();
-    if (await pathInput.isVisible()) {
-      await pathInput.fill('/tmp/cubrid_e2e_modals_backup');
+      const pathInput = modal.locator('input[type="text"]').first();
+      if (await pathInput.isVisible()) {
+        await pathInput.fill('/tmp/cubrid_e2e_modals_backup');
+      }
+
+      await modal.getByRole('button', { name: /Restore|Execute|Run/i }).last().click();
+      await expect(
+        page.getByText(/success|complete|succeeded/i)
+          .or(page.locator('#sidebar-background-jobs'))
+      ).toBeVisible({ timeout: 120000 });
+
+      await page.getByRole('button', { name: /Close|OK|Dismiss/i }).first().click().catch(() => {});
+    } finally {
+      await startDatabase(page);
     }
-
-    await modal.getByRole('button', { name: /Restore|Execute|Run/i }).last().click();
-    await expect(
-      page.getByText(/success|complete|succeeded/i)
-        .or(page.locator('#sidebar-background-jobs'))
-    ).toBeVisible({ timeout: 120000 });
-
-    await page.getByRole('button', { name: /Close|OK|Dismiss/i }).first().click().catch(() => {});
   });
 
-  test('Rename Database: 폼 유효성 검증 (Submit 안 함)', async ({ page }) => {
-    const modal = await openManage(page, 'Rename Database');
-    await expect(modal).toBeVisible();
-    await expect(modal).toContainText(/Rename/i);
+  test('Rename Database: DB 중지 후 폼 유효성 검증 (Submit 안 함)', async ({ page }) => {
+    await stopDatabase(page);
+    try {
+      const modal = await openManage(page, 'Rename Database');
+      await expect(modal).toBeVisible();
+      await expect(modal).toContainText(/Rename/i);
 
-    const submitBtn = modal.getByRole('button', { name: /Rename|Execute/i }).last();
-    await expect(submitBtn).toBeDisabled();
-    await modal.locator('input[type="text"]').first().fill(`${E2E_DB}_test`);
-    await expect(submitBtn).toBeEnabled();
+      const submitBtn = modal.getByRole('button', { name: /Rename|Execute/i }).last();
+      await expect(submitBtn).toBeDisabled();
+      await modal.locator('input[type="text"]').first().fill(`${E2E_DB}_test`);
+      await expect(submitBtn).toBeEnabled();
 
-    await dismissModal(page);
+      await dismissModal(page);
+    } finally {
+      await startDatabase(page);
+    }
   });
 
-  test('Delete Database: 삭제 확인 다이얼로그 열림 (Submit 안 함)', async ({ page }) => {
-    const modal = await openManage(page, 'Delete Database');
-    await expect(modal).toBeVisible();
-    await expect(modal).toContainText(/Delete/i);
-    await dismissModal(page);
+  test('Delete Database: DB 중지 후 삭제 확인 다이얼로그 열림 (Submit 안 함)', async ({ page }) => {
+    await stopDatabase(page);
+    try {
+      const modal = await openManage(page, 'Delete Database');
+      await expect(modal).toBeVisible();
+      await expect(modal).toContainText(/Delete/i);
+      await dismissModal(page);
+    } finally {
+      await startDatabase(page);
+    }
   });
 
   // ─── Database Info: 실제 데이터 로드 ─────────────────────────────────────
@@ -204,34 +225,32 @@ test.describe('Database All Modals — Full Execution', () => {
 
   // ─── 직접 액션 ────────────────────────────────────────────────────────────
 
-  test('Properties 모달에 실제 DB 상세 정보가 로드된다', async ({ page }) => {
+  test('Properties 패널에 실제 DB 연결 정보가 로드된다', async ({ page }) => {
     const dbNode = page.locator(`#db-tree-container details#${E2E_DB} > summary`);
     await expect(dbNode).toBeVisible({ timeout: 10000 });
+    await dbNode.click();
+    await page.waitForTimeout(150);
     await dbNode.click({ button: 'right' });
-    await page.getByRole('button', { name: 'Properties', exact: true }).click();
+    // Properties is a top-level menu item (not inside a submenu)
+    await page.getByRole('button', { name: /Properties/i }).click();
 
-    const modal = page.locator('div[role="dialog"]');
-    await expect(modal).toBeVisible();
-    await expect(modal).toContainText(/Properties/i);
-
-    // 실제 DB 정보 (경로, 크기 등)
+    // DB Properties opens as a panel (not dialog) — check for Connection config content
     await expect(
-      modal.getByText(/Path|Location|Size|Volume|Page/i).first()
+      page.getByText(/Broker IP|Service Port|Connection|Text Encoding/i).first()
     ).toBeVisible({ timeout: 10000 });
-
-    await dismissModal(page);
   });
 
   // ─── Job Automation 모달 ──────────────────────────────────────────────────
 
   test('Add Backup Plan 모달에 입력 필드가 있다', async ({ page }) => {
     await expandDatabase(page);
+    await expandJobAutomation(page);
 
-    const backupFolder = page.locator('#db-tree-container')
-      .getByText('Backup Plan', { exact: true });
+    const backupFolder = page.locator(`#db-tree-container details#${E2E_DB} [id="Job automation"] details > summary`)
+      .filter({ hasText: 'Backup Plan' });
     await expect(backupFolder).toBeVisible({ timeout: 5000 });
     await backupFolder.click({ button: 'right' });
-    await page.getByRole('button', { name: 'Add Backup Plan' }).click();
+    await page.getByRole('button', { name: /Add Backup Plan/i }).click();
 
     const modal = page.locator('div[role="dialog"]');
     await expect(modal).toBeVisible();
@@ -242,16 +261,16 @@ test.describe('Database All Modals — Full Execution', () => {
 
   test('Auto Backup Log에 로그 내용 또는 빈 상태가 로드된다', async ({ page }) => {
     await expandDatabase(page);
+    await expandJobAutomation(page);
 
-    const backupFolder = page.locator('#db-tree-container')
-      .getByText('Backup Plan', { exact: true });
+    const backupFolder = page.locator(`#db-tree-container details#${E2E_DB} [id="Job automation"] details > summary`)
+      .filter({ hasText: 'Backup Plan' });
     await expect(backupFolder).toBeVisible({ timeout: 5000 });
     await backupFolder.click({ button: 'right' });
-    await page.getByRole('button', { name: 'Auto Backup Log' }).click();
+    await page.getByRole('button', { name: /Auto Backup Log/i }).click();
 
     await expect(page.getByText(/Auto Backup Log/i)).toBeVisible({ timeout: 10000 });
 
-    // 로그 데이터 또는 빈 상태
     await expect(
       page.locator('table tbody tr').first()
         .or(page.getByText(/No log|no data|empty/i).first())
@@ -263,12 +282,13 @@ test.describe('Database All Modals — Full Execution', () => {
 
   test('Add Query Plan 모달에 입력 필드가 있다', async ({ page }) => {
     await expandDatabase(page);
+    await expandJobAutomation(page);
 
-    const queryFolder = page.locator('#db-tree-container')
-      .getByText('Query Plan', { exact: true });
+    const queryFolder = page.locator(`#db-tree-container details#${E2E_DB} [id="Job automation"] details > summary`)
+      .filter({ hasText: 'Query Plan' });
     await expect(queryFolder).toBeVisible({ timeout: 5000 });
     await queryFolder.click({ button: 'right' });
-    await page.getByRole('button', { name: 'Add Query Plan' }).click();
+    await page.getByRole('button', { name: /Add Query Plan/i }).click();
 
     const modal = page.locator('div[role="dialog"]');
     await expect(modal).toBeVisible();
@@ -282,11 +302,11 @@ test.describe('Database All Modals — Full Execution', () => {
   test('Add Volume 모달에 타입 선택 및 경로 입력 필드가 있다', async ({ page }) => {
     await expandDatabase(page);
 
-    const spaceFolder = page.locator('#db-tree-container')
-      .getByText('Space', { exact: true });
+    // Space span is clipped; right-click the details summary directly
+    const spaceFolder = page.locator(`#db-tree-container details#${E2E_DB} [id="Space"] > summary`);
     await expect(spaceFolder).toBeVisible({ timeout: 5000 });
     await spaceFolder.click({ button: 'right' });
-    await page.getByRole('button', { name: 'Add Volume' }).click();
+    await page.getByRole('button', { name: /Add Volume/i }).click();
 
     const modal = page.locator('div[role="dialog"]');
     await expect(modal).toBeVisible();
@@ -298,11 +318,10 @@ test.describe('Database All Modals — Full Execution', () => {
   test('Set Automation Volume 모달에 크기 입력 필드가 있다', async ({ page }) => {
     await expandDatabase(page);
 
-    const spaceFolder = page.locator('#db-tree-container')
-      .getByText('Space', { exact: true });
+    const spaceFolder = page.locator(`#db-tree-container details#${E2E_DB} [id="Space"] > summary`);
     await expect(spaceFolder).toBeVisible({ timeout: 5000 });
     await spaceFolder.click({ button: 'right' });
-    await page.getByRole('button', { name: 'Set Automation Volume' }).click();
+    await page.getByRole('button', { name: /Set Automation Volume/i }).click();
 
     const modal = page.locator('div[role="dialog"]');
     await expect(modal).toBeVisible();

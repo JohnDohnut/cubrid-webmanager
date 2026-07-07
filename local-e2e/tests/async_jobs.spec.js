@@ -20,7 +20,7 @@ test.describe('Async Job Tracking', () => {
   async function submitOptimize(page) {
     await openDbContextMenu(page);
     await page.getByRole('button', { name: 'Manage Database' }).hover();
-    await page.getByRole('button', { name: 'Optimize Database', exact: true }).click();
+    await page.getByRole('button', { name: /Optimize Database/i }).click();
 
     const modal = page.locator('div[role="dialog"]');
     await expect(modal).toBeVisible({ timeout: 5000 });
@@ -102,7 +102,7 @@ test.describe('Async Job Tracking', () => {
     // 두 번째 잡 (Check Database — 빠른 완료)
     await openDbContextMenu(page);
     await page.getByRole('button', { name: 'Manage Database' }).hover();
-    await page.getByRole('button', { name: 'Check Database', exact: true }).click();
+    await page.getByRole('button', { name: /Check Database/i }).click();
     const modal2 = page.locator('div[role="dialog"]');
     await expect(modal2).toBeVisible({ timeout: 5000 });
     await modal2.getByRole('button', { name: /Run|Check|Execute/i }).last().click();

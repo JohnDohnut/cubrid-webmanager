@@ -123,6 +123,7 @@ export const TreeNode = React.memo(({
 
   return (
     <details
+      id={id}
       className="group/details block"
       onToggle={isControlled ? undefined : handleToggle}
       open={displayOpen}

@@ -3,8 +3,14 @@ const { login, connectToHost } = require('./helpers');
 
 /**
  * 설정 에디터 테스트
- * - CUBRID Config: 열기, 내용 로드, 편집 후 저장, 원복
- * - Broker Config: 열기, 내용 로드, 편집 후 저장, 원복
+ *
+ * CUBRID Config 접근 경로:
+ *   Header nav → "Host Service Management" dropdown
+ *     → hover "Config Param" submenu
+ *       → click "Edit Cubrid Config"
+ *
+ * Broker Config 접근 경로:
+ *   Sidebar → Broker 탭 버튼 우클릭 → "Edit Broker Config"
  */
 test.describe('Config Editor', () => {
 
@@ -13,24 +19,35 @@ test.describe('Config Editor', () => {
     await connectToHost(page);
   });
 
+  // ─── 공통 헬퍼 ───────────────────────────────────────────────────────────
+
+  async function openCubridConfig(page) {
+    // Header nav: "Host Service Management" > "Config Param" (SubMenu) > "Edit Cubrid Config"
+    await page.getByRole('button', { name: /Host Service Management/i }).click();
+    await page.getByRole('button', { name: /Config Param/i }).hover();
+    await page.getByRole('button', { name: /Edit Cubrid Config/i }).click();
+  }
+
+  async function openBrokerConfig(page) {
+    // Sidebar: Broker tab right-click → "Edit Broker Config"
+    await page.locator('#tree-section-container').getByRole('button', { name: /Broker/i })
+      .click({ button: 'right' });
+    await page.getByRole('button', { name: /Broker Config|Edit.*Config|cubrid_broker/i }).click();
+  }
+
   // ─── CUBRID Config ────────────────────────────────────────────────────────
 
-  test('호스트 우클릭 → CUBRID Config 에디터가 열린다', async ({ page }) => {
-    const hostItem = page.locator('#host-section div[title*=":"]').first();
-    await hostItem.click({ button: 'right' });
-    await page.getByRole('button', { name: /CUBRID Config|cubrid\.conf/i }).click();
+  test('Header 메뉴 → CUBRID Config 에디터가 열린다', async ({ page }) => {
+    await openCubridConfig(page);
 
     await expect(
-      page.getByText(/cubrid\.conf|CUBRID Config/i).first()
+      page.getByText(/cubrid\.conf|CUBRID Config|Edit Cubrid Config/i).first()
     ).toBeVisible({ timeout: 10000 });
   });
 
   test('CUBRID Config 에디터에 cubrid.conf 실제 내용이 로드된다', async ({ page }) => {
-    const hostItem = page.locator('#host-section div[title*=":"]').first();
-    await hostItem.click({ button: 'right' });
-    await page.getByRole('button', { name: /CUBRID Config|cubrid\.conf/i }).click();
+    await openCubridConfig(page);
 
-    // 에디터에 실제 파라미터 내용이 있어야 함
     const editor = page.locator('textarea, .cm-editor, .CodeMirror').first();
     await expect(editor).toBeVisible({ timeout: 10000 });
 
@@ -40,15 +57,12 @@ test.describe('Config Editor', () => {
   });
 
   test('CUBRID Config: 내용을 수정하고 저장하면 성공 메시지가 표시된다', async ({ page }) => {
-    const hostItem = page.locator('#host-section div[title*=":"]').first();
-    await hostItem.click({ button: 'right' });
-    await page.getByRole('button', { name: /CUBRID Config|cubrid\.conf/i }).click();
+    await openCubridConfig(page);
 
     const editor = page.locator('textarea, .cm-editor .cm-content, .CodeMirror-code').first();
     await expect(editor).toBeVisible({ timeout: 10000 });
-
-    // 에디터 포커스 후 끝으로 이동하여 주석 한 줄 추가 (무해한 변경)
-    await editor.click();
+    // force: true bypasses any animation overlay that might block pointer events
+    await editor.click({ force: true });
     await page.keyboard.press('Control+End');
     await page.keyboard.press('End');
     await page.keyboard.type('\n# e2e-test-marker');
@@ -57,20 +71,18 @@ test.describe('Config Editor', () => {
     await expect(saveBtn).toBeVisible();
     await saveBtn.click();
 
-    // 저장 성공 확인
     await expect(
       page.getByText(/success|saved|저장/i).first()
         .or(page.locator('[class*="toast"], [class*="alert"]').first())
     ).toBeVisible({ timeout: 10000 });
 
-    // ── 원복: 추가한 주석 줄 제거 ────────────────────────────────────────────
-    await editor.click();
+    // ── 원복 ──────────────────────────────────────────────────────────────────
+    await editor.click({ force: true });
     await page.keyboard.press('Control+End');
-    // 마지막 줄(# e2e-test-marker) 선택 후 삭제
     await page.keyboard.press('Home');
     await page.keyboard.press('Shift+End');
-    await page.keyboard.press('Backspace'); // 줄 내용 삭제
-    await page.keyboard.press('Backspace'); // 줄 자체 삭제 (개행 포함)
+    await page.keyboard.press('Backspace');
+    await page.keyboard.press('Backspace');
     await saveBtn.click();
     await expect(
       page.getByText(/success|saved|저장/i).first()
@@ -81,11 +93,7 @@ test.describe('Config Editor', () => {
   // ─── Broker Config ────────────────────────────────────────────────────────
 
   test('Broker 탭 루트 우클릭 → Broker Config 에디터가 열린다', async ({ page }) => {
-    // Broker Config는 TreeTabHeader의 Broker 탭 버튼을 우클릭하면 나타남
-    // tab button 텍스트는 material icon "hub"가 붙으므로 /Broker/i 사용 (^Broker$ 아님)
-    await page.locator('#tree-section-container').getByRole('button', { name: /Broker/i })
-      .click({ button: 'right' });
-    await page.getByRole('button', { name: /Broker Config|cubrid_broker\.conf/i }).click();
+    await openBrokerConfig(page);
 
     await expect(
       page.getByText(/cubrid_broker\.conf|Broker Config/i).first()
@@ -93,25 +101,20 @@ test.describe('Config Editor', () => {
   });
 
   test('Broker Config 에디터에 cubrid_broker.conf 섹션이 실제로 로드된다', async ({ page }) => {
-    await page.locator('#tree-section-container').getByRole('button', { name: /Broker/i })
-      .click({ button: 'right' });
-    await page.getByRole('button', { name: /Broker Config|cubrid_broker\.conf/i }).click();
+    await openBrokerConfig(page);
 
-    // 실제 broker.conf 내용 확인
     await expect(
       page.getByText(/\[broker\]|\[%query_editor\]|BROKER_PORT|MIN_NUM_APPL_SERVER/i).first()
     ).toBeVisible({ timeout: 10000 });
   });
 
   test('Broker Config: 내용을 수정하고 저장하면 성공 메시지가 표시된다', async ({ page }) => {
-    await page.locator('#tree-section-container').getByRole('button', { name: /Broker/i })
-      .click({ button: 'right' });
-    await page.getByRole('button', { name: /Broker Config|cubrid_broker\.conf/i }).click();
+    await openBrokerConfig(page);
 
     const editor = page.locator('textarea, .cm-editor .cm-content, .CodeMirror-code').first();
     await expect(editor).toBeVisible({ timeout: 10000 });
-
-    await editor.click();
+    // force: true bypasses the dialog's fade-in backdrop overlay that blocks pointer events
+    await editor.click({ force: true });
     await page.keyboard.press('Control+End');
     await page.keyboard.press('End');
     await page.keyboard.type('\n# e2e-test-marker');
@@ -125,8 +128,8 @@ test.describe('Config Editor', () => {
         .or(page.locator('[class*="toast"], [class*="alert"]').first())
     ).toBeVisible({ timeout: 10000 });
 
-    // ── 원복 ─────────────────────────────────────────────────────────────────
-    await editor.click();
+    // ── 원복 ──────────────────────────────────────────────────────────────────
+    await editor.click({ force: true });
     await page.keyboard.press('Control+End');
     await page.keyboard.press('Home');
     await page.keyboard.press('Shift+End');
