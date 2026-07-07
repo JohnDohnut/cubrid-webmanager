@@ -118,7 +118,7 @@ const Component = function ServiceDashboard() {
       const groupHostsMap = group?.hosts || {};
       const groupHostUids = Object.keys(groupHostsMap);
       const defaultUid = resolveDefaultHostUid(group);
-      const groupName = group?.name || 'Group';
+      const groupName = group?.name || CM.groupLabel;
       const isCollapsed = collapsedGroups.has(groupId);
 
       // Filter host UIDs based on the selected HA role filter
@@ -170,7 +170,7 @@ const Component = function ServiceDashboard() {
     }
 
     return { tableRows: rows, hostMetaByUid: metaByUid };
-  }, [hostGroups, collapsedGroups, haInfo, roleFilter]);
+  }, [hostGroups, collapsedGroups, haInfo, roleFilter, CM]);
 
   // Sort host rows within each group while keeping group headers in place.
   const sortedTableRows = React.useMemo(() => {
@@ -295,7 +295,7 @@ const Component = function ServiceDashboard() {
                   e.stopPropagation();
                   toggleGroupCollapsed(row.groupId);
                 }}
-                title={row.isCollapsed ? 'Expand group' : 'Collapse group'}
+                title={row.isCollapsed ? CM.expandGroupTitle : CM.collapseGroupTitle}
               >
                 <Icon
                   name={row.isCollapsed ? 'chevron_right' : 'keyboard_arrow_up'}
@@ -312,12 +312,12 @@ const Component = function ServiceDashboard() {
                     {row.groupName}
                   </span>
                   <span className="inline-flex items-center px-1.5 h-[14px] rounded-[3px] border border-slate-200 dark:border-white/10 bg-white dark:bg-white/3 text-[9px] font-black tracking-wide leading-none shrink-0 text-slate-500 dark:text-slate-400 uppercase">
-                    {row.hostCount} nodes
+                    {CM.nodesCountLabel(row.hostCount)}
                   </span>
                 </div>
                 {row.isHa && (
                   <span className="inline-flex items-center justify-center min-w-[56px] px-1.5 h-[14px] rounded-[3px] border border-amber-500/20 bg-amber-500/10 text-[8px] font-black tracking-wide leading-none shrink-0 text-amber-600 dark:text-amber-400 uppercase ml-[12px]">
-                    HA
+                    {CM.haBadge}
                   </span>
                 )}
               </div>
@@ -515,8 +515,8 @@ const Component = function ServiceDashboard() {
         if (!s) return <span className="text-slate-300">—</span>;
         return (
           <div className="flex items-center gap-1.5 font-bold text-[10px]">
-            <span className="text-emerald-500">ON: {s.dbOn}</span>
-            <span className="text-slate-400">OFF: {s.dbOff}</span>
+            <span className="text-emerald-500">{CM.onColonLabel(s.dbOn)}</span>
+            <span className="text-slate-400">{CM.offColonLabel(s.dbOff)}</span>
           </div>
         );
       }

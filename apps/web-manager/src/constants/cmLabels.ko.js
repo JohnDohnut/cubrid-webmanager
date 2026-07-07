@@ -415,6 +415,7 @@ export const CM_KO = {
   operatingSystem: '운영 체제',
   cubridEngine: 'CUBRID 엔진',
   homeDirectory: '홈 디렉터리',
+  notApplicableFallback: 'N/A',
   permanent: '영구',
   temporary: '임시',
   freeStorage: '여유 공간',
@@ -454,6 +455,9 @@ export const CM_KO = {
   advanced: '고급',
   reset: '초기화',
   propertyName: '속성 이름',
+  propertyLabel: '속성',
+  brokerNumberFallback: (n) => `브로커 ${n}`,
+  propertiesBrokersCountLabel: (props, brokers) => `속성 ${props}개 · 브로커 ${brokers}개`,
   runtimeConfiguration: '런타임 설정',
   synchronizing: '동기화 중…',
   failedToLoadStatus: '상태를 불러오지 못했습니다',
@@ -770,6 +774,12 @@ export const CM_KO = {
   haSlave: '슬레이브',
   haReplica: '레플리카',
   clusterOverview: '클러스터 개요',
+  expandGroupTitle: '그룹 펼치기',
+  collapseGroupTitle: '그룹 접기',
+  nodesCountLabel: (n) => `${n}개 노드`,
+  haBadge: 'HA',
+  onColonLabel: (n) => `ON: ${n}`,
+  offColonLabel: (n) => `OFF: ${n}`,
 
   databaseDashboard: '데이터베이스 대시보드',
   refreshDatabaseStatus: '데이터베이스 상태 새로 고침',
@@ -1312,6 +1322,10 @@ export const CM_KO = {
 
   // CUBRID 설정 편집기
   loadingConfiguration: '설정 로드 중...',
+  configFetchErrorMsg: '설정 파일 내용을 가져올 수 없습니다.',
+  configUpdatedMsg: (confname) => `${confname}이(가) 성공적으로 업데이트되었습니다.`,
+  saveErrorFallbackMsg: '저장하는 동안 오류가 발생했습니다.',
+  configEditorColonLabel: (confname) => `설정 편집기: ${confname}`,
 
   // 데이터베이스 대시보드 레거시
   databasesLabel: '데이터베이스',

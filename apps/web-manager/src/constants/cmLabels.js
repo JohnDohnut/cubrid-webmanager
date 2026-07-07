@@ -429,6 +429,7 @@ export const CM = {
   operatingSystem: 'Operating System',
   cubridEngine: 'CUBRID Engine',
   homeDirectory: 'Home Directory',
+  notApplicableFallback: 'N/A',
   permanent: 'Permanent',
   temporary: 'Temporary',
   freeStorage: 'Free Storage',
@@ -470,6 +471,9 @@ export const CM = {
   advanced: 'Advanced',
   reset: 'Reset',
   propertyName: 'Property Name',
+  propertyLabel: 'Property',
+  brokerNumberFallback: (n) => `Broker ${n}`,
+  propertiesBrokersCountLabel: (props, brokers) => `${props} properties · ${brokers} brokers`,
   runtimeConfiguration: 'Runtime Configuration',
   synchronizing: 'Synchronizing…',
   failedToLoadStatus: 'Failed to load status',
@@ -789,6 +793,12 @@ export const CM = {
   haSlave: 'Slave',
   haReplica: 'Replica',
   clusterOverview: 'Cluster Overview',
+  expandGroupTitle: 'Expand group',
+  collapseGroupTitle: 'Collapse group',
+  nodesCountLabel: (n) => `${n} nodes`,
+  haBadge: 'HA',
+  onColonLabel: (n) => `ON: ${n}`,
+  offColonLabel: (n) => `OFF: ${n}`,
 
   // Database dashboard
   databaseDashboard: 'Database Dashboard',
@@ -1334,6 +1344,10 @@ export const CM = {
 
   // CubridConfigEditor
   loadingConfiguration: 'Loading Configuration...',
+  configFetchErrorMsg: 'Could not retrieve configuration file contents.',
+  configUpdatedMsg: (confname) => `${confname} has been updated successfully.`,
+  saveErrorFallbackMsg: 'An error occurred while saving.',
+  configEditorColonLabel: (confname) => `Config Editor: ${confname}`,
 
   // Databases (server dashboard legacy component)
   databasesLabel: 'Databases',
