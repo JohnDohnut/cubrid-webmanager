@@ -1502,5 +1502,79 @@ export const CM = {
   paginated: 'Paginated',
   weekdaysShort: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
   weekdaysFull: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+
+  // AllLogsViewer
+  allServerLogsTitle: (name) => `All Server Logs for Database: ${name}`,
+  allSqlLogsTitle: (name) => `All SQL Logs for ${name}`,
+  aggregateServerLogsDesc: 'Displaying aggregate database server logs',
+  aggregateCasLogsDesc: 'Displaying aggregate logs for all active CAS processes',
+  noCachedLogLinesMsg: '(No cached log lines available for this file)',
+  expandAllBtn: 'Expand All',
+  collapseAllBtn: 'Collapse All',
+  refreshAllBtn: 'Refresh All',
+  downloadAllBtn: 'Download All',
+  totalFilesLabel: (n) => `Total Files: ${n}`,
+  hostColonLabel: (host) => `Host: ${host}`,
+
+  // BrokerPropertyModal
+  pendingCountLabel: (n) => `${n} Pending`,
+  brokerSettingsAppliedMsg: (name) => `Broker settings for ${name} have been applied successfully.`,
+
+  // BrokerStatus
+  noAppServersActiveMsg: 'No application servers currently active.',
+  jobQueueEmptyMsg: 'Job queue is empty.',
+  idLabel: 'ID',
+
+  // CMSLogViewer
+  managerAccessLogTitle: 'Manager Access Log',
+  managerErrorLogTitle: 'Manager Error Log',
+  systemFallback: 'System',
+  detailNoteHeader: 'Detail / Note',
+  operationCompletedLabel: (task) => `Operation: ${task} completed`,
+  totalEntriesLabel: (n) => `Total entries: ${n}`,
+  showingRangeLabel: (start, end) => `Showing: ${start} - ${end}`,
+
+  // LogViewer (Broker Log Viewer)
+  rawLogMode: 'Raw Log',
+  parsedSqlMode: 'Parsed SQL',
+  topSqlMode: 'Top SQL',
+  exportBtn: 'Export',
+  statementNumberLabel: (n) => `Statement #${n}`,
+  linesRangeLabel: (start, end, total) => `Lines: ${start}–${end} of ${total}`,
+  statementsCountLabel: (n) => `${n} statements`,
+  patternsCountLabel: (n) => `${n} patterns`,
+  disconnectedLabel: 'Disconnected',
+
+  // AboutModal
+  cubridLogoAlt: 'CUBRID logo',
+  aboutTagline: 'Engineered with precision for the modern web stack.',
+  webBridgeLabel: 'Web Bridge',
+  stackLabel: 'Stack',
+  copyrightNotice: '© 2026 CUBRID Corporation',
+
+  // Breadcrumb
+  unsavedChangesDesc: (name) => `You have unsaved changes in "${name}". If you close it, your changes will be lost.`,
+
+  // Footer
+  unknownFallback: 'unknown',
+
+  // Sidebar
+  failedListSuffix: (list) => ` Failed: ${list}.`,
+  loginToHostsFailedMsg: 'Failed to log in to hosts.',
+  allHostsAlreadyConnectedMsg: 'All hosts are already connected.',
+  groupColonLabel: (name) => `Group: ${name}`,
+  startingAllDatabasesMsg: 'Starting all databases ...',
+  stoppingAllDatabasesMsg: 'Stopping all databases ...',
+  restartingAllDatabasesMsg: 'Restarting all databases ...',
+  startingAllBrokersMsg: 'Starting all brokers ...',
+  stoppingAllBrokersMsg: 'Stopping all brokers ...',
+  restartingAllBrokersMsg: 'Restarting all brokers ...',
+  sqlLogsColonLabel: (broker) => `SQL Logs: ${broker}`,
+  serverLogsColonLabel: (db) => `Server Logs: ${db}`,
+  usersColonLabel: (db) => `Users: ${db}`,
+  spaceColonLabel: (db) => `Space: ${db}`,
+  backupColonLabel: (planId) => `Backup: ${planId}`,
+  queryPlanColonLabel: (db) => `Query Plan: ${db}`,
+  queryPlanItemColonLabel: (qId) => `Query Plan Item: ${qId}`,
 };
 

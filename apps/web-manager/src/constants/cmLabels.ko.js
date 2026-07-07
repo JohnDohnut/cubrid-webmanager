@@ -1480,5 +1480,79 @@ export const CM_KO = {
   paginated: '페이지별 보기',
   weekdaysShort: ['월', '화', '수', '목', '금', '토', '일'],
   weekdaysFull: ['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일'],
+
+  // AllLogsViewer
+  allServerLogsTitle: (name) => `데이터베이스 전체 서버 로그: ${name}`,
+  allSqlLogsTitle: (name) => `${name} 전체 SQL 로그`,
+  aggregateServerLogsDesc: '데이터베이스 서버 로그를 통합하여 표시합니다',
+  aggregateCasLogsDesc: '활성 CAS 프로세스의 로그를 통합하여 표시합니다',
+  noCachedLogLinesMsg: '(이 파일에 대해 캐시된 로그 라인이 없습니다)',
+  expandAllBtn: '모두 펼치기',
+  collapseAllBtn: '모두 접기',
+  refreshAllBtn: '전체 새로 고침',
+  downloadAllBtn: '전체 다운로드',
+  totalFilesLabel: (n) => `전체 파일: ${n}`,
+  hostColonLabel: (host) => `호스트: ${host}`,
+
+  // BrokerPropertyModal
+  pendingCountLabel: (n) => `${n}개 대기 중`,
+  brokerSettingsAppliedMsg: (name) => `${name} 브로커 설정이 성공적으로 적용되었습니다.`,
+
+  // BrokerStatus
+  noAppServersActiveMsg: '현재 활성화된 응용프로그램 서버가 없습니다.',
+  jobQueueEmptyMsg: '작업 큐가 비어 있습니다.',
+  idLabel: 'ID',
+
+  // CMSLogViewer
+  managerAccessLogTitle: '관리자 접근 로그',
+  managerErrorLogTitle: '관리자 오류 로그',
+  systemFallback: '시스템',
+  detailNoteHeader: '상세 / 메모',
+  operationCompletedLabel: (task) => `작업: ${task} 완료`,
+  totalEntriesLabel: (n) => `전체 항목: ${n}`,
+  showingRangeLabel: (start, end) => `표시: ${start} - ${end}`,
+
+  // LogViewer (Broker Log Viewer)
+  rawLogMode: '원본 로그',
+  parsedSqlMode: '분석된 SQL',
+  topSqlMode: '상위 SQL',
+  exportBtn: '내보내기',
+  statementNumberLabel: (n) => `문장 #${n}`,
+  linesRangeLabel: (start, end, total) => `라인: ${start}–${end} / 전체 ${total}`,
+  statementsCountLabel: (n) => `${n}개 문장`,
+  patternsCountLabel: (n) => `${n}개 패턴`,
+  disconnectedLabel: '연결 끊김',
+
+  // AboutModal
+  cubridLogoAlt: 'CUBRID 로고',
+  aboutTagline: '최신 웹 스택을 위해 정밀하게 설계되었습니다.',
+  webBridgeLabel: '웹 브리지',
+  stackLabel: '스택',
+  copyrightNotice: '© 2026 CUBRID Corporation',
+
+  // Breadcrumb
+  unsavedChangesDesc: (name) => `"${name}"에 저장하지 않은 변경 사항이 있습니다. 닫으면 변경 사항이 사라집니다.`,
+
+  // Footer
+  unknownFallback: '알 수 없음',
+
+  // Sidebar
+  failedListSuffix: (list) => ` 실패: ${list}.`,
+  loginToHostsFailedMsg: '호스트 로그인에 실패했습니다.',
+  allHostsAlreadyConnectedMsg: '모든 호스트가 이미 연결되어 있습니다.',
+  groupColonLabel: (name) => `그룹: ${name}`,
+  startingAllDatabasesMsg: '모든 데이터베이스 시작 중 ...',
+  stoppingAllDatabasesMsg: '모든 데이터베이스 중지 중 ...',
+  restartingAllDatabasesMsg: '모든 데이터베이스 재시작 중 ...',
+  startingAllBrokersMsg: '모든 브로커 시작 중 ...',
+  stoppingAllBrokersMsg: '모든 브로커 중지 중 ...',
+  restartingAllBrokersMsg: '모든 브로커 재시작 중 ...',
+  sqlLogsColonLabel: (broker) => `SQL 로그: ${broker}`,
+  serverLogsColonLabel: (db) => `서버 로그: ${db}`,
+  usersColonLabel: (db) => `사용자: ${db}`,
+  spaceColonLabel: (db) => `공간: ${db}`,
+  backupColonLabel: (planId) => `백업: ${planId}`,
+  queryPlanColonLabel: (db) => `질의 자동화: ${db}`,
+  queryPlanItemColonLabel: (qId) => `질의 자동화 항목: ${qId}`,
 };
 
