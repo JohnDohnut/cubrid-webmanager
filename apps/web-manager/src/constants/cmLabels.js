@@ -254,6 +254,7 @@ export const CM = {
   jobTypeCopy: 'Copy',
   jobTypeAddVol: 'Add volume',
   jobTypeRename: 'Rename',
+  jobTypeBackupDb: 'Backup',
   databaseAction: 'Database Action',
   brokerAction: 'Broker Action',
   actionFailed: 'Action Failed',
@@ -401,14 +402,14 @@ export const CM = {
   addUser: 'Add User',
   fullSystemAuth: 'Full system authorization',
   primaryAdminCannotDelete: 'The primary administrator account cannot be deleted.',
-  noAccess: 'No Access',
-  monitorOnly: 'Monitor Only',
-  fullControl: 'Full Control',
+  noAccess: 'none',
+  monitorOnly: 'monitor',
+  fullControl: 'admin',
   permissions: 'Permissions',
   brokerAuthority: 'Broker Authority',
-  monitoringPermission: 'monitoring',
-  dbCreatePermission: 'db-creation',
-  brokerPermission: 'broker',
+  monitoringPermission: 'Status monitor authority:',
+  dbCreatePermission: 'DB creation authority:',
+  brokerPermission: 'Broker authority:',
 
   // Server dashboard
   serverDashboard: 'Server Dashboard',
@@ -982,6 +983,12 @@ export const CM = {
   restoreErrorFallback: 'An unexpected error occurred during restore.',
   tryOtherBackupLevel: 'Try selecting another backup level, or view all.',
   recoveryPathPlaceholder: 'Default: original location',
+  pointInTimeRecovery: 'Point-in-Time Recovery',
+  pointInTimeHint: 'Restore to a specific moment after the backup was taken',
+  restoreToDate: 'Restore to Date & Time',
+  restoreDateFormatHint: 'Must be on or after the backup date. Enter time in the server\'s local timezone.',
+  restoreDateRequired: 'Enter the recovery date and time.',
+  restoreDateBeforeBackup: 'Recovery date must be on or after the backup date.',
   backupLevelFullLongDesc: 'Complete snapshot of all data, schema and volumes.',
   backupLevelIncrL1LongDesc: 'Changes since last L0 backup. Requires L0 to restore.',
   backupLevelIncrL2LongDesc: 'Changes since last L1 backup. Requires L0 + L1 to restore.',
@@ -1135,4 +1142,283 @@ export const CM = {
   registrationFailedTitle: 'Registration Failed',
   desktopOnly: 'Desktop only',
   desktopBridgeUnavailable: 'Desktop bridge unavailable',
+
+  // CAS Log Viewer
+  casSqlTransactionLog: 'CAS SQL Log',
+  casSlowQueryRegistry: 'CAS Slow Query Log',
+  broker: 'Broker',
+  casUid: 'CAS UID',
+  noLogData: 'No Log Data',
+  logStreamEmptyMsg: "The requested log stream is currently empty or hasn't been initialized by the broker process.",
+  logResolveError: (suffix) => `Log file identifier [${suffix}] could not be resolved in the current broker directory.`,
+  logRetrievalRefused: 'The remote host refused the log retrieval request. Please verify broker connectivity.',
+
+  // Broker Config
+  fetchFailed: 'Fetch failed',
+  brokerConfigRetrieveError: 'Could not retrieve broker configuration.',
+  configSaved: 'Config saved',
+  brokerConfigSaveSuccess: 'Broker configuration updated successfully.',
+  saveFailed: 'Save failed',
+  brokerConfigSaveError: 'An error occurred while saving broker configuration.',
+  initializingEditor: 'Initializing Editor...',
+  brokerConfig: 'Broker Config',
+  brokerConfiguration: 'Broker Configuration',
+  modified: 'Modified',
+  commentsPreserved: 'Comments preserved in source view',
+  linesLabel: (count) => `${count} lines`,
+
+  // Node Group Tree
+  addNodeToGroup: 'Add host to group',
+
+  // Auth pages
+  forgotLink: 'Forgot?',
+  newToCubrid: 'New to CUBRID?',
+  workspaceSettings: 'Workspace settings',
+  website: 'Website',
+  github: 'GitHub',
+  atLeast6Chars: 'At least 6 characters',
+  confirmPasswordRequired: 'Please confirm your password',
+  weakPassword: 'Weak',
+  averagePassword: 'Average',
+  goodPassword: 'Good',
+  strongPassword: 'Strong',
+  architecture: 'Architecture',
+  license: 'License',
+  engine: 'Engine',
+  security: 'Security',
+  passwordsMatch: 'Passwords match',
+  alreadyHaveAccount: 'Already have an account?',
+  agreeTermsPrefix: 'By creating an account, you agree to the CUBRID Open Source ',
+  projectTerms: 'Project Terms',
+  agreeTermsSuffix: ' and data policies.',
+
+  // Sidebar — host tree empty/login state
+  addFirstHostTitle: 'Add your first host',
+  addFirstHostMsg: 'Connect to a CUBRID server',
+  hostLoginTitle: 'Host login',
+  establishingSession: 'Establishing secure session...',
+  connectionFailed: 'Connection failed',
+  tryAgain: 'Try Again',
+  allBrokers: 'All Brokers',
+  brokerLogs: 'Broker Logs',
+  errorLogs: 'Error Logs',
+  adminLogs: 'Admin Logs',
+  managerLogs: 'Manager Logs',
+  serverLogs: 'Server Logs',
+  backupPlanLabel: 'Backup Plan',
+  indexEmpty: 'Index Empty',
+  noDatabasesAvailable: 'No databases available',
+
+  // DatabaseSpaceMonitor
+  databaseLabel: 'Database',
+  usedLabel: 'Used',
+  freeLabel: 'Free',
+  headroomAvailable: 'headroom available',
+  usageLabel: 'Usage',
+  volumeCategorization: 'Volume Categorization',
+  physicalVolumeTopology: 'Physical Volume Topology',
+  fileSpaceUsage: 'File Space Usage',
+  distributionLabel: 'Distribution',
+  dbSpaceMonitor: 'Database Space Monitor',
+  qtyLabel: 'Qty',
+  dataTypeLabel: 'Data Type',
+  analyzingStorage: 'Analyzing storage capacity...',
+
+  // VolumeInfoMonitor
+  volumeInfo: 'Volume Info',
+  volumeHealth: 'Volume Health',
+  mbPhysical: 'MB Physical',
+  mbAvailable: 'MB Available',
+  utilizationLabel: 'Utilization',
+  volumeUsage: 'Volume Usage',
+  allocationLabel: 'Allocation',
+  percentUsed: '{0}% used',
+  volNameRow: 'Volume Name',
+  locationRow: 'Location',
+  purposeRow: 'Purpose',
+  pageSizeRow: 'Page Size',
+  totalPagesRow: 'Total Pages',
+  usedPagesRow: 'Used Pages',
+  freePagesRow: 'Free Pages',
+  totalSizeRow: 'Total Size',
+
+  // VolumeCategoryMonitor
+  capacityLabel: 'Capacity',
+  overallUtilization: 'Overall Utilization',
+
+  // TransactionInfoModal
+  queryTime: 'Query time',
+  tranTime: 'Tran time',
+  waitHolder: 'Wait holder',
+
+  // UnloadResultModal
+  classLabel: 'Class',
+  resultLabel: 'Result',
+
+  // SetAutomationVolumeModal
+  targetDatabase: 'Target database',
+
+  // DatabasePlanDumpModal
+  selectedInstance: 'Selected Instance',
+  xaslCache: 'XASL Cache',
+  flushCacheAfterExport: 'Flush Cache after export',
+  clearsXaslEntries: 'Clears XASL entries from server memory',
+
+  // CMSUserManagementModal
+  fullSystemAuthorization: 'Full system authorization',
+  addManagementUser: 'Add a management user',
+
+  // ChangeHostPasswordModal
+  passcodeUpdated: 'Passcode Updated',
+  targetHost: 'Target Host',
+
+  // DeleteHostModal
+  impactSummary: 'Impact Summary',
+
+  // ImportExportHostModal
+  filenameLabel: 'Filename:',
+  duplicateLabel: 'DUPLICATE',
+  invalidLabel: 'INVALID',
+
+  // CubridConfigEditor
+  loadingConfiguration: 'Loading Configuration...',
+
+  // Databases (server dashboard legacy component)
+  databasesLabel: 'Databases',
+
+  // CreateUserModal
+  availableLabel: 'Available',
+  noIdentities: 'No identities',
+  groupsLabel: 'Groups',
+  dropGroupsHere: 'Drop groups here',
+  membersLabel: 'Members',
+  dropMembersHere: 'Drop members here',
+  loadingLabel: 'Loading...',
+  noObjects: 'No objects',
+  accessMaskConfig: 'Access mask configuration',
+  dmlLabel: 'DML',
+  ddlLabel: 'DDL',
+  grantDelegation: 'Grant Delegation',
+  selectAnObject: 'Select an object',
+
+  // MonitoringSettingsPopover
+  globalHeartbeat: 'Global Heartbeat',
+  resourceDashboard: 'Resource Dashboard',
+  syncDbThroughputMsg: 'Synchronizes database throughput and disk IO latency.',
+  brokerInfrastructure: 'Broker Infrastructure',
+  propagatesConnectionMsg: 'Propagates connection pool health and query load balancing.',
+  sessionPreferences: 'Session Preferences',
+
+  // UserProfileModal
+  userIdLabel: 'User ID',
+  departmentLabel: 'Department',
+  lockedLabel: 'locked',
+
+  // BrokerPropertyModal
+  resetLabel: 'Reset',
+  applyLabel: 'Apply',
+  runtimeConfiguration: 'Runtime Configuration',
+  deployingChanges: 'Deploying Changes',
+  updateSynchronized: 'Update Synchronized',
+
+  // BrokerStatus
+  basicInformation: 'Basic Information',
+  applicationServers: 'Application Servers (AS)',
+  jobQueue: 'Job Queue',
+
+  // CMSLogViewer
+  loadingManagerLogs: 'Loading manager logs...',
+  managerSystemActivity: 'Manager System Activity',
+  copiedLabel: 'Copied',
+  timeLabel: 'Time',
+  userLabel: 'User',
+  taskLabel: 'Task',
+  noLogEntriesFound: 'No log entries found for this category.',
+  errLabel: 'ERR',
+  successLabel: 'SUCCESS',
+  showingAllRecords: 'Showing all records',
+
+  // LogViewer (Broker Log Viewer)
+  brokerLogViewer: 'Broker Log Viewer',
+  noContentAvailable: 'No content available for this range.',
+  noSqlStatementsFound: 'No SQL statements found in this page.',
+  maxSeconds: 'Max (s)',
+  avgSeconds: 'Avg (s)',
+  countLabel: 'Count',
+  errorsLabel: 'Errors',
+  sqlPattern: 'SQL Pattern',
+  noQueriesToAnalyze: 'No queries found to analyze.',
+
+  // AllLogsViewer
+  loadingLogLines: 'Loading log lines...',
+  noContentAvailableShort: 'No content available',
+  scanningForLogFiles: 'Scanning for log files...',
+  noLogFilesFound: 'No Log Files Found',
+  noLogFilesFoundMsg: "We couldn't find any log files for this resource.",
+
+  // DatabasePlanDumpModal
+  flushCacheAfterExport2: 'Flush Cache after export',
+  clearsXaslEntries2: 'Clears XASL entries from server memory',
+
+  // ImportExportHostModal
+  importedPlaceholder: 'Imported',
+
+  // CMSUserManagementModal add-user CTA
+  addManagementUserBtn: 'Add a management user',
+
+  // DatabaseSpaceMonitor inline labels
+  freeBadge: 'free',
+
+  // ForgotPasswordPage
+  forgotPasswordLabel: 'Forgot Password',
+  backToLogin: 'Back to Login',
+  backToSignIn: 'Back to Sign In',
+  enterpriseSuite: 'Enterprise Database Suite',
+  resetAccessCredentials: 'Reset your access credentials.',
+  securityProtocol: 'Security Protocol',
+  recoveryLabel: 'Recovery',
+  emailPlaceholder: 'admin@organization.com',
+  sendRecoveryLink: 'Send Recovery Link',
+  linkSent: 'Link Sent',
+  checkInbox: 'Check your inbox',
+  rememberPasswordQuestion: 'Remember your password?',
+  enterEmailInstruction: 'Enter your registered email address to begin the account recovery process.',
+  recoverySecurityDesc: 'Account recovery is handled with the same enterprise-grade security as our database clustering. We\'ll help you regain access.',
+  recoveryProtocolDesc: 'You will receive a one-time cryptographic link to authorize a new master password creation. The link expires in 15 minutes.',
+  submitEmailStep: 'Submit your registered email',
+  checkInboxStep: 'Check inbox for recovery link',
+  setNewPasswordStep: 'Set a new secure password',
+  securityInfrastructure: 'CUBRID Manager Security Infrastructure',
+  recoveryInstructionsSent: 'Recovery instructions have been sent to',
+  checkSpamMsg: 'The link expires in 15 minutes. Check your spam folder if it doesn\'t arrive.',
+  resendRecoveryEmail: 'Resend recovery email',
+  serverListHeader: 'Server List',
+  resourcesHeader: 'Resources',
+
+  // CMSUserManagementModal
+  managementAccountsRegistered: (count) => count === 1 ? '1 management account registered' : `${count} management accounts registered`,
+  confirmDeleteCmsUser: (username) => `Are you sure you want to permanently delete the management user "${username}"?`,
+  synchronizingRegistry: 'Synchronizing registry...',
+  noUsersFound: 'No users found',
+  managementRegistryEmpty: 'Management registry is empty or inaccessible.',
+
+  // EditCMSUserModal & ChangeHostPasswordModal
+  updatePasscode: 'Update Passcode',
+  passcodeChangedSuccessMsg: (host) => `The manager access passcode for ${host} has been successfully changed.`,
+  passcodeUpdateNote: 'This will update the manager access passcode stored locally for this connection.',
+  userUpdatedSuccessMsg: (username) => `User @${username} successfully updated.`,
+  userCreatedSuccessMsg: (username) => `User @${username} successfully created.`,
+  synchronizationFailed: 'Synchronization failed.',
+  savingChanges: 'Saving Changes',
+  creatingUser: 'Creating User',
+  updating: 'Updating...',
+  creating: 'Creating...',
+  editingUser: (username) => `Editing @${username}`,
+  createManagementAccount: 'Create a new management account',
+  primaryAdminNotice: 'This is the primary system administrator account. System level permissions are fixed and cannot be modified.',
+  operationCompletedSuccess: 'The operation completed successfully.',
+  operationCouldNotBeCompleted: 'The operation could not be completed.',
+  viewAll: 'View All',
+  paginated: 'Paginated',
 };
+
