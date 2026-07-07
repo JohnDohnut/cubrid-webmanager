@@ -457,6 +457,7 @@ export const CM = {
   accountRecovery: 'Account Recovery',
   resetCredentials: 'Reset your access credentials.',
   registrationFailed: 'Registration failed. Please try again.',
+  loginFailedMsg: 'Login failed. Please check your credentials.',
   passwordStrengthWeak: 'Weak',
   passwordStrengthAverage: 'Average',
   passwordStrengthGood: 'Good',
@@ -1351,6 +1352,25 @@ export const CM = {
   ddlLabel: 'DDL',
   grantDelegation: 'Grant Delegation',
   selectAnObject: 'Select an object',
+  identitySyncFailedMsg: 'Identity synchronization failed. Please check host availability.',
+  newDatabaseUserTitle: 'New Database User',
+  updateCredentialsSubtitle: 'Update credentials and group memberships below.',
+  defineIdentitySubtitle: 'Define identity, credentials, and role membership.',
+  accountSectionLabel: 'Account',
+  usernamePlaceholderHint: 'e.g. sys_auditor',
+  rolePurposePlaceholder: 'Role or purpose',
+  groupsAndMembersLabel: 'Groups & Members',
+  dragOrDoubleClickHint: 'Drag or double-click to assign',
+  searchPlaceholder: 'Search...',
+  groupBadge: 'GROUP',
+  clearBtn: 'Clear',
+  rowsSuffix: 'rows',
+  proceduresLabel: 'Procedures',
+  structuralPermLabel: (perm) => `Structural ${perm}`,
+
+  // DropUserModal
+  identityPurgedMsg: (username, dbname) => `Identity @${username} has been successfully purged from ${dbname}.`,
+  purgeRejectedMsg: 'Purge request rejected by foreign host boundary.',
 
   // MonitoringSettingsPopover
   globalHeartbeat: 'Global Heartbeat',
@@ -1359,11 +1379,20 @@ export const CM = {
   brokerInfrastructure: 'Broker Infrastructure',
   propagatesConnectionMsg: 'Propagates connection pool health and query load balancing.',
   sessionPreferences: 'Session Preferences',
+  manualLabel: 'Manual',
+  secondsSuffix: 'seconds',
 
   // UserProfileModal
   userIdLabel: 'User ID',
   departmentLabel: 'Department',
   lockedLabel: 'locked',
+  fillAllPasswordFieldsMsg: 'Please fill in all password fields.',
+  newPasswordsDoNotMatchMsg: 'New passwords do not match.',
+  profileUpdateFailedMsg: 'Failed to update profile',
+  unexpectedErrorMsg: 'An unexpected error occurred',
+  administratorLabel: 'Administrator',
+  notAssignedFallback: 'Not assigned',
+  departmentPlaceholderHint: 'e.g. Engineering',
 
   // BrokerPropertyModal
   resetLabel: 'Reset',

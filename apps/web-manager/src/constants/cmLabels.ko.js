@@ -442,6 +442,7 @@ export const CM_KO = {
   accountRecovery: '계정 복구',
   resetCredentials: '접근 자격 증명을 재설정합니다.',
   registrationFailed: '등록에 실패했습니다. 다시 시도하세요.',
+  loginFailedMsg: '로그인에 실패했습니다. 자격 증명을 확인하세요.',
   passwordStrengthWeak: '약함',
   passwordStrengthAverage: '보통',
   passwordStrengthGood: '좋음',
@@ -1329,6 +1330,25 @@ export const CM_KO = {
   ddlLabel: 'DDL',
   grantDelegation: '권한 위임',
   selectAnObject: '객체 선택',
+  identitySyncFailedMsg: '아이덴티티 동기화에 실패했습니다. 호스트 연결 상태를 확인하세요.',
+  newDatabaseUserTitle: '새 데이터베이스 사용자',
+  updateCredentialsSubtitle: '아래에서 자격 증명과 그룹 소속을 수정하세요.',
+  defineIdentitySubtitle: '아이덴티티, 자격 증명, 역할 소속을 정의하세요.',
+  accountSectionLabel: '계정',
+  usernamePlaceholderHint: '예: sys_auditor',
+  rolePurposePlaceholder: '역할 또는 용도',
+  groupsAndMembersLabel: '그룹 및 멤버',
+  dragOrDoubleClickHint: '드래그하거나 더블클릭하여 할당',
+  searchPlaceholder: '검색...',
+  groupBadge: 'GROUP',
+  clearBtn: '지우기',
+  rowsSuffix: '행',
+  proceduresLabel: '프로시저',
+  structuralPermLabel: (perm) => `구조적 ${perm}`,
+
+  // 사용자 삭제 모달
+  identityPurgedMsg: (username, dbname) => `아이덴티티 @${username}이(가) ${dbname}에서 성공적으로 삭제되었습니다.`,
+  purgeRejectedMsg: '외부 호스트 경계에 의해 삭제 요청이 거부되었습니다.',
 
   // 모니터링 설정 팝오버
   globalHeartbeat: '전역 하트비트',
@@ -1337,11 +1357,20 @@ export const CM_KO = {
   brokerInfrastructure: '브로커 인프라',
   propagatesConnectionMsg: '연결 풀 상태 및 쿼리 부하 분산을 전파합니다.',
   sessionPreferences: '세션 환경설정',
+  manualLabel: '수동',
+  secondsSuffix: '초',
 
   // 사용자 프로필 모달
   userIdLabel: '사용자 계정',
   departmentLabel: '부서',
   lockedLabel: '잠김',
+  fillAllPasswordFieldsMsg: '모든 비밀번호 필드를 입력하세요.',
+  newPasswordsDoNotMatchMsg: '새 비밀번호가 일치하지 않습니다.',
+  profileUpdateFailedMsg: '프로필 업데이트에 실패했습니다',
+  unexpectedErrorMsg: '예기치 않은 오류가 발생했습니다',
+  administratorLabel: '관리자',
+  notAssignedFallback: '지정되지 않음',
+  departmentPlaceholderHint: '예: 엔지니어링',
 
   // 브로커 속성 모달
   resetLabel: '초기화',
