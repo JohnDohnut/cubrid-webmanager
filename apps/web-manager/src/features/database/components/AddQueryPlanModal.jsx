@@ -144,7 +144,7 @@ export default function AddQueryPlanModal() {
       dispatch(fetchQueryPlan({ hostUid: selectedHostUid, dbname: selectedDatabase }));
       endSuccess(`${CM.queryPlanAdded}: ${formData.queryId}`);
     } catch (err) {
-      endError(typeof err === 'string' ? err : (err.message || 'Failed to add query plan.'));
+      endError(typeof err === 'string' ? err : (err.message || CM.addQueryPlanFailedMsg));
     }
   };
 

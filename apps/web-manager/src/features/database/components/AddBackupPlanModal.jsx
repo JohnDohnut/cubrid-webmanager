@@ -298,10 +298,10 @@ export default function AddBackupPlanModal() {
                 <div className="space-y-4">
                   <div className="flex flex-wrap gap-2">
                     {[
-                      { id: 'all', label: 'Full Spectrum', icon: 'select_all' },
-                      { id: 'clear', label: 'Reset Grid', icon: 'backspace' },
-                      { id: 'weekdays', label: 'Standard Week', icon: 'work' },
-                      { id: 'weekends', label: 'Weekend Cycle', icon: 'beach_access' },
+                      { id: 'all', label: CM.fullSpectrumPreset, icon: 'select_all' },
+                      { id: 'clear', label: CM.resetGridPreset, icon: 'backspace' },
+                      { id: 'weekdays', label: CM.standardWeekPreset, icon: 'work' },
+                      { id: 'weekends', label: CM.weekendCyclePreset, icon: 'beach_access' },
                     ].map(preset => (
                       <button
                         key={preset.id}
@@ -357,7 +357,7 @@ export default function AddBackupPlanModal() {
 
               {formData.periodType === 'Daily' && (
                 <InfoBanner title={CM.standard24hCycle}>
-                  Instance synchronized daily at exactly <span className="font-bold text-amber-500 font-mono italic non-block">{formData.backupTime}</span>.
+                  {CM.dailySyncInfoBanner(formData.backupTime)}
                 </InfoBanner>
               )}
 
