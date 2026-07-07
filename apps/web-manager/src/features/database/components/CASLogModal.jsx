@@ -33,10 +33,10 @@ export default function CASLogModal({ isOpen, onClose, hostUid, brokerName, casI
       if (found) {
         setLogPath(found.path);
       } else {
-        setError(`Log file identifier [${suffix}] could not be resolved in the current broker directory.`);
+        setError(CM.logResolveError(suffix));
       }
     } catch (err) {
-      setError('The remote host refused the log retrieval request. Please verify broker connectivity.');
+      setError(CM.logRetrievalRefused);
     } finally {
       setLoading(false);
     }
@@ -60,11 +60,11 @@ export default function CASLogModal({ isOpen, onClose, hostUid, brokerName, casI
         <div className="absolute top-4 left-6 z-10 flex items-center gap-4 pointer-events-none">
           <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/80 backdrop-blur-md border border-white/5 rounded-xl shadow-lg">
              <Icon name="dns" size="xs" weight={300} className="text-amber-500" />
-             <Typography variant="caption" className="font-bold text-white/60">Broker: <span className="text-amber-500">{brokerName}</span></Typography>
+             <Typography variant="caption" className="font-bold text-white/60">{CM.broker}: <span className="text-amber-500">{brokerName}</span></Typography>
           </div>
           <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/80 backdrop-blur-md border border-white/5 rounded-xl shadow-lg">
              <Icon name="fingerprint" size="xs" weight={300} className="text-amber-500" />
-             <Typography variant="caption" className="font-bold text-white/60">CAS UID: <span className="text-amber-500">{casId}</span></Typography>
+             <Typography variant="caption" className="font-bold text-white/60">{CM.casUid}: <span className="text-amber-500">{casId}</span></Typography>
           </div>
         </div>
 
@@ -79,8 +79,8 @@ export default function CASLogModal({ isOpen, onClose, hostUid, brokerName, casI
              <div className="w-20 h-20 bg-slate-800/50 rounded-3xl flex items-center justify-center border border-white/5 shadow-2xl">
                 <Icon name="search_off" size="lg" weight={100} className="text-slate-600" />
              </div>
-             <Typography variant="h3" className="text-white/60 font-bold tracking-tight">No Log Data</Typography>
-             <Typography variant="p" className="text-slate-500 max-w-sm">The requested log stream is currently empty or hasn't been initialized by the broker process.</Typography>
+             <Typography variant="h3" className="text-white/60 font-bold tracking-tight">{CM.noLogData}</Typography>
+             <Typography variant="p" className="text-slate-500 max-w-sm">{CM.logStreamEmptyMsg}</Typography>
           </div>
         )}
       </div>

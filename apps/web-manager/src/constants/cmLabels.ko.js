@@ -246,6 +246,7 @@ export const CM_KO = {
   jobTypeCopy: '복사',
   jobTypeAddVol: '볼륨 추가',
   jobTypeRename: '이름 변경',
+  jobTypeBackupDb: '백업',
   databaseAction: '데이터베이스 작업',
   brokerAction: '브로커 작업',
   actionFailed: '작업 실패',
@@ -388,14 +389,14 @@ export const CM_KO = {
   addUser: '사용자 추가',
   fullSystemAuth: '전체 시스템 권한',
   primaryAdminCannotDelete: '기본 관리자 계정은 삭제할 수 없습니다.',
-  noAccess: '접근 없음',
-  monitorOnly: '모니터만',
-  fullControl: '전체 제어',
+  noAccess: 'none',
+  monitorOnly: 'monitor',
+  fullControl: 'admin',
   permissions: '권한',
   brokerAuthority: '브로커 권한',
-  monitoringPermission: '모니터링',
-  dbCreatePermission: 'DB 생성',
-  brokerPermission: '브로커',
+  monitoringPermission: '상태 모니터 권한',
+  dbCreatePermission: 'DB 생성 권한',
+  brokerPermission: '브로커 권한',
 
   serverDashboard: '서버 대시보드',
   refreshDashboard: '대시보드 새로 고침',
@@ -969,6 +970,12 @@ export const CM_KO = {
   restoreErrorFallback: '복구 중 예기치 않은 오류가 발생했습니다.',
   tryOtherBackupLevel: '다른 백업 레벨을 선택하거나 전체를 보십시오.',
   recoveryPathPlaceholder: '기본값: 원래 위치',
+  pointInTimeRecovery: '시점 복구',
+  pointInTimeHint: '백업 이후 특정 시점으로 복원합니다',
+  restoreToDate: '복원 시점 지정',
+  restoreDateFormatHint: '백업 날짜 이후 시점이어야 합니다. 서버 로컬 시간 기준으로 입력하세요.',
+  restoreDateRequired: '복원 시점을 입력해 주십시오.',
+  restoreDateBeforeBackup: '복원 시점은 백업 날짜 이후여야 합니다.',
   backupLevelFullLongDesc: '모든 데이터, 스키마, 볼륨의 전체 스냅샷입니다.',
   backupLevelIncrL1LongDesc: '마지막 L0 백업 이후 변경 내용입니다. 복구 시 L0이 필요합니다.',
   backupLevelIncrL2LongDesc: '마지막 L1 백업 이후 변경 내용입니다. 복구 시 L0 + L1이 필요합니다.',
@@ -1137,4 +1144,283 @@ export const CM_KO = {
   registrationFailedTitle: '회원가입 실패',
   desktopOnly: '데스크톱 전용',
   desktopBridgeUnavailable: '데스크톱 브리지를 사용할 수 없음',
+
+  // CAS Log Viewer
+  casSqlTransactionLog: 'CAS SQL 로그 조회',
+  casSlowQueryRegistry: 'CAS SLOW Query 로그 조회',
+  broker: '브로커',
+  casUid: 'CAS UID',
+  noLogData: '로그 데이터 없음',
+  logStreamEmptyMsg: '요청한 로그 스트림이 현재 비어 있거나 브로커 프로세스에 의해 초기화되지 않았습니다.',
+  logResolveError: (suffix) => `현재 브로커 디렉토리에서 로그 파일 식별자 [${suffix}]를 확인할 수 없습니다.`,
+  logRetrievalRefused: '원격 호스트가 로그 조회 요청을 거부했습니다. 브로커 연결을 확인하십시오.',
+
+  // Broker Config
+  fetchFailed: '가져오기 실패',
+  brokerConfigRetrieveError: '브로커 구성을 가져올 수 없습니다.',
+  configSaved: '설정 저장됨',
+  brokerConfigSaveSuccess: '브로커 구성이 성공적으로 업데이트되었습니다.',
+  saveFailed: '저장 실패',
+  brokerConfigSaveError: '브로커 구성을 저장하는 동안 오류가 발생했습니다.',
+  initializingEditor: '에디터 초기화 중...',
+  brokerConfig: '브로커 구성',
+  brokerConfiguration: '브로커 설정',
+  modified: '수정됨',
+  commentsPreserved: '소스 보기에서 주석이 보존됩니다',
+  linesLabel: (count) => `${count} 줄`,
+
+  // Node Group Tree
+  addNodeToGroup: '그룹에 호스트 추가',
+
+  // Auth pages
+  forgotLink: '비밀번호를 잊으셨나요?',
+  newToCubrid: 'CUBRID가 처음이신가요?',
+  workspaceSettings: '워크스페이스 설정',
+  website: '웹사이트',
+  github: 'GitHub',
+  atLeast6Chars: '최소 6자 이상',
+  confirmPasswordRequired: '비밀번호를 확인하십시오',
+  weakPassword: '약함',
+  averagePassword: '보통',
+  goodPassword: '좋음',
+  strongPassword: '강함',
+  architecture: '아키텍처',
+  license: '라이선스',
+  engine: '엔진',
+  security: '보안',
+  passwordsMatch: '비밀번호 일치',
+  alreadyHaveAccount: '이미 계정이 있으신가요?',
+  agreeTermsPrefix: '계정을 생성하면 CUBRID 오픈 소스 ',
+  projectTerms: '프로젝트 약관',
+  agreeTermsSuffix: ' 및 데이터 정책에 동의하는 것으로 간주됩니다.',
+
+  // 사이드바 — 호스트 트리 비어있는 상태 / 로그인 상태
+  addFirstHostTitle: '첫 번째 호스트 추가',
+  addFirstHostMsg: 'CUBRID 서버에 연결',
+  hostLoginTitle: '호스트 로그인',
+  establishingSession: '보안 세션을 설정하는 중...',
+  connectionFailed: '연결 실패',
+  tryAgain: '다시 시도',
+  allBrokers: '모든 브로커',
+  brokerLogs: '브로커 로그',
+  errorLogs: '오류 로그',
+  adminLogs: '관리자 로그',
+  managerLogs: '매니저 로그',
+  serverLogs: '서버 로그',
+  backupPlanLabel: '백업 계획',
+  indexEmpty: '인덱스 없음',
+  noDatabasesAvailable: '사용 가능한 데이터베이스 없음',
+
+  // 데이터베이스 공간 모니터
+  databaseLabel: '데이터베이스',
+  usedLabel: '사용됨',
+  freeLabel: '여유',
+  headroomAvailable: '여유 공간',
+  usageLabel: '사용량',
+  volumeCategorization: '볼륨 분류',
+  physicalVolumeTopology: '물리 볼륨 구성',
+  fileSpaceUsage: '파일 공간 사용량',
+  distributionLabel: '분포',
+  dbSpaceMonitor: '데이터베이스 공간 모니터',
+  qtyLabel: '개수',
+  dataTypeLabel: '데이터 유형',
+  analyzingStorage: '저장 용량 분석 중...',
+
+  // 볼륨 정보 모니터
+  volumeInfo: '볼륨 정보',
+  volumeHealth: '볼륨 상태',
+  mbPhysical: 'MB 물리',
+  mbAvailable: 'MB 사용 가능',
+  utilizationLabel: '사용률',
+  volumeUsage: '볼륨 사용량',
+  allocationLabel: '할당',
+  percentUsed: '{0}% 사용됨',
+  volNameRow: '볼륨 이름',
+  locationRow: '볼륨 위치',
+  purposeRow: '볼륨 형식',
+  pageSizeRow: '페이지 크기',
+  totalPagesRow: '총 페이지 수',
+  usedPagesRow: '사용된 페이지',
+  freePagesRow: '남은 페이지',
+  totalSizeRow: '총 용량',
+
+  // 볼륨 카테고리 모니터
+  capacityLabel: '용량',
+  overallUtilization: '전체 사용률',
+
+  // 트랜잭션 정보 모달
+  queryTime: '쿼리 시간',
+  tranTime: '트랜잭션 시간',
+  waitHolder: '대기 홀더',
+
+  // 언로드 결과 모달
+  classLabel: '클래스',
+  resultLabel: '결과',
+
+  // 자동화 볼륨 설정 모달
+  targetDatabase: '대상 데이터베이스',
+
+  // 데이터베이스 플랜 덤프 모달
+  selectedInstance: '선택된 인스턴스',
+  xaslCache: 'XASL 캐시',
+  flushCacheAfterExport: '내보내기 후 캐시 초기화',
+  clearsXaslEntries: '서버 메모리에서 XASL 항목을 지웁니다',
+
+  // CMS 사용자 관리 모달
+  fullSystemAuthorization: '전체 시스템 권한',
+  addManagementUser: '관리 사용자 추가',
+
+  // 호스트 비밀번호 변경 모달
+  passcodeUpdated: '패스코드 업데이트됨',
+  targetHost: '대상 호스트',
+
+  // 호스트 삭제 모달
+  impactSummary: '영향 요약',
+
+  // 호스트 가져오기/내보내기 모달
+  filenameLabel: '파일명:',
+  duplicateLabel: '중복',
+  invalidLabel: '유효하지 않음',
+
+  // CUBRID 설정 편집기
+  loadingConfiguration: '설정 로드 중...',
+
+  // 데이터베이스 대시보드 레거시
+  databasesLabel: '데이터베이스',
+
+  // 사용자 생성 모달
+  availableLabel: '사용 가능',
+  noIdentities: '아이덴티티 없음',
+  groupsLabel: '그룹',
+  dropGroupsHere: '여기에 그룹 놓기',
+  membersLabel: '멤버',
+  dropMembersHere: '여기에 멤버 놓기',
+  loadingLabel: '로딩 중...',
+  noObjects: '객체 없음',
+  accessMaskConfig: '접근 마스크 설정',
+  dmlLabel: 'DML',
+  ddlLabel: 'DDL',
+  grantDelegation: '권한 위임',
+  selectAnObject: '객체 선택',
+
+  // 모니터링 설정 팝오버
+  globalHeartbeat: '전역 하트비트',
+  resourceDashboard: '리소스 대시보드',
+  syncDbThroughputMsg: '데이터베이스 처리량 및 디스크 IO 지연 시간을 동기화합니다.',
+  brokerInfrastructure: '브로커 인프라',
+  propagatesConnectionMsg: '연결 풀 상태 및 쿼리 부하 분산을 전파합니다.',
+  sessionPreferences: '세션 환경설정',
+
+  // 사용자 프로필 모달
+  userIdLabel: '사용자 계정',
+  departmentLabel: '부서',
+  lockedLabel: '잠김',
+
+  // 브로커 속성 모달
+  resetLabel: '초기화',
+  applyLabel: '적용',
+  runtimeConfiguration: '런타임 구성',
+  deployingChanges: '변경 사항 배포 중',
+  updateSynchronized: '업데이트 완료',
+
+  // 브로커 상태
+  basicInformation: '기본 정보',
+  applicationServers: '응용 프로그램 서버 (AS)',
+  jobQueue: '작업 대기열',
+
+  // CMS 로그 뷰어
+  loadingManagerLogs: '관리자 로그 로딩 중...',
+  managerSystemActivity: '관리자 시스템 활동',
+  copiedLabel: '복사됨',
+  timeLabel: '시간',
+  userLabel: '사용자',
+  taskLabel: '작업',
+  noLogEntriesFound: '이 범주에 대한 로그 항목이 없습니다.',
+  errLabel: '오류',
+  successLabel: '성공',
+  showingAllRecords: '전체 레코드 표시',
+
+  // 로그 뷰어 (브로커)
+  brokerLogViewer: '브로커 로그 뷰어',
+  noContentAvailable: '이 범위에 사용 가능한 내용이 없습니다.',
+  noSqlStatementsFound: '이 페이지에서 SQL 구문을 찾을 수 없습니다.',
+  maxSeconds: '최대 (초)',
+  avgSeconds: '평균 (초)',
+  countLabel: '횟수',
+  errorsLabel: '오류',
+  sqlPattern: 'SQL 패턴',
+  noQueriesToAnalyze: '분석할 쿼리가 없습니다.',
+
+  // 전체 로그 뷰어
+  loadingLogLines: '로그 행 로딩 중...',
+  noContentAvailableShort: '사용 가능한 내용이 없습니다',
+  scanningForLogFiles: '로그 파일 검색 중...',
+  noLogFilesFound: '로그 파일 없음',
+  noLogFilesFoundMsg: '이 리소스에 대한 로그 파일을 찾을 수 없습니다.',
+
+  // 데이터베이스 계획 덤프 모달
+  flushCacheAfterExport2: '내보내기 후 캐시 지우기',
+  clearsXaslEntries2: '서버 메모리에서 XASL 항목 제거',
+
+  // 가져오기/내보내기 호스트 모달
+  importedPlaceholder: '가져옴',
+
+  // CMS 사용자 관리 모달
+  addManagementUserBtn: '관리자 계정 추가',
+
+  // 데이터베이스 공간 모니터
+  freeBadge: '여유',
+
+  // 비밀번호 찾기 페이지
+  forgotPasswordLabel: '비밀번호 찾기',
+  backToLogin: '로그인으로 돌아가기',
+  backToSignIn: '로그인으로 돌아가기',
+  enterpriseSuite: '엔터프라이즈 데이터베이스 제품군',
+  resetAccessCredentials: '접속 자격 증명 재설정',
+  securityProtocol: '보안 프로토콜',
+  recoveryLabel: '비밀번호 찾기',
+  emailPlaceholder: 'admin@organization.com',
+  sendRecoveryLink: '재설정 링크 전송',
+  linkSent: '링크 전송됨',
+  checkInbox: '수신함을 확인하세요',
+  rememberPasswordQuestion: '비밀번호가 생각나셨나요?',
+  enterEmailInstruction: '계정 복구 프로세스를 시작하려면 등록된 이메일 주소를 입력하십시오.',
+  recoverySecurityDesc: '계정 복구는 데이터베이스 클러스터링과 동일한 기업 수준의 보안으로 처리됩니다. 계정 복구를 도와드리겠습니다.',
+  recoveryProtocolDesc: '새 마스터 비밀번호 생성을 승인할 수 있는 일회성 암호화 링크를 받게 됩니다. 링크는 15분 후에 만료됩니다.',
+  submitEmailStep: '등록된 이메일 주소 입력',
+  checkInboxStep: '수신함에서 복구 링크 확인',
+  setNewPasswordStep: '새로운 보안 비밀번호 설정',
+  securityInfrastructure: 'CUBRID 매니저 보안 인프라',
+  recoveryInstructionsSent: '복구 지침이 다음 이메일로 전송되었습니다:',
+  checkSpamMsg: '링크는 15분 후에 만료됩니다. 메일이 오지 않으면 스팸 메일함을 확인해 주세요.',
+  resendRecoveryEmail: '복구 이메일 재전송',
+  serverListHeader: '서버 목록',
+  resourcesHeader: '리소스',
+
+  // CMSUserManagementModal
+  managementAccountsRegistered: (count) => `${count}개의 관리자 계정이 등록되었습니다.`,
+  confirmDeleteCmsUser: (username) => `관리자 계정 "${username}"을(를) 영구히 삭제하시겠습니까?`,
+  synchronizingRegistry: '설정을 동기화하는 중...',
+  noUsersFound: '등록된 사용자가 없습니다',
+  managementRegistryEmpty: '관리자 설정이 비어 있거나 액세스할 수 없습니다.',
+
+  // EditCMSUserModal & ChangeHostPasswordModal
+  updatePasscode: '암호 변경',
+  passcodeChangedSuccessMsg: (host) => `${host}의 관리자 암호 변경을 성공적으로 완료하였습니다.`,
+  passcodeUpdateNote: '이 작업은 이 연결에 대해 로컬에 저장된 관리자 접속 암호를 업데이트합니다.',
+  userUpdatedSuccessMsg: (username) => `사용자 @${username}이(가) 성공적으로 수정되었습니다.`,
+  userCreatedSuccessMsg: (username) => `사용자 @${username}이(가) 성공적으로 생성되었습니다.`,
+  synchronizationFailed: '동기화에 실패했습니다.',
+  savingChanges: '변경 사항 저장 중',
+  creatingUser: '사용자 생성 중',
+  updating: '업데이트 중...',
+  creating: '생성 중...',
+  editingUser: (username) => `@${username} 편집 중`,
+  createManagementAccount: '새 관리자 계정 생성',
+  primaryAdminNotice: '기본 시스템 관리자 계정입니다. 시스템 수준 권한은 고정되어 있으며 수정할 수 없습니다.',
+  operationCompletedSuccess: '작업이 성공적으로 완료되었습니다.',
+  operationCouldNotBeCompleted: '작업을 완료할 수 없습니다.',
+  viewAll: '전체 보기',
+  paginated: '페이지별 보기',
 };
+

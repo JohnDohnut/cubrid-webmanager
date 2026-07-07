@@ -512,7 +512,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                 </div>
                 <Typography variant="caption" className={`font-bold text-[12px] uppercase tracking-widest transition-colors
                   ${!isServerListCollapsed ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 dark:text-slate-500 group-hover/host-header:text-amber-500'}`}>
-                  Server List
+                  {CM.serverListHeader}
                 </Typography>
               </div>
 
@@ -532,7 +532,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                     title={CM.addHost}
                   >
                     <Icon name="add" size="12px" weight={400} />
-                    <span className="text-[10px] font-semibold tracking-wide">Add</span>
+                    <span className="text-[10px] font-semibold tracking-wide">{CM.add}</span>
                   </button>
                 )}
                 {!isServerListCollapsed && (
@@ -588,8 +588,8 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                       <Icon name="add" size="16px" weight={300} className="text-slate-400 group-hover/add-host:text-amber-500 transition-colors" />
                     </div>
                     <div className="text-center">
-                      <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 group-hover/add-host:text-slate-700 dark:group-hover/add-host:text-slate-300 transition-colors">Add your first host</p>
-                      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Connect to a CUBRID server</p>
+                      <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 group-hover/add-host:text-slate-700 dark:group-hover/add-host:text-slate-300 transition-colors">{CM.addFirstHostTitle}</p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{CM.addFirstHostMsg}</p>
                     </div>
                   </button>
                 ) : (
@@ -635,7 +635,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                     </div>
                     <Typography variant="caption" className={`font-bold text-[11px] uppercase tracking-widest transition-colors
                       ${!isTreeCollapsed ? 'text-slate-600 dark:text-slate-400' : 'text-slate-400 dark:text-slate-500 group-hover/tree-header:text-amber-500'}`}>
-                      Resources
+                      {CM.resourcesHeader}
                     </Typography>
                   </div>
                   <div className="flex items-center gap-1.5">
@@ -681,8 +681,8 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                       {isLoggingIntoHost && (
                     <div className="absolute inset-0 bg-white/80 dark:bg-bk-side z-210 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-200">
                       <div className="size-16 border-4 border-bk-yellow/10 border-t-bk-yellow rounded-full animate-spin mb-6 shadow-[0_0_15px_rgba(255,193,7,0.2)]"></div>
-                      <Typography variant="p" className="text-sm font-bold text-slate-900 dark:text-bk-yellow tracking-wide">Host login</Typography>
-                      <Typography variant="caption" className="text-slate-500 mt-1 dark:text-slate-400">Establishing secure session...</Typography>
+                      <Typography variant="p" className="text-sm font-bold text-slate-900 dark:text-bk-yellow tracking-wide">{CM.hostLoginTitle}</Typography>
+                      <Typography variant="caption" className="text-slate-500 mt-1 dark:text-slate-400">{CM.establishingSession}</Typography>
                     </div>
                   )}
 
@@ -691,9 +691,9 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                       <div className="size-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-4">
                         <Icon name="error" className="text-rose-500"  weight={300} />
                       </div>
-                      <Typography variant="p" className="text-sm font-bold text-rose-500 mb-1">Connection failed</Typography>
+                      <Typography variant="p" className="text-sm font-bold text-rose-500 mb-1">{CM.connectionFailed}</Typography>
                       <Typography variant="caption" className="text-slate-500 dark:text-slate-400 mb-6 px-4">{hostAuthErrors[selectedHostUid]}</Typography>
-                      <Button variant="primary" size="sm" onClick={() => handleHostLogin(selectedHostUid)} className="px-8 h-9 shadow-[0_4px_12px_rgba(255,193,7,0.3)] text-[13px] font-medium">Try Again</Button>
+                      <Button variant="primary" size="sm" onClick={() => handleHostLogin(selectedHostUid)} className="px-8 h-9 shadow-[0_4px_12px_rgba(255,193,7,0.3)] text-[13px] font-medium">{CM.tryAgain}</Button>
                     </div>
                   )}
 
@@ -1011,7 +1011,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
       {dbRootContextMenu && (
         <ContextMenuWrapper x={dbRootContextMenu.mouseX} y={dbRootContextMenu.mouseY} onClose={() => setDbRootContextMenu(null)}>
           <div className="px-3 py-2 border-b border-slate-100 dark:border-white/5 mb-1 flex items-center justify-between">
-            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">All Databases</Typography>
+            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">{CM.allDatabases}</Typography>
             <Icon name="database" size="xs" className="opacity-30" weight={300} />
           </div>
           <MenuItem
@@ -1099,7 +1099,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
       {brokerRootContextMenu && (
         <ContextMenuWrapper x={brokerRootContextMenu.mouseX} y={brokerRootContextMenu.mouseY} onClose={() => setBrokerRootContextMenu(null)}>
           <div className="px-3 py-2 border-b border-slate-100 dark:border-white/5 mb-1 flex items-center justify-between">
-            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">All Brokers</Typography>
+            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">{CM.allBrokers}</Typography>
             <Icon name="hub" size="xs" className="opacity-30" weight={300} />
           </div>
           <MenuItem
@@ -1327,7 +1327,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
       {brokerLogRootContextMenu && (
         <ContextMenuWrapper x={brokerLogRootContextMenu.mouseX} y={brokerLogRootContextMenu.mouseY} onClose={() => setBrokerLogRootContextMenu(null)}>
           <div className="px-3 py-2 border-b border-slate-100 dark:border-white/5 mb-1 flex items-center justify-between">
-            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">Broker Logs</Typography>
+            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">{CM.brokerLogs}</Typography>
             <Icon name="hub" size="xs" className="opacity-30" weight={300} />
           </div>
           <MenuItem
@@ -1347,7 +1347,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
       {brokerErrorLogContextMenu && (
         <ContextMenuWrapper x={brokerErrorLogContextMenu.mouseX} y={brokerErrorLogContextMenu.mouseY} onClose={() => setBrokerErrorLogContextMenu(null)}>
           <div className="px-3 py-2 border-b border-slate-100 dark:border-white/5 mb-1 flex items-center justify-between">
-            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">Error Logs</Typography>
+            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">{CM.errorLogs}</Typography>
             <Icon name="report" size="xs" className="opacity-30" weight={300} />
           </div>
           <MenuItem
@@ -1366,7 +1366,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
       {adminLogContextMenu && (
         <ContextMenuWrapper x={adminLogContextMenu.mouseX} y={adminLogContextMenu.mouseY} onClose={() => setAdminLogContextMenu(null)}>
           <div className="px-3 py-2 border-b border-slate-100 dark:border-white/5 mb-1 flex items-center justify-between">
-            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">Admin Logs</Typography>
+            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">{CM.adminLogs}</Typography>
             <Icon name="admin_panel_settings" size="xs" className="opacity-30" weight={300} />
           </div>
           <MenuItem
@@ -1383,7 +1383,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
       {managerLogContextMenu && (
         <ContextMenuWrapper x={managerLogContextMenu.mouseX} y={managerLogContextMenu.mouseY} onClose={() => setManagerLogContextMenu(null)}>
           <div className="px-3 py-2 border-b border-slate-100 dark:border-white/5 mb-1 flex items-center justify-between">
-            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">Manager Logs</Typography>
+            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">{CM.managerLogs}</Typography>
             <Icon name="manage_accounts" size="xs" className="opacity-30" weight={300} />
           </div>
           <MenuItem
@@ -1400,7 +1400,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
       {serverLogRootContextMenu && (
         <ContextMenuWrapper x={serverLogRootContextMenu.mouseX} y={serverLogRootContextMenu.mouseY} onClose={() => setServerLogRootContextMenu(null)}>
           <div className="px-3 py-2 border-b border-slate-100 dark:border-white/5 mb-1 flex items-center justify-between">
-            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">Server Logs</Typography>
+            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">{CM.serverLogs}</Typography>
             <Icon name="dns" size="xs" className="opacity-30" weight={300} />
           </div>
           <MenuItem
@@ -1477,7 +1477,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
       {backupPlanContextMenu && (
         <ContextMenuWrapper x={backupPlanContextMenu.mouseX} y={backupPlanContextMenu.mouseY} onClose={() => setBackupPlanContextMenu(null)}>
           <div className="px-3 py-2 border-b border-slate-100 dark:border-white/5 mb-1 flex items-center justify-between">
-            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">Backup Plan</Typography>
+            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">{CM.backupPlanLabel}</Typography>
             <Icon name="backup" size="xs" className="opacity-30"  weight={300} />
           </div>
           <MenuItem

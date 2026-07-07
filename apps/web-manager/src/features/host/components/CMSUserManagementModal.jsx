@@ -46,10 +46,10 @@ export default function CMSUserManagementModal() {
 
   const handleDeleteUser = (username) => {
     if (username === 'admin') {
-      alert('The primary administrator account cannot be deleted.');
+      alert(CM.primaryAdminCannotDelete);
       return;
     }
-    if (window.confirm(`Are you sure you want to permanently delete the management user "${username}"?`)) {
+    if (window.confirm(CM.confirmDeleteCmsUser(username))) {
       dispatch(deleteCmsUser({ hostUid: selectedHostUid, targetid: username }));
     }
   };
@@ -130,7 +130,7 @@ export default function CMSUserManagementModal() {
               </>
             )}
             {isAdmin && (
-              <span className="text-[10px] text-slate-400 font-medium">Full system authorization</span>
+              <span className="text-[10px] text-slate-400 font-medium">{CM.fullSystemAuthorization}</span>
             )}
           </div>
         </div>
@@ -169,14 +169,14 @@ export default function CMSUserManagementModal() {
       footer={
         <div className="flex justify-between items-center w-full">
           <Typography variant="caption" className="text-slate-400 font-medium">
-            {userlist.length} management {userlist.length === 1 ? 'account' : 'accounts'} registered
+            {CM.managementAccountsRegistered(userlist.length)}
           </Typography>
           <div className="flex items-center gap-2">
             <Button variant="ghost" onClick={() => dispatch(closeCmsUserManagementModal())}>
-              Close
+              {CM.close}
             </Button>
             <Button icon="person_add" onClick={handleAddUser}>
-              Add User
+              {CM.addUser}
             </Button>
           </div>
         </div>
@@ -188,17 +188,17 @@ export default function CMSUserManagementModal() {
           <div className="flex flex-col items-center justify-center py-20 opacity-30">
             <div className="size-10 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin mb-4" />
             <Typography variant="caption" className="font-bold uppercase tracking-widest">
-              Synchronizing registry...
+              {CM.synchronizingRegistry}
             </Typography>
           </div>
         ) : userlist.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 opacity-20">
             <Icon name="person_off" size="xl" className="mb-3" />
             <Typography variant="p" className="font-black uppercase tracking-widest text-[11px]">
-              No users found
+              {CM.noUsersFound}
             </Typography>
             <Typography variant="caption" className="mt-1">
-              Management registry is empty or inaccessible.
+              {CM.managementRegistryEmpty}
             </Typography>
           </div>
         ) : (
@@ -233,7 +233,7 @@ export default function CMSUserManagementModal() {
                   <div className="w-8 h-8 rounded-lg border border-dashed border-slate-300 dark:border-white/10 flex items-center justify-center group-hover/add:border-amber-500/50 transition-all">
                     <Icon name="add" size="14px" weight={300} />
                   </div>
-                  <span className="text-[12px] font-bold">Add a management user</span>
+                  <span className="text-[12px] font-bold">{CM.addManagementUserBtn}</span>
                 </button>
               </div>
             )}

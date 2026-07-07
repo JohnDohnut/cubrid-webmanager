@@ -41,8 +41,8 @@ export default function BrokerConfigEditor({ hostUid }) {
       console.error('Failed to fetch broker config:', err);
       dispatch(showStatusModal({
         type: 'error',
-        title: CM.actionFailed,
-        message: CM.brokerConfigFetchError,
+        title: CM.fetchFailed,
+        message: CM.brokerConfigRetrieveError
       }));
     } finally {
       setLoading(false);
@@ -81,14 +81,14 @@ export default function BrokerConfigEditor({ hostUid }) {
       dispatch(setTabDirty({ tabId, isDirty: false }));
       dispatch(showStatusModal({
         type: 'success',
-        title: CM.configurationReIndexed,
-        message: CM.brokerConfigSaveSuccess,
+        title: CM.configSaved,
+        message: CM.brokerConfigSaveSuccess
       }));
     } catch (err) {
       dispatch(showStatusModal({
         type: 'error',
-        title: CM.updateFailed,
-        message: CM.brokerConfigSaveError,
+        title: CM.saveFailed,
+        message: CM.brokerConfigSaveError
       }));
     } finally {
       setSaving(false);
