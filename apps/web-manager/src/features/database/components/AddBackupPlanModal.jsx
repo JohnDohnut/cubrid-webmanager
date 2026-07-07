@@ -265,8 +265,8 @@ export default function AddBackupPlanModal() {
 
         {/* Identity & Path */}
         <div className="grid grid-cols-2 gap-4">
-          <Input label={CM.planRegistryId} value={formData.backupId} onChange={(e) => handleInputChange('backupId', e.target.value)} placeholder="backup_plan_1" icon="badge" size="sm" />
-          <Input label={CM.payloadPath} value={formData.backupPath} onChange={(e) => handleInputChange('backupPath', e.target.value)} placeholder="/var/backups" icon="folder_zip" size="sm" className="font-mono!" />
+          <Input label={CM.planRegistryId} value={formData.backupId} onChange={(e) => handleInputChange('backupId', e.target.value)} placeholder={CM.backupPlanIdPlaceholder} icon="badge" size="sm" />
+          <Input label={CM.payloadPath} value={formData.backupPath} onChange={(e) => handleInputChange('backupPath', e.target.value)} placeholder={CM.backupDirPlaceholder} icon="folder_zip" size="sm" className="font-mono!" />
         </div>
 
         {/* Recurrence */}

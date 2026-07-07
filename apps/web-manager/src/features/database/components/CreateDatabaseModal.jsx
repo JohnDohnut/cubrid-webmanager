@@ -35,12 +35,7 @@ const VIEW_SUCCESS = 'success';
 const VIEW_ERROR   = 'error';
 
 const PAGE_SIZES = [4096, 8192, 16384, 32768];
-const BASE_LOCALES = [
-  { value: 'en_US.iso88591', label: 'en_US.iso88591 — English, Western European' },
-  { value: 'en_US.utf8', label: 'en_US.utf8 — English, Universal' },
-  { value: 'ko_KR.euckr', label: 'ko_KR.euckr — Korean, Legacy' },
-  { value: 'ko_KR.utf8', label: 'ko_KR.utf8 — Korean, Universal' },
-];
+const BASE_LOCALE_VALUES = ['en_US.iso88591', 'en_US.utf8', 'ko_KR.euckr', 'ko_KR.utf8'];
 // Fixed volume type: segment represents a permanent data volume.
 
 const renameVolumesSequentially = (volumes, dbName) => {
@@ -98,7 +93,13 @@ const typeBadge = (t) => {
 export default function CreateDatabaseModal() {
   const CM = useCM();
   const locales = useMemo(
-    () => [...BASE_LOCALES, { value: 'user_defined', label: CM.userDefined }],
+    () => [
+      ...BASE_LOCALE_VALUES.map((value) => ({
+        value,
+        label: `${value} — ${CM.localeDescriptions[value]}`,
+      })),
+      { value: 'user_defined', label: CM.userDefined },
+    ],
     [CM]
   );
   // Removed dynamic volume type selection. Fixed to permanent data segment.

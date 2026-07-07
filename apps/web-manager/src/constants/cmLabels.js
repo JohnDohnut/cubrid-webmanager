@@ -1745,5 +1745,26 @@ export const CM = {
   searchLogsPlaceholder: 'Search logs...',
   noLogsFoundTitle: 'No logs found',
   adjustFiltersDesc: 'Adjust your filters or wait for new logs.',
+
+  // Host / backup / database modal placeholders
+  hostAddressPlaceholder: 'localhost',
+  hostPortPlaceholder: '8001',
+  hostUsernamePlaceholder: 'admin',
+  friendlyNamePlaceholder: 'e.g. Production Server',
+  backupPlanIdPlaceholder: 'backup_plan_1',
+  backupDirPlaceholder: '/var/backups',
+  exportFilenamePlaceholder: 'export_servers',
+  localeDescriptions: {
+    'en_US.iso88591': 'English, Western European',
+    'en_US.utf8': 'English, Universal',
+    'ko_KR.euckr': 'Korean, Legacy',
+    'ko_KR.utf8': 'Korean, Universal',
+  },
+
+  // Broker status metric labels
+  autoAddAsLabel: 'Auto Add AS',
+  sqlLogModeLabel: 'SQL Log Mode',
+  longTransLabel: 'Long Trans',
+  longQueryLabel: 'Long Query',
 };
 

@@ -1723,5 +1723,26 @@ export const CM_KO = {
   searchLogsPlaceholder: '로그 검색...',
   noLogsFoundTitle: '로그를 찾을 수 없습니다',
   adjustFiltersDesc: '필터를 조정하거나 새 로그를 기다려 주세요.',
+
+  // 호스트 / 백업 / 데이터베이스 모달 placeholder
+  hostAddressPlaceholder: 'localhost',
+  hostPortPlaceholder: '8001',
+  hostUsernamePlaceholder: 'admin',
+  friendlyNamePlaceholder: '예: 운영 서버',
+  backupPlanIdPlaceholder: 'backup_plan_1',
+  backupDirPlaceholder: '/var/backups',
+  exportFilenamePlaceholder: 'export_servers',
+  localeDescriptions: {
+    'en_US.iso88591': '영어, 서유럽',
+    'en_US.utf8': '영어, 유니버설',
+    'ko_KR.euckr': '한국어, 레거시',
+    'ko_KR.utf8': '한국어, 유니버설',
+  },
+
+  // 브로커 상태 지표 레이블
+  autoAddAsLabel: 'Auto Add AS',
+  sqlLogModeLabel: 'SQL Log Mode',
+  longTransLabel: 'Long Trans',
+  longQueryLabel: 'Long Query',
 };
 

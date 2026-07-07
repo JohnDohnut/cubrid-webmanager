@@ -469,7 +469,7 @@ export default function ImportExportHostModal() {
                     size="sm"
                     value={fileName}
                     onChange={(e) => setFileName(e.target.value)}
-                    placeholder="export_servers"
+                    placeholder={CM.exportFilenamePlaceholder}
                     suffix=".XML"
                   />
                 </div>
