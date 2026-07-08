@@ -198,6 +198,8 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
     if (loginInProgressRef.current) return;
 
     if (authorizedHosts.includes(uid)) {
+      dispatch(resetDatabaseState());
+      dispatch(resetBrokerState());
       dispatch(setActiveMainTab('host:' + uid));
       dispatch(fetchDatabaseStartInfo(uid));
       dispatch(fetchBrokerList(uid));
@@ -210,6 +212,8 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
     dispatch(loginToHostWithSideEffects(uid))
       .unwrap()
       .then(() => {
+        dispatch(resetDatabaseState());
+        dispatch(resetBrokerState());
         dispatch(setActiveMainTab('host:' + uid));
         dispatch(fetchDatabaseStartInfo(uid));
         dispatch(fetchBrokerList(uid));

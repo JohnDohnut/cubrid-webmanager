@@ -55,8 +55,8 @@ const encodeCUBRIDAuth = (authObj) => {
 export default function CreateUserModal({ isOpen, onClose, dbname, editingUser }) {
   const CM = useCM();
   const TABS = [
-    { id: 'general', label: CM.identity, icon: 'person' },
-    { id: 'auth', label: CM.permissions, icon: 'shield_lock' },
+    { id: 'general', label: CM.identity,    icon: 'person' },
+    { id: 'auth',    label: CM.permissions, icon: 'shield_lock' },
   ];
   const dispatch = useDispatch();
   const isEditMode = !!editingUser;

@@ -16,8 +16,8 @@ export default function ServerListItem({
   onDragStart,
   onDragEnd,
 }) {
-  const dispatch = useDispatch();
   const CM = useCM();
+  const dispatch = useDispatch();
 
   const HA_ROLE_CONFIG = {
     master: {

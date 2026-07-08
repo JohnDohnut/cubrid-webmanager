@@ -3,8 +3,8 @@ import { Badge } from '../../ds/foundation/Badge';
 import { SearchInput } from '../../ds/forms/SearchInput';
 import { EmptyState } from '../../ds/layout/EmptyState';
 import { Skeleton } from '../../ds/layout/Skeleton';
-import { Select } from '../../ds/forms/Select';
 import { useCM } from '../../../constants/useCM';
+import { Select } from '../../ds/forms/Select';
 
 export const LogViewer = ({
   lines = [],

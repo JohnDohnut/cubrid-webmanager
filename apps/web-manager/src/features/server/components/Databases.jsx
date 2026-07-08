@@ -14,20 +14,20 @@ export default function Databases() {
       header: CM.autoStartup,
       accessor: 'autoStart',
       render: (val) => (
-        <StatusBadge 
-          label={val} 
-          variant={val === 'On' ? 'emerald' : 'slate'} 
+        <StatusBadge
+          label={val}
+          variant={val === 'On' ? 'emerald' : 'slate'}
         />
       )
     },
-    { 
-      header: 'Status', 
+    {
+      header: CM.status,
       accessor: 'status',
       render: (val) => (
-        <StatusBadge 
-          label={val} 
-          variant={val === 'Active' ? 'sky' : 'rose'} 
-          pulse={val === 'Active'} 
+        <StatusBadge
+          label={val}
+          variant={val === 'Active' ? 'sky' : 'rose'}
+          pulse={val === 'Active'}
         />
       )
     },
@@ -41,7 +41,7 @@ export default function Databases() {
   const cardTitle = (
     <div className="flex items-center gap-2">
       <Icon name="database" size="sm" className="text-bk-yellow"  weight={300} />
-      <Typography variant="span" className="font-bold">{CM.databasesLabel}</Typography>
+      <Typography variant="span" className="font-bold">{CM.databases}</Typography>
     </div>
   );
 

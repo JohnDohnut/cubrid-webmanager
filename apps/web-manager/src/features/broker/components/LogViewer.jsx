@@ -5,7 +5,11 @@ import { Icon } from '../../../components/ds/foundation/Icon';
 import { useCM } from '../../../constants/useCM';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-// Note: MODES (with locale-aware labels) is defined inside the component via useCM().
+const MODE_KEYS = [
+  { key: 'raw', cmKey: 'rawLog',    icon: 'subject'     },
+  { key: 'sql', cmKey: 'parsedSQL', icon: 'code'        },
+  { key: 'top', cmKey: 'topSQL',    icon: 'query_stats' },
+];
 
 const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -151,11 +155,6 @@ function extractTopSQL(ls) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 function LogViewer({ hostUid, path }) {
   const CM = useCM();
-  const MODES = [
-    { key: 'raw', label: CM.rawLogMode,    icon: 'subject'      },
-    { key: 'sql', label: CM.parsedSqlMode, icon: 'code'         },
-    { key: 'top', label: CM.topSqlMode,    icon: 'query_stats'  },
-  ];
   const dispatch = useDispatch();
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode]       = useState('raw');
@@ -236,7 +235,7 @@ ${data.map(d => `<Row ss:AutoFitHeight="1"><Cell><Data ss:Type="String">${d.id}<
         {/* Center: mode switcher */}
         {!isErrorLogFile && (
           <div className="flex items-center bg-slate-100 dark:bg-white/5 rounded-lg p-0.5 shrink-0">
-            {MODES.map(m => (
+            {MODE_KEYS.map(m => (
               <button
                 key={m.key}
                 onClick={() => setViewMode(m.key)}
@@ -247,7 +246,7 @@ ${data.map(d => `<Row ss:AutoFitHeight="1"><Cell><Data ss:Type="String">${d.id}<
                 }`}
               >
                 <Icon name={m.icon} size="sm" />
-                {m.label}
+                {CM[m.cmKey]}
               </button>
             ))}
           </div>
