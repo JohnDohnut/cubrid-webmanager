@@ -52,13 +52,12 @@ const encodeCUBRIDAuth = (authObj) => {
   return String(mask);
 };
 
-const TABS = [
-  { id: 'general', label: 'Identity', icon: 'person' },
-  { id: 'auth', label: 'Permissions', icon: 'shield_lock' },
-];
-
 export default function CreateUserModal({ isOpen, onClose, dbname, editingUser }) {
   const CM = useCM();
+  const TABS = [
+    { id: 'general', label: CM.identity,    icon: 'person' },
+    { id: 'auth',    label: CM.permissions, icon: 'shield_lock' },
+  ];
   const dispatch = useDispatch();
   const isEditMode = !!editingUser;
   const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);

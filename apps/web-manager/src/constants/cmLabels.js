@@ -183,7 +183,7 @@ export const CM = {
   // Common actions
   save: 'Save',
   retry: 'Retry',
-  dismiss: 'Dismiss',
+  dismiss: 'Close',
   apply: 'Apply',
   discard: 'Discard',
   connect: 'Connect',
@@ -449,7 +449,7 @@ export const CM = {
 
   // Auth
   signIn: 'Sign In',
-  authorizeAccess: 'Authorize Access',
+  authorizeAccess: 'Login',
   rememberDevice: 'Remember this device',
   authenticationFailed: 'Authentication Failed',
   createAccount: 'Create Account',
@@ -480,6 +480,14 @@ export const CM = {
   monitoring: 'Monitoring',
   copyVisibleEntries: 'Copy visible entries to clipboard',
   connected: 'Connected',
+  jobQueue: 'Job Queue',
+  autoAddAS: 'Auto Add AS',
+  sqlLogMode: 'SQL Log Mode',
+  longTranLabel: 'Long Trans',
+  longQueryLabel: 'Long Query',
+  rawLog: 'Raw Log',
+  parsedSQL: 'Parsed SQL',
+  topSQL: 'Top SQL',
 
   // Database modals (extra)
   criticalWarning: 'Critical Warning',
@@ -488,8 +496,8 @@ export const CM = {
   noBackupRecords: 'No Backup Records Found',
   newDatabaseName: 'New Database Name',
   downtimeRequired: 'Downtime Required',
-  cloneDatabase: 'Clone Database',
-  cloneIdentifier: 'Clone Identifier',
+  cloneDatabase: 'Copy Database',
+  cloneIdentifier: 'Database Name',
   backupStrategy: 'Backup Strategy',
   backupDatabaseNameLabel: 'Database name:',
   volumeNameCol: 'Volume name:',
@@ -612,12 +620,12 @@ export const CM = {
   synchronizingVolumes: 'Copying Database',
   cloningComplete: 'Copy Complete',
   cloningFailed: 'Copy Failed',
-  cloneSubtitle: 'Copy the database volumes',
+  cloneSubtitle: 'Create a copy of the database',
   cloningContext: 'Copy Information',
   targetEnvironment: 'Destination',
   executionStrategy: 'Copy Options',
-  overwriteExistingEnvironment: 'Overwrite Existing',
-  transformToMove: 'Transform to Move Operation',
+  overwriteExistingEnvironment: 'Overwrite Existing Files',
+  transformToMove: 'Delete Source After Copy',
   executeCopy: 'Copy',
   consolidatingBlocks: 'Compacting Database',
   optimizationComplete: 'Optimization Complete',
@@ -726,8 +734,8 @@ export const CM = {
   executeRestore: 'Execute Restore',
   retryRecovery: 'Retry Recovery',
   restoreSuccessful: 'Restore Successful',
-  initiateCopy: 'Initiate Copy',
-  retryClone: 'Retry Clone',
+  initiateCopy: 'Copy',
+  retryClone: 'Retry',
   executeOptimization: 'Execute Optimization',
   retryExecution: 'Retry Execution',
   volumeAllocation: 'Add Volume',
@@ -889,7 +897,7 @@ export const CM = {
   extVolumePath: 'Extended Volume Path',
   logVolumePath: 'Log Volume Path',
   replaceExistingDesc: 'Replace destination files if a database with this name already exists.',
-  moveSourceDesc: 'Remove source files after the copy is successfully finalized.',
+  moveSourceDesc: 'Delete source files after copy completes.',
 
   // Query plan modals (Add/Edit)
   queryIdentifierRequired: 'A Query ID is required.',
@@ -968,7 +976,7 @@ export const CM = {
   addVolumeTargetDb: 'Target Database',
   calculating: 'Calculating',
   volumeSizeVisualizer: 'Volume Size',
-  addVolumeSuccessMessage: (volName, db) => `Volume "${volName}" has been successfully added to ${db}.`,
+  addVolumeSuccessMessage: (volName, db) => volName ? `Volume "${volName}" has been added to ${db}.` : `Volume has been added to ${db}.`,
   volumeTypeDataDesc: 'Tables and rows',
   volumeTypeTempDesc: 'Temporary workspace',
 
@@ -1046,11 +1054,19 @@ export const CM = {
   loadingVolumeInfo: 'Loading Volume Information',
   loadingVolumeInfoSub: 'Fetching volume allocation data...',
   volumeNotFound: 'Volume Not Found',
+  location: 'Location',
+  pageSizeLabel: 'Page Size',
+  totalPages: 'Total Pages',
+  freePages: 'Free Pages',
+  totalSize: 'Total Size',
 
   // Log modals
   filterLogsById: 'Filter by ID or description...',
   buffering: 'Buffering',
   synchronizedStatus: 'Synchronized',
+  logAllLevels: 'All Levels',
+  infoLog: 'Info',
+  statusNotice: 'Notice',
 
   // Monitoring / misc
   monitoringSync: 'Monitoring Synchronization',
@@ -1060,6 +1076,11 @@ export const CM = {
   // Config editors
   undoAllChanges: 'Undo all changes',
   brokerConfigPlaceholder: '# Enter broker configuration here...',
+  initializingEditor: 'Initializing Editor...',
+  brokerConfigFile: 'Configuration: cubrid_broker.conf',
+  brokerConfigFetchError: 'Could not retrieve broker configuration.',
+  brokerConfigSaveSuccess: 'Broker configuration updated successfully.',
+  brokerConfigSaveError: 'An error occurred while saving broker configuration.',
 
   // EditCMSUserModal
   savingChanges: 'Saving Changes',
@@ -1125,6 +1146,8 @@ export const CM = {
   setAutomationVolumeSubtitle: (db) => `Configure expansion policies for "${db}"`,
   permanentDataVolDesc: 'Permanent data volumes',
   indexSearchVolDesc: 'Index & search volumes',
+  permanentData: 'Permanent Data',
+  temporaryData: 'Temporary Data',
 
   // DatabaseSpaceMonitor
   storageAnalysisError: 'Storage Analysis Error',
