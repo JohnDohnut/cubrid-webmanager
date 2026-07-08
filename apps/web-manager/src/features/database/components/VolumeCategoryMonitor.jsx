@@ -12,13 +12,16 @@ import { Card } from '../../../components/ds/layout/Card';
 import { useCM } from '../../../constants/useCM';
 
 // ── Helpers ──
-const CATEGORY_META = {
-  Permanent_PermanentData: { cmKey: 'permanentData', icon: 'hard_drive', color: 'text-sky-500', bg: 'bg-sky-500/10', border: 'border-sky-500/20', dot: 'bg-sky-500' },
-  Permanent_TemporaryData: { cmKey: 'permanentTemp', icon: 'storage', color: 'text-violet-500', bg: 'bg-violet-500/10', border: 'border-violet-500/20', dot: 'bg-violet-500' },
-  Temporary_TemporaryData: { cmKey: 'temporaryData', icon: 'timer', color: 'text-amber-500', bg: 'bg-amber-500/10', border: 'border-amber-500/20', dot: 'bg-amber-500' },
-  Active:  { cmKey: 'activeLog',  icon: 'article',    color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', dot: 'bg-emerald-500' },
-  Archive: { cmKey: 'archiveLog', icon: 'inventory_2', color: 'text-slate-400',  bg: 'bg-slate-500/10',  border: 'border-slate-400/20',  dot: 'bg-slate-400'  },
-};
+// Built as a function (not a plain object) because two of the labels are
+// locale-aware and must be resolved from a `CM` pack supplied by the caller,
+// which is only available inside a component via useCM().
+const getCategoryMeta = (CM) => ({
+  Permanent_PermanentData: { label: CM.permanentDataLabel, icon: 'hard_drive', color: 'text-sky-500', bg: 'bg-sky-500/10', border: 'border-sky-500/20', dot: 'bg-sky-500' },
+  Permanent_TemporaryData: { label: CM.permanentTemp, icon: 'storage', color: 'text-violet-500', bg: 'bg-violet-500/10', border: 'border-violet-500/20', dot: 'bg-violet-500' },
+  Temporary_TemporaryData: { label: CM.temporaryDataLabel, icon: 'timer', color: 'text-amber-500', bg: 'bg-amber-500/10', border: 'border-amber-500/20', dot: 'bg-amber-500' },
+  Active: { label: CM.activeLog, icon: 'article', color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', dot: 'bg-emerald-500' },
+  Archive: { label: CM.archiveLog, icon: 'inventory_2', color: 'text-slate-400', bg: 'bg-slate-500/10', border: 'border-slate-400/20', dot: 'bg-slate-400' },
+});
 
 
 const formatMB = (pages, pageSize) => ((parseInt(pages) * pageSize) / (1024 * 1024)).toFixed(1);
@@ -49,7 +52,7 @@ const CategoryHeader = memo(({ meta, summary, usageSeverity, pageSize, onRefresh
           <Typography variant="label" className="text-[9px] text-slate-400 font-mono tracking-tight">{dbname}</Typography>
           <span className="text-slate-300 dark:text-slate-700">·</span>
           <Typography variant="label" className={`text-[9px] font-bold uppercase tracking-widest ${meta.color}`}>
-            {CM[meta.cmKey]}
+            {meta.label}
           </Typography>
         </div>
       </div>
@@ -205,6 +208,7 @@ const VolumeTableContainer = memo(({ volumes, pageSize }) => {
 // ── Main Component ──
 
 const Component = function VolumeCategoryMonitor({ hostUid, dbname, category }) {
+  const CM = useCM();
   const { spaceInfo, spaceInfoLoading } = useSelector((state) => state.databaseMonitoring || {}, shallowEqual);
   const { preferences } = useSelector((state) => state.user, shallowEqual);
 
@@ -218,7 +222,10 @@ const Component = function VolumeCategoryMonitor({ hostUid, dbname, category }) 
 
   const dbSpace = spaceInfo[dbname];
   const isLoading = spaceInfoLoading?.[dbname];
-  const meta = useMemo(() => CATEGORY_META[category] || CATEGORY_META.Permanent_PermanentData, [category]);
+  const meta = useMemo(() => {
+    const categoryMeta = getCategoryMeta(CM);
+    return categoryMeta[category] || categoryMeta.Permanent_PermanentData;
+  }, [category, CM]);
 
   const volumes = useMemo(() => {
     if (!dbSpace || !dbSpace.volumes) return [];

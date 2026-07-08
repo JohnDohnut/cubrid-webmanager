@@ -64,11 +64,11 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
 
   /* Table Columns Definitions */
   const asColumns = [
-    { header: 'ID',  accessor: 'as_id',        width: '60px',  render: (v) => <span className="font-mono text-amber-600 dark:text-amber-400">{v}</span> },
-    { header: 'PID', accessor: 'as_pid',       width: '80px',  render: (v) => <span className="font-mono">{v}</span> },
-    { header: 'QPS', accessor: 'as_num_query', width: '60px',  render: (v) => <span className="font-mono">{v}</span> },
-    { header: 'TPS', accessor: 'as_num_tran',  width: '60px',  render: (v) => <span className="font-mono">{v}</span> },
-    { header: 'Port', accessor: 'as_port',     width: '80px',  render: (v) => <span className="font-mono">{v}</span> },
+    { header: CM.idLabel,  accessor: 'as_id',        width: '60px',  render: (v) => <span className="font-mono text-amber-600 dark:text-amber-400">{v}</span> },
+    { header: CM.pid, accessor: 'as_pid',       width: '80px',  render: (v) => <span className="font-mono">{v}</span> },
+    { header: CM.qps, accessor: 'as_num_query', width: '60px',  render: (v) => <span className="font-mono">{v}</span> },
+    { header: CM.tps, accessor: 'as_num_tran',  width: '60px',  render: (v) => <span className="font-mono">{v}</span> },
+    { header: CM.port, accessor: 'as_port',     width: '80px',  render: (v) => <span className="font-mono">{v}</span> },
     { header: CM.memory, accessor: 'as_psize', width: '100px', render: (v) => <span className="font-mono">{(parseInt(v) / 1024).toFixed(1)} KB</span> },
     { 
       header: CM.status, 
@@ -235,7 +235,7 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
             data={asInfo} 
             sortable 
             zebra 
-            emptyMessage="No application servers currently active." 
+            emptyMessage={CM.noAppServersActiveMsg}
           />
         </Card>
 
@@ -256,7 +256,7 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
             data={jobInfo} 
             sortable 
             zebra 
-            emptyMessage="Job queue is empty." 
+            emptyMessage={CM.jobQueueEmptyMsg}
           />
         </Card>
       </div>
