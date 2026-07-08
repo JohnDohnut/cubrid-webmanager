@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { login, connectToHost, openDbContextMenu, dismissModal, stopDatabase, startDatabase, E2E_DB } = require('./helpers');
+const { login, connectToHost, openDbContextMenu, dismissModal, stopDatabase, startDatabase, clickHoverMenuItem, E2E_DB } = require('./helpers');
 
 /**
  * 데이터베이스 모달 인터랙션 — 실제 실행 테스트
@@ -32,8 +32,10 @@ test.describe('Database Modal Interactions', () => {
 
   async function openManageMenu(page, action) {
     await openDbContextMenu(page);
-    await page.getByRole('button', { name: 'Manage Database' }).hover();
-    await page.getByRole('button', { name: new RegExp(action.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }).click();
+    await clickHoverMenuItem(
+      page.getByRole('button', { name: 'Manage Database' }),
+      page.getByRole('button', { name: new RegExp(action.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') })
+    );
   }
 
   async function waitForJobOrSuccess(page, timeout = 60000) {
@@ -124,8 +126,10 @@ test.describe('Database Modal Interactions', () => {
     }
 
     await copyNode.click({ button: 'right' });
-    await page.getByRole('button', { name: 'Manage Database' }).hover();
-    await page.getByRole('button', { name: /Delete Database/i }).click();
+    await clickHoverMenuItem(
+      page.getByRole('button', { name: 'Manage Database' }),
+      page.getByRole('button', { name: /Delete Database/i })
+    );
 
     const delModal = page.locator('div[role="dialog"]');
     await expect(delModal).toBeVisible();
@@ -204,8 +208,10 @@ test.describe('Database Modal Interactions', () => {
     await stopDatabase(page);
     try {
       await openDbContextMenu(page);
-      await page.getByRole('button', { name: 'Manage Database' }).hover();
-      await page.getByRole('button', { name: /Restore Database/i }).click();
+      await clickHoverMenuItem(
+        page.getByRole('button', { name: 'Manage Database' }),
+        page.getByRole('button', { name: /Restore Database/i })
+      );
 
       modal = page.locator('div[role="dialog"]');
       await expect(modal).toBeVisible();
@@ -282,8 +288,10 @@ test.describe('Database Modal Interactions', () => {
 
     // ── 3단계: Load ('Load Database...' — icon "download") ───────────────────
     await targetNode.click({ button: 'right' });
-    await page.getByRole('button', { name: 'Manage Database' }).hover();
-    await page.getByRole('button', { name: /Load Database/i }).click();
+    await clickHoverMenuItem(
+      page.getByRole('button', { name: 'Manage Database' }),
+      page.getByRole('button', { name: /Load Database/i })
+    );
 
     modal = page.locator('div[role="dialog"]');
     await expect(modal).toBeVisible();
@@ -314,8 +322,10 @@ test.describe('Database Modal Interactions', () => {
     }
 
     await targetNode.click({ button: 'right' });
-    await page.getByRole('button', { name: 'Manage Database' }).hover();
-    await page.getByRole('button', { name: /Delete Database/i }).click();
+    await clickHoverMenuItem(
+      page.getByRole('button', { name: 'Manage Database' }),
+      page.getByRole('button', { name: /Delete Database/i })
+    );
 
     modal = page.locator('div[role="dialog"]');
     await expect(modal).toBeVisible();

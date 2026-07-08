@@ -70,7 +70,7 @@ test.describe('Modernized UI Branding', () => {
 
     await expect(page.getByPlaceholder(/Username/i)).toBeVisible();
     await expect(page.locator('input[type="password"]')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Authorize Access/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Login/i })).toBeVisible();
   });
 
 });

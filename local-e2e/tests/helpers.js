@@ -12,6 +12,34 @@ const E2E_DB   = process.env.E2E_DB   || 'demodb';
 const E2E_HOST = process.env.E2E_HOST || null; // null이면 첫 번째 호스트 사용
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 서브메뉴 (hover flyout)
+
+/**
+ * hover로 열리는 SubMenu(플라이아웃, 120ms mouse-leave 딜레이로 닫힘)에서
+ * 항목을 안정적으로 클릭합니다. 트리거→항목 사이 마우스 이동 중 순간적으로
+ * hover 영역을 벗어나 메뉴가 닫히는 경우가 있어 재시도를 포함합니다.
+ *
+ * @param {import('@playwright/test').Locator} trigger - 서브메뉴를 여는 트리거 버튼
+ * @param {import('@playwright/test').Locator} item - 클릭할 서브메뉴 항목
+ */
+async function clickHoverMenuItem(trigger, item, attempts = 3) {
+  for (let i = 0; i < attempts; i++) {
+    await trigger.hover();
+    const visible = await item.waitFor({ state: 'visible', timeout: 4000 }).then(() => true).catch(() => false);
+    if (visible) {
+      await item.hover();
+      await item.click();
+      return;
+    }
+  }
+  // 마지막 시도: 실패 시 원래 에러 메시지가 보이도록 그대로 진행
+  await trigger.hover();
+  await item.waitFor({ state: 'visible', timeout: 8000 });
+  await item.hover();
+  await item.click();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 인증
 
 /** 로그인 후 대시보드가 로드될 때까지 기다립니다. */
@@ -19,7 +47,7 @@ async function login(page) {
   await page.goto('/');
   await page.getByPlaceholder(/Username/i).fill(process.env.E2E_USERNAME);
   await page.getByPlaceholder(/••••••••/).fill(process.env.E2E_PASSWORD);
-  await page.getByRole('button', { name: /Authorize Access/i }).click();
+  await page.getByRole('button', { name: /Login/i }).click();
   await expect(page).not.toHaveURL(/login/, { timeout: 10000 });
 }
 
@@ -217,4 +245,5 @@ module.exports = {
   dismissModal,
   stopDatabase,
   startDatabase,
+  clickHoverMenuItem,
 };

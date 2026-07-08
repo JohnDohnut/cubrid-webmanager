@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { login, connectToHost, expandDatabase, expandJobAutomation, dismissModal, stopDatabase, startDatabase, E2E_DB } = require('./helpers');
+const { login, connectToHost, expandDatabase, expandJobAutomation, dismissModal, stopDatabase, startDatabase, clickHoverMenuItem, E2E_DB } = require('./helpers');
 
 /**
  * 데이터베이스 전체 모달 실행 테스트
@@ -23,8 +23,10 @@ test.describe('Database All Modals — Full Execution', () => {
     await dbNode.click();
     await page.waitForTimeout(150);
     await dbNode.click({ button: 'right' });
-    await page.getByRole('button', { name: 'Manage Database' }).hover();
-    await page.getByRole('button', { name: new RegExp(action.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }).click();
+    await clickHoverMenuItem(
+      page.getByRole('button', { name: 'Manage Database' }),
+      page.getByRole('button', { name: new RegExp(action.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') })
+    );
     return page.locator('div[role="dialog"]');
   }
 
@@ -34,17 +36,23 @@ test.describe('Database All Modals — Full Execution', () => {
     await dbNode.click();
     await page.waitForTimeout(150);
     await dbNode.click({ button: 'right' });
-    await page.getByRole('button', { name: 'Database Info' }).hover();
-    await page.getByRole('button', { name: new RegExp(action.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }).click();
+    await clickHoverMenuItem(
+      page.getByRole('button', { name: 'Database Info' }),
+      page.getByRole('button', { name: new RegExp(action.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') })
+    );
     return page.locator('div[role="dialog"]');
   }
 
   async function waitForData(page, modal, timeout = 15000) {
+    // .first() must wrap the whole combined locator, not each branch —
+    // otherwise multiple branches can each match distinct elements and
+    // toBeVisible() throws a strict-mode violation instead of picking one.
     await expect(
-      modal.locator('table tbody tr').first()
-        .or(modal.getByText(/No data|no result|empty/i).first())
-        .or(modal.locator('pre, code, textarea').first())
-        .or(modal.getByText(/\d+/).first())
+      modal.locator('table tbody tr')
+        .or(modal.getByText(/No data|no result|empty/i))
+        .or(modal.locator('pre, code, textarea'))
+        .or(modal.getByText(/\d+/))
+        .first()
     ).toBeVisible({ timeout });
   }
 
@@ -188,7 +196,7 @@ test.describe('Database All Modals — Full Execution', () => {
   // ─── Database Info: 실제 데이터 로드 ─────────────────────────────────────
 
   test('Lock Information: 실행 후 실제 데이터가 로드된다', async ({ page }) => {
-    const modal = await openInfo(page, 'Lock Information');
+    const modal = await openInfo(page, 'Locking Information');
     await expect(modal).toBeVisible();
     await expect(modal).toContainText(/Lock/i);
     await waitForData(page, modal);

@@ -61,7 +61,7 @@ test.describe('Account Registration', () => {
 
     await page.getByPlaceholder(/Username/i).fill(user);
     await page.getByPlaceholder(/••••••••/).fill(pass);
-    await page.getByRole('button', { name: /Authorize Access/i }).click();
+    await page.getByRole('button', { name: /Login/i }).click();
     await expect(page.getByTitle(/Logout/i)).toBeVisible({ timeout: 10000 });
   });
 
