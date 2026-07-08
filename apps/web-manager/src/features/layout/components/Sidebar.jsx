@@ -742,14 +742,16 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                       />
                     </div>
                     <div className={activeTab !== 'broker' ? 'hidden' : ''}>
-                      <BrokerTree 
-                        hostUid={selectedHostUid} 
-                        onContextMenu={handleBrokerContextMenu} 
-                        onSqlLogContextMenu={handleSqlLogContextMenu} 
+                      <BrokerTree
+                        key={selectedHostUid}
+                        hostUid={selectedHostUid}
+                        onContextMenu={handleBrokerContextMenu}
+                        onSqlLogContextMenu={handleSqlLogContextMenu}
                       />
                     </div>
                     <div className={activeTab !== 'log' ? 'hidden' : ''}>
                       <LogTree
+                        key={selectedHostUid}
                         hostUid={selectedHostUid}
                         onDbLogContextMenu={handleDbLogContextMenu}
                         onBrokerLogRootContextMenu={handleBrokerLogRootContextMenu}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { closeUnloadDatabaseModal, openUnloadResultModal } from '../databaseSlice';
+import { closeUnloadDatabaseModal, openUnloadResultModal, fetchDatabaseStartInfo } from '../databaseSlice';
 import { databaseApi } from '../databaseApi';
 import { databaseJobApi } from '../databaseJobApi';
 import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
@@ -96,19 +96,24 @@ export default function UnloadDatabaseModal() {
   useEffect(() => {
     if (isUnloadDBModalOpen && selectedDatabase) {
       resetAction();
+      // databases can be stale/empty right after a host switch (resetDatabaseState
+      // clears it synchronously while the refetch is still in flight) — refetch
+      // so currentDb.dbdir resolves to the real path instead of falling through
+      // to a fabricated default that doesn't match this host's actual layout.
+      if (selectedHostUid && !currentDb) {
+        dispatch(fetchDatabaseStartInfo(selectedHostUid));
+      }
       setFormData({
         ...INITIAL_FORM_DATA,
         targetDbName: selectedDatabase,
-        targetDirectory: currentDb?.dbdir || `/home/cubrid/databases/${selectedDatabase}`,
+        targetDirectory: currentDb?.dbdir || '',
         dbUsername: 'dba',
         dbPassword: '',
-        fileForHash: currentDb?.dbdir
-          ? `${currentDb.dbdir}/hashfile`
-          : `/home/cubrid/databases/${selectedDatabase}/hashfile`,
+        fileForHash: currentDb?.dbdir ? `${currentDb.dbdir}/hashfile` : '',
       });
       fetchTables();
     }
-  }, [isUnloadDBModalOpen, selectedDatabase, currentDb, fetchTables, resetAction]);
+  }, [isUnloadDBModalOpen, selectedDatabase, currentDb, selectedHostUid, dispatch, fetchTables, resetAction]);
 
   if (!isUnloadDBModalOpen) return null;
 

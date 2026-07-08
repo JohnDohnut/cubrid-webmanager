@@ -1810,5 +1810,9 @@ export const CM = {
   sqlLogModeLabel: 'SQL Log Mode',
   longTransLabel: 'Long Trans',
   longQueryLabel: 'Long Query',
+
+  // CMS session conflicts
+  cmsTokenInvalidTitle: 'Connection Interrupted',
+  cmsTokenInvalidMsg: (hostLabel) => `CUBRID Manager Server only allows one active session per host. Your connection to "${hostLabel}" was disconnected because another session logged in. Reconnect from the sidebar to continue.`,
 };
 

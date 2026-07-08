@@ -205,6 +205,30 @@ apiClient.interceptors.response.use(
           return Promise.reject(error);
         }
 
+        // CMS only allows one active session per host — if THIS token was
+        // invalidated because another session logged in, silently retrying
+        // loginToHost would just re-invalidate whichever session wins next.
+        // Surface it instead of masking it as an ordinary token refresh.
+        if (apiData?.data?.code === 'INVALID_TOKEN') {
+          const { store } = await import('../app/store');
+          const { revokeHostLogin } = await import('../features/host/hostSlice');
+          const { showStatusModal } = await import('../features/layout/layoutSlice');
+          const { getCM, getStoredLocale } = await import('../constants/useCM');
+
+          const CM = getCM(getStoredLocale());
+          const host = store.getState().host?.hosts?.find((h) => h.uid === hostUid);
+          const hostLabel = host?.alias || host?.id || hostUid;
+
+          store.dispatch(revokeHostLogin(hostUid));
+          store.dispatch(showStatusModal({
+            type: 'error',
+            title: CM.cmsTokenInvalidTitle,
+            message: CM.cmsTokenInvalidMsg(hostLabel),
+          }));
+
+          return Promise.reject(error);
+        }
+
         console.warn(`Host session for ${hostUid} expired. Initiating revocation and re-login...`);
 
         try {
