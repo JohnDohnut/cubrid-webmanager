@@ -334,6 +334,9 @@ export const CM_KO = {
   hostLogin: '호스트 로그인',
   establishingSession: '보안 세션을 설정하는 중...',
   connectionFailed: '연결 실패',
+  connectionLost: '연결 끊김',
+  reconnect: '재연결',
+  reconnectPrompt: '세션 연결이 끊어졌습니다. 토큰이 만료되었거나 다른 사용자가 이 호스트에 로그인했을 수 있습니다. 재연결을 클릭하여 연결을 다시 설정하십시오.',
   editHost: '호스트 편집',
   deleteHost: '호스트 삭제',
   changePassword: '비밀번호 변경',
@@ -617,7 +620,7 @@ export const CM_KO = {
   restoreOptions: '복구 옵션',
   applyIntermediateLogs: '아카이브 로그가 없으면 강제로 부분 복구 수행',
   pathOverride: '복구 경로 지정',
-  restoreInPlaceHint: '비워 두면 원래 위치로 복구',
+
   renamingDatabase: '데이터베이스 이름 변경 중',
   updatingIdentity: '식별자 업데이트 중',
   renameComplete: '이름 변경 완료',
@@ -1044,8 +1047,7 @@ export const CM_KO = {
   noBackupFound: '백업 정보 없음',
   noBackupHint: '백업 디렉터리가 설정되어 있고 호스트와 동기화되어 있는지 확인하세요.',
   showAllBackups: '전체 보기',
-  irreversibleOperation: '되돌릴 수 없는 작업',
-  restoreOverwriteNote: '선택한 백업으로 기존 볼륨이 영구적으로 덮어씌워집니다.',
+
   selectBackupFirst: '복구할 백업을 선택해 주십시오.',
   restoreErrorFallback: '복구 중 예기치 않은 오류가 발생했습니다.',
   tryOtherBackupLevel: '다른 백업 레벨을 선택하거나 전체를 보십시오.',
@@ -1053,12 +1055,33 @@ export const CM_KO = {
   pointInTimeRecovery: '시점 복구',
   pointInTimeHint: '백업 이후 특정 시점으로 복원합니다',
   restoreToDate: '복원 시점 지정',
-  restoreDateFormatHint: '백업 날짜 이후 시점이어야 합니다. 서버 로컬 시간 기준으로 입력하세요.',
+
   restoreDateRequired: '복원 시점을 입력해 주십시오.',
   restoreDateBeforeBackup: '복원 시점은 백업 날짜 이후여야 합니다.',
   backupLevelFullLongDesc: '모든 데이터, 스키마, 볼륨의 전체 스냅샷입니다.',
   backupLevelIncrL1LongDesc: '마지막 L0 백업 이후 변경 내용입니다. 복구 시 L0이 필요합니다.',
   backupLevelIncrL2LongDesc: '마지막 L1 백업 이후 변경 내용입니다. 복구 시 L0 + L1이 필요합니다.',
+  grpDbName: '복구 대상',
+  lblDbNameRestore: '데이터베이스 이름:',
+  grpRestoredData: '복구 데이터',
+  grpDbPath: '복구 경로',
+  grpPartialRecovery: '부분 복구',
+  selectRestoreDateTime: '복구 시점 선택',
+  lblDate: '날짜:',
+  lblTime: '시간:',
+  backupTimeLabel: '백업 시점으로 복구(backuptime)',
+  specifyRestoreDate: '특정 시점으로 복구',
+  selectBackupInfoLabel: '가용한 백업 정보를 선택',
+  level0FileLabel: '0 레벨 파일:',
+  level1FileLabel: '1 레벨 파일:',
+  level2FileLabel: '2 레벨 파일:',
+  changeRestorePathLabel: '복구 경로',
+  performPartialRecovery: '보관(archive)로그가 존재하지 않으면 강제로 부분 복구 수행',
+  errLevel0File: '0 레벨 파일이 유효하지 않습니다.',
+  errLevel1File: '1 레벨 파일이 유효하지 않습니다.',
+  errLevel2File: '2 레벨 파일이 유효하지 않습니다.',
+  errRecoveryPath: '사용자가 지정한 복구 경로가 유효하지 않습니다.',
+
 
   // Auth
   pickUniqueUsername: '고유한 사용자 이름을 입력하세요',
@@ -1789,10 +1812,6 @@ export const CM_KO = {
   sqlLogModeLabel: 'SQL Log Mode',
   longTransLabel: 'Long Trans',
   longQueryLabel: 'Long Query',
-
-  // CMS 세션 충돌
-  cmsTokenInvalidTitle: '연결이 끊어졌습니다',
-  cmsTokenInvalidMsg: (hostLabel) => `CUBRID Manager Server는 호스트당 하나의 세션만 허용합니다. 다른 세션에서 로그인하여 "${hostLabel}" 연결이 끊어졌습니다. 계속하려면 사이드바에서 다시 연결해 주세요.`,
 
   // StatusModal
   gotIt: '확인',

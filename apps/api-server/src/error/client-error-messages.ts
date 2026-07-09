@@ -19,8 +19,6 @@ export type PublicErrorPayload = {
 
 const GENERIC_INTERNAL = 'An internal server error occurred.';
 const GENERIC_CMS_FAILURE = 'The CMS request failed.';
-const CMS_INVALID_TOKEN_MSG =
-  'The CMS authentication token is invalid. Reconnect to the host and try again.';
 
 function isMeaningfulCmsNote(note: unknown): boolean {
   if (note === undefined || note === null) return false;
@@ -83,7 +81,7 @@ export function getPublicClientErrorMessage(payload: PublicErrorPayload): string
     }
     switch (code as CmsErrorCode) {
       case CmsErrorCode.INVALID_TOKEN:
-        return CMS_INVALID_TOKEN_MSG;
+        return 'Request is rejected due to invalid token. Please reconnect.';
       case CmsErrorCode.NO_RESPONSE:
         return 'No response was received from CMS.';
       case CmsErrorCode.REQUEST_FAILED:
