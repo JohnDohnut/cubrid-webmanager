@@ -1793,5 +1793,10 @@ export const CM_KO = {
   // CMS 세션 충돌
   cmsTokenInvalidTitle: '연결이 끊어졌습니다',
   cmsTokenInvalidMsg: (hostLabel) => `CUBRID Manager Server는 호스트당 하나의 세션만 허용합니다. 다른 세션에서 로그인하여 "${hostLabel}" 연결이 끊어졌습니다. 계속하려면 사이드바에서 다시 연결해 주세요.`,
+
+  // StatusModal
+  gotIt: '확인',
+  statusSuccessTitle: '작업이 완료되었습니다',
+  statusErrorTitle: '문제가 발생했습니다',
 };
 

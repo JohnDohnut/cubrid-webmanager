@@ -1814,5 +1814,10 @@ export const CM = {
   // CMS session conflicts
   cmsTokenInvalidTitle: 'Connection Interrupted',
   cmsTokenInvalidMsg: (hostLabel) => `CUBRID Manager Server only allows one active session per host. Your connection to "${hostLabel}" was disconnected because another session logged in. Reconnect from the sidebar to continue.`,
+
+  // StatusModal
+  gotIt: 'Got it',
+  statusSuccessTitle: 'Operation complete',
+  statusErrorTitle: 'Something went wrong',
 };
 
