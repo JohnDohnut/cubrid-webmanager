@@ -16,8 +16,10 @@ export function isInvalidTokenError(response: any): boolean {
     return false;
   }
 
-  if ('note' in response) {
-    return response.note === INVALID_TOKEN_MESSAGE;
+  if (typeof response.note === 'string') {
+    const cleanNote = response.note.replace(/<end>\s*$/i, '').trim();
+    const lowerNote = cleanNote.toLowerCase();
+    return lowerNote.includes('invalid token') && lowerNote.includes('reconnect');
   }
 
   return false;
