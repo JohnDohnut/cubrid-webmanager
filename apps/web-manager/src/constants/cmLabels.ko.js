@@ -1105,6 +1105,7 @@ export const CM_KO = {
   manageGroupMembersTitle: (groupName) => `그룹 관리 — ${groupName}`,
   manageGroupMembersDesc: '체크하면 이 그룹에 추가되고, 체크 해제하면 미분류로 이동합니다.',
   saveChangesCount: (count) => `변경사항 ${count}개 저장`,
+  moveHostFailedError: (names) => `${names} 이동에 실패했습니다. 다시 시도해 주세요.`,
   searchHostsPlaceholder: '호스트 검색…',
   ungroupedHosts: '미분류',
   viewAllLogs: '전체 로그 보기',

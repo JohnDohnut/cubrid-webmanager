@@ -1126,6 +1126,7 @@ export const CM = {
   manageGroupMembersTitle: (groupName) => `Manage Group — ${groupName}`,
   manageGroupMembersDesc: 'Check a host to add it to this group. Uncheck a host to move it to Ungrouped.',
   saveChangesCount: (count) => `Save ${count} change${count === 1 ? '' : 's'}`,
+  moveHostFailedError: (names) => `Failed to move: ${names}. Please try again.`,
   searchHostsPlaceholder: 'Search hosts…',
   ungroupedHosts: 'Ungrouped',
   viewAllLogs: 'View All Logs',

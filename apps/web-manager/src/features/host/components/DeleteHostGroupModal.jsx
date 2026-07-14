@@ -1,5 +1,5 @@
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { closeDeleteGroupModal, deleteHostGroup } from '../hostSlice';
+import { closeDeleteGroupModal, deleteHostGroup, clearHostError } from '../hostSlice';
 import { Modal } from '../../../components/ds/layout/Modal';
 import { Button } from '../../../components/ds/foundation/Button';
 import { Typography } from '../../../components/ds/foundation/Typography';
@@ -30,6 +30,7 @@ export default function DeleteHostGroupModal() {
 
   const handleClose = () => {
     dispatch(closeDeleteGroupModal());
+    dispatch(clearHostError());
   };
 
   return (

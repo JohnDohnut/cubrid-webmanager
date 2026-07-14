@@ -1,5 +1,5 @@
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { closeDeleteHostModal, deleteHost, setSelectedHost } from '../hostSlice';
+import { closeDeleteHostModal, deleteHost, setSelectedHost, clearHostError } from '../hostSlice';
 import { closeHostTabs } from '../../layout/layoutSlice';
 import { resetDatabaseState } from '../../database/databaseCoreSlice';
 import { resetBrokerState } from '../../broker/brokerSlice';
@@ -37,6 +37,7 @@ export default function DeleteHostModal() {
 
   const handleClose = () => {
     dispatch(closeDeleteHostModal());
+    dispatch(clearHostError());
   };
 
   const consequences = [

@@ -8,6 +8,7 @@ import { Input } from '../../../components/ds/forms/Input';
 import { Checkbox } from '../../../components/ds/forms/Checkbox';
 import { Table } from '../../../components/ds/layout/Table';
 import { Typography } from '../../../components/ds/foundation/Typography';
+import { Icon } from '../../../components/ds/foundation/Icon';
 import { useCM } from '../../../constants/useCM';
 
 export default function ManageGroupMembersModal() {
@@ -24,6 +25,7 @@ export default function ManageGroupMembersModal() {
   const [initialUids, setInitialUids] = useState(() => new Set());
   const [filter, setFilter] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const allHosts = useMemo(() => flattenHostsFromGroups(hostGroups), [hostGroups]);
 
@@ -35,6 +37,7 @@ export default function ManageGroupMembersModal() {
       setSelectedUids(new Set(currentMembers));
       setInitialUids(currentMembers);
       setFilter('');
+      setSaveError('');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isManageGroupMembersModalOpen, groupToEditId]);
@@ -97,17 +100,37 @@ export default function ManageGroupMembersModal() {
     }
 
     setIsSaving(true);
-    try {
-      for (const uid of toAdd) {
-        await dispatch(moveHost({ hostUid: uid, targetGroupId: groupToEditId })).unwrap().catch(() => {});
+    setSaveError('');
+    const failedNames = [];
+
+    const attemptMove = async (uid, targetGroupId) => {
+      try {
+        await dispatch(moveHost({ hostUid: uid, targetGroupId })).unwrap();
+      } catch {
+        const host = allHosts.find((h) => h.uid === uid);
+        failedNames.push(host?.alias || host?.id || uid);
       }
-      for (const uid of toRemove) {
-        await dispatch(moveHost({ hostUid: uid, targetGroupId: UNGROUPED_GROUP_ID })).unwrap().catch(() => {});
-      }
-    } finally {
-      setIsSaving(false);
-      handleClose();
+    };
+
+    for (const uid of toAdd) {
+      await attemptMove(uid, groupToEditId);
     }
+    for (const uid of toRemove) {
+      await attemptMove(uid, UNGROUPED_GROUP_ID);
+    }
+
+    setIsSaving(false);
+
+    if (failedNames.length > 0) {
+      // Some hosts failed to move (e.g. group deleted in another session) —
+      // keep the modal open and report which ones so the user isn't left
+      // believing the checkbox state matches the server. Retrying is safe:
+      // moveHost is a no-op for hosts that already reached their target group.
+      setSaveError(CM.moveHostFailedError(failedNames.join(', ')));
+      return;
+    }
+
+    handleClose();
   };
 
   const changedCount = [...selectedUids].filter((uid) => !initialUids.has(uid)).length
@@ -138,6 +161,15 @@ export default function ManageGroupMembersModal() {
       }
     >
       <div className="space-y-4 p-1">
+        {saveError && (
+          <div className="flex items-start gap-3 px-4 py-3 bg-rose-500/5 border border-rose-500/15 rounded-xl">
+            <Icon name="error_outline" size="sm" weight={300} className="text-rose-500 shrink-0 mt-0.5" />
+            <Typography variant="p" className="text-[11.5px] text-rose-500 font-medium flex-1 leading-relaxed">
+              {saveError}
+            </Typography>
+          </div>
+        )}
+
         <Typography variant="caption" className="text-slate-400 dark:text-slate-500">
           {CM.manageGroupMembersDesc}
         </Typography>

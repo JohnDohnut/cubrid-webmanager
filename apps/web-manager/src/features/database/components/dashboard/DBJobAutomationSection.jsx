@@ -42,7 +42,7 @@ export default function DBJobAutomationSection({ pollingProps }) {
     dispatch(fetchQueryPlan({ hostUid, dbname }));
   };
 
-  const wasActiveAndExpanded = useRef(isTabActive && !isCollapsed);
+  const wasActiveAndExpanded = useRef(false);
   useEffect(() => {
     const currentActiveAndExpanded = isTabActive && !isCollapsed;
     if (currentActiveAndExpanded && !wasActiveAndExpanded.current) {
