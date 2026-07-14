@@ -423,6 +423,7 @@ const initialState = {
   isCreateGroupModalOpen: false,
   isRenameGroupModalOpen: false,
   isDeleteGroupModalOpen: false,
+  isManageGroupMembersModalOpen: false,
   groupToEditId: null,
   groupToEditName: null,
   hostToDeleteUid: null,
@@ -548,6 +549,16 @@ const hostSlice = createSlice({
     },
     closeDeleteGroupModal: (state) => {
       state.isDeleteGroupModalOpen = false;
+      state.groupToEditId = null;
+      state.groupToEditName = null;
+    },
+    openManageGroupMembersModal: (state, action) => {
+      state.isManageGroupMembersModalOpen = true;
+      state.groupToEditId = action.payload.groupId;
+      state.groupToEditName = action.payload.name;
+    },
+    closeManageGroupMembersModal: (state) => {
+      state.isManageGroupMembersModalOpen = false;
       state.groupToEditId = null;
       state.groupToEditName = null;
     },
@@ -967,6 +978,8 @@ export const {
   closeRenameGroupModal,
   openDeleteGroupModal,
   closeDeleteGroupModal,
+  openManageGroupMembersModal,
+  closeManageGroupMembersModal,
   openServerVersionModal,
   closeServerVersionModal,
   setSuggestedHaNodes,

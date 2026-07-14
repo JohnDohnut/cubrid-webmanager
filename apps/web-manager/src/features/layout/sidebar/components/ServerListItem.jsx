@@ -1,6 +1,5 @@
 import { useDispatch } from 'react-redux';
 import { setSelectedHost } from '../../../host/hostSlice';
-import { setActiveMainTab } from '../../layoutSlice';
 import { Icon } from '../../../../components/ds/foundation/Icon';
 import { useCM } from '../../../../constants/useCM';
 
@@ -16,6 +15,7 @@ export default function ServerListItem({
   isAuthorized,
   haInfo,
   onContextMenu,
+  onActivate,
   compact = false,
   draggable = false,
   isDragging = false,
@@ -63,7 +63,9 @@ export default function ServerListItem({
         dispatch(setSelectedHost(host.uid));
       }}
       onDoubleClick={() => {
-        if (isAuthorized) dispatch(setActiveMainTab('host:' + host.uid));
+        // Login (if needed) + open the dashboard — never on single click.
+        // onActivate already handles the authorized/unauthorized branches.
+        onActivate?.(host.uid);
       }}
       onContextMenu={(e) => {
         // Prevent bubbling to group TreeNode context menu

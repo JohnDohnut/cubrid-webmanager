@@ -1,8 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { addHost, clearHostError, openDiscoveryModal } from '../hostSlice';
+import {
+  addHost,
+  clearHostError,
+  openDiscoveryModal,
+  loginToHostWithSideEffects,
+  setSelectedHost,
+  fetchHostEnv,
+  openEditHostModal,
+} from '../hostSlice';
+import { fetchDatabaseStartInfo } from '../../database/databaseSlice';
+import { fetchBrokerList } from '../../broker/brokerSlice';
+import { setActiveMainTab } from '../../layout/layoutSlice';
+import { orderedGroupEntries, UNGROUPED_GROUP_ID, findHostUidByConnection } from '../hostGroupUtils';
 import { Modal } from '../../../components/ds/layout/Modal';
 import { Input } from '../../../components/ds/forms/Input';
+import { Select } from '../../../components/ds/forms/Select';
 import { Button } from '../../../components/ds/foundation/Button';
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { SectionHeader } from '../../../components/ds/foundation/SectionHeader';
@@ -16,10 +29,18 @@ export default function AddHostModal({ isOpen, onClose }) {
     port: '8001',
     password: '',
     alias: '',
+    groupId: '',
   });
   const [errors, setErrors] = useState({});
   const dispatch = useDispatch();
-  const { loading, error: apiError, initialHostData } = useSelector((state) => state.host, shallowEqual);
+  const { loading, error: apiError, initialHostData, hostGroups } = useSelector((state) => state.host, shallowEqual);
+
+  const groupOptions = useMemo(() => [
+    { value: '', label: CM.noGroupOption },
+    ...orderedGroupEntries(hostGroups)
+      .filter(([groupId]) => groupId !== UNGROUPED_GROUP_ID)
+      .map(([groupId, group]) => ({ value: groupId, label: group.name })),
+  ], [hostGroups, CM]);
 
   useEffect(() => {
     if (isOpen) {
@@ -30,9 +51,10 @@ export default function AddHostModal({ isOpen, onClose }) {
           port: String(initialHostData.port || '8001'),
           password: initialHostData.password || '',
           alias: initialHostData.alias || '',
+          groupId: initialHostData.groupId || '',
         });
       } else {
-        setFormData({ id: '', address: '', port: '8001', password: '', alias: '' });
+        setFormData({ id: '', address: '', port: '8001', password: '', alias: '', groupId: '' });
       }
       setErrors({});
     }
@@ -57,24 +79,67 @@ export default function AddHostModal({ isOpen, onClose }) {
     return errs;
   };
 
-  const handleSubmit = async () => {
+  const buildPayload = () => ({
+    ...formData,
+    port: Number(formData.port),
+  });
+
+  // Save only — persists the host without attempting a CMS login.
+  const handleSave = async () => {
     const errs = validate();
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
       return;
     }
-    const payload = {
-      ...formData,
-      port: Number(formData.port),
-      ...(initialHostData?.groupId ? { groupId: initialHostData.groupId } : {}),
-    };
     try {
-      await dispatch(addHost(payload)).unwrap();
+      await dispatch(addHost(buildPayload())).unwrap();
       if (initialHostData) {
         dispatch(openDiscoveryModal());
       }
-    } catch (e) {
+    } catch {
       // Error handled by slice
+    }
+  };
+
+  // Save then attempt to actually log in with the given credentials. On
+  // failure the modal stays open (loginToHost.rejected populates
+  // state.host.error) so the user can see why and correct the password here.
+  const handleTestConnectionAndSave = async () => {
+    const errs = validate();
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      return;
+    }
+
+    const payload = buildPayload();
+    let nextHostGroups;
+    try {
+      nextHostGroups = await dispatch(addHost(payload)).unwrap();
+    } catch {
+      return; // Add failed: modal stays open, error shown via state.host.error
+    }
+
+    const newHostUid = findHostUidByConnection(nextHostGroups, payload);
+    if (!newHostUid) {
+      if (initialHostData) dispatch(openDiscoveryModal());
+      return;
+    }
+
+    try {
+      await dispatch(loginToHostWithSideEffects(newHostUid)).unwrap();
+      if (initialHostData) {
+        dispatch(openDiscoveryModal());
+      }
+      dispatch(setSelectedHost(newHostUid));
+      dispatch(setActiveMainTab(`host:${newHostUid}`));
+      dispatch(fetchDatabaseStartInfo(newHostUid));
+      dispatch(fetchBrokerList(newHostUid));
+      dispatch(fetchHostEnv(newHostUid));
+    } catch {
+      // addHost.fulfilled already closed this modal — the host is saved,
+      // but login failed (e.g. wrong/missing password). Reopen it in Edit
+      // mode so the user can fix the credentials right away.
+      dispatch(openEditHostModal(newHostUid));
     }
   };
 
@@ -104,13 +169,22 @@ export default function AddHostModal({ isOpen, onClose }) {
             {CM.discard}
           </Button>
           <Button
+            variant="secondary"
+            onClick={handleSave}
+            loading={loading}
+            icon="save_as"
+            className="min-w-[100px]"
+          >
+            {CM.saveChanges}
+          </Button>
+          <Button
             variant="primary"
-            onClick={handleSubmit}
+            onClick={handleTestConnectionAndSave}
             loading={loading}
             icon="bolt"
-            className="min-w-[140px]"
+            className="min-w-[170px]"
           >
-            {CM.connect}
+            {CM.testConnectionAndSave}
           </Button>
         </>
       }
@@ -133,7 +207,7 @@ export default function AddHostModal({ isOpen, onClose }) {
 
         {/* Section 1: Identity */}
         <SectionHeader title={CM.identity} icon="badge" />
-        <div className="px-1">
+        <div className="px-1 space-y-4">
           <Input
             label={CM.friendlyName}
             name="alias"
@@ -142,6 +216,14 @@ export default function AddHostModal({ isOpen, onClose }) {
             error={errors.alias}
             placeholder={CM.friendlyNamePlaceholder}
             icon="label"
+            disabled={loading}
+          />
+          <Select
+            label={CM.groupLabel}
+            value={formData.groupId}
+            onChange={(e) => handleChange({ target: { name: 'groupId', value: e.target.value } })}
+            options={groupOptions}
+            icon="folder"
             disabled={loading}
           />
         </div>

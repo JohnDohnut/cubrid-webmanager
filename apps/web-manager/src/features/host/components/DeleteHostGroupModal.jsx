@@ -15,9 +15,12 @@ export default function DeleteHostGroupModal() {
     groupToEditName,
     loading,
     error: apiError,
+    hostGroups,
   } = useSelector((state) => state.host, shallowEqual);
 
   if (!isDeleteGroupModalOpen) return null;
+
+  const hostsInGroup = Object.values(hostGroups?.[groupToEditId]?.hosts || {});
 
   const handleDelete = async () => {
     if (groupToEditId) {
@@ -72,6 +75,21 @@ export default function DeleteHostGroupModal() {
             {CM.deleteGroupConfirmDesc}
           </Typography>
         </div>
+
+        {hostsInGroup.length > 0 && (
+          <div className="px-4 py-3 bg-amber-500/5 border border-amber-500/15 rounded-xl">
+            <Typography variant="caption" className="text-amber-600 dark:text-amber-500 font-bold text-[11px] leading-snug block mb-2">
+              {CM.deleteGroupHostsWarning(hostsInGroup.length)}
+            </Typography>
+            <ul className="space-y-0.5 max-h-[120px] overflow-y-auto">
+              {hostsInGroup.map((host) => (
+                <li key={host.uid} className="text-[11px] text-slate-600 dark:text-slate-400 font-mono truncate">
+                  {host.alias || host.id} ({host.address}:{host.port})
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </Modal>
   );

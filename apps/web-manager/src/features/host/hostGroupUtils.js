@@ -1,3 +1,9 @@
+/** Mirrors apps/api-server/src/host/host-group.util.ts UNGROUPED_GROUP_ID — reserved bucket id for hosts with no user-created group. */
+export const UNGROUPED_GROUP_ID = '__ungrouped__';
+
+/** Drag payload MIME type used when dragging a host row in the sidebar tree. */
+export const HOST_DRAG_MIME = 'application/x-cubrid-host';
+
 /** Flatten nested host_groups into a host array (no groupId on host objects). */
 export function flattenHostsFromGroups(hostGroups) {
   const hosts = [];
@@ -8,6 +14,16 @@ export function flattenHostsFromGroups(hostGroups) {
     }
   }
   return hosts;
+}
+
+/** addHost only returns the updated host_groups map, not the new host's uid —
+ * find it by matching the connection fields the backend enforces as unique. */
+export function findHostUidByConnection(hostGroups, { address, port, id }) {
+  const hosts = flattenHostsFromGroups(hostGroups);
+  const match = hosts.find((h) =>
+    String(h.address) === String(address) && String(h.port) === String(port) && h.id === id
+  );
+  return match?.uid ?? null;
 }
 
 export function findGroupIdForHost(hostGroups, hostUid) {
@@ -54,10 +70,14 @@ export function resolveDefaultHostUid(group) {
   return uids[0] ?? null;
 }
 
+/** Ungrouped bucket always sorts last; other groups sort alphabetically by name. */
 export function orderedGroupEntries(hostGroups) {
-  return Object.entries(hostGroups || {}).sort(([, a], [, b]) =>
-    (a.name || '').localeCompare(b.name || '')
-  );
+  return Object.entries(hostGroups || {}).sort(([idA, a], [idB, b]) => {
+    const aUngrouped = idA === UNGROUPED_GROUP_ID;
+    const bUngrouped = idB === UNGROUPED_GROUP_ID;
+    if (aUngrouped !== bUngrouped) return aUngrouped ? 1 : -1;
+    return (a.name || '').localeCompare(b.name || '');
+  });
 }
 
 const HA_ROLE_SORT_ORDER = { master: 0, slave: 1, replica: 2 };

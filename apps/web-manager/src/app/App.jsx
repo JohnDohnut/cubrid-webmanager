@@ -13,6 +13,7 @@ import AddHostModal from '../features/host/components/AddHostModal';
 import HostGroupNameModal from '../features/host/components/HostGroupNameModal';
 import ChangeHostPasswordModal from '../features/host/components/ChangeHostPasswordModal';
 import DeleteHostGroupModal from '../features/host/components/DeleteHostGroupModal';
+import ManageGroupMembersModal from '../features/host/components/ManageGroupMembersModal';
 import ServerContent from '../features/server/components/ServerContent';
 import DatabaseDashboard from '../features/database/components/DatabaseDashboard';
 import DatabaseSpaceMonitor from '../features/database/components/DatabaseSpaceMonitor';
@@ -112,7 +113,7 @@ function DashboardLayout() {
     if (tabId.startsWith('host:')) {
       const uid = tabId.split(':')[1];
       const host = hosts.find(h => h.uid === uid);
-      acc[tabId] = host ? (host.alias || host.id) : uid;
+      acc[tabId] = host ? (host.alias || host.id) : CM.unknownHost;
     } else if (tabId.startsWith('db:')) {
       const parts = tabId.split(':');
       acc[tabId] = parts.length > 2 ? parts[2] : parts[1];
@@ -420,6 +421,7 @@ function DashboardLayout() {
         />
         <DeleteHostModal />
         <DeleteHostGroupModal />
+        <ManageGroupMembersModal />
         <EditHostModal />
         <ChangeHostPasswordModal />
         <ServerVersionModal />

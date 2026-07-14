@@ -3,8 +3,8 @@ import React, { useState } from 'react';
 import { useSelector, useDispatch , shallowEqual } from 'react-redux';
 import { formatSize } from '../../../infrastructure/utils/format';
 import { fetchHostSummary } from '../globalMonitoringSlice';
-import { setActiveMainTab } from '../../layout/layoutSlice';
 import { setSelectedHost } from '../../host/hostSlice';
+import { useHostActivation } from '../../host/useHostActivation';
 import MonitoringSettingsPopover from '../../user/components/MonitoringSettingsPopover';
 import { Table } from '../../../components/ds/layout/Table';
 import { Card } from '../../../components/ds/layout/Card';
@@ -40,6 +40,7 @@ const Component = function ServiceDashboard() {
   const [collapsedGroups, setCollapsedGroups] = useState(() => new Set());
   const [roleFilter, setRoleFilter] = useState('all');
   const [sortConfig, setSortConfig] = useState(null); // { key, direction: 'asc'|'desc' }
+  const activateHost = useHostActivation();
 
   const handleColumnSort = (accessor) => {
     setSortConfig((prev) => {
@@ -78,7 +79,7 @@ const Component = function ServiceDashboard() {
     }
     const hostUid = row.uid;
     dispatch(setSelectedHost(hostUid));
-    dispatch(setActiveMainTab(`host:${hostUid}`));
+    activateHost(hostUid);
   };
 
   // Group tree rows: group header row + host rows (keeps group ordering stable).

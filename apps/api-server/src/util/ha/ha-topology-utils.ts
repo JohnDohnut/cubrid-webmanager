@@ -45,6 +45,15 @@ export function parseHaDbListDbNamesFromHaConf(
   return out;
 }
 
+// Mirrors CUBRID's own ha_mode_words keyword table (system_parameter.c) —
+// only these are HA_MODE_OFF. Everything else, including "replica"/"repl"/
+// "r"/"2" (HA_MODE_REPLICA, a distinct enabled mode from "on"'s
+// HA_MODE_FAIL_BACK), means HA is enabled for this host. A prior version of
+// this check only matched the literal string "on", which made replica hosts
+// (whose own cubrid.conf sets ha_mode=replica, not ha_mode=on) look like
+// non-HA hosts entirely, skipping heartbeat/peer discovery for them.
+const HA_MODE_OFF_KEYWORDS = new Set(['off', 'no', 'n', '0', 'false']);
+
 /** Normalized flag from `[common]` (or fallback) `ha_mode` — host-level HA enabled. */
 export function isHostHaModeOnFromCubridConf(
   response: Pick<GetAllSysParamCmsResponse, 'conflist'>
@@ -54,7 +63,7 @@ export function isHostHaModeOnFromCubridConf(
   if (raw === undefined) {
     return false;
   }
-  return raw.trim().toLowerCase() === 'on';
+  return !HA_MODE_OFF_KEYWORDS.has(raw.trim().toLowerCase());
 }
 
 /**

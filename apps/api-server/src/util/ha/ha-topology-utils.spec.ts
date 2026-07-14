@@ -36,6 +36,20 @@ describe('ha-topology-utils', () => {
       expect(isHostHaModeOnFromCubridConf(mockCubridConf(['[common]', 'ha_mode=off']))).toBe(false);
       expect(isHostHaModeOnFromCubridConf(mockCubridConf(['[service]', 'x=1']))).toBe(false);
     });
+
+    it('returns true for ha_mode=replica and its abbreviations (HA_MODE_REPLICA is a distinct enabled mode from "on"/HA_MODE_FAIL_BACK)', () => {
+      expect(isHostHaModeOnFromCubridConf(mockCubridConf(['[common]', 'ha_mode=replica']))).toBe(true);
+      expect(isHostHaModeOnFromCubridConf(mockCubridConf(['[common]', 'ha_mode=repl']))).toBe(true);
+      expect(isHostHaModeOnFromCubridConf(mockCubridConf(['[common]', 'ha_mode=r']))).toBe(true);
+      expect(isHostHaModeOnFromCubridConf(mockCubridConf(['[common]', 'ha_mode=2']))).toBe(true);
+    });
+
+    it('returns false for other off-equivalent keywords (no/n/0/false)', () => {
+      expect(isHostHaModeOnFromCubridConf(mockCubridConf(['[common]', 'ha_mode=no']))).toBe(false);
+      expect(isHostHaModeOnFromCubridConf(mockCubridConf(['[common]', 'ha_mode=n']))).toBe(false);
+      expect(isHostHaModeOnFromCubridConf(mockCubridConf(['[common]', 'ha_mode=0']))).toBe(false);
+      expect(isHostHaModeOnFromCubridConf(mockCubridConf(['[common]', 'ha_mode=false']))).toBe(false);
+    });
   });
 
   describe('getPerDbHaModeOffDbNames', () => {

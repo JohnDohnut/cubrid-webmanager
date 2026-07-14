@@ -12,6 +12,7 @@ import { Radio } from '../../../components/ds/forms/Radio';
 import { Typography } from '../../../components/ds/foundation/Typography';
 import { Spinner } from '../../../components/ds/foundation/Spinner';
 import { EmptyState } from '../../../components/ds/feedback/EmptyState';
+import { InfoBanner } from '../../../components/ds/foundation/InfoBanner';
 import { useActionState } from '../../../infrastructure/hooks/useActionState';
 import { 
   ModalStatusLoading, 
@@ -92,6 +93,15 @@ const formatCmsDate = (datetimeLocal) => {
   const [datePart, timePart] = datetimeLocal.split('T');
   const [year, month, day] = datePart.split('-');
   return `${day}-${month}-${year}:${timePart}:00`;
+};
+
+// restoredb's -B/pathname expects a DIRECTORY of backup volumes, not a file —
+// getbackuplist reports the backup FILE path, so this strips the filename.
+const dirnameOf = (filePath) => {
+  if (!filePath) return '';
+  const normalized = filePath.replace(/\\/g, '/');
+  const idx = normalized.lastIndexOf('/');
+  return idx > 0 ? normalized.slice(0, idx) : '';
 };
 
 /* ── helpers ─────────────────────────────────────────────────── */
@@ -211,7 +221,8 @@ export default function RestoreDatabaseModal() {
       dispatch(fetchBackupList({ hostUid: selectedHostUid, dbname: selectedDatabase }));
     }
   }, [isRestoreDatabaseModalOpen, selectedHostUid, selectedDatabase, dispatch, resetAction]);
-  // Auto-populate manual path inputs if backup information is available in catalog
+  // Auto-populate manual path inputs from the catalog. restoredb's -B takes a
+  // directory (not the backup file itself), so store the containing folder.
   useEffect(() => {
     if (allBackups && allBackups.length > 0) {
       const b0 = allBackups.find(b => b.level === 0);
@@ -221,15 +232,15 @@ export default function RestoreDatabaseModal() {
       setFormData(prev => {
         const updates = {};
         if (b0 && !prev.manualLevel0Path) {
-          updates.manualLevel0Path = b0.pathname;
+          updates.manualLevel0Path = dirnameOf(b0.pathname);
         }
         if (b1 && !prev.manualLevel1Path) {
-          updates.manualLevel1Path = b1.pathname;
+          updates.manualLevel1Path = dirnameOf(b1.pathname);
         }
         if (b2 && !prev.manualLevel2Path) {
-          updates.manualLevel2Path = b2.pathname;
+          updates.manualLevel2Path = dirnameOf(b2.pathname);
         }
-        
+
         if (Object.keys(updates).length > 0) {
           return { ...prev, ...updates };
         }
@@ -237,6 +248,24 @@ export default function RestoreDatabaseModal() {
       });
     }
   }, [allBackups]);
+
+  // A restore above level 0 needs every lower level's volumes reachable from the
+  // SAME -B directory (restoredb only accepts one). CUBRID's own default backup
+  // layout puts each level in its own {dbname}_backup_lv{N} folder, so warn when
+  // the selected level's folder differs from the level(s) it depends on.
+  const scatteredLevelsWarning = useMemo(() => {
+    if (!formData.selectBackupFilePath) return null;
+    const level = formData.manualBackupLevel;
+    if (level === '0') return null;
+
+    const activePath = level === '1' ? formData.manualLevel1Path : formData.manualLevel2Path;
+    const dependencyPaths = level === '1'
+      ? [formData.manualLevel0Path]
+      : [formData.manualLevel0Path, formData.manualLevel1Path];
+
+    const mismatched = dependencyPaths.some((p) => p && activePath && p !== activePath);
+    return mismatched ? CM.scatteredBackupLevelsWarning : null;
+  }, [formData.selectBackupFilePath, formData.manualBackupLevel, formData.manualLevel0Path, formData.manualLevel1Path, formData.manualLevel2Path, CM]);
 
   const validationError = useMemo(() => {
     // 1. Date & Time validation (only if selectRecoveryDateTime is checked and specify restore date is active)
@@ -273,9 +302,9 @@ export default function RestoreDatabaseModal() {
                            formData.manualLevel2Path;
         const matchingBackup = allBackups.find(b => {
           if (!b.pathname || !activePath) return false;
-          const p1 = b.pathname.replace(/\\/g, '/').toLowerCase();
-          const p2 = activePath.replace(/\\/g, '/').toLowerCase();
-          return p1 === p2 || p1.endsWith('/' + p2) || p2.endsWith('/' + p1);
+          const filePath = b.pathname.replace(/\\/g, '/').toLowerCase();
+          const dirPath = activePath.replace(/\\/g, '/').toLowerCase();
+          return filePath === dirPath || filePath.startsWith(dirPath + '/');
         });
         if (matchingBackup?.date) {
           backupDate = parseCmsDate(matchingBackup.date);
@@ -390,9 +419,9 @@ export default function RestoreDatabaseModal() {
       // Check backup date for point-in-time recovery verification
       const matchingBackup = allBackups.find(b => {
         if (!b.pathname || !pathnameVal) return false;
-        const p1 = b.pathname.replace(/\\/g, '/').toLowerCase();
-        const p2 = pathnameVal.replace(/\\/g, '/').toLowerCase();
-        return p1 === p2 || p1.endsWith('/' + p2) || p2.endsWith('/' + p1);
+        const filePath = b.pathname.replace(/\\/g, '/').toLowerCase();
+        const dirPath = pathnameVal.replace(/\\/g, '/').toLowerCase();
+        return filePath === dirPath || filePath.startsWith(dirPath + '/');
       });
       if (matchingBackup?.date) {
         backupDate = parseCmsDate(matchingBackup.date);
@@ -649,7 +678,7 @@ export default function RestoreDatabaseModal() {
                       onChange={(e) => handleInputChange('manualLevel0Path', e.target.value)}
                       disabled={!formData.selectBackupFilePath || formData.manualBackupLevel !== '0'}
                       icon="folder_open"
-                      placeholder="e.g. /path/to/backup_bk0v000"
+                      placeholder="e.g. /path/to/demodb_backup_lv0"
                     />
                   </div>
                   <div className="grid grid-cols-[110px_1fr] items-center gap-3">
@@ -661,7 +690,7 @@ export default function RestoreDatabaseModal() {
                       onChange={(e) => handleInputChange('manualLevel1Path', e.target.value)}
                       disabled={!formData.selectBackupFilePath || formData.manualBackupLevel !== '1'}
                       icon="folder_open"
-                      placeholder="e.g. /path/to/backup_bk1v000"
+                      placeholder="e.g. /path/to/demodb_backup_lv1"
                     />
                   </div>
                   <div className="grid grid-cols-[110px_1fr] items-center gap-3">
@@ -673,9 +702,14 @@ export default function RestoreDatabaseModal() {
                       onChange={(e) => handleInputChange('manualLevel2Path', e.target.value)}
                       disabled={!formData.selectBackupFilePath || formData.manualBackupLevel !== '2'}
                       icon="folder_open"
-                      placeholder="e.g. /path/to/backup_bk2v000"
+                      placeholder="e.g. /path/to/demodb_backup_lv2"
                     />
                   </div>
+                  {scatteredLevelsWarning && (
+                    <InfoBanner variant="warning" icon="warning">
+                      {scatteredLevelsWarning}
+                    </InfoBanner>
+                  )}
                 </div>
               </div>
             </CaDialogField>

@@ -1,5 +1,9 @@
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { closeDeleteHostModal, deleteHost } from '../hostSlice';
+import { closeDeleteHostModal, deleteHost, setSelectedHost } from '../hostSlice';
+import { closeHostTabs } from '../../layout/layoutSlice';
+import { resetDatabaseState } from '../../database/databaseCoreSlice';
+import { resetBrokerState } from '../../broker/brokerSlice';
+import { clearHostSummary } from '../../server/globalMonitoringSlice';
 import { Modal } from '../../../components/ds/layout/Modal';
 import { Button } from '../../../components/ds/foundation/Button';
 import { Typography } from '../../../components/ds/foundation/Typography';
@@ -9,13 +13,25 @@ import { useCM } from '../../../constants/useCM';
 export default function DeleteHostModal() {
   const CM = useCM();
   const dispatch = useDispatch();
-  const { isDeleteHostModalOpen, hostToDeleteUid, hostToDeleteAlias, loading, error: apiError } = useSelector((state) => state.host, shallowEqual);
+  const { isDeleteHostModalOpen, hostToDeleteUid, hostToDeleteAlias, selectedHostUid, loading, error: apiError } = useSelector((state) => state.host, shallowEqual);
 
   if (!isDeleteHostModalOpen) return null;
 
   const handleDelete = async () => {
-    if (hostToDeleteUid) {
-      dispatch(deleteHost(hostToDeleteUid));
+    if (!hostToDeleteUid) return;
+    try {
+      await dispatch(deleteHost(hostToDeleteUid)).unwrap();
+      // The host no longer exists — close any tabs/state pointing at it,
+      // otherwise they're left open referencing a deleted host.
+      dispatch(closeHostTabs(hostToDeleteUid));
+      dispatch(clearHostSummary(hostToDeleteUid));
+      if (selectedHostUid === hostToDeleteUid) {
+        dispatch(setSelectedHost(null));
+        dispatch(resetDatabaseState());
+        dispatch(resetBrokerState());
+      }
+    } catch {
+      // Delete failed: modal stays open, error shown via state.host.error
     }
   };
 
