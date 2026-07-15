@@ -706,7 +706,11 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                   )}
 
 
-                  <div className={`mt-2 ${(!authorizedHosts.includes(selectedHostUid) || isLoggingIntoHost) ? 'opacity-20 blur-[1px] pointer-events-none' : 'opacity-100'}`} id="db-tree-container">
+                  <div
+                    className={`mt-2 ${(!authorizedHosts.includes(selectedHostUid) || isLoggingIntoHost) ? 'opacity-20 blur-[1px] pointer-events-none' : 'opacity-100'}`}
+                    id="db-tree-container"
+                    data-authorized={authorizedHosts.includes(selectedHostUid) && !isLoggingIntoHost}
+                  >
                     <div className={activeTab !== 'db' ? 'hidden' : ''}>
                       <DatabaseTree
                         onContextMenu={handleDbContextMenu}

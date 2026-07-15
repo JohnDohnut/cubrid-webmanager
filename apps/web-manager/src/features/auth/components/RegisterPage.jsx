@@ -163,6 +163,7 @@ export default function RegisterPage() {
 
           {/* Username */}
           <Input
+            data-testid="register-username-input"
             label={CM.username}
             icon="person_pin"
             placeholder={CM.pickUniqueUsername}
@@ -174,6 +175,7 @@ export default function RegisterPage() {
 
           {/* Password */}
           <Input
+            data-testid="register-password-input"
             label={CM.password}
             icon={strength.level >= 3 ? 'verified_user' : 'fingerprint'}
             type={showPassword ? 'text' : 'password'}
@@ -204,6 +206,7 @@ export default function RegisterPage() {
 
           {/* Confirm Password */}
           <Input
+            data-testid="register-confirm-password-input"
             label={CM.passwordConfirm}
             icon="verified"
             type={showConfirm ? 'text' : 'password'}
@@ -236,6 +239,7 @@ export default function RegisterPage() {
           {/* Submit */}
           <button
             type="submit"
+            data-testid="register-submit-btn"
             disabled={loading}
             className="w-full h-10 mt-1 bg-slate-900 dark:bg-amber-500 text-white dark:text-black text-[13px] font-bold rounded-xl shadow-md hover:shadow-[0_0_12px_rgba(16,185,129,0.3)] hover:bg-slate-800 dark:hover:bg-amber-400 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 group cursor-pointer"
           >
