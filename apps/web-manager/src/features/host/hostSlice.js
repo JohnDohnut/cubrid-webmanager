@@ -438,6 +438,7 @@ const initialState = {
   haInfo: JSON.parse(localStorage.getItem('cubrid_ha_info') || '{}'), // Cache of HA info (isHA, currentNodeType, haNodes) indexed by hostUid
   suggestedHaNodes: [],
   suggestedHaGroupId: null,
+  suggestedHaAnchorHostUid: null, // Host whose HA login surfaced these peers — moved into a new group if the user opts in
   isDiscoveryModalOpen: false, // Visibility of the discovery modal
   pendingHaMerge: null,
   isHaMergeModalOpen: false,
@@ -568,15 +569,20 @@ const hostSlice = createSlice({
     },
     setSuggestedHaNodes: (state, action) => {
       const payload = Array.isArray(action.payload)
-        ? { nodes: action.payload, groupId: null }
+        ? { nodes: action.payload, groupId: null, anchorHostUid: null }
         : action.payload;
       state.suggestedHaNodes = payload.nodes || [];
       state.suggestedHaGroupId = payload.groupId ?? null;
+      state.suggestedHaAnchorHostUid = payload.anchorHostUid ?? null;
       state.isDiscoveryModalOpen = (payload.nodes || []).length > 0;
+    },
+    setSuggestedHaGroupId: (state, action) => {
+      state.suggestedHaGroupId = action.payload ?? null;
     },
     clearSuggestedHaNodes: (state) => {
       state.suggestedHaNodes = [];
       state.suggestedHaGroupId = null;
+      state.suggestedHaAnchorHostUid = null;
       state.isDiscoveryModalOpen = false;
     },
     openDiscoveryModal: (state) => {
@@ -983,6 +989,7 @@ export const {
   openServerVersionModal,
   closeServerVersionModal,
   setSuggestedHaNodes,
+  setSuggestedHaGroupId,
   clearSuggestedHaNodes,
   setPendingHaMerge,
   clearPendingHaMerge,
@@ -1039,6 +1046,7 @@ export const processHaLoginSideEffects = createAsyncThunk(
           dispatch(hostSlice.actions.setSuggestedHaNodes({
             nodes: undiscovered,
             groupId: findGroupIdForHost(hostGroups, hostUid),
+            anchorHostUid: hostUid,
           }));
           showedHaModal = true;
         }

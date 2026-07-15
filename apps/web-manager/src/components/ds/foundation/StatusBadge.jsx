@@ -32,13 +32,14 @@ export const StatusBadge = ({
 
   return (
     <div className={`px-2.5 py-1 rounded-full border inline-flex items-center gap-1.5 shrink-0 w-fit transition-all select-none ${currentTheme} ${className}`}>
-      {pulse && (
-        <span className={`w-1.5 h-1.5 rounded-full bg-${dotColor} shrink-0 relative flex`}>
-          <span className={`absolute inset-0 rounded-full bg-${dotColor} animate-ping opacity-75`} />
-        </span>
-      )}
-      {!pulse && icon && (
+      {icon ? (
         <Icon name={icon} size="12px" weight={400} className="shrink-0" />
+      ) : (
+        <span className={`w-1.5 h-1.5 rounded-full bg-${dotColor} shrink-0 relative flex`}>
+          {pulse && (
+            <span className={`absolute inset-0 rounded-full bg-${dotColor} animate-ping opacity-75`} />
+          )}
+        </span>
       )}
       <span className="text-[9px] font-black uppercase tracking-widest leading-none">
         {label}

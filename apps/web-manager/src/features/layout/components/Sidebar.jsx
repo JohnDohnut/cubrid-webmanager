@@ -1755,12 +1755,10 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
       />
       {isSidebarActionError && (
         <Modal isOpen title={CM.actionFailed} icon="error" iconVariant="danger" onClose={resetAction} maxWidth="400px">
-          <ModalStatusError 
+          <ModalStatusError
             title={CM.updateInterrupted}
             error={sidebarActionError}
-            onRetry={resetAction}
             onCancel={resetAction}
-            retryText={CM.dismiss}
           />
         </Modal>
       )}

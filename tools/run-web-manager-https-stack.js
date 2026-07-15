@@ -12,6 +12,7 @@
 const { spawn } = require('child_process');
 const net = require('net');
 const path = require('path');
+const fs = require('fs');
 const treeKill = require('tree-kill');
 const { loadWorkspaceEnv } = require('./load-workspace-env');
 
@@ -97,6 +98,28 @@ function startWebDev() {
   });
 }
 
+const WEB_MANAGER_BUILD_DIR = path.join(REPO_ROOT, 'dist', 'apps', 'web-manager');
+
+function buildWebManagerIfMissing() {
+  if (fs.existsSync(WEB_MANAGER_BUILD_DIR)) {
+    return Promise.resolve();
+  }
+  console.log(`[stack] ${WEB_MANAGER_BUILD_DIR} not found -> running npm run build:web-manager`);
+  const npmBin = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  return new Promise((resolve, reject) => {
+    const buildChild = spawn(npmBin, ['run', 'build:web-manager'], {
+      cwd: REPO_ROOT,
+      shell: true,
+      stdio: 'inherit',
+      env: { ...process.env },
+    });
+    buildChild.on('exit', (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`build:web-manager exited with code ${code}`));
+    });
+  });
+}
+
 function startWebProxy() {
   const scriptPath = path.join(__dirname, 'serve-web-manager-https-proxy.js');
   const env = { ...process.env };
@@ -130,6 +153,7 @@ if (!isProduction) {
 }
 
 Promise.all(waitPromises)
+  .then(() => (isProduction ? buildWebManagerIfMissing() : Promise.resolve()))
   .then(() => {
     console.log(`[stack] Services are ready -> starting HTTPS proxy (:${WEB_HTTPS_PORT})`);
     startWebProxy();
