@@ -203,12 +203,14 @@ export default function CopyDatabaseModal() {
       subtitle={CM.cloneSubtitle}
       icon="content_copy"
       maxWidth="580px"
+      testId="copy-database"
       footer={
         <div className="flex justify-end gap-3 w-full">
-          <Button variant="ghost" onClick={handleClose}>{CM.discard}</Button>
-          <Button 
-            variant="primary" 
-            onClick={handleCopy} 
+          <Button data-testid="copy-database-discard-btn" variant="ghost" onClick={handleClose}>{CM.discard}</Button>
+          <Button
+            data-testid="copy-database-execute-btn"
+            variant="primary"
+            onClick={handleCopy}
             icon="content_copy"
             className="min-w-[140px]"
           >
@@ -239,6 +241,7 @@ export default function CopyDatabaseModal() {
           {/* Destination Column */}
           <div className="flex-1">
             <Input
+              data-testid="copy-database-dest-name-input"
               label={CM.cloneIdentifier}
               value={formData.destName}
               onChange={e => handleInputChange('destName', e.target.value)}
