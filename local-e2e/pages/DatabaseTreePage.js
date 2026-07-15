@@ -75,6 +75,32 @@ class DatabaseTreePage {
   planItem(dbname, planId) {
     return this.dbNode(dbname).getByTestId(`tree-node-${planId}`);
   }
+
+  /**
+   * Clicks an item inside the "Manage Database" hover flyout submenu
+   * (Rename/Copy/Delete/Compact/Check/Optimize/Backup/Restore/Unload/Load).
+   * The background monitoring poll can re-render the tree while this flyout
+   * is open, detaching it mid-hover, so each retry fully reopens the
+   * right-click context menu from scratch rather than re-hovering a menu
+   * that may already be gone.
+   */
+  async clickManageDatabaseItem(dbname, itemName) {
+    const item = this.page.getByRole('button', { name: new RegExp(itemName, 'i') });
+    let lastErr;
+    for (let i = 0; i < 5; i++) {
+      try {
+        await this.openContextMenu(dbname);
+        await this.page.getByRole('button', { name: 'Manage Database' }).hover();
+        await item.waitFor({ state: 'visible', timeout: 3000 });
+        await item.click({ timeout: 3000 });
+        return;
+      } catch (err) {
+        lastErr = err;
+        await this.page.keyboard.press('Escape').catch(() => {});
+      }
+    }
+    throw lastErr;
+  }
 }
 
 module.exports = { DatabaseTreePage };

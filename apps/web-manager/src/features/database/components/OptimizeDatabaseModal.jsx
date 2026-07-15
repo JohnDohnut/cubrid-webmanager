@@ -375,14 +375,16 @@ export default function OptimizeDatabaseModal() {
       subtitle={CM.performanceTuningSubtitle}
       icon="auto_fix_high"
       maxWidth="460px"
+      testId="optimize-database"
       footer={
         <div className="flex justify-end gap-3 w-full">
-          <Button variant="ghost" onClick={handleClose}>
+          <Button data-testid="optimize-database-discard-btn" variant="ghost" onClick={handleClose}>
             {CM.discard}
           </Button>
-          <Button 
-            variant="primary" 
-            onClick={handleOptimize} 
+          <Button
+            data-testid="optimize-database-run-btn"
+            variant="primary"
+            onClick={handleOptimize}
             icon="play_circle"
             disabled={isLoadingClasses}
             className="min-w-[140px]"

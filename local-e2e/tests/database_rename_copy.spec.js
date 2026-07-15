@@ -7,32 +7,6 @@ const E2E_HOST_ADDRESS = process.env.E2E_HOST_ADDRESS || 'localhost';
 const E2E_HOST_PORT = process.env.E2E_HOST_PORT || '8001';
 const E2E_DB = process.env.E2E_DB || 'demodb';
 
-/**
- * Rename/Copy/Delete/Compact/Check/Optimize all live inside a "Manage Database"
- * hover flyout submenu, not as direct top-level context menu items. The
- * background monitoring poll can re-render the tree while this flyout is
- * open, detaching it mid-hover — reopen() fully re-triggers the right-click
- * context menu from scratch on each retry rather than re-hovering a menu
- * that may already be gone.
- */
-async function clickManageDatabaseItem(page, itemName, reopen) {
-  const item = page.getByRole('button', { name: new RegExp(itemName, 'i') });
-  let lastErr;
-  for (let i = 0; i < 5; i++) {
-    try {
-      await reopen();
-      await page.getByRole('button', { name: 'Manage Database' }).hover();
-      await item.waitFor({ state: 'visible', timeout: 3000 });
-      await item.click({ timeout: 3000 });
-      return;
-    } catch (err) {
-      lastErr = err;
-      await page.keyboard.press('Escape').catch(() => {});
-    }
-  }
-  throw lastErr;
-}
-
 test.describe('Database Rename/Copy', () => {
   let dbTree;
 
@@ -62,7 +36,7 @@ test.describe('Database Rename/Copy', () => {
       return;
     }
 
-    await clickManageDatabaseItem(page, 'Rename Database', () => dbTree.openContextMenu(E2E_DB));
+    await dbTree.clickManageDatabaseItem(E2E_DB, 'Rename Database');
     const modal = page.getByTestId('rename-database-modal');
     await expect(modal).toBeVisible();
     await expect(page.getByTestId('rename-database-execute-btn')).toBeDisabled();
@@ -92,7 +66,7 @@ test.describe('Database Rename/Copy', () => {
       await page.keyboard.press('Escape');
     }
 
-    await clickManageDatabaseItem(page, 'Copy Database', () => dbTree.openContextMenu(E2E_DB));
+    await dbTree.clickManageDatabaseItem(E2E_DB, 'Copy Database');
 
     const copyModal = page.getByTestId('copy-database-modal');
     await expect(copyModal).toBeVisible();
