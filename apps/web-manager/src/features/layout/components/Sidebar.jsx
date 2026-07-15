@@ -509,6 +509,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                 )}
                 {!isServerListCollapsed && (
                   <button
+                    data-testid="add-host-toolbar-btn"
                     onClick={(e) => { e.stopPropagation(); onAddHost(); }}
                     className="flex items-center gap-1 h-6 px-2 rounded-sm border border-slate-200 dark:border-white/10 bg-white dark:bg-white/4 text-slate-400 hover:text-amber-500 hover:border-amber-400/50 hover:bg-amber-500/5 dark:hover:bg-amber-500/10 transition-all active:scale-95 shadow-xs"
                     title={CM.addHost}
@@ -519,6 +520,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                 )}
                 {!isServerListCollapsed && (
                   <button
+                    data-testid="new-group-toolbar-btn"
                     onClick={(e) => { e.stopPropagation(); dispatch(openCreateGroupModal()); }}
                     className="flex items-center gap-1 h-6 px-2 rounded-sm border border-slate-200 dark:border-white/10 bg-white dark:bg-white/4 text-slate-400 hover:text-amber-500 hover:border-amber-400/50 hover:bg-amber-500/5 dark:hover:bg-amber-500/10 transition-all active:scale-95 shadow-xs"
                     title={CM.newGroup}
