@@ -3,20 +3,16 @@ import React, { useState } from 'react';
 import { useSelector, useDispatch , shallowEqual } from 'react-redux';
 import { formatSize } from '../../../infrastructure/utils/format';
 import { fetchHostSummary } from '../globalMonitoringSlice';
-import { setActiveMainTab } from '../../layout/layoutSlice';
-import { setSelectedHost, startService, stopService } from '../../host/hostSlice';
+import { setSelectedHost } from '../../host/hostSlice';
+import { useHostActivation } from '../../host/useHostActivation';
 import MonitoringSettingsPopover from '../../user/components/MonitoringSettingsPopover';
 import { Table } from '../../../components/ds/layout/Table';
 import { Card } from '../../../components/ds/layout/Card';
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Typography } from '../../../components/ds/foundation/Typography';
-import LoadingOverlay from '../../../components/common/LoadingOverlay';
 import { Badge } from '../../../components/ds/foundation/Badge';
 import { Spinner } from '../../../components/ds/foundation/Spinner';
 import { InfoBanner } from '../../../components/ds/foundation/InfoBanner';
-import { useActionState } from '../../../infrastructure/hooks/useActionState';
-import { Modal } from '../../../components/ds/layout/Modal';
-import { ModalStatusError } from '../../../components/ds/feedback/ActionStatus';
 import {
   orderedGroupEntries,
   resolveDefaultHostUid,
@@ -30,11 +26,9 @@ const MetricBar = ({ pct }) => (
   </div>
 );
 
-import { ConfirmDialog } from '../../../components/ds/layout/ConfirmDialog';
 import { useCM } from '../../../constants/useCM';
 
 const ignoreRefreshError = () => undefined;
-const defaultConfirmAction = () => undefined;
 
 const Component = function ServiceDashboard() {
   const CM = useCM();
@@ -46,6 +40,7 @@ const Component = function ServiceDashboard() {
   const [collapsedGroups, setCollapsedGroups] = useState(() => new Set());
   const [roleFilter, setRoleFilter] = useState('all');
   const [sortConfig, setSortConfig] = useState(null); // { key, direction: 'asc'|'desc' }
+  const activateHost = useHostActivation();
 
   const handleColumnSort = (accessor) => {
     setSortConfig((prev) => {
@@ -84,29 +79,8 @@ const Component = function ServiceDashboard() {
     }
     const hostUid = row.uid;
     dispatch(setSelectedHost(hostUid));
-    dispatch(setActiveMainTab(`host:${hostUid}`));
+    activateHost(hostUid);
   };
-
-  const { 
-    startAction, 
-    endError, 
-    resetAction,
-    isLoading,
-    isError,
-    error: actionError
-  } = useActionState();
-
-  const [loadingTitle, setLoadingTitle] = useState(CM.synchronizingServices);
-  const [confirmConfig, setConfirmConfig] = useState({ 
-    isOpen: false, 
-    title: '', 
-    description: '', 
-    confirmLabel: '',
-    variant: 'primary',
-    onConfirm: defaultConfirmAction
-  });
-
-  const closeConfirm = () => setConfirmConfig(prev => ({ ...prev, isOpen: false }));
 
   // Group tree rows: group header row + host rows (keeps group ordering stable).
   const { tableRows, hostMetaByUid } = React.useMemo(() => {
@@ -211,57 +185,6 @@ const Component = function ServiceDashboard() {
     flushGroup();
     return result;
   }, [tableRows, sortConfig, summaries]);
-
-  const handleStartService = (e, row) => {
-    e.stopPropagation();
-    const hostUid = row.uid;
-    const serverName = row.alias || row.id;
-
-    setConfirmConfig({
-      isOpen: true,
-      title: CM.startServicesConfirmTitle,
-      description: CM.startServicesConfirmDesc(serverName),
-      confirmLabel: CM.startServices,
-      variant: 'primary',
-      onConfirm: async () => {
-        closeConfirm();
-        setLoadingTitle(CM.startingServicesOn(serverName));
-        startAction();
-        try {
-          await dispatch(startService(hostUid)).unwrap();
-          resetAction();
-        } catch (err) {
-          endError(typeof err === 'string' ? err : (err.message || CM.serviceStartRejected));
-        }
-      }
-    });
-  };
-
-  const handleStopService = (e, row) => {
-    e.stopPropagation();
-    const hostUid = row.uid;
-    const serverName = row.alias || row.id;
-
-    setConfirmConfig({
-      isOpen: true,
-      title: CM.stopServicesConfirmTitle,
-      description: CM.stopServicesConfirmDesc(serverName),
-      confirmLabel: CM.stopAllServices,
-      variant: 'danger',
-      onConfirm: async () => {
-        closeConfirm();
-        setLoadingTitle(CM.stoppingServicesOn(serverName));
-        startAction();
-        try {
-          await dispatch(stopService(hostUid)).unwrap();
-          resetAction();
-        } catch (err) {
-          endError(typeof err === 'string' ? err : (err.message || CM.serviceStopFailed));
-        }
-      }
-    });
-  };
-
 
   const columns = React.useMemo(() => {
     const HA_ROLE_CONFIG = {
@@ -521,33 +444,6 @@ const Component = function ServiceDashboard() {
         );
       }
     },
-    { 
-      header: CM.actions, 
-      accessor: 'actions',
-      render: (_, row) => {
-        if (row._type === 'group') return null;
-        const isConnected = authorizedHosts.includes(row.uid);
-        if (!isConnected) return null;
-        return (
-          <div className="flex items-center gap-1">
-            <button 
-              onClick={(e) => handleStartService(e, row)}
-              className="w-7 h-7 flex items-center justify-center rounded-md bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all shadow-sm active:scale-90"
-              title={CM.startServices}
-            >
-              <Icon name="play_arrow" size="16px" weight={400} />
-            </button>
-            <button 
-              onClick={(e) => handleStopService(e, row)}
-              className="w-7 h-7 flex items-center justify-center rounded-md bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all shadow-sm active:scale-90"
-              title={CM.stopServices}
-            >
-              <Icon name="stop" size="16px" weight={400} />
-            </button>
-          </div>
-        );
-      }
-    },
   ];
   }, [authorizedHosts, summaries, haInfo, hostMetaByUid, CM]);
 
@@ -636,47 +532,23 @@ const Component = function ServiceDashboard() {
       </header>
 
       <div className="flex-1 overflow-y-auto p-6 space-y-4 relative">
-        <LoadingOverlay isVisible={isLoading} subtitle={loadingTitle} />
-        
         <Card noPadding className="overflow-hidden border-slate-200 dark:border-white/10 shadow-sm rounded-xl bg-white dark:bg-white/1">
-          <Table 
-            columns={columns} 
+          <Table
+            columns={columns}
             data={sortedTableRows}
             onRowClick={handleRowClick}
-            className="border-none text-[12px]" 
+            className="border-none text-[12px]"
             hoverable
             sortable={false}
           />
         </Card>
-        
+
         {hosts.length > 0 && authorizedHosts.length === 0 && (
           <InfoBanner variant="warning" title={CM.sensorsOffline} icon="dns">
             {CM.connectHostForMonitoring}
           </InfoBanner>
         )}
-
-        <ConfirmDialog
-          isOpen={confirmConfig.isOpen}
-          title={confirmConfig.title}
-          description={confirmConfig.description}
-          confirmLabel={confirmConfig.confirmLabel}
-          variant={confirmConfig.variant}
-          onConfirm={confirmConfig.onConfirm}
-          onCancel={closeConfirm}
-        />
       </div>
-
-      {isError && (
-        <Modal isOpen title={CM.serviceError} icon="error" iconVariant="danger" onClose={resetAction} maxWidth="400px">
-          <ModalStatusError 
-            title={CM.failure}
-            error={actionError}
-            onRetry={resetAction}
-            onCancel={resetAction}
-            retryText={CM.dismiss}
-          />
-        </Modal>
-      )}
     </div>
   );
 }

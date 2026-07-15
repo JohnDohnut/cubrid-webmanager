@@ -94,7 +94,7 @@ export const fetchBackupSchedule = createAsyncThunk(
   async ({ hostUid, dbname }, { rejectWithValue }) => {
     try {
       const response = await databaseApi.getBackupSchedule(hostUid, dbname);
-      return { dbname, schedules: response.scheduler || [] };
+      return { dbname, schedules: response.backups || [] };
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || `Failed to fetch backup schedules for ${dbname}`);
     }
@@ -127,12 +127,12 @@ export const editBackupSchedule = createAsyncThunk(
 
 export const deleteBackupSchedule = createAsyncThunk(
   'database/deleteBackupSchedule',
-  async ({ hostUid, dbname, scheduleName }, { rejectWithValue }) => {
+  async ({ hostUid, dbname, payload }, { rejectWithValue }) => {
     try {
-      const response = await databaseApi.deleteBackupSchedule(hostUid, dbname, scheduleName);
-      return { dbname, scheduleName, response };
+      const response = await databaseApi.deleteBackupSchedule(hostUid, dbname, payload);
+      return { dbname, backupid: payload?.backupid, response };
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || `Failed to delete backup schedule ${scheduleName}`);
+      return rejectWithValue(err.response?.data?.message || `Failed to delete backup schedule ${payload?.backupid}`);
     }
   }
 );

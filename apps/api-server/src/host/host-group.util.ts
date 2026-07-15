@@ -10,6 +10,21 @@ export type HostRef = {
   host: HostInfo;
 };
 
+/**
+ * Reserved group id for hosts that don't belong to any user-created group.
+ * Always present once touched — cannot be renamed or deleted (see updateGroup/deleteGroup).
+ */
+export const UNGROUPED_GROUP_ID = '__ungrouped__';
+
+/** Lazily creates the reserved ungrouped bucket. Idempotent. */
+export function ensureUngroupedGroup(user: User): HostGroupInfo {
+  const groups = ensureHostGroupsWritable(user);
+  if (!groups[UNGROUPED_GROUP_ID]) {
+    groups[UNGROUPED_GROUP_ID] = { name: 'Ungrouped', hosts: {} };
+  }
+  return groups[UNGROUPED_GROUP_ID];
+}
+
 /** Read path: missing host_groups on deserialized JSON. */
 export function readHostGroups(user: Pick<User, 'host_groups'>): HashMap<HostGroupInfo> {
   return user.host_groups ?? {};
@@ -93,22 +108,11 @@ export function sanitizeHostGroups(user: User): SafeHostGroupsMap {
       hosts: omitHashMap(readGroupHosts(group), ['password', 'token', 'dbProfiles']) as SafeHostList,
     };
   }
+  // Always show the ungrouped bucket, even before any host has ever landed there.
+  if (!out[UNGROUPED_GROUP_ID]) {
+    out[UNGROUPED_GROUP_ID] = { name: 'Ungrouped', hosts: {} };
+  }
   return out;
-}
-
-export function createGroupWithHost(
-  user: User,
-  host: HostInfo,
-  opts?: { name?: string }
-): string {
-  const groupId = uuidv4();
-  ensureHostGroupsWritable(user)[groupId] = {
-    name: (opts?.name ?? host.alias ?? host.id ?? 'Host').trim() || 'Host',
-    defaultHostUid: host.uid,
-    createdAt: new Date().toISOString(),
-    hosts: { [host.uid]: host },
-  };
-  return groupId;
 }
 
 export function createEmptyGroup(user: User, name: string): string {
@@ -123,6 +127,7 @@ export function createEmptyGroup(user: User, name: string): string {
 }
 
 export function deleteGroup(user: User, groupId: string): boolean {
+  if (groupId === UNGROUPED_GROUP_ID) return false;
   const groups = readHostGroups(user);
   if (!groups[groupId]) return false;
   delete ensureHostGroupsWritable(user)[groupId];
@@ -138,6 +143,9 @@ export function updateGroup(
   if (!group) return false;
 
   if (patch.name !== undefined) {
+    if (groupId === UNGROUPED_GROUP_ID) {
+      throw new Error('CANNOT_RENAME_UNGROUPED');
+    }
     const trimmed = String(patch.name ?? '').trim();
     if (!trimmed) {
       throw new Error('BLANK_GROUP_NAME_NOT_ALLOWED');
@@ -173,6 +181,10 @@ export function moveHostToGroup(user: User, hostUid: string, targetGroupId: stri
 
   if (ref.groupId === targetGroupId) {
     return true;
+  }
+
+  if (targetGroupId === UNGROUPED_GROUP_ID) {
+    ensureUngroupedGroup(user);
   }
 
   const targetGroup = readHostGroups(user)[targetGroupId];

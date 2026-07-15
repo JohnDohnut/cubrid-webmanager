@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { closeUnloadDatabaseModal, openUnloadResultModal } from '../databaseSlice';
+import { closeUnloadDatabaseModal, openUnloadResultModal, fetchDatabaseStartInfo } from '../databaseSlice';
 import { databaseApi } from '../databaseApi';
 import { databaseJobApi } from '../databaseJobApi';
 import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
@@ -27,8 +27,9 @@ const INITIAL_FORM_DATA = {
   targetDirectory: '',
   dbUsername: '',
   dbPassword: '',
-  schemaOption: 'All',
-  dataOption: 'Selected tables',
+  tableScope: 'All',
+  includeSchema: true,
+  includeData: true,
   selectedTables: [],
   asDba: false,
   splitSchema: false,
@@ -81,7 +82,7 @@ export default function UnloadDatabaseModal() {
       const userTables = res.userclass?.[0]?.class?.map((c) => c.classname) || [];
       setDynamicTables(userTables);
       setFormData((prev) => {
-        if (prev.schemaOption === 'All') {
+        if (prev.tableScope === 'All') {
           return { ...prev, selectedTables: userTables };
         }
         return prev;
@@ -96,19 +97,24 @@ export default function UnloadDatabaseModal() {
   useEffect(() => {
     if (isUnloadDBModalOpen && selectedDatabase) {
       resetAction();
+      // databases can be stale/empty right after a host switch (resetDatabaseState
+      // clears it synchronously while the refetch is still in flight) — refetch
+      // so currentDb.dbdir resolves to the real path instead of falling through
+      // to a fabricated default that doesn't match this host's actual layout.
+      if (selectedHostUid && !currentDb) {
+        dispatch(fetchDatabaseStartInfo(selectedHostUid));
+      }
       setFormData({
         ...INITIAL_FORM_DATA,
         targetDbName: selectedDatabase,
-        targetDirectory: currentDb?.dbdir || `/home/cubrid/databases/${selectedDatabase}`,
+        targetDirectory: currentDb?.dbdir || '',
         dbUsername: 'dba',
         dbPassword: '',
-        fileForHash: currentDb?.dbdir
-          ? `${currentDb.dbdir}/hashfile`
-          : `/home/cubrid/databases/${selectedDatabase}/hashfile`,
+        fileForHash: currentDb?.dbdir ? `${currentDb.dbdir}/hashfile` : '',
       });
       fetchTables();
     }
-  }, [isUnloadDBModalOpen, selectedDatabase, currentDb, fetchTables, resetAction]);
+  }, [isUnloadDBModalOpen, selectedDatabase, currentDb, selectedHostUid, dispatch, fetchTables, resetAction]);
 
   if (!isUnloadDBModalOpen) return null;
 
@@ -120,21 +126,12 @@ export default function UnloadDatabaseModal() {
     }));
   };
 
-  const handleSchemaChange = (e) => {
-    const { value } = e.target;
-    setFormData((prev) => {
-      let newSelectedTables = prev.selectedTables;
-      if (value === 'All') {
-        newSelectedTables = [...dynamicTables];
-      } else if (value === 'Selected tables' || value === 'Not include') {
-        newSelectedTables = [];
-      }
-      return {
-        ...prev,
-        schemaOption: value,
-        selectedTables: newSelectedTables,
-      };
-    });
+  const handleTableScopeChange = (value) => {
+    setFormData((prev) => ({
+      ...prev,
+      tableScope: value,
+      selectedTables: value === 'All' ? [...dynamicTables] : [],
+    }));
   };
 
   const handleTableToggle = (table) => {
@@ -146,6 +143,23 @@ export default function UnloadDatabaseModal() {
     }));
   };
 
+  const handleSelectAllTables = (allTables) => {
+    setFormData((prev) => ({
+      ...prev,
+      selectedTables: prev.selectedTables.length === allTables.length ? [] : [...allTables],
+    }));
+  };
+
+  // Backend rejects the request when neither schema nor data is included
+  // (there would be nothing to unload) — block turning off the last one.
+  const handleIncludeToggle = (key) => {
+    setFormData((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      if (!next.includeSchema && !next.includeData) return prev;
+      return next;
+    });
+  };
+
   const handleUnloadDatabase = async () => {
     if (!selectedHostUid || !selectedDatabase) return;
 
@@ -153,8 +167,8 @@ export default function UnloadDatabaseModal() {
     try {
       const payload = {
         targetdir: formData.targetDirectory,
-        isSchemaIncluded: formData.schemaOption !== 'Not include',
-        isDataIncluded: formData.dataOption !== 'Not include',
+        isSchemaIncluded: formData.includeSchema,
+        isDataIncluded: formData.includeData,
         dbuser: formData.dbUsername,
         dbpasswd: formData.dbPassword,
         usehash: formData.useFileForHash ? 'yes' : 'no',
@@ -241,9 +255,10 @@ export default function UnloadDatabaseModal() {
         <UnloadConfigSection formData={formData} handleInputChange={handleInputChange} />
         <UnloadContentSection
           formData={formData}
-          handleInputChange={handleInputChange}
-          handleSchemaChange={handleSchemaChange}
+          handleTableScopeChange={handleTableScopeChange}
+          handleIncludeToggle={handleIncludeToggle}
           handleTableToggle={handleTableToggle}
+          handleSelectAllTables={handleSelectAllTables}
           dynamicTables={dynamicTables}
           isTablesLoading={isTablesLoading}
         />

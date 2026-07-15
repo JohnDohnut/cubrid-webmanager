@@ -1,13 +1,16 @@
 import React, { useCallback, useMemo } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { 
-  setSelectedDatabase, 
-  setSelectedDatabaseSubItem, 
-  fetchBackupSchedule, 
+import {
+  setSelectedDatabase,
+  setSelectedDatabaseSubItem,
+  fetchBackupSchedule,
   fetchQueryPlan,
   openLoginDatabaseModal,
   loginDatabase,
   fetchDatabaseSpaceInfo,
+  openEditBackupPlanModal,
+  setSelectedBackupId,
+  openEditQueryPlanModal,
 } from '../../../database/databaseSlice';
 import { 
   fetchDatabaseParamDump, 
@@ -127,37 +130,48 @@ export default function DatabaseTree({
   
   const { databaseUsers, databaseUsersLoading } = useSelector((state) => state.user, shallowEqual, shallowEqual);
 
+  // Expand/collapse only ever lazy-loads supplementary read-only data for an
+  // already-logged-in database. It never attempts a login — that's a separate,
+  // deliberate action (double-click) so browsing the tree structure never
+  // silently triggers a connection attempt.
   const handleDbToggle = useCallback((db, isActive, isLoggedIn) => {
-    if (!isActive) return;
+    if (!isActive || !isLoggedIn) return;
 
-    // We use a small timeout to let the browser finish processing 
-    // click sequences (like double-clicks) before we trigger state-changing 
+    // We use a small timeout to let the browser finish processing
+    // click sequences (like double-clicks) before we trigger state-changing
     // dispatches that could cause a reset-rendering of the tree node.
     setTimeout(() => {
-      if (!isLoggedIn) {
-        if (db.isProfileExists) {
-          dispatch(loginDatabase({ hostUid: selectedHostUid, dbname: db.dbname, isBackground: true })).unwrap()
-            .then(() => {
-              dispatch(fetchDatabaseUsers({ hostUid: selectedHostUid, dbname: db.dbname }));
-              dispatch(fetchBackupSchedule({ hostUid: selectedHostUid, dbname: db.dbname }));
-              dispatch(fetchQueryPlan({ hostUid: selectedHostUid, dbname: db.dbname }));
-            });
-        } else {
-          dispatch(openLoginDatabaseModal(db.dbname));
-        }
-      } else {
-        if (!databaseUsers[db.dbname] && !databaseUsersLoading[db.dbname]) {
-          dispatch(fetchDatabaseUsers({ hostUid: selectedHostUid, dbname: db.dbname }));
-        }
-        if (!backupSchedules[db.dbname] && !backupSchedulesLoading[db.dbname]) {
-          dispatch(fetchBackupSchedule({ hostUid: selectedHostUid, dbname: db.dbname }));
-        }
-        if (!queryPlans[db.dbname] && !queryPlansLoading[db.dbname]) {
-          dispatch(fetchQueryPlan({ hostUid: selectedHostUid, dbname: db.dbname }));
-        }
+      if (!databaseUsers[db.dbname] && !databaseUsersLoading[db.dbname]) {
+        dispatch(fetchDatabaseUsers({ hostUid: selectedHostUid, dbname: db.dbname }));
+      }
+      if (!backupSchedules[db.dbname] && !backupSchedulesLoading[db.dbname]) {
+        dispatch(fetchBackupSchedule({ hostUid: selectedHostUid, dbname: db.dbname }));
+      }
+      if (!queryPlans[db.dbname] && !queryPlansLoading[db.dbname]) {
+        dispatch(fetchQueryPlan({ hostUid: selectedHostUid, dbname: db.dbname }));
       }
     }, 50);
   }, [selectedHostUid, databaseUsers, databaseUsersLoading, backupSchedules, backupSchedulesLoading, queryPlans, queryPlansLoading, dispatch]);
+
+  // Double-click "activates" a database: log in if needed (or prompt for
+  // credentials), then open its dashboard tab.
+  const handleDbActivate = useCallback((db, isLoggedIn) => {
+    if (!isLoggedIn) {
+      if (db.isProfileExists) {
+        dispatch(loginDatabase({ hostUid: selectedHostUid, dbname: db.dbname, isBackground: true })).unwrap()
+          .then(() => {
+            dispatch(fetchDatabaseUsers({ hostUid: selectedHostUid, dbname: db.dbname }));
+            dispatch(fetchBackupSchedule({ hostUid: selectedHostUid, dbname: db.dbname }));
+            dispatch(fetchQueryPlan({ hostUid: selectedHostUid, dbname: db.dbname }));
+            dispatch(openTab(`db:${selectedHostUid}:${db.dbname}`));
+          });
+      } else {
+        dispatch(openLoginDatabaseModal(db.dbname));
+      }
+    } else {
+      dispatch(openTab(`db:${selectedHostUid}:${db.dbname}`));
+    }
+  }, [selectedHostUid, dispatch]);
 
   const handleSelectSubItem = useCallback((dbname, subId, onClick) => {
     dispatch(setSelectedDatabase(dbname));
@@ -235,7 +249,7 @@ export default function DatabaseTree({
               dispatch(setSelectedDatabase(db.dbname));
               dispatch(setSelectedDatabaseSubItem(null));
             }}
-            onDoubleClick={() => handleTabOpen(`db:${selectedHostUid}:${db.dbname}`)}
+            onDoubleClick={() => handleDbActivate(db, isLoggedIn)}
             onContextMenu={(e) => onContextMenu(e, db.dbname, isActive)}
           >
             {/* Level 2 items */}
@@ -386,6 +400,11 @@ const JobAutomationFolder = React.memo(({ db, selectedDatabase, selectedDatabase
                 level={4}
                 isActive={isPlanSelected}
                 onSelect={() => onSelect(db.dbname, `backup:${planId}`)}
+                onDoubleClick={() => {
+                  dispatch(setSelectedDatabase(db.dbname));
+                  dispatch(setSelectedBackupId(planId));
+                  dispatch(openEditBackupPlanModal());
+                }}
                 onContextMenu={(e) => onBackupItemContextMenu(e, db.dbname, planId)}
               />
             );
@@ -414,6 +433,10 @@ const JobAutomationFolder = React.memo(({ db, selectedDatabase, selectedDatabase
                 level={4}
                 isActive={selectedDatabase === db.dbname && selectedDatabaseSubItem === `query:${qId}`}
                 onSelect={() => onSelect(db.dbname, `query:${qId}`)}
+                onDoubleClick={() => {
+                  dispatch(setSelectedDatabase(db.dbname));
+                  dispatch(openEditQueryPlanModal(qId));
+                }}
                 onContextMenu={(e) => onQueryItemContextMenu?.(e, db.dbname, qId)}
               />
             );

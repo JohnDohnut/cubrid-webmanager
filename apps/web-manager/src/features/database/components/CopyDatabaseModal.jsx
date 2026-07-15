@@ -94,7 +94,14 @@ export default function CopyDatabaseModal() {
   useEffect(() => {
     if (isCopyDatabaseModalOpen) {
       resetAction();
-      const defaultPath = currentDb?.dbdir || '/home/cubrid/CUBRID/databases/';
+      // databases can be stale/empty right after a host switch (resetDatabaseState
+      // clears it synchronously while the refetch is still in flight) — refetch
+      // so currentDb.dbdir resolves to the real path instead of falling through
+      // to a fabricated default that doesn't match this host's actual layout.
+      if (selectedHostUid && !currentDb) {
+        dispatch(fetchDatabaseStartInfo(selectedHostUid));
+      }
+      const defaultPath = currentDb?.dbdir || '';
       setFormData({
         destName: '',
         destPath: defaultPath,
@@ -104,7 +111,7 @@ export default function CopyDatabaseModal() {
         deleteSource: false,
       });
     }
-  }, [isCopyDatabaseModalOpen, resetAction, currentDb?.dbdir]);
+  }, [isCopyDatabaseModalOpen, resetAction, currentDb, selectedHostUid, dispatch]);
 
   if (!isCopyDatabaseModalOpen) return null;
 

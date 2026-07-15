@@ -109,7 +109,7 @@ export default function StatusModal() {
 
           {/* Title & message */}
           <h3 className="text-[14px] font-bold text-slate-900 dark:text-white tracking-tight leading-snug mb-2">
-            {title || (type === 'success' ? 'Operation complete' : type === 'error' ? 'Something went wrong' : 'Notification')}
+            {title || (type === 'success' ? CM.statusSuccessTitle : type === 'error' ? CM.statusErrorTitle : CM.statusNotice)}
           </h3>
           {message && (
             <p className="text-[11.5px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed max-w-[240px]">
@@ -123,7 +123,7 @@ export default function StatusModal() {
             onClick={() => dispatch(closeStatusModal())}
             className={`mt-6 w-full py-2.5 rounded-xl text-[12px] font-semibold tracking-wide transition-all active:scale-[0.98] ${t.btn}`}
           >
-            {type === 'success' ? 'Got it' : type === 'error' ? 'Dismiss' : 'OK'}
+            {type === 'success' ? CM.gotIt : type === 'error' ? CM.dismiss : CM.ok}
           </button>
         </div>
       </div>
