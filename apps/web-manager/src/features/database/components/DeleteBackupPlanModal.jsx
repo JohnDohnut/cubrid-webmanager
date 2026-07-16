@@ -126,10 +126,11 @@ export default function DeleteBackupPlanModal() {
       subtitle={CM.permanentRemovalBackup}
       icon="delete_forever"
       maxWidth="440px"
+      testId="delete-backup-plan"
       footer={
         <div className="flex justify-end gap-3 w-full">
-          <Button variant="ghost" onClick={handleClose}>{CM.discard}</Button>
-          <Button variant="danger" onClick={handleDelete} icon="delete" className="min-w-[140px]">{CM.executeDiscard}</Button>
+          <Button data-testid="delete-backup-plan-discard-btn" variant="ghost" onClick={handleClose}>{CM.discard}</Button>
+          <Button data-testid="delete-backup-plan-confirm-btn" variant="danger" onClick={handleDelete} icon="delete" className="min-w-[140px]">{CM.executeDiscard}</Button>
         </div>
       }
     >

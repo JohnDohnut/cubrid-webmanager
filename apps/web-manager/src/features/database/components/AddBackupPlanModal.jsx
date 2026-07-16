@@ -220,10 +220,11 @@ export default function AddBackupPlanModal() {
       subtitle={CM.addBackupPlanSubtitle(selectedDatabase)}
       icon="backup_table"
       maxWidth="700px"
+      testId="add-backup-plan"
       footer={
         <div className="flex justify-end gap-3 w-full">
-          <Button variant="ghost" onClick={handleClose}>{CM.discard}</Button>
-          <Button variant="primary" onClick={handleSave} icon="play_circle" className="min-w-[140px]">{CM.initializeCycle}</Button>
+          <Button data-testid="add-backup-plan-discard-btn" variant="ghost" onClick={handleClose}>{CM.discard}</Button>
+          <Button data-testid="add-backup-plan-save-btn" variant="primary" onClick={handleSave} icon="play_circle" className="min-w-[140px]">{CM.initializeCycle}</Button>
         </div>
       }
     >
