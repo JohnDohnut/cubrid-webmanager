@@ -238,10 +238,11 @@ export default function UnloadDatabaseModal() {
       subtitle={CM.unloadDatabaseMsg}
       icon="upload"
       maxWidth="740px"
+      testId="unload-database"
       footer={
         <div className="flex justify-end gap-2 w-full">
-          <Button variant="ghost" onClick={handleClose}>{CM.cancel}</Button>
-          <Button onClick={handleUnloadDatabase} icon="upload">
+          <Button data-testid="unload-database-cancel-btn" variant="ghost" onClick={handleClose}>{CM.cancel}</Button>
+          <Button data-testid="unload-database-run-btn" onClick={handleUnloadDatabase} icon="upload">
             {CM.ok}
           </Button>
         </div>
