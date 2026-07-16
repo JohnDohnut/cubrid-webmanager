@@ -549,6 +549,7 @@ export default function RestoreDatabaseModal() {
       subtitle={CM.restoreSubtitle}
       icon="settings_backup_restore"
       maxWidth="680px"
+      testId="restore-database"
       footer={
         <div className="flex items-center justify-between w-full gap-3">
           <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium">
@@ -556,8 +557,9 @@ export default function RestoreDatabaseModal() {
             <span>{CM.databaseMustBeStopped}</span>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="secondary" onClick={handleClose}>{CM.discard}</Button>
+            <Button data-testid="restore-database-discard-btn" variant="secondary" onClick={handleClose}>{CM.discard}</Button>
             <Button
+              data-testid="restore-database-execute-btn"
               variant="primary"
               onClick={handleRestore}
               icon="settings_backup_restore"
