@@ -198,6 +198,7 @@ export default function AddVolumeModal() {
       subtitle={CM.extendDiskCapacity(selectedDatabase)}
       icon="add_to_drive"
       maxWidth="560px"
+      testId="add-volume"
       footer={
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500 text-[10px] font-bold uppercase tracking-widest italic">
@@ -205,8 +206,9 @@ export default function AddVolumeModal() {
             <span>{CM.activeInstanceRequired}</span>
           </div>
           <div className="flex gap-3">
-            <Button variant="ghost" onClick={handleClose}>{CM.discard}</Button>
+            <Button data-testid="add-volume-discard-btn" variant="ghost" onClick={handleClose}>{CM.discard}</Button>
             <Button
+              data-testid="add-volume-save-btn"
               variant="primary"
               onClick={handleAdd}
               icon="add_to_drive"
