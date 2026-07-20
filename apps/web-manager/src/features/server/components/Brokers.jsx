@@ -67,6 +67,7 @@ const Component = function Brokers({ hostUid, isSection = false }) {
 
   const content = (
     <Card
+      testId="server-dashboard-broker-status"
       title={
         <div className="flex items-center gap-2">
           <Icon name="hub" size="sm" weight={300} className="text-amber-500" />
