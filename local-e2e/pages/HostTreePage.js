@@ -31,6 +31,12 @@ class HostTreePage {
     return this.hostSection.locator(`[title="${address}:${port}"]`);
   }
 
+  /** Reads the host's uid out of its own data-testid (host-item-{uid}). */
+  async getUidByConnection(address, port) {
+    const testId = await this.hostRowByConnection(address, port).getAttribute('data-testid');
+    return testId.replace('host-item-', '');
+  }
+
   async expandGroup(groupId) {
     const group = this.groupRow(groupId);
     await expect(group).toBeVisible({ timeout: 10000 });

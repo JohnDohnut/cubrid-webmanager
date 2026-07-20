@@ -143,6 +143,7 @@ export default function DBJobAutomationSection({ pollingProps }) {
 
   return (
     <Card
+      testId="db-dashboard-job-automation"
       title={
         <div className="flex items-center gap-3">
           <Icon name="bolt" size="sm" weight={300} className="text-amber-500" />

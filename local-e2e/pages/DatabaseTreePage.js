@@ -49,6 +49,30 @@ class DatabaseTreePage {
     await db.locator('> summary').dblclick();
   }
 
+  /**
+   * Double-click a database to open its dashboard tab, handling the
+   * one-time credential prompt (see DatabaseTree.jsx's handleDbActivate):
+   * with no saved login profile, the first double-click only opens
+   * LoginDatabaseModal and does NOT open the dashboard tab — a second
+   * double-click (now that isLoggedIn is true) is what actually opens it.
+   * Ticking "Save Password" (on by default) persists the profile
+   * server-side, so subsequent runs skip the modal entirely.
+   */
+  async openDashboardTab(dbname, hostUid, { username = 'dba', password = '' } = {}) {
+    await this.activateDatabase(dbname);
+
+    const loginModal = this.page.getByTestId('login-database-modal');
+    if (await loginModal.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await loginModal.locator('input').nth(1).fill(username);
+      if (password) await loginModal.locator('input[type="password"]').fill(password);
+      await this.page.getByTestId('login-database-submit-btn').click();
+      await expect(loginModal).not.toBeVisible({ timeout: 15000 });
+      await this.activateDatabase(dbname);
+    }
+
+    await expect(this.page.getByTestId(`tab-db:${hostUid}:${dbname}`)).toBeVisible({ timeout: 15000 });
+  }
+
   async openContextMenu(dbname) {
     // Defensively dismiss any menu left open from a previous action first.
     // This app's context menus (Sidebar.jsx's handleOutsideAction) only close
