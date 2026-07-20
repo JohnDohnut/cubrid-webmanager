@@ -720,7 +720,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                         onQueryItemContextMenu={handleQueryItemContextMenu}
                       />
                     </div>
-                    <div className={activeTab !== 'broker' ? 'hidden' : ''}>
+                    <div id="broker-tree-container" className={activeTab !== 'broker' ? 'hidden' : ''}>
                       <BrokerTree
                         key={selectedHostUid}
                         hostUid={selectedHostUid}

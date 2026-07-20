@@ -12,10 +12,22 @@ const { expect } = require('@playwright/test');
 class BrokerTreePage {
   constructor(page) {
     this.page = page;
+    this.container = page.locator('#broker-tree-container');
+  }
+
+  /** The sidebar's Database/Broker/Log tree-tab switcher (TreeTabHeader.jsx) defaults to Database. */
+  async switchToBrokerTab() {
+    await this.page.getByTestId('tree-tab-broker').click();
+    await expect(this.container).toBeVisible();
   }
 
   brokerNode(brokerName) {
-    return this.page.getByTestId(`tree-node-${brokerName}`);
+    return this.container.getByTestId(`tree-node-${brokerName}`);
+  }
+
+  /** First broker row in the tree, regardless of name — useful when no fixed broker name is assumed. */
+  firstBrokerNode() {
+    return this.container.locator('[data-testid^="tree-node-"]').first();
   }
 
   async selectBroker(brokerName) {
