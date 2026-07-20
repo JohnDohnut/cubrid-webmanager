@@ -3,11 +3,11 @@ const { expect } = require('@playwright/test');
 /**
  * Page Object for the broker tree in the sidebar (see BrokerTree.jsx).
  *
- * Only the top-level broker node carries a stable `id` (broker.name), so
- * `data-testid="tree-node-{brokerName}"` works there. The nested "SQL Log"
- * folder and individual log-file nodes are NOT passed an `id` prop upstream
- * and therefore have no data-testid yet — broker_logs.spec.js falls back to
- * label text scoped inside the broker's subtree for those.
+ * The top-level broker node and individual log-file leaves both carry a
+ * stable `id` (broker.name / log.path), so `tree-node-{id}` works for both —
+ * log-file testids are full filesystem paths, distinguishable from broker
+ * names by containing a "/". The "SQL Log" folder itself has no `id` (it's
+ * not a real entity, just a grouping node), so it's still reached by label.
  */
 class BrokerTreePage {
   constructor(page) {
@@ -53,11 +53,36 @@ class BrokerTreePage {
     await broker.locator('> summary').click({ button: 'right' });
   }
 
-  async expandSqlLogFolder(brokerName) {
+  /** Brokers are <details> — SQL Log/children stay hidden until the broker itself is expanded. */
+  async expandBroker(brokerName) {
     const broker = this.brokerNode(brokerName);
     await expect(broker).toBeVisible({ timeout: 10000 });
+    const isOpen = await broker.evaluate((el) => el.open);
+    if (!isOpen) {
+      await broker.locator('> summary').click();
+    }
+  }
+
+  async expandSqlLogFolder(brokerName) {
+    await this.expandBroker(brokerName);
+    const broker = this.brokerNode(brokerName);
     const sqlLogSummary = broker.getByText(/SQL Log/i).first();
+    await expect(sqlLogSummary).toBeVisible({ timeout: 10000 });
     await sqlLogSummary.click();
+  }
+
+  async openSqlLogContextMenu(brokerName) {
+    await this.page.mouse.click(2, 2).catch(() => {});
+    await this.expandBroker(brokerName);
+    const broker = this.brokerNode(brokerName);
+    const sqlLogSummary = broker.getByText(/SQL Log/i).first();
+    await expect(sqlLogSummary).toBeVisible({ timeout: 10000 });
+    await sqlLogSummary.click({ button: 'right' });
+  }
+
+  /** First log-file leaf under a broker's (already-expanded) SQL Log folder. */
+  firstLogFileNode(brokerName) {
+    return this.brokerNode(brokerName).locator('[data-testid*="/"]').first();
   }
 }
 
