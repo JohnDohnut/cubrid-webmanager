@@ -69,13 +69,24 @@ class HostTreePage {
     await expect(this.page.locator('#db-tree-container')).toHaveAttribute('data-authorized', 'true', { timeout: 30000 });
   }
 
+  // Context menus (Sidebar.jsx's ContextMenuWrapper) only close on a mousedown
+  // outside `.context-menu-container` — Escape is a no-op. A leftover menu
+  // from a previous action can physically overlap and block the next
+  // right-click ("intercepts pointer events"), retrying forever until the
+  // test times out looking like a browser crash. Dismiss defensively first.
+  async _dismissAnyOpenMenu() {
+    await this.page.mouse.click(2, 2).catch(() => {});
+  }
+
   async openHostContextMenu(hostUid) {
+    await this._dismissAnyOpenMenu();
     const host = this.hostRow(hostUid);
     await expect(host).toBeVisible({ timeout: 10000 });
     await host.click({ button: 'right' });
   }
 
   async openGroupContextMenu(groupId) {
+    await this._dismissAnyOpenMenu();
     const group = this.groupRow(groupId);
     await expect(group).toBeVisible({ timeout: 10000 });
     await group.locator('> summary').click({ button: 'right' });

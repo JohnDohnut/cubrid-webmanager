@@ -50,6 +50,14 @@ class DatabaseTreePage {
   }
 
   async openContextMenu(dbname) {
+    // Defensively dismiss any menu left open from a previous action first.
+    // This app's context menus (Sidebar.jsx's handleOutsideAction) only close
+    // on a mousedown outside `.context-menu-container` — Escape is a no-op.
+    // A leftover menu can physically overlap the tree row and make Playwright
+    // refuse the right-click below ("intercepts pointer events"), retrying
+    // forever until the whole test times out looking like a browser crash.
+    await this.page.mouse.click(2, 2).catch(() => {});
+
     const db = this.dbNode(dbname);
     await expect(db).toBeVisible({ timeout: 15000 });
     await db.locator('> summary').click({ button: 'right' });
@@ -85,7 +93,10 @@ class DatabaseTreePage {
    * that may already be gone.
    */
   async clickManageDatabaseItem(dbname, itemName) {
-    const item = this.page.getByRole('button', { name: new RegExp(itemName, 'i') });
+    // Anchor to a preceding start/whitespace so "Load Database" doesn't also
+    // match "Unload Database" as a substring (the icon ligature text plus
+    // label makes the accessible name e.g. "download Load Database...").
+    const item = this.page.getByRole('button', { name: new RegExp(`(?:^|\\s)${itemName}`, 'i') });
     let lastErr;
     for (let i = 0; i < 5; i++) {
       try {
@@ -96,7 +107,13 @@ class DatabaseTreePage {
         return;
       } catch (err) {
         lastErr = err;
-        await this.page.keyboard.press('Escape').catch(() => {});
+        // This app's context menus only close on a mousedown outside
+        // `.context-menu-container` (see Sidebar.jsx's handleOutsideAction) —
+        // Escape is a no-op here. A leftover open menu physically overlaps
+        // and intercepts pointer events for the next attempt's right-click,
+        // which otherwise retries forever and eventually times out looking
+        // like a browser crash. Click a guaranteed-blank corner to dismiss it.
+        await this.page.mouse.click(2, 2).catch(() => {});
       }
     }
     throw lastErr;

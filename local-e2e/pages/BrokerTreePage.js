@@ -30,7 +30,12 @@ class BrokerTreePage {
     await broker.locator('> summary').dblclick();
   }
 
+  // Context menus only close on a mousedown outside `.context-menu-container`
+  // (Sidebar.jsx's handleOutsideAction) — Escape is a no-op. A leftover menu
+  // can overlap and block the next right-click, retrying forever until the
+  // test times out looking like a browser crash. Dismiss defensively first.
   async openContextMenu(brokerName) {
+    await this.page.mouse.click(2, 2).catch(() => {});
     const broker = this.brokerNode(brokerName);
     await expect(broker).toBeVisible({ timeout: 10000 });
     await broker.locator('> summary').click({ button: 'right' });
