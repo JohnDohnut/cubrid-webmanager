@@ -90,12 +90,6 @@ import DatabaseTree from '../sidebar/components/DatabaseTree';
 import BrokerTree from '../sidebar/components/BrokerTree';
 import LogTree from '../sidebar/components/LogTree';
 import SidebarEmptyState from '../sidebar/components/SidebarEmptyState';
-import AddQueryPlanModal from '../../database/components/AddQueryPlanModal';
-import AutoQueryLogModal from '../../database/components/AutoQueryLogModal';
-import SetAutomationVolumeModal from '../../database/components/SetAutomationVolumeModal';
-import EditQueryPlanModal from '../../database/components/EditQueryPlanModal';
-import DeleteQueryPlanModal from '../../database/components/DeleteQueryPlanModal';
-import AutoVolumeLogModal from '../../database/components/AutoVolumeLogModal';
 import CMSUserManagementModal from '../../host/components/CMSUserManagementModal';
 import EditCMSUserModal from '../../host/components/EditCMSUserModal';
 import { openCreateGroupModal, openDeleteGroupModal, openRenameGroupModal, openAddHostModal, openManageGroupMembersModal } from '../../host/hostSlice';
@@ -1738,12 +1732,6 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
         </ContextMenuWrapper>
       )}
 
-      <AutoQueryLogModal />
-      <AddQueryPlanModal />
-      <SetAutomationVolumeModal />
-      <EditQueryPlanModal />
-      <DeleteQueryPlanModal />
-      <AutoVolumeLogModal />
       <CMSUserManagementModal />
       <EditCMSUserModal />
       <ConfirmDialog

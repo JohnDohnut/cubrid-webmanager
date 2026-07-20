@@ -138,10 +138,11 @@ export default function DeleteQueryPlanModal() {
       subtitle={CM.permanentRemovalSql}
       icon="delete_forever"
       maxWidth="440px"
+      testId="delete-query-plan"
       footer={
         <div className="flex justify-end gap-3 w-full">
-          <Button variant="ghost" onClick={handleClose}>{CM.discard}</Button>
-          <Button variant="danger" onClick={handleDelete} icon="delete" className="min-w-[130px]">{CM.executeDiscard}</Button>
+          <Button data-testid="delete-query-plan-discard-btn" variant="ghost" onClick={handleClose}>{CM.discard}</Button>
+          <Button data-testid="delete-query-plan-confirm-btn" variant="danger" onClick={handleDelete} icon="delete" className="min-w-[130px]">{CM.executeDiscard}</Button>
         </div>
       }
     >

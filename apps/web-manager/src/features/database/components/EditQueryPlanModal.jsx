@@ -266,10 +266,11 @@ export default function EditQueryPlanModal() {
       subtitle={CM.editQueryPlanSubtitle(selectedDatabase)}
       icon="edit"
       maxWidth="max-w-[720px]"
+      testId="edit-query-plan"
       footer={
         <div className="flex justify-end gap-3 w-full">
-          <Button variant="ghost" onClick={handleClose}>{CM.discard}</Button>
-          <Button variant="primary" onClick={handleSave} icon="save" className="min-w-[140px]">{CM.saveChanges}</Button>
+          <Button data-testid="edit-query-plan-discard-btn" variant="ghost" onClick={handleClose}>{CM.discard}</Button>
+          <Button data-testid="edit-query-plan-save-btn" variant="primary" onClick={handleSave} icon="save" className="min-w-[140px]">{CM.saveChanges}</Button>
         </div>
       }
     >
