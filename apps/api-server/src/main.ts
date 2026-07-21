@@ -5,7 +5,7 @@ import 'module-alias/register';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as express from 'express';
-import { getHttpsOptions } from '@util';
+import { getHttpsOptions, logStartupBanner } from '@util';
 import { GlobalExceptionFilter } from '@error/global-filter';
 import { ConfigService } from '@config/config.service';
 import { SuccessResponseInterceptor, LoggingInterceptor } from '@common'; // Updated import
@@ -23,7 +23,6 @@ async function bootstrap() {
   const listenHost = configService.getListenHost();
   const allowedOrigins = configService.getAllowedOrigins();
   const desktopMode = (process.env.CWM_DESKTOP ?? '').trim() === '1';
-  console.log('[main.ts] Allowed Origins from ConfigService:', allowedOrigins);
 
   if (allowedOrigins.includes('*')) {
     // Development mode: allow all origins.
@@ -107,18 +106,17 @@ async function bootstrap() {
   if (unixSocket) {
     removeStaleUnixSocket(unixSocket);
     await app.listen(unixSocket);
-    console.log('\t@ server running on unix socket:', unixSocket);
+    logStartupBanner(configService, { kind: 'unixSocket', socketPath: unixSocket });
     return;
   }
 
+  const boundHost = listenHost ?? '0.0.0.0';
   if (listenHost) {
     await app.listen(port, listenHost);
-    console.log('\t@ server running on', `${listenHost}:${port}`);
-    return;
+  } else {
+    await app.listen(port);
   }
-
-  await app.listen(port);
-  console.log('\t@ server running port :', port);
+  logStartupBanner(configService, { kind: 'tcp', host: boundHost, port });
 }
 bootstrap();
 
