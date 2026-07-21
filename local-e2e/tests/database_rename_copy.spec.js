@@ -53,6 +53,15 @@ test.describe('Database Rename/Copy', () => {
   // (and the flakiness of a multi-minute wait) on every run, this only
   // verifies the job actually starts against the backend — not full
   // completion + cleanup.
+  //
+  // Known side effect: while this job runs, the real host can refuse new
+  // logins for a couple of minutes (observed as the Edit Host modal's
+  // generic "Failed to login" banner). HostTreePage.activateHost() retries a
+  // few times, but that's not enough to fully absorb a multi-minute window —
+  // database_restore.spec.js and database_start_stop_delete.spec.js (next
+  // alphabetically) may occasionally flake for this reason. This is a real
+  // CMS-host limitation, not a test bug; re-running the flaked spec alone
+  // passes once the job has finished.
   test('DB 복사를 실행하면 백그라운드 작업이 시작된다', async ({ page }) => {
     const cloneName = `e2e_clone_${Date.now().toString().slice(-6)}`;
 

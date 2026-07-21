@@ -1,4 +1,5 @@
 const { expect } = require('@playwright/test');
+const { dismissJobResultModal } = require('./dismissJobResultModal');
 
 /**
  * Page Object for the database tree in the sidebar (see DatabaseTree.jsx).
@@ -44,6 +45,7 @@ class DatabaseTreePage {
 
   /** Double-click: logs in if needed, then opens the DB dashboard tab. */
   async activateDatabase(dbname) {
+    await dismissJobResultModal(this.page);
     const db = this.dbNode(dbname);
     await expect(db).toBeVisible({ timeout: 15000 });
     await db.locator('> summary').dblclick();
@@ -80,6 +82,7 @@ class DatabaseTreePage {
     // A leftover menu can physically overlap the tree row and make Playwright
     // refuse the right-click below ("intercepts pointer events"), retrying
     // forever until the whole test times out looking like a browser crash.
+    await dismissJobResultModal(this.page);
     await this.page.mouse.click(2, 2).catch(() => {});
 
     const db = this.dbNode(dbname);

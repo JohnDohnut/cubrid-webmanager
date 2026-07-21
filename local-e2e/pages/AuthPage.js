@@ -1,4 +1,5 @@
 const { expect } = require('@playwright/test');
+const { dismissJobResultModal } = require('./dismissJobResultModal');
 
 /**
  * Page Object for LoginPage / RegisterPage.
@@ -37,6 +38,12 @@ class AuthPage {
     await this.submitBtn.click();
     await expect(this.page).not.toHaveURL(/login/, { timeout: 10000 });
     await expect(this.page.locator('#host-section')).toBeVisible({ timeout: 10000 });
+    // CmsJobProvider (app-wide) checks for the user's active background jobs
+    // right after login and can pop a completion modal for a job a *previous*
+    // test file abandoned (e.g. database_rename_copy's copy test) — dismiss
+    // it here so it can't block the very next click in whatever spec happens
+    // to be running when that job finishes.
+    await dismissJobResultModal(this.page);
   }
 
   async register(username, password, confirmPassword = password) {
