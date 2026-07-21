@@ -60,7 +60,7 @@ function assemble(platform) {
     fs.copyFileSync(CONF_REFERENCE, path.join(confDir, 'cwm.conf.reference.md'));
   }
 
-  console.log(`\n✅ dist/executables/${info.dest}  (public/ embedded inside binary)`);
+  console.log(`\ndist/executables/${info.dest}  (public/ embedded inside binary)`);
 }
 
 const arg = process.argv[2];
