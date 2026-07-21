@@ -59,53 +59,66 @@ export default function EditHostModal() {
     return errs;
   };
 
-  const handleSubmit = async () => {
-    const errs = validate();
-    if (Object.keys(errs).length > 0) {
-      setErrors(errs);
-      return;
-    }
-
+  const buildPayload = () => {
     const payload = {
       id: formData.id,
       address: formData.address,
       port: Number(formData.port),
       alias: formData.alias,
     };
-
     if (formData.password) {
       payload.password = formData.password;
     }
+    return payload;
+  };
 
-    // 1. Capture current target UID
+  // Save only — persists changes without attempting a CMS login.
+  const handleSave = async () => {
+    const errs = validate();
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      return;
+    }
+
+    try {
+      await dispatch(editHost({ hostUid: hostToEditUid, payload: buildPayload() })).unwrap();
+      dispatch(closeEditHostModal());
+      dispatch(clearHostError());
+    } catch {
+      // Edit failed: modal stays open, error shown via state.host.error
+    }
+  };
+
+  // Save then attempt to actually log in with the given credentials. On
+  // failure the modal stays open (loginToHost.rejected populates
+  // state.host.error) so the user can see why and correct the password here.
+  const handleTestConnectionAndSave = async () => {
+    const errs = validate();
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      return;
+    }
+
     const targetUid = hostToEditUid;
 
-    // 2. Perform Edit
-    dispatch(editHost({ hostUid: targetUid, payload }))
-      .unwrap()
-      .then(() => {
-        // 3. Success on saving changes -> Close modal immediately
-        dispatch(closeEditHostModal());
-        dispatch(clearHostError());
+    try {
+      await dispatch(editHost({ hostUid: targetUid, payload: buildPayload() })).unwrap();
+    } catch {
+      return; // Edit failed: modal stays open, error shown via state.host.error
+    }
 
-        // 4. Perform Login as follow-up
-        dispatch(loginToHostWithSideEffects(targetUid))
-          .unwrap()
-          .then(() => {
-            // 5. Success -> refetch data, show server content
-            dispatch(setSelectedHost(targetUid));
-            dispatch(setActiveMainTab(`host:${targetUid}`));
-            dispatch(fetchDatabaseStartInfo(targetUid));
-            dispatch(fetchBrokerList(targetUid));
-            dispatch(fetchHostEnv(targetUid));
-          })
-          .catch(() => {
-            // Login failed: "just do nothing" (modal is already closed)
-          });
-      })
-      .catch(() => {
-        // Edit failed: just do nothing (modal stays open, error shown by slice)
-      });
+    try {
+      await dispatch(loginToHostWithSideEffects(targetUid)).unwrap();
+      dispatch(closeEditHostModal());
+      dispatch(clearHostError());
+      dispatch(setSelectedHost(targetUid));
+      dispatch(setActiveMainTab(`host:${targetUid}`));
+      dispatch(fetchDatabaseStartInfo(targetUid));
+      dispatch(fetchBrokerList(targetUid));
+      dispatch(fetchHostEnv(targetUid));
+    } catch {
+      // Login failed: modal stays open, error shown via state.host.error
+    }
   };
 
   const handleClose = () => {
@@ -131,13 +144,22 @@ export default function EditHostModal() {
             {CM.discard}
           </Button>
           <Button
-            variant="primary"
-            onClick={handleSubmit}
+            variant="secondary"
+            onClick={handleSave}
             loading={loading}
             icon="save_as"
-            className="min-w-[130px]"
+            className="min-w-[100px]"
           >
             {CM.saveChanges}
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleTestConnectionAndSave}
+            loading={loading}
+            icon="bolt"
+            className="min-w-[170px]"
+          >
+            {CM.testConnectionAndSave}
           </Button>
         </>
       }

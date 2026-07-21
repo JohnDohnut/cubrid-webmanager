@@ -4,17 +4,16 @@ import { useSelector, useDispatch , shallowEqual } from 'react-redux';
 import {
   fetchHosts,
   setSelectedHost,
-  loginToHostWithSideEffects,
   loginHostsBatch,
   openDeleteHostModal,
   openEditHostModal,
   openChangePasswordModal,
   revokeHostLogin,
   openServerVersionModal,
-  fetchHostEnv,
   openCmsUserManagementModal,
   startService,
-  stopService
+  stopService,
+  moveHost
 } from '../../host/hostSlice';
 import {
   fetchDatabaseStartInfo, startDatabase, stopDatabase, loginDatabase, registerDatabase,
@@ -99,8 +98,9 @@ import DeleteQueryPlanModal from '../../database/components/DeleteQueryPlanModal
 import AutoVolumeLogModal from '../../database/components/AutoVolumeLogModal';
 import CMSUserManagementModal from '../../host/components/CMSUserManagementModal';
 import EditCMSUserModal from '../../host/components/EditCMSUserModal';
-import { openCreateGroupModal, openDeleteGroupModal, openRenameGroupModal, openAddHostModal } from '../../host/hostSlice';
-import { getUnauthorizedHostUids } from '../../host/hostGroupUtils';
+import { openCreateGroupModal, openDeleteGroupModal, openRenameGroupModal, openAddHostModal, openManageGroupMembersModal } from '../../host/hostSlice';
+import { getUnauthorizedHostUids, UNGROUPED_GROUP_ID, HOST_DRAG_MIME } from '../../host/hostGroupUtils';
+import { useHostActivation } from '../../host/useHostActivation';
 
 export default function Sidebar({ isCollapsed, onAddHost }) {
   const CM = useCM();
@@ -156,7 +156,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
     serverName: '',
   });
 
-  const { hosts, hostGroups, selectedHostUid, selectedGroupUid, loading: hostsLoading, authorizedHosts, isLoggingIntoHost, hostAuthErrors, haInfo, skipAutoHostLogin } = useSelector((state) => state.host, shallowEqual);
+  const { hosts, hostGroups, selectedHostUid, selectedGroupUid, loading: hostsLoading, authorizedHosts, isLoggingIntoHost, hostAuthErrors, haInfo } = useSelector((state) => state.host, shallowEqual);
   const { databases, activeDatabases, loggedInDatabases } = useSelector((state) => state.database, shallowEqual);
   const { brokers, logsLoading, adminLogsLoading, cmsLogsLoading, dbLogsLoading } = useSelector((state) => state.broker, shallowEqual);
   const isRefreshingLogs = logsLoading || adminLogsLoading || cmsLogsLoading || dbLogsLoading;
@@ -191,41 +191,9 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
     setLogTabContextMenu(null);
   }, []);
 
-  const handleHostLogin = useCallback((uid) => {
-    if (!uid) return;
-    // Use a ref so concurrent clicks in the same render frame are also blocked.
-    // isLoggingIntoHost is a stale-closure value and misses same-frame double-clicks.
-    if (loginInProgressRef.current) return;
-
-    if (authorizedHosts.includes(uid)) {
-      dispatch(resetDatabaseState());
-      dispatch(resetBrokerState());
-      dispatch(setActiveMainTab('host:' + uid));
-      dispatch(fetchDatabaseStartInfo(uid));
-      dispatch(fetchBrokerList(uid));
-      dispatch(fetchHostEnv(uid));
-      return;
-    }
-
-    loginInProgressRef.current = true;
-
-    dispatch(loginToHostWithSideEffects(uid))
-      .unwrap()
-      .then(() => {
-        dispatch(resetDatabaseState());
-        dispatch(resetBrokerState());
-        dispatch(setActiveMainTab('host:' + uid));
-        dispatch(fetchDatabaseStartInfo(uid));
-        dispatch(fetchBrokerList(uid));
-        dispatch(fetchHostEnv(uid));
-      })
-      .catch((err) => {
-        console.error('Failed to log into host:', err);
-      })
-      .finally(() => {
-        loginInProgressRef.current = false;
-      });
-  }, [dispatch, authorizedHosts]);
+  // Login (if needed) + open dashboard — only ever called from an explicit
+  // "activate" gesture (double-click), never as a side effect of selection.
+  const handleHostLogin = useHostActivation();
 
   const pendingLoginAllUids = getUnauthorizedHostUids(hostGroups, authorizedHosts, null);
   const pendingLoginCount = pendingLoginAllUids.length;
@@ -284,19 +252,6 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
       serverName: serverName || hostUid,
     });
   };
-
-  useEffect(() => {
-    if (selectedHostUid && selectedHostUid !== lastProcessedHostUid.current) {
-      if (skipAutoHostLogin) {
-        lastProcessedHostUid.current = selectedHostUid;
-      } else {
-        handleHostLogin(selectedHostUid);
-        lastProcessedHostUid.current = selectedHostUid;
-      }
-    } else if (!selectedHostUid) {
-      lastProcessedHostUid.current = null;
-    }
-  }, [selectedHostUid, handleHostLogin, skipAutoHostLogin]);
 
   const handleContextMenu = (e, serverName, hostUid, alias) => {
     e.preventDefault();
@@ -486,8 +441,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
   const [serverListSize, setServerListSize] = useState(380);
   const [prevServerListSize, setPrevServerListSize] = useState(380);
   const [isTreeCollapsed, setIsTreeCollapsed] = useState(false);
-  const lastProcessedHostUid = useRef(null);
-  const loginInProgressRef = useRef(false);
+  const [isServerListDropTarget, setIsServerListDropTarget] = useState(false);
 
   const toggleServerListCollapse = () => {
     setIsServerListCollapsed(!isServerListCollapsed);
@@ -602,9 +556,33 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
 
             <div
               ref={hostSectionRef}
-              className={`flex-1 overflow-y-auto py-1 bg-slate-50/50 dark:bg-black/20 transition-opacity duration-200 ${isServerListCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+              className={`flex-1 overflow-y-auto py-1 bg-slate-50/50 dark:bg-black/20 transition-opacity duration-200 ${isServerListCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'} ${isServerListDropTarget ? 'bg-amber-500/8' : ''}`}
               id="host-section"
               onContextMenu={handleHostRootContextMenu}
+              onDragOver={(e) => {
+                if (!e.dataTransfer.types.includes(HOST_DRAG_MIME)) return;
+                e.preventDefault();
+                setIsServerListDropTarget(true);
+              }}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget)) {
+                  setIsServerListDropTarget(false);
+                }
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsServerListDropTarget(false);
+                const raw = e.dataTransfer.getData(HOST_DRAG_MIME);
+                if (!raw) return;
+                try {
+                  const { hostUid, sourceGroupId } = JSON.parse(raw);
+                  if (hostUid && sourceGroupId !== UNGROUPED_GROUP_ID) {
+                    dispatch(moveHost({ hostUid, targetGroupId: UNGROUPED_GROUP_ID }));
+                  }
+                } catch {
+                  // ignore malformed drag payload
+                }
+              }}
             >
               {!isServerListCollapsed && (
                 Object.keys(hostGroups).length === 0 && !hostsLoading ? (
@@ -633,6 +611,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                       haInfo={haInfo}
                       onContextMenu={handleContextMenu}
                       onGroupContextMenu={handleGroupContextMenu}
+                      onHostActivate={handleHostLogin}
                     />
                   </div>
                 )
@@ -742,14 +721,16 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                       />
                     </div>
                     <div className={activeTab !== 'broker' ? 'hidden' : ''}>
-                      <BrokerTree 
-                        hostUid={selectedHostUid} 
-                        onContextMenu={handleBrokerContextMenu} 
-                        onSqlLogContextMenu={handleSqlLogContextMenu} 
+                      <BrokerTree
+                        key={selectedHostUid}
+                        hostUid={selectedHostUid}
+                        onContextMenu={handleBrokerContextMenu}
+                        onSqlLogContextMenu={handleSqlLogContextMenu}
                       />
                     </div>
                     <div className={activeTab !== 'log' ? 'hidden' : ''}>
                       <LogTree
+                        key={selectedHostUid}
                         hostUid={selectedHostUid}
                         onDbLogContextMenu={handleDbLogContextMenu}
                         onBrokerLogRootContextMenu={handleBrokerLogRootContextMenu}
@@ -874,16 +855,28 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
               setGroupContextMenu(null);
             }}
           />
-          {hosts.length > 0 && (
+          {!groupContextMenu.groupId && (
+            <>
             <MenuItem
-              icon="login"
-              label={CM.loginAll}
-              disabled={isLoggingIntoHost || pendingLoginCount === 0}
+              icon="add_link"
+              label={CM.addNode}
               onClick={() => {
-                handleLoginAll(null);
+                dispatch(openAddHostModal({ groupId: '', alias: '', address: '', port: '8001', id: 'admin', password: '' }));
                 setGroupContextMenu(null);
               }}
             />
+            {hosts.length > 0 && (
+              <MenuItem
+                icon="login"
+                label={CM.loginAll}
+                disabled={isLoggingIntoHost || pendingLoginCount === 0}
+                onClick={() => {
+                  handleLoginAll(null);
+                  setGroupContextMenu(null);
+                }}
+              />
+            )}
+            </>
           )}
           {groupContextMenu.groupId && (
             <>
@@ -908,6 +901,17 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
               setGroupContextMenu(null);
             }}
           />
+          {groupContextMenu.groupId !== UNGROUPED_GROUP_ID && (
+            <>
+          <MenuItem
+            icon="group_work"
+            label={CM.manageGroupMembers}
+            onClick={() => {
+              dispatch(openManageGroupMembersModal({ groupId: groupContextMenu.groupId, name: groupContextMenu.groupName }));
+              setGroupContextMenu(null);
+            }}
+          />
+          <MenuDivider />
           <MenuItem
             icon="edit"
             label={CM.renameGroup}
@@ -925,6 +929,8 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
               setGroupContextMenu(null);
             }}
           />
+            </>
+          )}
             </>
           )}
         </ContextMenuWrapper>
@@ -1749,12 +1755,10 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
       />
       {isSidebarActionError && (
         <Modal isOpen title={CM.actionFailed} icon="error" iconVariant="danger" onClose={resetAction} maxWidth="400px">
-          <ModalStatusError 
+          <ModalStatusError
             title={CM.updateInterrupted}
             error={sidebarActionError}
-            onRetry={resetAction}
             onCancel={resetAction}
-            retryText={CM.dismiss}
           />
         </Modal>
       )}

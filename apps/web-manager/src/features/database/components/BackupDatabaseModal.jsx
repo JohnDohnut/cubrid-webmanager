@@ -73,7 +73,7 @@ export default function BackupDatabaseModal() {
   const [jobStatus, setJobStatus] = useState(null);
 
   const [formData, setFormData] = useState({
-    volPath: `${selectedDatabase}_backup_lv0`,
+    volPath: `${selectedDatabase}_backup`,
     backupLevel: '0',
     backupDir: '',
     parallelBackup: '0',
@@ -126,9 +126,13 @@ export default function BackupDatabaseModal() {
     { header: CM.backupPath, accessor: 'path', cellClassName: 'font-mono break-all' },
   ], [CM]);
 
+  // volPath is a directory, not a per-level filename — cub_server names the
+  // actual backup file itself (dbname_bk{level}v{unit}), so every level shares
+  // this one directory. This is required for restoredb's single -B argument
+  // to find all levels of a multi-level restore chain in one place.
   useEffect(() => {
     if (selectedDatabase) {
-      setFormData(prev => ({ ...prev, volPath: `${selectedDatabase}_backup_lv${prev.backupLevel}` }));
+      setFormData(prev => ({ ...prev, volPath: `${selectedDatabase}_backup` }));
     }
   }, [selectedDatabase]);
 
@@ -145,13 +149,9 @@ export default function BackupDatabaseModal() {
   useEffect(() => {
     if (!availableLevels.includes(formData.backupLevel)) {
       const nextLevel = availableLevels[availableLevels.length - 1] || '0';
-      setFormData(prev => ({
-        ...prev,
-        backupLevel: nextLevel,
-        volPath: selectedDatabase ? `${selectedDatabase}_backup_lv${nextLevel}` : prev.volPath
-      }));
+      setFormData(prev => ({ ...prev, backupLevel: nextLevel }));
     }
-  }, [availableLevels, formData.backupLevel, selectedDatabase]);
+  }, [availableLevels, formData.backupLevel]);
 
   useEffect(() => {
     if (!isBackupDatabaseModalOpen) return;
@@ -173,11 +173,7 @@ export default function BackupDatabaseModal() {
   const handleInputChange = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
 
   const handleLevelChange = (level) => {
-    setFormData(prev => ({
-      ...prev,
-      backupLevel: level,
-      volPath: selectedDatabase ? `${selectedDatabase}_backup_lv${level}` : prev.volPath
-    }));
+    setFormData(prev => ({ ...prev, backupLevel: level }));
   };
 
   const handleBackup = async () => {

@@ -169,13 +169,13 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
         >
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 text-left">
             {[
-              { label: CM.pid,          value: basicInfo.pid                           || '—',    accent: 'emerald' },
-              { label: CM.port,         value: basicInfo.port                          || '—',    accent: 'amber'   },
-              { label: CM.jobQueue,    value: basicInfo.job_queue                     ?? '0',    accent: 'slate'   },
-              { label: CM.autoAddAsLabel,  value: basicInfo.auto_add_as                  || 'OFF',  badge: true       },
-              { label: CM.sqlLogModeLabel, value: basicInfo.sql_log_mode                 || 'OFF',  badge: true       },
-              { label: CM.longTransLabel,   value: `${basicInfo.long_transaction_time      || '0'}s`, accent: 'slate'   },
-              { label: CM.longQueryLabel,   value: `${basicInfo.long_query_time            || '0'}s`, accent: 'slate'   },
+              { label: CM.pid,           value: basicInfo.pid                           || '—',    accent: 'emerald' },
+              { label: CM.port,          value: basicInfo.port                          || '—',    accent: 'amber'   },
+              { label: CM.jobQueue,      value: basicInfo.job_queue                     ?? '0',    accent: 'slate'   },
+              { label: CM.autoAddAS,     value: basicInfo.auto_add_as                  || 'OFF',  badge: true       },
+              { label: CM.sqlLogMode,    value: basicInfo.sql_log_mode                 || 'OFF',  badge: true       },
+              { label: CM.longTranLabel, value: `${basicInfo.long_transaction_time      || '0'}s`, accent: 'slate'   },
+              { label: CM.longQueryLabel,value: `${basicInfo.long_query_time            || '0'}s`, accent: 'slate'   },
             ].map((m, i, arr) => {
               const isActive = m.badge && m.value && m.value !== 'IDLE' && m.value !== 'OFF';
               const accentBar = m.accent === 'emerald'

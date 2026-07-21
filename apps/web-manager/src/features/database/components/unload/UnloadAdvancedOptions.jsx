@@ -29,7 +29,7 @@ export default function UnloadAdvancedOptions({ formData, handleInputChange }) {
     {
       label: CM.includeReferencedTables,
       name: 'includeReferencedTables',
-      disabled: formData.schemaOption === CM.notInclude,
+      disabled: !formData.includeSchema,
     },
   ];
 

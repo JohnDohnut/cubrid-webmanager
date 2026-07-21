@@ -1,0 +1,57 @@
+import { useCallback, useRef } from 'react';
+import { useDispatch, useSelector, shallowEqual } from 'react-redux';
+import { loginToHostWithSideEffects, fetchHostEnv, openEditHostModal } from './hostSlice';
+import { resetDatabaseState, fetchDatabaseStartInfo } from '../database/databaseCoreSlice';
+import { resetBrokerState, fetchBrokerList } from '../broker/brokerSlice';
+import { setActiveMainTab } from '../layout/layoutSlice';
+
+/**
+ * Logs into a host (if not already authorized) then opens its dashboard tab.
+ * This is a deliberate "activate" action — callers should only invoke it from
+ * an explicit gesture (double-click, row-open), never as a reactive side
+ * effect of merely selecting/focusing a host.
+ */
+export function useHostActivation() {
+  const dispatch = useDispatch();
+  const { authorizedHosts } = useSelector((state) => state.host, shallowEqual);
+  const loginInProgressRef = useRef(false);
+
+  const activateHost = useCallback((uid) => {
+    if (!uid) return;
+    if (loginInProgressRef.current) return;
+
+    if (authorizedHosts.includes(uid)) {
+      dispatch(resetDatabaseState());
+      dispatch(resetBrokerState());
+      dispatch(setActiveMainTab('host:' + uid));
+      dispatch(fetchDatabaseStartInfo(uid));
+      dispatch(fetchBrokerList(uid));
+      dispatch(fetchHostEnv(uid));
+      return;
+    }
+
+    loginInProgressRef.current = true;
+    dispatch(loginToHostWithSideEffects(uid))
+      .unwrap()
+      .then(() => {
+        dispatch(resetDatabaseState());
+        dispatch(resetBrokerState());
+        dispatch(setActiveMainTab('host:' + uid));
+        dispatch(fetchDatabaseStartInfo(uid));
+        dispatch(fetchBrokerList(uid));
+        dispatch(fetchHostEnv(uid));
+      })
+      .catch((err) => {
+        console.error('Failed to log into host:', err);
+        // Likely a bad/missing password (or other stale connection detail) —
+        // open the Edit Host modal so the user can fix it right away instead
+        // of just seeing a dead-end error.
+        dispatch(openEditHostModal(uid));
+      })
+      .finally(() => {
+        loginInProgressRef.current = false;
+      });
+  }, [dispatch, authorizedHosts]);
+
+  return activateHost;
+}

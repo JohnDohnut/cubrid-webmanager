@@ -7,6 +7,7 @@ import DBVolumesSection from './dashboard/DBVolumesSection';
 import DBSpaceInfoSection from './dashboard/DBSpaceInfoSection';
 import DBBrokersCASSection from './dashboard/DBBrokersCASSection';
 import DBLockTransactionSection from './dashboard/DBLockTransactionSection';
+import DBJobAutomationSection from './dashboard/DBJobAutomationSection';
 import CASLogModal from './CASLogModal';
 
 import MonitoringSettingsPopover from '../../user/components/MonitoringSettingsPopover';
@@ -288,6 +289,7 @@ const Component = function DatabaseDashboard({ hostUid: propHostUid, dbname }) {
               onRestartCAS={handleRestartCAS}
             />
             <DBLockTransactionSection locks={data.locks || []} pollingProps={pollingProps} />
+            <DBJobAutomationSection pollingProps={pollingProps} />
           </div>
         )}
       </div>

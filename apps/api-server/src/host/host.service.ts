@@ -9,10 +9,10 @@ import { v4 as uuidv4 } from 'uuid';
 import {
   addHostToGroup,
   countAllHosts,
-  createGroupWithHost,
   createEmptyGroup,
   deleteGroup,
   ensureHostGroupsWritable,
+  ensureUngroupedGroup,
   findDuplicateHost,
   findHostRef,
   getHost,
@@ -20,6 +20,7 @@ import {
   removeHostFromUser,
   sanitizeHostGroups,
   updateGroup,
+  UNGROUPED_GROUP_ID,
 } from './host-group.util';
 
 export type AddHostPayload = AddHostRequest & { groupId?: string };
@@ -85,14 +86,8 @@ export class HostService {
         }
         addHostToGroup(user, groupId, newHost);
       } else {
-        const existingGroupId = Object.entries(groups).find(
-          ([, g]) => (g.name ?? '').trim() === alias
-        )?.[0];
-        if (existingGroupId) {
-          addHostToGroup(user, existingGroupId, newHost);
-        } else {
-          createGroupWithHost(user, newHost, { name: alias });
-        }
+        ensureUngroupedGroup(user);
+        addHostToGroup(user, UNGROUPED_GROUP_ID, newHost);
       }
 
       this.logger.log(`Host added: ${newHost.uid}`);
@@ -135,6 +130,9 @@ export class HostService {
         if (code === 'DEFAULT_HOST_NOT_IN_GROUP') {
           throw HostError.InvalidFormat({ field: 'defaultHostUid', reason: 'DEFAULT_HOST_NOT_IN_GROUP' });
         }
+        if (code === 'CANNOT_RENAME_UNGROUPED') {
+          throw HostError.InvalidFormat({ field: 'name', reason: 'CANNOT_RENAME_UNGROUPED' });
+        }
         throw e;
       }
       return user;
@@ -145,6 +143,9 @@ export class HostService {
   @HandleHostErrors()
   async deleteHostGroup(userId: string, groupId: string): Promise<SafeHostGroupsMap> {
     const updatedUser = await this.repository.atomicUpdateUser(userId, async (user: User) => {
+      if (groupId === UNGROUPED_GROUP_ID) {
+        throw HostError.InvalidFormat({ field: 'groupId', reason: 'CANNOT_DELETE_UNGROUPED' });
+      }
       deleteGroup(user, groupId);
       return user;
     });

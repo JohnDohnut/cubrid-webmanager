@@ -1,9 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { clearSuggestedHaNodes, openAddHostModal, closeDiscoveryModal } from '../hostSlice';
+import {
+  clearSuggestedHaNodes,
+  openAddHostModal,
+  closeDiscoveryModal,
+  createHostGroup,
+  moveHost,
+  setSuggestedHaGroupId,
+} from '../hostSlice';
 import { findUndiscoveredHaPeers } from '../haPeerUtils';
+import { UNGROUPED_GROUP_ID, findNewGroupId } from '../hostGroupUtils';
 import { Modal } from '../../../components/ds/layout/Modal';
 import { Button } from '../../../components/ds/foundation/Button';
+import { Input } from '../../../components/ds/forms/Input';
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { SectionHeader } from '../../../components/ds/foundation/SectionHeader';
 import { useCM } from '../../../constants/useCM';
@@ -11,10 +20,22 @@ import { useCM } from '../../../constants/useCM';
 export default function SuggestedHaNodesModal() {
   const CM = useCM();
   const dispatch = useDispatch();
-  const { suggestedHaNodes, suggestedHaGroupId, hosts, isDiscoveryModalOpen } = useSelector((state) => state.host, shallowEqual);
+  const {
+    suggestedHaNodes,
+    suggestedHaGroupId,
+    suggestedHaAnchorHostUid,
+    hosts,
+    hostGroups,
+    isDiscoveryModalOpen,
+  } = useSelector((state) => state.host, shallowEqual);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+  const [createGroupError, setCreateGroupError] = useState('');
+  const [createdGroupName, setCreatedGroupName] = useState('');
 
   const filteredNodes = findUndiscoveredHaPeers(hosts, suggestedHaNodes);
+  const anchorIsUngrouped = suggestedHaGroupId === UNGROUPED_GROUP_ID;
 
   const HA_ROLE_LABEL = {
     master: CM.haMaster,
@@ -28,7 +49,35 @@ export default function SuggestedHaNodesModal() {
     }
   }, [dispatch, filteredNodes.length, isDiscoveryModalOpen]);
 
+  useEffect(() => {
+    setNewGroupName('');
+    setCreateGroupError('');
+    setCreatedGroupName('');
+  }, [suggestedHaAnchorHostUid]);
+
   if (filteredNodes.length === 0) return null;
+
+  const handleCreateGroup = async () => {
+    const name = newGroupName.trim();
+    if (!name || !suggestedHaAnchorHostUid) return;
+
+    setIsCreatingGroup(true);
+    setCreateGroupError('');
+    try {
+      const prevGroups = hostGroups;
+      const nextGroups = await dispatch(createHostGroup({ name })).unwrap();
+      const newGroupId = findNewGroupId(prevGroups, nextGroups);
+      if (!newGroupId) throw new Error();
+
+      await dispatch(moveHost({ hostUid: suggestedHaAnchorHostUid, targetGroupId: newGroupId })).unwrap();
+      dispatch(setSuggestedHaGroupId(newGroupId));
+      setCreatedGroupName(name);
+    } catch {
+      setCreateGroupError(CM.actionFailed);
+    } finally {
+      setIsCreatingGroup(false);
+    }
+  };
 
   const handleAddNode = () => {
     const node = filteredNodes[selectedIndex];
@@ -81,6 +130,49 @@ export default function SuggestedHaNodesModal() {
             This server is part of an HA cluster. Select a peer node to configure and add it to your server list.
           </p>
         </div>
+
+        {anchorIsUngrouped && (
+          createdGroupName ? (
+            <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl flex gap-3">
+              <Icon name="check_circle" className="text-emerald-500 shrink-0" size="sm" />
+              <p className="text-[11.5px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                {CM.haGroupCreatedNotice(createdGroupName)}
+              </p>
+            </div>
+          ) : (
+            <div className="p-4 bg-slate-50 dark:bg-white/3 border border-slate-200 dark:border-white/10 rounded-xl space-y-3">
+              <div className="flex gap-3">
+                <Icon name="folder_open" className="text-slate-400 shrink-0" size="sm" />
+                <div className="min-w-0">
+                  <p className="text-[12px] font-bold text-slate-800 dark:text-slate-200">{CM.haNoGroupPromptTitle}</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed mt-0.5">{CM.haNoGroupPromptDesc}</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Input
+                    size="sm"
+                    value={newGroupName}
+                    onChange={(e) => setNewGroupName(e.target.value)}
+                    placeholder={CM.haNewGroupNamePlaceholder}
+                    disabled={isCreatingGroup}
+                    error={createGroupError}
+                  />
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon="create_new_folder"
+                  onClick={handleCreateGroup}
+                  loading={isCreatingGroup}
+                  disabled={!newGroupName.trim()}
+                >
+                  {CM.createGroupAndContinue}
+                </Button>
+              </div>
+            </div>
+          )
+        )}
 
         <SectionHeader title={CM.peerNodes} icon="checklist" />
         <div className="space-y-2 max-h-[300px] overflow-y-auto px-1 custom-scrollbar">

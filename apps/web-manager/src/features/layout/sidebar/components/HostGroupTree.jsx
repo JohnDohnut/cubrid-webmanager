@@ -1,13 +1,11 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { useDispatch } from 'react-redux';
 import { setSelectedGroup, openAddHostModal, moveHost } from '../../../host/hostSlice';
-import { orderedGroupEntries, sortHostUidsByHaRole } from '../../../host/hostGroupUtils';
+import { orderedGroupEntries, sortHostUidsByHaRole, UNGROUPED_GROUP_ID, HOST_DRAG_MIME } from '../../../host/hostGroupUtils';
 import ServerListItem from './ServerListItem';
 import { Icon } from '../../../../components/ds/foundation/Icon';
 import { TreeNode } from '../../../../components/domain/tree/TreeNode';
 import { useCM } from '../../../../constants/useCM';
-
-const HOST_DRAG_MIME = 'application/x-cubrid-host';
 
 export default function HostGroupTree({
   hostGroups,
@@ -17,6 +15,7 @@ export default function HostGroupTree({
   haInfo,
   onContextMenu,
   onGroupContextMenu,
+  onHostActivate,
 }) {
   const CM = useCM();
   const dispatch = useDispatch();
@@ -100,20 +99,22 @@ export default function HostGroupTree({
     });
   };
 
+  // A single click both selects and toggles expand/collapse — no double-click needed.
   const handleGroupSelect = (groupId) => {
     dispatch(setSelectedGroup({ groupId, hostUid: selectedHostUid }));
-    setExpandedGroups((prev) => {
-      const next = new Set(prev);
-      if (!next.has(groupId)) {
-        next.add(groupId);
-      }
-      return next;
-    });
+    toggleGroup(groupId);
   };
+
+  const allEntries = orderedGroupEntries(hostGroups);
+  const groupEntries = allEntries.filter(([groupId]) => groupId !== UNGROUPED_GROUP_ID);
+  const ungroupedEntry = allEntries.find(([groupId]) => groupId === UNGROUPED_GROUP_ID);
+  const ungroupedHostsMap = ungroupedEntry?.[1]?.hosts || {};
+  const ungroupedHostUids = sortHostUidsByHaRole(Object.keys(ungroupedHostsMap), ungroupedHostsMap, haInfo);
+  const isUngroupedDropTarget = dropTargetGroupId === UNGROUPED_GROUP_ID && draggedHost?.sourceGroupId !== UNGROUPED_GROUP_ID;
 
   return (
     <div className="py-1">
-      {orderedGroupEntries(hostGroups).map(([groupId, group]) => {
+      {groupEntries.map(([groupId, group]) => {
         const hostsMap = group.hosts || {};
         const hostUids = sortHostUidsByHaRole(Object.keys(hostsMap), hostsMap, haInfo);
         const isExpanded = expandedGroups.has(groupId);
@@ -141,7 +142,6 @@ export default function HostGroupTree({
               open={isExpanded}
               onToggle={() => toggleGroup(groupId)}
               onSelect={() => handleGroupSelect(groupId)}
-              onDoubleClick={() => toggleGroup(groupId)}
               onContextMenu={(e) => {
                 if (onGroupContextMenu) onGroupContextMenu(e, groupId, group.name);
               }}
@@ -156,6 +156,7 @@ export default function HostGroupTree({
                       isAuthorized={authorizedHosts.includes(uid)}
                       haInfo={haInfo[uid]}
                       onContextMenu={onContextMenu}
+                      onActivate={onHostActivate}
                       compact
                       draggable
                       isDragging={draggedHost?.hostUid === uid}
@@ -179,6 +180,35 @@ export default function HostGroupTree({
           </div>
         );
       })}
+
+      {/* Always rendered (even with zero hosts) so it stays a valid drop target for un-grouping a host. */}
+      <div
+        onDragOver={(e) => handleGroupDragOver(e, UNGROUPED_GROUP_ID)}
+        onDragLeave={(e) => handleGroupDragLeave(e, UNGROUPED_GROUP_ID)}
+        onDrop={(e) => handleGroupDrop(e, UNGROUPED_GROUP_ID)}
+        className={`rounded-md transition-colors ${ungroupedHostUids.length === 0 ? 'min-h-[8px]' : ''} ${
+          isUngroupedDropTarget ? 'bg-amber-500/8 ring-1 ring-amber-400/40' : ''
+        }`}
+      >
+        {ungroupedHostUids.map((uid) => {
+          const host = ungroupedHostsMap[uid];
+          return (
+            <ServerListItem
+              key={uid}
+              host={host}
+              isSelected={selectedHostUid === uid}
+              isAuthorized={authorizedHosts.includes(uid)}
+              haInfo={haInfo[uid]}
+              onContextMenu={onContextMenu}
+              onActivate={onHostActivate}
+              draggable
+              isDragging={draggedHost?.hostUid === uid}
+              onDragStart={(e) => handleHostDragStart(e, uid, UNGROUPED_GROUP_ID)}
+              onDragEnd={handleHostDragEnd}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }

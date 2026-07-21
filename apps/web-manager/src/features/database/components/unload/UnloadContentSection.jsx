@@ -7,18 +7,15 @@ import { useCM } from '../../../../constants/useCM';
 
 export default function UnloadContentSection({
   formData,
-  handleInputChange,
-  handleSchemaChange,
+  handleTableScopeChange,
+  handleIncludeToggle,
   handleTableToggle,
+  handleSelectAllTables,
   dynamicTables,
   isTablesLoading,
 }) {
   const CM = useCM();
-  const schemaOpts = useMemo(
-    () => [CM.all, CM.selectedTables, CM.notInclude],
-    [CM]
-  );
-  const dataOpts = useMemo(() => [CM.selectedTables, CM.notInclude], [CM]);
+  const tableScopeOpts = useMemo(() => [CM.all, CM.selectedTables], [CM]);
 
   return (
     <div className="space-y-6">
@@ -26,14 +23,14 @@ export default function UnloadContentSection({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-3">
-          <SectionHeader title={CM.schema} icon="terminal" />
-          {schemaOpts.map((opt) => (
+          <SectionHeader title={CM.unloadTableScope} icon="terminal" />
+          {tableScopeOpts.map((opt) => (
             <label key={opt} className="flex items-center gap-2 cursor-pointer text-[12px]">
               <input
                 type="radio"
-                name="schemaOption"
-                checked={formData.schemaOption === opt}
-                onChange={() => handleSchemaChange({ target: { value: opt } })}
+                name="tableScope"
+                checked={formData.tableScope === opt}
+                onChange={() => handleTableScopeChange(opt)}
               />
               {opt}
             </label>
@@ -41,28 +38,37 @@ export default function UnloadContentSection({
         </div>
 
         <div className="space-y-3">
-          <SectionHeader title={CM.data} icon="dataset" />
-          {dataOpts.map((opt) => (
-            <label key={opt} className="flex items-center gap-2 cursor-pointer text-[12px]">
-              <input
-                type="radio"
-                name="dataOption"
-                checked={formData.dataOption === opt}
-                onChange={() => handleInputChange({ target: { name: 'dataOption', value: opt } })}
-              />
-              {opt}
-            </label>
-          ))}
+          <SectionHeader title={CM.unloadIncludeLabel} icon="dataset" />
+          <Checkbox
+            label={CM.includeSchema}
+            checked={formData.includeSchema}
+            onChange={() => handleIncludeToggle('includeSchema')}
+          />
+          <Checkbox
+            label={CM.includeData}
+            checked={formData.includeData}
+            onChange={() => handleIncludeToggle('includeData')}
+          />
         </div>
       </div>
 
-      {formData.schemaOption === CM.selectedTables && (
+      {formData.tableScope === CM.selectedTables && (
         <div className="space-y-3">
-          <SectionHeader
-            title={CM.availableClasses}
-            icon="table_rows"
-            badge={dynamicTables.length}
-          />
+          <div className="flex items-center justify-between">
+            <SectionHeader
+              title={CM.availableClasses}
+              icon="table_rows"
+              badge={dynamicTables.length}
+            />
+            {!isTablesLoading && dynamicTables.length > 0 && (
+              <Checkbox
+                label={CM.selectAll}
+                checked={dynamicTables.length > 0 && formData.selectedTables.length === dynamicTables.length}
+                indeterminate={formData.selectedTables.length > 0 && formData.selectedTables.length < dynamicTables.length}
+                onChange={() => handleSelectAllTables(dynamicTables)}
+              />
+            )}
+          </div>
           {isTablesLoading ? (
             <div className="flex justify-center py-8">
               <Spinner />

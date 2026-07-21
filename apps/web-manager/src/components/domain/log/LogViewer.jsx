@@ -23,10 +23,10 @@ export const LogViewer = ({
   }, [lines, autoScroll]);
 
   const levelOptions = [
-    { label: CM.allLevelsLabel, value: 'all' },
-    { label: CM.error, value: 'error' },
-    { label: CM.warning, value: 'warn' },
-    { label: CM.infoLabel, value: 'info' },
+    { label: CM.logAllLevels, value: 'all' },
+    { label: CM.error,        value: 'error' },
+    { label: CM.warning,      value: 'warn' },
+    { label: CM.infoLog,      value: 'info' },
   ];
 
   const getBadgeVariant = (level) => {
