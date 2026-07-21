@@ -181,3 +181,8 @@
 - **HA 관련 2개 스펙 미작성** — 실제 멀티노드 HA 클러스터 환경이 없어 재현 불가. 환경이 생기면 착수.
 - **기존 68개 테스트의 커버리지 심화** — 에러 케이스/엣지 케이스 보강 (아직 미착수).
 - 이번 세션에서 `host_reconnect_and_password.spec.js` 작업 중, 앱 자체의 실버그(`setHostPassword.fulfilled`가 "Passcode Updated" 성공 화면이 뜨기도 전에 모달을 강제로 닫아버리던 문제)를 발견해 `hostSlice.js`에서 수정함.
+
+## 알려진 flakiness
+
+- **`database_rename_copy.spec.js`의 복사 작업 이후** — 실제 백그라운드 복사 job이 완료될 때까지(수 분) 실제 CMS 호스트가 새 로그인을 거부하는 경우가 있음. 알파벳순으로 바로 다음인 `database_restore.spec.js`/`database_start_stop_delete.spec.js`가 이 시간대에 걸리면 드물게 flake — 재실행하면 통과. `HostTreePage.activateHost()`에 재시도 로직을 넣었지만 수 분 단위 지연은 재시도로 완전히 흡수되진 않음. 실제 호스트 제약이지 코드 버그 아님.
+- **`host_reconnect_and_password.spec.js`가 전체 스위트 내에서 드물게 타임아웃** — 실행 중 앱 전역의 `CmsJobProvider`가 다른 스펙이 남긴 완료 job 알림 모달(`job-result-modal`)을 띄워 클릭을 막는 문제는 고쳤지만(`AuthPage.login()`에서 로그인 직후 자동 dismiss), 실제 호스트가 바쁠 때는 여전히 간헐적으로 타임아웃될 수 있음. 이 테스트가 타임아웃되면 **실제 호스트 비밀번호가 고정 상수 `E2eTempPass_Fixed01`에 멈춰 있을 가능성이 있음** — 그 값으로 재로그인 후 Change Password로 1234로 복구하면 됨 (값이 고정이라 추측 없이 바로 복구 가능).
