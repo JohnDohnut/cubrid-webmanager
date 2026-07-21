@@ -150,10 +150,21 @@ export default function CreateUserModal({ isOpen, onClose, dbname, editingUser }
     if (!userToEdit) return;
     prefilledEditUserRef.current = editingUser;
 
-    const mappedGroups = (userToEdit.groups || []).map(g =>
+    // CMS's userinfo response wraps a user's groups/members as
+    // [{ group: ["PUBLIC", ...] }] / [{ member: [...] }] (an XML-to-JSON
+    // artifact) rather than a flat list — unwrap that shape first, on top
+    // of the plain-string / {name} shapes already handled below.
+    const unwrapCmsList = (list, wrapperKey) => {
+      if (!Array.isArray(list)) return [];
+      if (list.length === 1 && list[0] && Array.isArray(list[0][wrapperKey])) {
+        return list[0][wrapperKey];
+      }
+      return list;
+    };
+    const mappedGroups = unwrapCmsList(userToEdit.groups, 'group').map(g =>
       typeof g === 'string' ? { name: g } : { ...g, name: g.name || g['@name'] }
     );
-    const mappedMembers = (userToEdit.members || []).map(m =>
+    const mappedMembers = unwrapCmsList(userToEdit.members, 'member').map(m =>
       typeof m === 'string' ? { name: m } : { ...m, name: m.name || m['@name'] }
     );
 

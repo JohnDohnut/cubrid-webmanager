@@ -10,3 +10,4 @@ export * from './broker-request.dto';
 export * from './ha-request.dto';
 export * from './log-request.dto';
 export * from './cms-config-request.dto';
+export * from './database-user-request.dto';
