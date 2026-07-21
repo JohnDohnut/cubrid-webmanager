@@ -13,9 +13,13 @@ import { SuccessResponseInterceptor, LoggingInterceptor } from '@common'; // Upd
 async function bootstrap() {
   loadRuntimeEnv();
   const httpsOptions = getHttpsOptions();
+  const isProduction = (process.env.ENVIRONMENT ?? '').toLowerCase() === 'production';
   const app = await NestFactory.create(AppModule, {
     httpsOptions,
-    logger: ['error', 'warn'],
+    // 'log' is required — LoggingInterceptor's incoming/outgoing request
+    // audit trail is emitted at that level. Without it here, only errors
+    // and warnings reach the console; ordinary traffic is silently dropped.
+    logger: isProduction ? ['error', 'warn', 'log'] : ['error', 'warn', 'log', 'debug', 'verbose'],
   });
   app.getHttpAdapter().getInstance().set('trust proxy', true);
   const configService = app.get(ConfigService);
