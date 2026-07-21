@@ -7,3 +7,6 @@ export * from './change-password.dto';
 export * from './delete-user.dto';
 export * from './host-request.dto';
 export * from './broker-request.dto';
+export * from './ha-request.dto';
+export * from './log-request.dto';
+export * from './cms-config-request.dto';
