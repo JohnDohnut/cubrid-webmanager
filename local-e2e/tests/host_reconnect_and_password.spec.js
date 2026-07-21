@@ -7,6 +7,13 @@ const E2E_HOST_ADDRESS = process.env.E2E_HOST_ADDRESS || 'localhost';
 const E2E_HOST_PORT = process.env.E2E_HOST_PORT || '8001';
 const ORIGINAL_PASSWORD = process.env.E2E_HOST_PASSWORD;
 
+// Fixed on purpose (not timestamp-generated): if this test dies mid-run
+// before the restore below completes, the real host is left on whatever the
+// temp password was. A fixed, known constant means recovery is just "log in
+// with this exact string" — no guessing, no lost value. Do not make this
+// dynamic again.
+const TEMP_PASSWORD = 'E2eTempPass_Fixed01';
+
 // Changing the real CMS passcode invalidates the current session token,
 // which reliably triggers ReconnectHostModal ("Connection Lost") as a side
 // effect — so this spec covers both halves of the feature: the passcode
@@ -92,11 +99,12 @@ test.describe('Host Change Password', () => {
   };
 
   test('Change Password로 비밀번호를 변경하면 성공하고, 되돌리면 원래대로 로그인된다', async ({ page }) => {
-    test.setTimeout(150000);
-    const tempPassword = `E2eTempPass_${Date.now().toString().slice(-6)}`;
+    // The real host has occasionally taken well over a minute per passcode
+    // change under load (observed up to ~2min) — generous budget on purpose.
+    test.setTimeout(240000);
 
     try {
-      await changePasswordTo(page, tempPassword);
+      await changePasswordTo(page, TEMP_PASSWORD);
       // The modal's own flow re-authenticates with the new passcode as part
       // of handleSubmit (loginToHostWithSideEffects) — confirm it took.
       await expect(page.locator('#db-tree-container')).toHaveAttribute('data-authorized', 'true', { timeout: 20000 });
