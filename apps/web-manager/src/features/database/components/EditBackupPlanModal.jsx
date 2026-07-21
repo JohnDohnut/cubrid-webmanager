@@ -175,7 +175,7 @@ export default function EditBackupPlanModal() {
       storeold: 'OFF',
       mt: formData.threads,
       bknum: formData.backupsToKeep,
-      onoff: formData.onlineType === 'online' ? 'ON' : 'OF',
+      onoff: formData.onlineType === 'online' ? 'ON' : 'OFF',
     };
 
     try {

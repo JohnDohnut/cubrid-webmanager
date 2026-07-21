@@ -14,3 +14,4 @@ export * from './database-user-request.dto';
 export * from './database-config-request.dto';
 export * from './database-lifecycle-request.dto';
 export * from './database-management-request.dto';
+export * from './database-backup-request.dto';
