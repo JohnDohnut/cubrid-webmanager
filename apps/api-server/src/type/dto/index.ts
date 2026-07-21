@@ -12,3 +12,4 @@ export * from './log-request.dto';
 export * from './cms-config-request.dto';
 export * from './database-user-request.dto';
 export * from './database-config-request.dto';
+export * from './database-lifecycle-request.dto';
