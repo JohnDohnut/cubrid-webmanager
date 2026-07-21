@@ -1,25 +1,26 @@
 import { Body, Controller, Get, Logger, Param, Post, Query, Request } from '@nestjs/common';
 import {
-  SetAutoExecQueryClientRequest,
   SetAutoExecQueryClientResponse,
   GetAutoExecQueryClientResponse,
-  SetAutoStartRequest,
   SetAutoStartResponse,
-  RemoveAutoStartRequest,
   RemoveAutoStartResponse,
   GetAutoAddVolClientResponse,
   GetDbSizeClientResponse,
-  SetAutoAddVolRequest,
   SetAutoAddVolResponse,
-  ClassInfoRequest,
   ClassInfoResponse,
   GetAutoExecQueryErrLogRequest,
   GetAutoExecQueryErrLogResponse,
   GetAutoAddVolLogResponse,
-  AppendAutoExecQueryPlanRequest,
-  RemoveAutoExecQueryPlanRequest,
 } from '@api-interfaces';
-import { validateRequiredFields } from '@util';
+import {
+  SetAutoExecQueryDto,
+  SetAutoStartDto,
+  RemoveAutoStartDto,
+  SetAutoAddVolDto,
+  ClassInfoDto,
+  AppendAutoExecQueryPlanDto,
+  RemoveAutoExecQueryPlanDto,
+} from '@type/index';
 import { DatabaseConfigService } from './database-config.service';
 
 /**
@@ -57,16 +58,14 @@ export class DatabaseConfigController {
     @Request() req,
     @Param('hostUid') hostUid: string,
     @Param('dbname') dbname: string,
-    @Body() body: SetAutoExecQueryClientRequest
+    @Body() body: SetAutoExecQueryDto
   ): Promise<SetAutoExecQueryClientResponse> {
     const userId = req.user.sub;
-
-    validateRequiredFields(body, ['planlist'], 'database/auto-exec-query', this.logger);
 
     this.logger.log(
       `Setting auto-exec query for database: ${dbname} on host: ${hostUid}`
     );
-    return await this.configService.setAutoExecQuery(userId, hostUid, dbname, body);
+    return await this.configService.setAutoExecQuery(userId, hostUid, dbname, { ...body, dbname });
   }
 
   /**
@@ -112,7 +111,7 @@ export class DatabaseConfigController {
   async setAutoStart(
     @Request() req,
     @Param('hostUid') hostUid: string,
-    @Body() body: SetAutoStartRequest
+    @Body() body: SetAutoStartDto
   ): Promise<SetAutoStartResponse> {
     const userId = req.user.sub;
 
@@ -140,11 +139,9 @@ export class DatabaseConfigController {
   async removeAutoStart(
     @Request() req,
     @Param('hostUid') hostUid: string,
-    @Body() body: RemoveAutoStartRequest
+    @Body() body: RemoveAutoStartDto
   ): Promise<RemoveAutoStartResponse> {
     const userId = req.user.sub;
-
-    validateRequiredFields(body, ['dbname'], 'database/auto-start/remove', this.logger);
 
     this.logger.log(
       `Disabling auto-start for database: ${body.dbname} on host: ${hostUid}`
@@ -206,23 +203,9 @@ export class DatabaseConfigController {
     @Request() req,
     @Param('hostUid') hostUid: string,
     @Param('dbname') dbname: string,
-    @Body() body: SetAutoAddVolRequest
+    @Body() body: SetAutoAddVolDto
   ): Promise<SetAutoAddVolResponse> {
     const userId = req.user.sub;
-
-    validateRequiredFields(
-      body,
-      [
-        'data',
-        'data_warn_outofspace',
-        'data_ext_page',
-        'index',
-        'index_warn_outofspace',
-        'index_ext_page',
-      ],
-      'database/auto-add-vol',
-      this.logger
-    );
 
     this.logger.log(
       `Setting auto-add volume for database: ${dbname} on host: ${hostUid}`
@@ -249,11 +232,9 @@ export class DatabaseConfigController {
     @Request() req,
     @Param('hostUid') hostUid: string,
     @Param('dbname') dbname: string,
-    @Body() body: ClassInfoRequest
+    @Body() body: ClassInfoDto
   ): Promise<ClassInfoResponse> {
     const userId = req.user.sub;
-
-    validateRequiredFields(body, ['dbstatus'], 'database/class-info', this.logger);
 
     this.logger.log(
       `Getting class info for database: ${dbname} on host: ${hostUid}`
@@ -271,10 +252,9 @@ export class DatabaseConfigController {
     @Request() req,
     @Param('hostUid') hostUid: string,
     @Param('dbname') dbname: string,
-    @Body() body: Omit<AppendAutoExecQueryPlanRequest, 'dbname'>
+    @Body() body: AppendAutoExecQueryPlanDto
   ): Promise<SetAutoExecQueryClientResponse> {
     const userId = req.user.sub;
-    validateRequiredFields(body, ['plan'], 'database/auto-exec-query/append', this.logger);
     this.logger.log(`Appending query plan to database: ${dbname} on host: ${hostUid}`);
     return await this.configService.appendAutoExecQueryPlan(userId, hostUid, { dbname, ...body });
   }
@@ -289,10 +269,9 @@ export class DatabaseConfigController {
     @Request() req,
     @Param('hostUid') hostUid: string,
     @Param('dbname') dbname: string,
-    @Body() body: Omit<RemoveAutoExecQueryPlanRequest, 'dbname'>
+    @Body() body: RemoveAutoExecQueryPlanDto
   ): Promise<SetAutoExecQueryClientResponse> {
     const userId = req.user.sub;
-    validateRequiredFields(body, ['query_id'], 'database/auto-exec-query/remove', this.logger);
     this.logger.log(
       `Removing query plan ${body.query_id} from database: ${dbname} on host: ${hostUid}`
     );
