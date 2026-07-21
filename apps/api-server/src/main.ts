@@ -7,6 +7,7 @@ import * as fs from 'fs';
 import * as express from 'express';
 import { getHttpsOptions, logStartupBanner } from '@util';
 import { GlobalExceptionFilter } from '@error/global-filter';
+import { createValidationPipe } from '@error/validation/create-validation-pipe';
 import { ConfigService } from '@config/config.service';
 import { SuccessResponseInterceptor, LoggingInterceptor } from '@common'; // Updated import
 
@@ -69,6 +70,12 @@ async function bootstrap() {
   }
   app.useGlobalFilters(new GlobalExceptionFilter());
   app.useGlobalInterceptors(new LoggingInterceptor(), new SuccessResponseInterceptor());
+  // Only affects @Body()/@Param()/@Query() parameters typed as an actual
+  // class with class-validator decorators (currently just UserDTO) — every
+  // other endpoint still uses plain interface types and passes through
+  // untouched. See create-validation-pipe.ts for why this is safe to enable
+  // globally before the rest of the API surface is migrated.
+  app.useGlobalPipes(createValidationPipe());
 
   // Serve web-manager static files.
   // Both pkg (snapshot filesystem) and node use __dirname/public.
