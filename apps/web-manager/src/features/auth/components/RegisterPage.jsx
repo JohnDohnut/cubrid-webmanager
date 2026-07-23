@@ -51,7 +51,12 @@ export default function RegisterPage() {
     if (!username.trim()) errs.username = CM.usernameRequired;
     else if (username.length < 3) errs.username = CM.minChars3;
     if (!password) errs.password = CM.passwordRequired;
-    else if (password.length < 6) errs.password = CM.atLeast6Chars;
+    // Must match the server's actual policy (passwordValidityChecker: >= 8
+    // chars, at least one letter and one digit) — otherwise a password that
+    // passes here can still be rejected after a round trip to the server.
+    else if (password.trim().length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+      errs.password = CM.passwordPolicyHint;
+    }
     if (!confirmPassword) errs.confirmPassword = CM.confirmPasswordRequired;
     else if (password !== confirmPassword) errs.confirmPassword = CM.passwordsDoNotMatch;
     return errs;

@@ -1362,7 +1362,7 @@ export const CM_KO = {
   workspaceSettings: '워크스페이스 설정',
   website: '웹사이트',
   github: 'GitHub',
-  atLeast6Chars: '최소 6자 이상',
+  passwordPolicyHint: '영문자와 숫자를 포함해 8자 이상 입력하세요',
   confirmPasswordRequired: '비밀번호를 확인하십시오',
   weakPassword: '약함',
   averagePassword: '보통',

@@ -1383,7 +1383,7 @@ export const CM = {
   workspaceSettings: 'Workspace settings',
   website: 'Website',
   github: 'GitHub',
-  atLeast6Chars: 'At least 6 characters',
+  passwordPolicyHint: 'At least 8 characters, including a letter and a number',
   confirmPasswordRequired: 'Please confirm your password',
   weakPassword: 'Weak',
   averagePassword: 'Average',
