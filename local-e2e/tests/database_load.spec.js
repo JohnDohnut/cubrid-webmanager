@@ -35,4 +35,26 @@ test.describe('Database Load', () => {
     await page.getByTestId('load-database-cancel-btn').click();
     await expect(modal).not.toBeVisible();
   });
+
+  // Pure client-side validation (LoadDatabaseModal.jsx's getValidationError)
+  // — no real CMS load call involved, so this is safe regardless of the
+  // "don't actually load" constraint above.
+  test('언로드 파일을 선택하지 않으면 실행 버튼이 비활성화된다', async ({ page }) => {
+    await dbTree.clickManageDatabaseItem(E2E_DB, 'Load Database');
+    const modal = page.getByTestId('load-database-modal');
+    await expect(modal).toBeVisible();
+
+    // Default mode is "select from list" with nothing selected/checked yet —
+    // exact message depends on whether an unload file already exists for
+    // this db in this environment (from database_unload.spec.js), but either
+    // way the form must start invalid.
+    await expect(
+      modal.getByText('Please select the unloaded file from the list.')
+        .or(modal.getByText('Please check the unloaded files of the selected database from the following list.'))
+    ).toBeVisible();
+    await expect(page.getByTestId('load-database-run-btn')).toBeDisabled();
+
+    await page.getByTestId('load-database-cancel-btn').click();
+    await expect(modal).not.toBeVisible();
+  });
 });
