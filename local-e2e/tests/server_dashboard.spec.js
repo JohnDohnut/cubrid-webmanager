@@ -4,6 +4,7 @@ const { HostTreePage } = require('../pages/HostTreePage');
 
 const E2E_HOST_ADDRESS = process.env.E2E_HOST_ADDRESS || 'localhost';
 const E2E_HOST_PORT = process.env.E2E_HOST_PORT || '8001';
+const E2E_DB = process.env.E2E_DB || 'demodb';
 
 test.describe('Server Dashboard', () => {
   let hostTree;
@@ -44,5 +45,29 @@ test.describe('Server Dashboard', () => {
     await refreshBtn.click();
     await expect(refreshBtn).toBeEnabled({ timeout: 15000 });
     await expect(dashboard.getByTestId('server-dashboard-broker-status')).toBeVisible();
+  });
+
+  // Toggling this switch calls the real setAutoStart/removeAutoStart CMS
+  // config endpoints (cubridconf) — flip it and flip it back to leave the
+  // fixture database's auto-start setting exactly as found.
+  test('Database List의 Auto Startup 스위치를 토글하면 상태가 바뀌고 되돌리면 원래대로 복구된다', async ({ page }) => {
+    const dashboard = page.getByTestId('server-dashboard');
+    await expect(dashboard).toBeVisible();
+
+    const dbList = dashboard.getByTestId('server-dashboard-database-list');
+    await expect(dbList).toBeVisible({ timeout: 15000 });
+
+    const row = dbList.locator('tr', { hasText: E2E_DB });
+    await expect(row).toBeVisible({ timeout: 10000 });
+    const toggle = row.getByRole('switch');
+    await expect(toggle).toBeVisible();
+
+    const initialChecked = await toggle.getAttribute('aria-checked');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-checked', initialChecked === 'true' ? 'false' : 'true', { timeout: 15000 });
+
+    // Restore original state.
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-checked', initialChecked, { timeout: 15000 });
   });
 });
