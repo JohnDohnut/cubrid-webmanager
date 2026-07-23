@@ -48,6 +48,25 @@ test.describe('Broker Logs', () => {
     await expect(viewer).toBeVisible();
   });
 
+  test('로그 뷰어의 보기 모드(Raw/Parsed SQL/Top SQL)를 전환할 수 있다', async ({ page }) => {
+    const logFile = brokerTree.firstLogFileNode(brokerName);
+    await expect(logFile).toBeVisible({ timeout: 10000 });
+    await logFile.dblclick();
+
+    const viewer = page.getByTestId('log-viewer');
+    await expect(viewer).toBeVisible({ timeout: 15000 });
+
+    for (const mode of ['sql', 'top', 'raw']) {
+      const modeBtn = page.getByTestId(`log-viewer-mode-${mode}`);
+      await expect(modeBtn).toBeVisible();
+      await modeBtn.click();
+      // Active mode gets the amber highlight class — confirms the click
+      // actually switched modes, not just that the viewer stayed mounted.
+      await expect(modeBtn).toHaveClass(/text-amber-600/);
+      await expect(viewer).toBeVisible();
+    }
+  });
+
   test('View All Logs를 열면 로그 아코디언이 표시되고, 접기/펼치기와 전체 새로고침이 동작한다', async ({ page }) => {
     await brokerTree.openSqlLogContextMenu(brokerName);
     await page.getByRole('button', { name: 'View All Logs' }).click();
