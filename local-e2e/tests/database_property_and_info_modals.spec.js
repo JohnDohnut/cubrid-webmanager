@@ -74,12 +74,13 @@ test.describe('Database Property and Info Modals', () => {
   });
 
   // Transaction Information requires a DB-user login (defaults to dba/blank);
-  // read-only diagnostic call. The underlying CMS task (gettransactioninfo)
-  // has been observed to intermittently fail with "Failed to connect ...
-  // localhost" — root cause unconfirmed (not reproducible via repeated raw
-  // API calls outside the UI flow, and our request sends no host parameter
-  // at all), so this tolerates that specific error rather than hard-failing
-  // on what looks like real-host flakiness, not a deterministic limitation.
+  // read-only diagnostic call — asserted strictly. This CMS task
+  // (gettransactioninfo) was observed to fail twice with "Failed to connect
+  // ... localhost" during initial authoring, but 6/6 raw API calls right
+  // after reproduced no failure at all — not enough evidence to call it a
+  // real environment limitation, so this does NOT tolerate that error. If it
+  // recurs, that's a real signal to investigate properly rather than wave
+  // through with a skip-reason.
   test('Database Info > Transaction Information을 열면 활성 트랜잭션이 표시된다', async ({ page }) => {
     await dbTree.openContextMenu(E2E_DB);
     await page.getByRole('button', { name: 'Database Info' }).hover();
@@ -88,34 +89,17 @@ test.describe('Database Property and Info Modals', () => {
     const modal = page.getByTestId('transaction-info-modal');
     await expect(modal).toBeVisible({ timeout: 15000 });
 
-    const refreshBtn = page.getByTestId('transaction-info-refresh-btn');
-    const errorText = modal.getByText('Error', { exact: true });
-    await expect(refreshBtn.or(errorText)).toBeVisible({ timeout: 10000 });
-
-    if (await errorText.isVisible().catch(() => false)) {
-      test.info().annotations.push({
-        type: 'skip-reason',
-        description: 'gettransactioninfo intermittently failed to connect to the DB server (localhost) — observed transient, not reproducible on demand.',
-      });
-      await page.getByTestId('transaction-info-close-btn').click();
-      await expect(modal).not.toBeVisible();
-      return;
-    }
-
+    await expect(page.getByTestId('transaction-info-refresh-btn')).toBeVisible({ timeout: 10000 });
     await page.getByTestId('transaction-info-close-btn').click();
     await expect(modal).not.toBeVisible();
   });
 
   // Plan Dump is a read-only diagnostic call — run with the default
   // (plandrop=off) so the XASL cache isn't flushed as a side effect.
-  //
-  // Has been observed to intermittently fail with "Failed to connect to
-  // database server ... localhost" — root cause unconfirmed. Our request
-  // sends no host parameter (task/dbname/plandrop only, matching CA's own
-  // PlanDumpTask), and repeated raw API calls outside the UI flow reproduced
-  // 6/6 successes, so this doesn't look like a fixed environment limitation
-  // — likely transient CMS-side flakiness. Tolerated here rather than hard-
-  // failed until/unless a real reproduction narrows down the cause.
+  // Asserted strictly, same reasoning as Transaction Information above —
+  // twice-observed "Failed to connect ... localhost" wasn't reproducible in
+  // 6/6 follow-up raw API attempts, so it isn't tolerated as an accepted
+  // environment limitation. A recurrence here is a real bug signal.
   test('Database Info > Plan Dump을 실행하면 결과 화면으로 전환된다', async ({ page }) => {
     await dbTree.openContextMenu(E2E_DB);
     await page.getByRole('button', { name: 'Database Info' }).hover();
@@ -125,20 +109,7 @@ test.describe('Database Property and Info Modals', () => {
     await expect(modal).toBeVisible({ timeout: 10000 });
 
     await page.getByTestId('plan-dump-run-btn').click();
-
-    const backBtn = page.getByTestId('plan-dump-back-btn');
-    const errorText = page.getByText('Operation Failed');
-    await expect(backBtn.or(errorText)).toBeVisible({ timeout: 15000 });
-
-    if (await errorText.isVisible().catch(() => false)) {
-      test.info().annotations.push({
-        type: 'skip-reason',
-        description: 'plandump intermittently failed to connect to the DB server (localhost) — observed transient, not reproducible on demand.',
-      });
-      await page.getByTestId('plan-dump-close-btn').click();
-      await expect(modal).not.toBeVisible();
-      return;
-    }
+    await expect(page.getByTestId('plan-dump-back-btn')).toBeVisible({ timeout: 15000 });
 
     await page.getByTestId('plan-dump-close-btn').click();
     await expect(modal).not.toBeVisible();
