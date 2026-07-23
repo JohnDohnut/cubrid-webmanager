@@ -274,6 +274,18 @@ export const appendAutoExecQueryPlan = createAsyncThunk(
   }
 );
 
+export const updateAutoExecQueryPlan = createAsyncThunk(
+  'database/updateAutoExecQueryPlan',
+  async ({ hostUid, dbname, plan }, { rejectWithValue }) => {
+    try {
+      const response = await databaseApi.updateAutoExecQueryPlan(hostUid, dbname, plan);
+      return response;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || `Failed to update query plan for ${dbname}`);
+    }
+  }
+);
+
 export const removeAutoExecQueryPlan = createAsyncThunk(
   'database/removeAutoExecQueryPlan',
   async ({ hostUid, dbname, queryId }, { rejectWithValue }) => {

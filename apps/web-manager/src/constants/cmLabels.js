@@ -1004,6 +1004,7 @@ export const CM = {
   // Query plan modals (Add/Edit)
   queryIdentifierRequired: 'A Query ID is required.',
   sqlStatementRequired: 'An SQL statement is required.',
+  queryPasswordRequired: 'A database password is required.',
   queryPlanAdded: 'Query Plan Added',
   addQueryPlanFailed: 'Failed to Add Query Plan',
   editQueryPlanFailed: 'Failed to Update Query Plan',

@@ -982,6 +982,7 @@ export const CM_KO = {
   // Query plan modals (Add/Edit)
   queryIdentifierRequired: '질의 자동화 계획 ID가 필요합니다.',
   sqlStatementRequired: 'SQL 구문을 입력해야 합니다.',
+  queryPasswordRequired: '데이터베이스 비밀번호가 필요합니다.',
   queryPlanAdded: '질의 자동화 계획 추가 완료',
   addQueryPlanFailed: '질의 자동화 계획 추가 실패',
   editQueryPlanFailed: '질의 자동화 계획 수정 실패',

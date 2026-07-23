@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsIn, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { IsArray, IsIn, IsNotEmpty, IsString, ValidateNested } from 'class-validator';
 
 /**
  * Validated request bodies for DatabaseConfigController. Kept as
@@ -19,11 +19,15 @@ export class QueryPlanClientDto {
   @IsNotEmpty()
   username: string;
 
-  // Documented as "optional, can be empty" — a DB user (see
-  // database-user-request.dto.ts) can legitimately have no password.
-  @IsOptional()
+  // Unlike DB-user login credentials (database-user-request.dto.ts), CMS's
+  // setautoexecquery task does not tolerate an empty userpass: it silently
+  // accepts one on the first write, then persists the entry with the
+  // userpass key missing entirely, which corrupts the whole list and makes
+  // every later append/edit for that database fail with "Parameter(userpass)
+  // missing" (setautoexecquery replaces the full list, not just one entry).
   @IsString()
-  userpass?: string;
+  @IsNotEmpty()
+  userpass: string;
 
   @IsString()
   @IsNotEmpty()
@@ -53,6 +57,12 @@ export class SetAutoExecQueryDto {
 }
 
 export class AppendAutoExecQueryPlanDto {
+  @ValidateNested()
+  @Type(() => QueryPlanClientDto)
+  plan: QueryPlanClientDto;
+}
+
+export class UpdateAutoExecQueryPlanDto {
   @ValidateNested()
   @Type(() => QueryPlanClientDto)
   plan: QueryPlanClientDto;

@@ -20,6 +20,7 @@ import {
   ClassInfoDto,
   AppendAutoExecQueryPlanDto,
   RemoveAutoExecQueryPlanDto,
+  UpdateAutoExecQueryPlanDto,
 } from '@type/index';
 import { DatabaseConfigService } from './database-config.service';
 
@@ -257,6 +258,24 @@ export class DatabaseConfigController {
     const userId = req.user.sub;
     this.logger.log(`Appending query plan to database: ${dbname} on host: ${hostUid}`);
     return await this.configService.appendAutoExecQueryPlan(userId, hostUid, { dbname, ...body });
+  }
+
+  /**
+   * Replace a single existing query plan (by query_id) in a database's
+   * auto-exec plan list, preserving every other entry's stored credentials.
+   *
+   * @route POST /:hostUid/database/auto-exec-query/:dbname/update
+   */
+  @Post('auto-exec-query/:dbname/update')
+  async updateAutoExecQueryPlan(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Param('dbname') dbname: string,
+    @Body() body: UpdateAutoExecQueryPlanDto
+  ): Promise<SetAutoExecQueryClientResponse> {
+    const userId = req.user.sub;
+    this.logger.log(`Updating query plan ${body.plan.query_id} on database: ${dbname} on host: ${hostUid}`);
+    return await this.configService.updateAutoExecQueryPlan(userId, hostUid, { dbname, ...body });
   }
 
   /**
