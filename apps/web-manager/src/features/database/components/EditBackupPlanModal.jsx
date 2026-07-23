@@ -173,8 +173,8 @@ export default function EditBackupPlanModal() {
       zip: formData.useCompression ? 'y' : 'n',
       check: formData.checkConsistency ? 'y' : 'n',
       storeold: 'OFF',
-      mt: formData.threads,
-      bknum: formData.backupsToKeep,
+      mt: String(formData.threads),
+      bknum: String(formData.backupsToKeep),
       onoff: formData.onlineType === 'online' ? 'ON' : 'OFF',
     };
 
@@ -240,10 +240,11 @@ export default function EditBackupPlanModal() {
       subtitle={CM.editBackupPlanSubtitle(selectedDatabase)}
       icon="edit_calendar"
       maxWidth="700px"
+      testId="edit-backup-plan"
       footer={
         <div className="flex justify-end gap-3 w-full">
-          <Button variant="ghost" onClick={handleClose}>{CM.discard}</Button>
-          <Button variant="primary" onClick={handleSave} icon="save" className="min-w-[140px]">{CM.saveChanges}</Button>
+          <Button data-testid="edit-backup-plan-discard-btn" variant="ghost" onClick={handleClose}>{CM.discard}</Button>
+          <Button data-testid="edit-backup-plan-save-btn" variant="primary" onClick={handleSave} icon="save" className="min-w-[140px]">{CM.saveChanges}</Button>
         </div>
       }
     >

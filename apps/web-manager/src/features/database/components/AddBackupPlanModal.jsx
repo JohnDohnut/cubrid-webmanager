@@ -154,8 +154,8 @@ export default function AddBackupPlanModal() {
       zip: formData.useCompression ? 'y' : 'n',
       check: formData.checkConsistency ? 'y' : 'n',
       storeold: 'OFF',
-      mt: formData.threads,
-      bknum: formData.backupsToKeep,
+      mt: String(formData.threads),
+      bknum: String(formData.backupsToKeep),
       onoff: formData.onlineType === 'online' ? 'ON' : 'OFF',
     };
 
