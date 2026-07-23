@@ -74,4 +74,28 @@ test.describe('Database User Management', () => {
 
     await expect(userNode).not.toBeVisible({ timeout: 10000 });
   });
+
+  test('이미 존재하는 사용자명으로 생성하면 오류가 표시된다', async ({ page }) => {
+    const usersFolder = await dbTree.expandSubNode(E2E_DB, 'Users');
+    await usersFolder.locator('> summary').click({ button: 'right' });
+    await page.getByRole('button', { name: 'Add User' }).click();
+
+    const createModal = page.getByTestId('create-user-modal');
+    await expect(createModal).toBeVisible();
+    await expect(createModal.getByText('PUBLIC').first()).toBeVisible({ timeout: 15000 });
+    // PUBLIC always exists — a real, guaranteed duplicate.
+    await page.getByTestId('create-user-username-input').fill('PUBLIC');
+    await page.getByTestId('create-user-save-btn').click();
+
+    await expect(page.getByText('Operation Failed')).toBeVisible({ timeout: 15000 });
+    // Dismiss only clears the error and returns to the form (resetAction) —
+    // it does not close the modal. Its label is CM.dismiss ("Close"), not
+    // the modal header's own icon-only close button.
+    await page.getByRole('button', { name: 'Close', exact: true }).click();
+    await expect(createModal).toBeVisible();
+    await expect(page.getByTestId('create-user-username-input')).toBeVisible();
+
+    await page.getByTestId('create-user-modal-close').click();
+    await expect(createModal).not.toBeVisible();
+  });
 });
