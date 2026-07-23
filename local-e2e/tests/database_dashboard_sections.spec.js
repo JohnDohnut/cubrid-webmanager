@@ -57,4 +57,16 @@ test.describe('Database Dashboard Sections', () => {
     await header.click();
     await expect(table).toBeVisible();
   });
+
+  test('새로고침 버튼을 누르면 대시보드가 다시 로드된다', async ({ page }) => {
+    await dbTree.openDashboardTab(E2E_DB, hostUid);
+
+    const dashboard = page.getByTestId('database-dashboard');
+    await expect(dashboard).toBeVisible();
+
+    const refreshBtn = page.getByTestId('database-dashboard-refresh-btn');
+    await refreshBtn.click();
+    await expect(refreshBtn).toBeEnabled({ timeout: 15000 });
+    await expect(dashboard.getByTestId('db-dashboard-performance')).toBeVisible();
+  });
 });

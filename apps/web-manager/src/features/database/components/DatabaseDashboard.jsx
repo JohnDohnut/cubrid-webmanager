@@ -239,6 +239,7 @@ const Component = function DatabaseDashboard({ hostUid: propHostUid, dbname }) {
           </Typography>
 
           <button
+            data-testid="database-dashboard-refresh-btn"
             onClick={handleRefresh}
             disabled={isLoading || isManualRefreshing}
             className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all active:scale-[0.98]
