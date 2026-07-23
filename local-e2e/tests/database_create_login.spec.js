@@ -147,4 +147,43 @@ test.describe('Create Database and Login', () => {
     await expect(deleteModal).not.toBeVisible();
     await expect(dbNode).not.toBeVisible({ timeout: 10000 });
   });
+
+  // Pure client-side validation (CreateDatabaseModal.jsx's isFormValid at
+  // step 4) — no real createdb job involved, so this is fast and safe to run
+  // every time regardless of this environment's log-volume-init limitation.
+  test('DBA 비밀번호가 8자 미만이거나 확인이 일치하지 않으면 다음 버튼이 비활성화된다', async ({ page }) => {
+    await page.mouse.click(2, 2).catch(() => {});
+    await page.getByTestId('tree-tab-db').click({ button: 'right' });
+    await page.getByRole('button', { name: 'Create Database' }).click();
+
+    const wizard = page.getByTestId('create-database-modal');
+    await expect(wizard).toBeVisible();
+
+    const dbName = `e2e_pwcheck_${Date.now().toString().slice(-6)}`;
+    await page.getByTestId('create-database-name-input').fill(dbName);
+    await expect(page.getByTestId('create-database-generic-path-input')).not.toHaveValue('', { timeout: 30000 });
+    await page.getByTestId('create-database-next-btn').click();
+    await page.getByTestId('create-database-next-btn').click();
+    await page.getByTestId('create-database-next-btn').click();
+
+    const nextBtn = page.getByTestId('create-database-next-btn');
+
+    // Too short (< 8 chars), matching confirm — still invalid.
+    await page.getByTestId('create-database-dba-password-input').fill('short1');
+    await page.getByTestId('create-database-confirm-password-input').fill('short1');
+    await expect(nextBtn).toBeDisabled();
+
+    // Long enough but mismatched confirm — still invalid.
+    await page.getByTestId('create-database-dba-password-input').fill('LongEnoughPass1');
+    await page.getByTestId('create-database-confirm-password-input').fill('LongEnoughPass2');
+    await expect(page.getByText('Passwords do not match')).toBeVisible();
+    await expect(nextBtn).toBeDisabled();
+
+    // Long enough and matching — valid.
+    await page.getByTestId('create-database-confirm-password-input').fill('LongEnoughPass1');
+    await expect(nextBtn).toBeEnabled();
+
+    await page.getByTestId('create-database-cancel-btn').click();
+    await expect(wizard).not.toBeVisible();
+  });
 });
