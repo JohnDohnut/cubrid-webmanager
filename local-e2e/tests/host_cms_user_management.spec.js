@@ -91,4 +91,30 @@ test.describe('Host CMS User Management', () => {
     }
     expect(deleted).toBe(true);
   });
+
+  test('비밀번호와 확인이 일치하지 않으면 오류가 표시되고 저장 버튼이 비활성화된다', async ({ page }) => {
+    // Pure client-side validation (EditCMSUserModal.jsx: canSave requires
+    // !passwordMismatch) — no CMS round trip needed, so no cleanup either.
+    await hostTree.openHostContextMenu(hostUid);
+    await page.getByRole('button', { name: 'User Management' }).click();
+
+    const listModal = page.getByTestId('cms-user-management-modal');
+    await expect(listModal).toBeVisible({ timeout: 10000 });
+
+    await page.getByTestId('cms-user-management-add-btn').click();
+    const editModal = page.getByTestId('edit-cms-user-modal');
+    await expect(editModal).toBeVisible();
+
+    const username = `e2e_cms_mismatch_${Date.now().toString().slice(-6)}`;
+    const saveBtn = page.getByTestId('edit-cms-user-save-btn');
+    await page.getByTestId('edit-cms-user-targetid-input').fill(username);
+    await page.getByTestId('edit-cms-user-password-input').fill('E2eCmsPass123');
+    await page.getByTestId('edit-cms-user-confirm-password-input').fill('DifferentPass456');
+
+    await expect(editModal.getByText('Passwords do not match').first()).toBeVisible();
+    await expect(saveBtn).toBeDisabled();
+
+    await page.getByTestId('edit-cms-user-cancel-btn').click();
+    await expect(editModal).not.toBeVisible();
+  });
 });

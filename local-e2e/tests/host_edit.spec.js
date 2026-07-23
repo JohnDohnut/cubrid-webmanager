@@ -72,10 +72,14 @@ test.describe('Edit Host', () => {
     await expect(modal.getByText('Incorrect password')).toBeVisible({ timeout: 15000 });
     await expect(modal).toBeVisible();
 
-    // The edit itself (alias/address/port, minus the bad password) still
-    // committed before the failed login attempt — confirm the modal is left
-    // in a usable state and can be closed cleanly.
-    await page.getByTestId('edit-host-discard-btn').click();
-    await expect(modal).not.toBeVisible();
+    // IMPORTANT: handleTestConnectionAndSave() saves (editHost) BEFORE
+    // attempting the CMS login, so the wrong password above is now the
+    // host's stored credential — every other spec that relies on this fixed
+    // host auto-logging in (dblclick without re-entering a password) would
+    // break otherwise. Restore the real password before finishing.
+    await modal.locator('[name="password"]').fill(process.env.E2E_HOST_PASSWORD);
+    await page.getByTestId('edit-host-connect-save-btn').click();
+    await expect(modal).not.toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#db-tree-container')).toHaveAttribute('data-authorized', 'true', { timeout: 30000 });
   });
 });
