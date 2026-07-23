@@ -57,4 +57,25 @@ test.describe('Edit Host', () => {
     await expect(modal).not.toBeVisible({ timeout: 15000 });
     await expect(page.locator('#db-tree-container')).toHaveAttribute('data-authorized', 'true', { timeout: 30000 });
   });
+
+  test('잘못된 비밀번호로 Test Connection & Save 하면 오류가 표시되고 모달이 유지된다', async ({ page }) => {
+    const host = page.locator(`#host-section [title="${E2E_HOST_ADDRESS}:${E2E_HOST_PORT}"]`);
+    await expect(host).toBeVisible({ timeout: 10000 });
+    await host.click({ button: 'right' });
+    await page.getByRole('button', { name: /Edit Host/i }).click();
+
+    const modal = page.getByTestId('edit-host-modal');
+    await expect(modal).toBeVisible();
+    await modal.locator('[name="password"]').fill('definitely_wrong_password');
+    await page.getByTestId('edit-host-connect-save-btn').click();
+
+    await expect(modal.getByText('Incorrect password')).toBeVisible({ timeout: 15000 });
+    await expect(modal).toBeVisible();
+
+    // The edit itself (alias/address/port, minus the bad password) still
+    // committed before the failed login attempt — confirm the modal is left
+    // in a usable state and can be closed cleanly.
+    await page.getByTestId('edit-host-discard-btn').click();
+    await expect(modal).not.toBeVisible();
+  });
 });
