@@ -47,4 +47,20 @@ test.describe('Service Dashboard (Global)', () => {
     await expect(page.getByTestId(`tab-host:${hostUid}`)).toBeVisible({ timeout: 10000 });
     await expect(page.getByTestId('server-dashboard')).toBeVisible();
   });
+
+  // Pure client-side filtering, no CMS calls — the fixture host has no HA
+  // role, so filtering to a specific role hides it and "All" brings it back.
+  test('HA Role 필터를 전환하면 호스트 목록이 필터링된다', async ({ page }) => {
+    const table = page.getByTestId('service-dashboard-table');
+    await expect(table).toBeVisible();
+
+    const hostRow = table.getByText(E2E_HOST_ADDRESS).first();
+    await expect(hostRow).toBeVisible({ timeout: 10000 });
+
+    await page.getByRole('button', { name: 'Master', exact: true }).click();
+    await expect(table.getByText(E2E_HOST_ADDRESS)).not.toBeVisible();
+
+    await page.getByRole('button', { name: 'All', exact: true }).click();
+    await expect(table.getByText(E2E_HOST_ADDRESS).first()).toBeVisible({ timeout: 10000 });
+  });
 });
