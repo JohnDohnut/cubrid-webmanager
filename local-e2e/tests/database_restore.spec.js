@@ -49,4 +49,33 @@ test.describe('Database Restore', () => {
     await page.getByTestId('restore-database-discard-btn').click();
     await expect(modal).not.toBeVisible();
   });
+
+  // Client-side validation runs before any CMS call, so this is fully testable
+  // without a real backup file on disk.
+  test('사용자 지정 복구 경로를 비워두면 검증 오류가 표시되고 실행 버튼이 비활성화된다', async ({ page }) => {
+    await dbTree.openContextMenu(E2E_DB);
+    const stopBtn = page.getByRole('button', { name: /Stop Database/i });
+    if (await stopBtn.isVisible().catch(() => false)) {
+      await stopBtn.click();
+      await page.getByText(/Stopping database/i).waitFor({ state: 'hidden', timeout: 30000 }).catch(() => {});
+    } else {
+      await page.keyboard.press('Escape');
+    }
+
+    await dbTree.clickManageDatabaseItem(E2E_DB, 'Restore Database');
+    const modal = page.getByTestId('restore-database-modal');
+    await expect(modal).toBeVisible();
+
+    const executeBtn = page.getByTestId('restore-database-execute-btn');
+    await expect(executeBtn).toBeEnabled();
+
+    await modal.getByText('Recovery path:').click();
+    await modal.getByPlaceholder('Default: original location').fill('');
+
+    await expect(modal.getByText('The user-defined recovery path is not valid.')).toBeVisible();
+    await expect(executeBtn).toBeDisabled();
+
+    await page.getByTestId('restore-database-discard-btn').click();
+    await expect(modal).not.toBeVisible();
+  });
 });
