@@ -88,10 +88,6 @@ export class BackupDbDto {
 
   @IsString()
   @IsNotEmpty()
-  volname: string;
-
-  @IsString()
-  @IsNotEmpty()
   backupdir: string;
 
   @IsOptional()

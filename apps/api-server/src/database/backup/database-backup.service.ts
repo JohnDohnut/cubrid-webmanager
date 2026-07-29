@@ -307,7 +307,7 @@ export class DatabaseBackupService extends BaseService {
    * @param userId User ID from JWT
    * @param hostUid Host UID
    * @param dbname Database name
-   * @param request Client request (level, volname, backupdir, removelog?, check?, mt?, zip?, safereplication?)
+   * @param request Client request (level, backupdir, removelog?, check?, mt?, zip?, safereplication?)
    * @returns BackupDbClientResponse empty body on success (CMS envelope omitted)
    * @throws DatabaseError If request fails or CMS status is fail
    */
@@ -322,7 +322,6 @@ export class DatabaseBackupService extends BaseService {
       task: 'backupdb',
       dbname,
       level: request.level,
-      volname: request.volname,
       backupdir: request.backupdir,
       removelog: request.removelog ?? 'y',
       check: request.check ?? 'n',

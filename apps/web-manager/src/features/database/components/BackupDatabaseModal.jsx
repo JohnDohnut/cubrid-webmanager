@@ -73,7 +73,6 @@ export default function BackupDatabaseModal() {
   const [jobStatus, setJobStatus] = useState(null);
 
   const [formData, setFormData] = useState({
-    volPath: `${selectedDatabase}_backup`,
     backupLevel: '0',
     backupDir: '',
     parallelBackup: '0',
@@ -126,15 +125,12 @@ export default function BackupDatabaseModal() {
     { header: CM.backupPath, accessor: 'path', cellClassName: 'font-mono break-all' },
   ], [CM]);
 
-  // volPath is a directory, not a per-level filename — cub_server names the
-  // actual backup file itself (dbname_bk{level}v{unit}), so every level shares
-  // this one directory. This is required for restoredb's single -B argument
-  // to find all levels of a multi-level restore chain in one place.
-  useEffect(() => {
-    if (selectedDatabase) {
-      setFormData(prev => ({ ...prev, volPath: `${selectedDatabase}_backup` }));
-    }
-  }, [selectedDatabase]);
+  // backupDir alone is the shared directory for every level (CMS's cub_server
+  // names the actual backup file itself: dbname_bk{level}v{unit}). This is
+  // required for restoredb's single -B argument to find all levels of a
+  // multi-level restore chain in one place. volname (a subdirectory under
+  // backupdir) used to be required for this; CMS now allows omitting it, in
+  // which case backupdir itself becomes that shared directory — simpler.
 
   // When backupInfo loads (fetch completes after modal open), fill backupDir only if still empty.
   // Uses functional updater so prev.backupDir is always current — no stale-closure race.
@@ -177,8 +173,8 @@ export default function BackupDatabaseModal() {
   };
 
   const handleBackup = async () => {
-    if (!formData.volPath || !formData.backupDir) {
-      endError(CM.volumePathBackupDirRequiredMsg);
+    if (!formData.backupDir) {
+      endError(CM.backupDirRequiredMsg);
       return;
     }
 
@@ -187,7 +183,6 @@ export default function BackupDatabaseModal() {
     try {
       const payload = {
         level: formData.backupLevel,
-        volname: formData.volPath,
         backupdir: formData.backupDir,
         removelog: formData.deleteUnnecessary ? 'y' : 'n',
         check: formData.checkConsistency ? 'y' : 'n',
@@ -243,13 +238,6 @@ export default function BackupDatabaseModal() {
           value={selectedDatabase || ''}
           disabled
           icon="database"
-        />
-      </CaDialogField>
-
-      <CaDialogField label={CM.volumeNameCol}>
-        <Input
-          value={formData.volPath}
-          onChange={(e) => handleInputChange('volPath', e.target.value)}
         />
       </CaDialogField>
 
