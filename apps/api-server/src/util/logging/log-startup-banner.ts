@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { LoggerService } from '@nestjs/common';
 import { ConfigService } from '@config/config.service';
 import { getStoragePath } from '../resolve-storage-path';
 
@@ -45,8 +46,15 @@ function resolveTlsSource(): string {
  * to confirm right after startup — where config/secrets were sourced from,
  * where data is stored, and how the server is reachable. Previously this
  * information was scattered across several unrelated console.log calls.
+ *
+ * Takes the app's logger explicitly (rather than using a bare console.log)
+ * so this reaches the log file too, not just the live console/journald.
  */
-export function logStartupBanner(configService: ConfigService, listen: StartupListenInfo): void {
+export function logStartupBanner(
+  configService: ConfigService,
+  listen: StartupListenInfo,
+  logger: LoggerService
+): void {
   const where =
     listen.kind === 'unixSocket'
       ? `unix socket ${listen.socketPath}`
@@ -59,6 +67,8 @@ export function logStartupBanner(configService: ConfigService, listen: StartupLi
     `  Listening on      : ${where}`,
     `  Environment       : ${configService.getEnvironment()}`,
     `  Storage path      : ${getStoragePath()}`,
+    `  Log path          : ${configService.isLogToFileEnabled() ? configService.getLogDir() : '(file logging disabled — console only)'}`,
+    `  Log level/rotation: ${configService.getLogLevel()} | max size ${configService.getLogMaxSize()} | keep ${configService.getLogMaxFiles()} | ${configService.isLogAppendOnRestart() ? 'append' : 'overwrite'} on restart`,
     `  Config (cwm.conf) : ${resolveConfSource()}`,
     `  Secrets (vault)   : ${resolveVaultSource()}`,
     `  TLS certificate   : ${resolveTlsSource()}`,
@@ -67,5 +77,5 @@ export function logStartupBanner(configService: ConfigService, listen: StartupLi
     `  CMS TLS verify    : ${configService.getCmsRejectUnauthorized()}`,
     '========================================',
   ];
-  console.log(lines.join('\n'));
+  logger.log(lines.join('\n'), 'Bootstrap');
 }

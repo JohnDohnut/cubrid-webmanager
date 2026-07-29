@@ -5,7 +5,7 @@ import 'module-alias/register';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as express from 'express';
-import { getHttpsOptions, logStartupBanner } from '@util';
+import { getHttpsOptions, logStartupBanner, createWinstonLogger, startLogConfigWatcher } from '@util';
 import { GlobalExceptionFilter } from '@error/global-filter';
 import { createValidationPipe } from '@error/validation/create-validation-pipe';
 import { ConfigService } from '@config/config.service';
@@ -14,13 +14,20 @@ import { SuccessResponseInterceptor, LoggingInterceptor } from '@common'; // Upd
 async function bootstrap() {
   loadRuntimeEnv();
   const httpsOptions = getHttpsOptions();
-  const isProduction = (process.env.ENVIRONMENT ?? '').toLowerCase() === 'production';
+  // A standalone instance (not DI-managed) since this runs before Nest's DI
+  // container exists — app.get(ConfigService) below constructs its own,
+  // functionally identical instance from the same env for everything else.
+  const bootConfig = new ConfigService();
+  // Kept as a variable (not inlined) so logStartupBanner can log through the
+  // same instance below — otherwise the banner would only reach the console
+  // (via a raw console.log) and never make it into the log file.
+  const appLogger = createWinstonLogger(bootConfig);
   const app = await NestFactory.create(AppModule, {
     httpsOptions,
-    // 'log' is required — LoggingInterceptor's incoming/outgoing request
-    // audit trail is emitted at that level. Without it here, only errors
-    // and warnings reach the console; ordinary traffic is silently dropped.
-    logger: isProduction ? ['error', 'warn', 'log'] : ['error', 'warn', 'log', 'debug', 'verbose'],
+    // Includes 'log' — LoggingInterceptor's incoming/outgoing request audit
+    // trail is emitted at that level. Without it, only errors and warnings
+    // would be recorded, silently dropping ordinary traffic.
+    logger: appLogger,
   });
   app.getHttpAdapter().getInstance().set('trust proxy', true);
   const configService = app.get(ConfigService);
@@ -117,7 +124,11 @@ async function bootstrap() {
   if (unixSocket) {
     removeStaleUnixSocket(unixSocket);
     await app.listen(unixSocket);
-    logStartupBanner(configService, { kind: 'unixSocket', socketPath: unixSocket });
+    logStartupBanner(configService, { kind: 'unixSocket', socketPath: unixSocket }, appLogger);
+    // bootConfig (not configService) — winston-logger.ts tracks the
+    // instance it was actually built from, so reloads must go through that
+    // same object.
+    startLogConfigWatcher(bootConfig, appLogger);
     return;
   }
 
@@ -127,7 +138,8 @@ async function bootstrap() {
   } else {
     await app.listen(port);
   }
-  logStartupBanner(configService, { kind: 'tcp', host: boundHost, port });
+  logStartupBanner(configService, { kind: 'tcp', host: boundHost, port }, appLogger);
+  startLogConfigWatcher(bootConfig, appLogger);
 }
 bootstrap();
 

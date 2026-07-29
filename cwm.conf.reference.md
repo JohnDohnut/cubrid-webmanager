@@ -38,3 +38,9 @@ unreadable.
 | `CMS_JOB_RECOVER_ON_STARTUP` | Resume tracking jobs that were still running when the server restarted | `true` |
 | `SERVER_IP` | IP to include in the auto-generated self-signed certificate (avoids browser warnings when accessed by IP) | detected from network interfaces |
 | `CWM_SSL_DIR` | Directory to read/write the self-signed cert from | `ssl/` next to the executable |
+| `LOG_TO_FILE` | Write logs to a file in addition to the console | `true` |
+| `LOG_DIR` | Directory for log files | `logs/` next to the executable |
+| `LOG_LEVEL` | Minimum level written (`error`, `warn`, `log`, `debug`, `verbose`) — same vocabulary as NestJS | `log` in production, `debug` otherwise |
+| `LOG_MAX_SIZE` | Rotate to a new file once the current one reaches this size, e.g. `20m`, `500k` | `20m` |
+| `LOG_MAX_FILES` | How long to keep rotated files — a duration like `14d`, or a plain count like `20` | `14d` |
+| `LOG_APPEND_ON_RESTART` | `true` to keep appending to today's log file across restarts, `false` to start each restart with a clean file | `true` |
