@@ -160,10 +160,13 @@ export const CM = {
   unloadResultTitle: 'Unload Database Result',
   unloadResultMsg: 'Below you can view the unload database result informaton.',
   grpDbInfo: 'Database Information',
-  targetDbName: 'Target database name',
-  targetDirectory: 'Target directory',
+  targetDbName: 'Target database name:',
+  targetDirectory: 'Target directory:',
   unloadTarget: 'Unload Target',
   unloadOption: 'Unload Option',
+  schema: 'Schema',
+  data: 'Data',
+  notInclude: 'Not include',
   unloadTableScope: 'Tables',
   unloadIncludeLabel: 'Include',
   includeSchema: 'Include Schema',
@@ -177,6 +180,7 @@ export const CM = {
   numCachedPages: 'Number of cached pages',
   estimatedInstances: 'Estimated number of instances',
   loFileCountPerDir: 'Lo file count per a directory',
+  selectAtLeastOneScope: 'Please select at least one target scope (Schema or Data) to unload.',
   availableClasses: 'Available Classes',
 
   // Load Database (loaddb)
