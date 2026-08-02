@@ -441,6 +441,7 @@ export default function ImportExportHostModal() {
       icon={icon}
       loading={isProcessing}
       maxWidth="max-w-[720px]"
+      testId="import-export-host"
       subtitle={isPasswordPromptStep
         ? CM.pendingPasswordsSubtitle(pendingPasswordHosts.length)
         : isPasswordStep
@@ -507,6 +508,7 @@ export default function ImportExportHostModal() {
             ) : (
             <>
             <Button
+              data-testid="import-export-host-discard-btn"
               variant="secondary"
               onClick={() => {
                 if (isPasswordStep) {
@@ -536,6 +538,7 @@ export default function ImportExportHostModal() {
               </Button>
             )}
             <Button
+              data-testid="import-export-host-action-btn"
               variant="primary"
               onClick={isPasswordStep ? handleApplyImportedPasswords : handleAction}
               disabled={isPasswordStep ? isProcessing : (selectedHosts.length === 0 || isProcessing)}

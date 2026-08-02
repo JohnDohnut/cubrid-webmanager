@@ -124,12 +124,13 @@ export default function CompactDatabaseModal() {
       subtitle={CM.compactDatabaseMessage}
       icon="compress"
       maxWidth="480px"
+      testId="compact-database"
       footer={
         <div className="flex justify-end gap-3 w-full">
-          <Button variant="secondary" onClick={handleClose}>
+          <Button data-testid="compact-database-cancel-btn" variant="secondary" onClick={handleClose}>
             {CM.cancel}
           </Button>
-          <Button variant="primary" onClick={handleCompact} icon="play_circle" className="min-w-[140px]">
+          <Button data-testid="compact-database-run-btn" variant="primary" onClick={handleCompact} icon="play_circle" className="min-w-[140px]">
             {CM.ok}
           </Button>
         </div>

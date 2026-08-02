@@ -90,12 +90,6 @@ import DatabaseTree from '../sidebar/components/DatabaseTree';
 import BrokerTree from '../sidebar/components/BrokerTree';
 import LogTree from '../sidebar/components/LogTree';
 import SidebarEmptyState from '../sidebar/components/SidebarEmptyState';
-import AddQueryPlanModal from '../../database/components/AddQueryPlanModal';
-import AutoQueryLogModal from '../../database/components/AutoQueryLogModal';
-import SetAutomationVolumeModal from '../../database/components/SetAutomationVolumeModal';
-import EditQueryPlanModal from '../../database/components/EditQueryPlanModal';
-import DeleteQueryPlanModal from '../../database/components/DeleteQueryPlanModal';
-import AutoVolumeLogModal from '../../database/components/AutoVolumeLogModal';
 import CMSUserManagementModal from '../../host/components/CMSUserManagementModal';
 import EditCMSUserModal from '../../host/components/EditCMSUserModal';
 import { openCreateGroupModal, openDeleteGroupModal, openRenameGroupModal, openAddHostModal, openManageGroupMembersModal } from '../../host/hostSlice';
@@ -509,6 +503,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                 )}
                 {!isServerListCollapsed && (
                   <button
+                    data-testid="add-host-toolbar-btn"
                     onClick={(e) => { e.stopPropagation(); onAddHost(); }}
                     className="flex items-center gap-1 h-6 px-2 rounded-sm border border-slate-200 dark:border-white/10 bg-white dark:bg-white/4 text-slate-400 hover:text-amber-500 hover:border-amber-400/50 hover:bg-amber-500/5 dark:hover:bg-amber-500/10 transition-all active:scale-95 shadow-xs"
                     title={CM.addHost}
@@ -519,6 +514,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                 )}
                 {!isServerListCollapsed && (
                   <button
+                    data-testid="new-group-toolbar-btn"
                     onClick={(e) => { e.stopPropagation(); dispatch(openCreateGroupModal()); }}
                     className="flex items-center gap-1 h-6 px-2 rounded-sm border border-slate-200 dark:border-white/10 bg-white dark:bg-white/4 text-slate-400 hover:text-amber-500 hover:border-amber-400/50 hover:bg-amber-500/5 dark:hover:bg-amber-500/10 transition-all active:scale-95 shadow-xs"
                     title={CM.newGroup}
@@ -706,7 +702,11 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                   )}
 
 
-                  <div className={`mt-2 ${(!authorizedHosts.includes(selectedHostUid) || isLoggingIntoHost) ? 'opacity-20 blur-[1px] pointer-events-none' : 'opacity-100'}`} id="db-tree-container">
+                  <div
+                    className={`mt-2 ${(!authorizedHosts.includes(selectedHostUid) || isLoggingIntoHost) ? 'opacity-20 blur-[1px] pointer-events-none' : 'opacity-100'}`}
+                    id="db-tree-container"
+                    data-authorized={authorizedHosts.includes(selectedHostUid) && !isLoggingIntoHost}
+                  >
                     <div className={activeTab !== 'db' ? 'hidden' : ''}>
                       <DatabaseTree
                         onContextMenu={handleDbContextMenu}
@@ -720,7 +720,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                         onQueryItemContextMenu={handleQueryItemContextMenu}
                       />
                     </div>
-                    <div className={activeTab !== 'broker' ? 'hidden' : ''}>
+                    <div id="broker-tree-container" className={activeTab !== 'broker' ? 'hidden' : ''}>
                       <BrokerTree
                         key={selectedHostUid}
                         hostUid={selectedHostUid}
@@ -1732,12 +1732,6 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
         </ContextMenuWrapper>
       )}
 
-      <AutoQueryLogModal />
-      <AddQueryPlanModal />
-      <SetAutomationVolumeModal />
-      <EditQueryPlanModal />
-      <DeleteQueryPlanModal />
-      <AutoVolumeLogModal />
       <CMSUserManagementModal />
       <EditCMSUserModal />
       <ConfirmDialog

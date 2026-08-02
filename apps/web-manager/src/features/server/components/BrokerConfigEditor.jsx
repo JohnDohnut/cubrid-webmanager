@@ -96,7 +96,7 @@ export default function BrokerConfigEditor({ hostUid }) {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-50 dark:bg-bk-main overflow-hidden font-sans transition-colors">
+    <div data-testid="broker-config-editor" className="flex-1 flex flex-col bg-slate-50 dark:bg-bk-main overflow-hidden font-sans transition-colors">
       <ConfigEditorToolbar 
         hostDisplayName={hostDisplayName}
         hasChanges={hasChanges}

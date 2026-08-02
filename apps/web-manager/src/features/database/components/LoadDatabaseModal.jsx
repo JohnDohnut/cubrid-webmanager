@@ -383,10 +383,11 @@ export default function LoadDatabaseModal() {
       }
       icon="download"
       maxWidth="720px"
+      testId="load-database"
       footer={
         <div className="flex justify-end gap-2 w-full">
-          <Button variant="ghost" onClick={handleClose}>{CM.cancel}</Button>
-          <Button onClick={handleLoadDatabase} icon="play_circle" disabled={!isFormValid}>
+          <Button data-testid="load-database-cancel-btn" variant="ghost" onClick={handleClose}>{CM.cancel}</Button>
+          <Button data-testid="load-database-run-btn" onClick={handleLoadDatabase} icon="play_circle" disabled={!isFormValid}>
             {CM.ok}
           </Button>
         </div>

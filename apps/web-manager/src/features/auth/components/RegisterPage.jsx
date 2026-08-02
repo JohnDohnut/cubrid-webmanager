@@ -51,7 +51,12 @@ export default function RegisterPage() {
     if (!username.trim()) errs.username = CM.usernameRequired;
     else if (username.length < 3) errs.username = CM.minChars3;
     if (!password) errs.password = CM.passwordRequired;
-    else if (password.length < 6) errs.password = CM.atLeast6Chars;
+    // Must match the server's actual policy (passwordValidityChecker: >= 8
+    // chars, at least one letter and one digit) — otherwise a password that
+    // passes here can still be rejected after a round trip to the server.
+    else if (password.trim().length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+      errs.password = CM.passwordPolicyHint;
+    }
     if (!confirmPassword) errs.confirmPassword = CM.confirmPasswordRequired;
     else if (password !== confirmPassword) errs.confirmPassword = CM.passwordsDoNotMatch;
     return errs;
@@ -163,6 +168,7 @@ export default function RegisterPage() {
 
           {/* Username */}
           <Input
+            data-testid="register-username-input"
             label={CM.username}
             icon="person_pin"
             placeholder={CM.pickUniqueUsername}
@@ -174,6 +180,7 @@ export default function RegisterPage() {
 
           {/* Password */}
           <Input
+            data-testid="register-password-input"
             label={CM.password}
             icon={strength.level >= 3 ? 'verified_user' : 'fingerprint'}
             type={showPassword ? 'text' : 'password'}
@@ -204,6 +211,7 @@ export default function RegisterPage() {
 
           {/* Confirm Password */}
           <Input
+            data-testid="register-confirm-password-input"
             label={CM.passwordConfirm}
             icon="verified"
             type={showConfirm ? 'text' : 'password'}
@@ -236,6 +244,7 @@ export default function RegisterPage() {
           {/* Submit */}
           <button
             type="submit"
+            data-testid="register-submit-btn"
             disabled={loading}
             className="w-full h-10 mt-1 bg-slate-900 dark:bg-amber-500 text-white dark:text-black text-[13px] font-bold rounded-xl shadow-md hover:shadow-[0_0_12px_rgba(16,185,129,0.3)] hover:bg-slate-800 dark:hover:bg-amber-400 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 group cursor-pointer"
           >

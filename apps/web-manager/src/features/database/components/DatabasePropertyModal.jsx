@@ -503,13 +503,14 @@ export default function DatabasePropertyModal() {
         : CM.deepSystemConfigDesc}
       icon={activeSidebar === 'Connection Information' ? 'cable' : 'tune'}
       maxWidth="900px"
+      testId="database-property"
       footer={
         <div className="flex justify-between items-center w-full">
           <div>
             {Object.keys(params).length > 0 && (
-              <Button 
-                variant="ghost" 
-                icon="restart_alt" 
+              <Button
+                variant="ghost"
+                icon="restart_alt"
                 onClick={handleReset}
                 className="text-amber-500 hover:bg-amber-500/5"
               >
@@ -518,8 +519,8 @@ export default function DatabasePropertyModal() {
             )}
           </div>
           <div className="flex gap-2.5">
-            <Button variant="ghost" onClick={handleClose}>{CM.discard}</Button>
-            <Button variant="primary" onClick={handleApply} icon="save" className="min-w-[140px]">{CM.applyChanges}</Button>
+            <Button data-testid="database-property-discard-btn" variant="ghost" onClick={handleClose}>{CM.discard}</Button>
+            <Button data-testid="database-property-apply-btn" variant="primary" onClick={handleApply} icon="save" className="min-w-[140px]">{CM.applyChanges}</Button>
           </div>
         </div>
       }

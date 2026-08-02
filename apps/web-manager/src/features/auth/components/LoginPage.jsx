@@ -123,6 +123,7 @@ export default function LoginPage() {
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-3">
           <Input
+            data-testid="login-username-input"
             label={CM.username}
             icon="account_circle"
             placeholder={CM.username}
@@ -133,6 +134,7 @@ export default function LoginPage() {
           />
 
           <Input
+            data-testid="login-password-input"
             label={CM.password}
             labelExtra={<Link to="/forgot-password" title={CM.recoverPassword} className="text-amber-500 hover:text-amber-400 transition-colors">{CM.forgotLink}</Link>}
             icon="lock"
@@ -145,6 +147,7 @@ export default function LoginPage() {
             suffix={
               <button
                 type="button"
+                data-testid="login-password-toggle"
                 onClick={() => setShowPassword(!showPassword)}
                 className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors p-1 flex items-center justify-center"
               >
@@ -171,6 +174,7 @@ export default function LoginPage() {
           {/* Submit */}
           <button
             type="submit"
+            data-testid="login-submit-btn"
             disabled={loading}
             className="w-full h-10 mt-1 bg-slate-900 dark:bg-amber-500 text-white dark:text-black text-[13px] font-bold rounded-xl shadow-md hover:shadow-[0_0_12px_rgba(245,158,11,0.3)] hover:bg-slate-800 dark:hover:bg-amber-400 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 group cursor-pointer"
           >
