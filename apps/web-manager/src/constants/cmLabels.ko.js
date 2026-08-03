@@ -472,7 +472,6 @@ export const CM_KO = {
 
   signIn: '로그인',
   authorizeAccess: '로그인',
-  rememberDevice: '이 기기 기억',
   authenticationFailed: '인증 실패',
   createAccount: '계정 만들기',
   backToLogin: '로그인으로 돌아가기',

@@ -487,7 +487,6 @@ export const CM = {
   // Auth
   signIn: 'Sign In',
   authorizeAccess: 'Login',
-  rememberDevice: 'Remember this device',
   authenticationFailed: 'Authentication Failed',
   createAccount: 'Create Account',
   backToLogin: 'Back to Login',
