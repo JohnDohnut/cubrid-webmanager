@@ -48,6 +48,7 @@ export default function ServerListItem({
   return (
     <div
       title={`${host.address}:${host.port}`}
+      data-testid={`host-item-${host.uid}`}
       draggable={draggable}
       onDragStart={draggable ? onDragStart : undefined}
       onDragEnd={draggable ? onDragEnd : undefined}

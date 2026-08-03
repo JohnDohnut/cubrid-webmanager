@@ -180,14 +180,15 @@ export default function Breadcrumb({
         </ContextMenuWrapper>
       )}
  
-      <ConfirmDialog 
+      <ConfirmDialog
         isOpen={confirmModal.isOpen}
         title={confirmModal.title}
-        message={confirmModal.message}
+        description={confirmModal.message}
         onConfirm={confirmModal.onConfirm}
-        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
-        confirmText={CM.discard}
-        type="warning"
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        confirmLabel={CM.discard}
+        variant="danger"
+        testId="close-dirty-tab"
       />
     </div>
   );

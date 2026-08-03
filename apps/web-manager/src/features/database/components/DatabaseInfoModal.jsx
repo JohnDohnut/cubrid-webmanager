@@ -171,10 +171,11 @@ export default function DatabaseInfoModal() {
         title={CM.usedParameterDump}
         icon="analytics"
         maxWidth="900px"
+        testId="database-info"
         footer={
           <div className="flex justify-end gap-3 w-full">
-            <Button variant="outline" onClick={() => setView(VIEW_FORM)}>{CM.cancel}</Button>
-            <Button variant="primary" onClick={handleClose} icon="check_circle">{CM.close}</Button>
+            <Button data-testid="database-info-back-btn" variant="outline" onClick={() => setView(VIEW_FORM)}>{CM.cancel}</Button>
+            <Button data-testid="database-info-close-btn" variant="primary" onClick={handleClose} icon="check_circle">{CM.close}</Button>
           </div>
         }
       >
@@ -217,10 +218,11 @@ export default function DatabaseInfoModal() {
       subtitle={CM.parameterDumpSubtitle}
       icon="database"
       maxWidth="500px"
+      testId="database-info"
       footer={
         <div className="flex justify-end gap-3 w-full">
-          <Button variant="ghost" onClick={handleClose}>{CM.cancel}</Button>
-          <Button variant="primary" onClick={handleRunDump} icon="analytics">{CM.ok}</Button>
+          <Button data-testid="database-info-cancel-btn" variant="ghost" onClick={handleClose}>{CM.cancel}</Button>
+          <Button data-testid="database-info-run-btn" variant="primary" onClick={handleRunDump} icon="analytics">{CM.ok}</Button>
         </div>
       }
     >

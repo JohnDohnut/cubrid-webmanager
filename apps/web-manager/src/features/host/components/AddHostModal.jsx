@@ -163,12 +163,14 @@ export default function AddHostModal({ isOpen, onClose }) {
       icon="add_link"
       maxWidth="max-w-[500px]"
       loading={loading}
+      testId="add-host"
       footer={
         <>
-          <Button variant="secondary" onClick={handleClose} disabled={loading}>
+          <Button data-testid="add-host-discard-btn" variant="secondary" onClick={handleClose} disabled={loading}>
             {CM.discard}
           </Button>
           <Button
+            data-testid="add-host-save-btn"
             variant="secondary"
             onClick={handleSave}
             loading={loading}
@@ -178,6 +180,7 @@ export default function AddHostModal({ isOpen, onClose }) {
             {CM.saveChanges}
           </Button>
           <Button
+            data-testid="add-host-connect-save-btn"
             variant="primary"
             onClick={handleTestConnectionAndSave}
             loading={loading}

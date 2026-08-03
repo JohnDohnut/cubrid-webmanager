@@ -128,6 +128,7 @@ export default function DatabaseVolumes({ hostUid }) {
 
   return (
     <Card
+      testId="server-dashboard-storage-volumes"
       title={
         <div className="flex items-center gap-2">
           <Icon name="storage" size="sm" weight={300} className="text-amber-500" />

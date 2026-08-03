@@ -26,6 +26,9 @@ export default function EditHostModal() {
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
+    // Only re-populate when the modal opens (or targets a different host) —
+    // NOT whenever `hosts` changes. A background hosts refresh while this
+    // modal is open must not silently overwrite in-progress edits.
     if (isEditHostModalOpen && hostToEditUid) {
       const hostToEdit = hosts.find((h) => h.uid === hostToEditUid);
       if (hostToEdit) {
@@ -39,7 +42,8 @@ export default function EditHostModal() {
       }
       setErrors({});
     }
-  }, [isEditHostModalOpen, hostToEditUid, hosts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditHostModalOpen, hostToEditUid]);
 
   if (!isEditHostModalOpen) return null;
 
@@ -138,12 +142,14 @@ export default function EditHostModal() {
       icon="settings_input_component"
       loading={loading}
       maxWidth="max-w-[500px]"
+      testId="edit-host"
       footer={
         <>
-          <Button variant="secondary" onClick={handleClose} disabled={loading}>
+          <Button data-testid="edit-host-discard-btn" variant="secondary" onClick={handleClose} disabled={loading}>
             {CM.discard}
           </Button>
           <Button
+            data-testid="edit-host-save-btn"
             variant="secondary"
             onClick={handleSave}
             loading={loading}
@@ -153,6 +159,7 @@ export default function EditHostModal() {
             {CM.saveChanges}
           </Button>
           <Button
+            data-testid="edit-host-connect-save-btn"
             variant="primary"
             onClick={handleTestConnectionAndSave}
             loading={loading}

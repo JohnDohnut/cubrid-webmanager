@@ -148,7 +148,7 @@ const Component = function ServerContent({ hostUid }) {
   }));
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white dark:bg-background-dark overflow-hidden">
+    <div data-testid="server-dashboard" className="flex-1 flex flex-col h-full bg-white dark:bg-background-dark overflow-hidden">
 
       {/* ── Header ── */}
       <header className="px-6 py-2.5 border-b border-slate-100 dark:border-white/4 flex items-center justify-between shrink-0 sticky top-0 z-20 bg-linear-to-r from-amber-500/[0.03] to-transparent bg-white dark:bg-background-dark font-sans shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
@@ -178,6 +178,7 @@ const Component = function ServerContent({ hostUid }) {
           </Typography>
 
           <button
+            data-testid="server-dashboard-refresh-btn"
             onClick={() => handleRefresh()}
             disabled={isRefreshing}
             className={`w-9 h-9 flex items-center justify-center rounded-lg border transition-all active:scale-[0.98]

@@ -138,46 +138,61 @@ export default function CreateDatabaseModal() {
 
   const hostEnv = useSelector((state) => state.host.hostEnvs[selectedHostUid]);
 
+  // Runs once per modal opening — NOT every time hostEnv?.CUBRID_DATABASES
+  // changes. It used to depend on that value directly, so the async
+  // fetchCreateDatabaseInfo below (or hostEnv arriving later) re-triggered
+  // this effect and called setFormData(INITIAL_FORM_DATA) again, silently
+  // wiping out whatever the user had already typed (e.g. the db name).
+  const hasInitializedRef = useRef(false);
   useEffect(() => {
-    if (isCreateDatabaseModalOpen && selectedHostUid) {
-      jobDismissedRef.current = false;
-      setStep(1);
-      resetAction();
-      setFormData(INITIAL_FORM_DATA);
-      
-      // 1. Immediate Population: Use cached system info if available
-      const cachedDir = hostEnv?.CUBRID_DATABASES;
-      if (cachedDir) {
-        setFormData(prev => ({
-          ...prev,
-          baseDir: cachedDir,
-          genericVolPath: cachedDir,
-          logVolPath: cachedDir,
-          volumes: prev.volumes.map(vol => ({ ...vol, path: cachedDir }))
-        }));
-      } else {
-        // 2. Proactive Fetch: If missing, fetch system environment metadata
-        // dispatch(fetchHostEnv(selectedHostUid));
-      }
-
-      // 3. Backend Fallback: Fetch specific create-info
-      dispatch(fetchCreateDatabaseInfo({ hostUid: selectedHostUid }))
-        .unwrap()
-        .then(data => {
-          const dir = hostEnv?.CUBRID_DATABASES || data?.default_db_dir;
-          if (dir) {
-            setFormData(prev => ({
-              ...prev,
-              baseDir: dir,
-              genericVolPath: prev.genericVolPath || dir,
-              logVolPath: prev.logVolPath || dir,
-              volumes: prev.volumes.map(vol => ({ ...vol, path: vol.path || dir }))
-            }));
-          }
-        })
-        .catch(() => {});
+    if (!isCreateDatabaseModalOpen) {
+      hasInitializedRef.current = false;
+      return;
     }
-  }, [isCreateDatabaseModalOpen, selectedHostUid, dispatch, hostEnv?.CUBRID_DATABASES, resetAction]);
+    if (!selectedHostUid || hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
+
+    jobDismissedRef.current = false;
+    setStep(1);
+    resetAction();
+    setFormData(INITIAL_FORM_DATA);
+
+    // Backend fallback in case hostEnv (below) never arrives or is stale.
+    // Uses functional merges (prev.x || dir), so it's safe even if the user
+    // has already started typing by the time this resolves.
+    dispatch(fetchCreateDatabaseInfo({ hostUid: selectedHostUid }))
+      .unwrap()
+      .then(data => {
+        const dir = data?.default_db_dir;
+        if (dir) {
+          setFormData(prev => ({
+            ...prev,
+            baseDir: prev.baseDir || dir,
+            genericVolPath: prev.genericVolPath || dir,
+            logVolPath: prev.logVolPath || dir,
+            volumes: prev.volumes.map(vol => ({ ...vol, path: vol.path || dir }))
+          }));
+        }
+      })
+      .catch(() => {});
+  }, [isCreateDatabaseModalOpen, selectedHostUid, dispatch, resetAction]);
+
+  // Reacts to hostEnv arriving (or changing) independently of the one-time
+  // reset above, so a late-resolving fetch still populates the path fields
+  // — merging via prev.x || dir rather than replacing, so it never clobbers
+  // a value the user (or the fetch above) has already set.
+  useEffect(() => {
+    if (!isCreateDatabaseModalOpen) return;
+    const cachedDir = hostEnv?.CUBRID_DATABASES;
+    if (!cachedDir) return;
+    setFormData(prev => ({
+      ...prev,
+      baseDir: prev.baseDir || cachedDir,
+      genericVolPath: prev.genericVolPath || cachedDir,
+      logVolPath: prev.logVolPath || cachedDir,
+      volumes: prev.volumes.map(vol => ({ ...vol, path: vol.path || cachedDir }))
+    }));
+  }, [isCreateDatabaseModalOpen, hostEnv?.CUBRID_DATABASES]);
 
   useEffect(() => {
     const { dbName, baseDir } = formData;
@@ -332,8 +347,8 @@ export default function CreateDatabaseModal() {
   /* ─── SUCCESS view ─── */
   if (isSuccess) {
     return (
-      <Modal isOpen title={CM.createDatabase} icon="add_circle" iconVariant="success" onClose={handleClose} maxWidth="600px">
-        <ModalStatusSuccess 
+      <Modal isOpen title={CM.createDatabase} icon="add_circle" iconVariant="success" onClose={handleClose} maxWidth="600px" testId="create-database">
+        <ModalStatusSuccess
           title={CM.success}
           message={CM.createDbJobComplete(CM.createDatabase)}
           onConfirm={handleClose}
@@ -346,8 +361,8 @@ export default function CreateDatabaseModal() {
   /* ─── ERROR view ─── */
   if (isError) {
     return (
-      <Modal isOpen title={CM.createDatabase} icon="add_circle" iconVariant="danger" onClose={resetAction} maxWidth="600px">
-        <ModalStatusError 
+      <Modal isOpen title={CM.createDatabase} icon="add_circle" iconVariant="danger" onClose={resetAction} maxWidth="600px" testId="create-database">
+        <ModalStatusError
           title={CM.failure}
           error={error}
           onRetry={handleFinish}
@@ -367,6 +382,7 @@ export default function CreateDatabaseModal() {
       subtitle={CM.createDatabaseMsg}
       icon="add_circle"
       maxWidth="780px"
+      testId="create-database"
       footer={
         <div className="flex w-full items-center justify-between">
           <div className="flex items-center gap-1.5">
@@ -383,14 +399,15 @@ export default function CreateDatabaseModal() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="ghost" onClick={handleClose}>{CM.cancel}</Button>
+            <Button data-testid="create-database-cancel-btn" variant="ghost" onClick={handleClose}>{CM.cancel}</Button>
             {step > 1 && (
-              <Button variant="outline" onClick={handleBack}>
+              <Button data-testid="create-database-back-btn" variant="outline" onClick={handleBack}>
                 {CM.back}
               </Button>
             )}
             {step < 5 ? (
               <Button
+                data-testid="create-database-next-btn"
                 variant="primary"
                 onClick={handleNext}
                 disabled={!isFormValid()}
@@ -401,7 +418,7 @@ export default function CreateDatabaseModal() {
                 {CM.next}
               </Button>
             ) : (
-              <Button variant="primary" onClick={handleFinish} icon="done_all" className="min-w-[140px]">
+              <Button data-testid="create-database-finish-btn" variant="primary" onClick={handleFinish} icon="done_all" className="min-w-[140px]">
                 {CM.finish}
               </Button>
             )}
@@ -472,6 +489,7 @@ export default function CreateDatabaseModal() {
             <SectionHeader title={CM.wizardGeneral} icon="settings" className="mb-4" />
               <div className="grid grid-cols-2 gap-4">
                 <Input
+                  data-testid="create-database-name-input"
                   label={CM.databaseName}
                   value={formData.dbName}
                   onChange={(e) => handleInputChange('dbName', e.target.value)}
@@ -518,8 +536,8 @@ export default function CreateDatabaseModal() {
                     </span>
                     <span className="text-[9px] font-black uppercase bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded-sm border border-amber-500/20">{CM.systemBadge}</span>
                   </div>
-                  <Input label={CM.genericVolPath} value={formData.genericVolPath} disabled size="sm" />
-                  <Input label={CM.volumeSize} type="number" value={formData.genericVolSize} onChange={(e) => handleInputChange('genericVolSize', Number(e.target.value))} size="sm" />
+                  <Input data-testid="create-database-generic-path-input" label={CM.genericVolPath} value={formData.genericVolPath} disabled size="sm" />
+                  <Input data-testid="create-database-generic-size-input" label={CM.volumeSize} type="number" value={formData.genericVolSize} onChange={(e) => handleInputChange('genericVolSize', Number(e.target.value))} size="sm" />
                 </div>
 
                 <div className="space-y-3 p-4 bg-slate-50/50 dark:bg-white/3 border border-slate-200 dark:border-white/5 rounded-2xl">
@@ -532,14 +550,15 @@ export default function CreateDatabaseModal() {
                   </div>
                   <Input label={CM.logVolPath} value={formData.logVolPath} disabled size="sm" />
                   <div className="grid grid-cols-2 gap-2">
-                    <Input label={CM.volumeSize} type="number" value={formData.logVolSize} onChange={(e) => handleInputChange('logVolSize', Number(e.target.value))} size="sm" />
+                    <Input data-testid="create-database-log-size-input" label={CM.volumeSize} type="number" value={formData.logVolSize} onChange={(e) => handleInputChange('logVolSize', Number(e.target.value))} size="sm" />
                     <Select label={CM.logPageSize} value={formData.logPageSize} onChange={(e) => handleInputChange('logPageSize', parseInt(e.target.value))} options={PAGE_SIZES.map(s => ({ value: s, label: `${s / 1024}K` }))} size="sm" />
                   </div>
                 </div>
               </div>
             </div>
 
-            <div 
+            <div
+              data-testid="create-database-autostart-toggle"
               className={`flex items-center justify-between p-4 border rounded-2xl transition-all duration-200 cursor-pointer select-none
                 ${formData.autoStart ? 'bg-amber-500/5 border-amber-500/20' : 'bg-white dark:bg-white/2 border-slate-100 dark:border-white/5'}`}
               onClick={() => handleInputChange('autoStart', !formData.autoStart)}
@@ -747,6 +766,7 @@ export default function CreateDatabaseModal() {
 
             <div className="space-y-4">
               <Input
+                data-testid="create-database-dba-password-input"
                 type="password"
                 label={CM.password}
                 value={formData.dbaPassword}
@@ -755,6 +775,7 @@ export default function CreateDatabaseModal() {
                 icon="key"
               />
               <Input
+                data-testid="create-database-confirm-password-input"
                 type="password"
                 label={CM.passwordConfirm}
                 value={formData.confirmPassword}

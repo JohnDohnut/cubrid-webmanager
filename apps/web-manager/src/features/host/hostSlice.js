@@ -809,8 +809,6 @@ const hostSlice = createSlice({
       })
       .addCase(setHostPassword.fulfilled, (state) => {
         state.loading = false;
-        state.isChangePasswordModalOpen = false;
-        state.changePasswordHostUid = null;
       })
       .addCase(setHostPassword.rejected, (state, action) => {
         state.loading = false;

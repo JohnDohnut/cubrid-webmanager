@@ -107,10 +107,11 @@ export default function CheckDatabaseModal() {
       title={CM.checkDatabase}
       icon="verified"
       maxWidth="480px"
+      testId="check-database"
       footer={
         <div className="flex justify-end gap-2 w-full">
-          <Button variant="secondary" onClick={handleClose}>{CM.cancel}</Button>
-          <Button variant="primary" onClick={handleCheck} icon="play_circle">{CM.ok}</Button>
+          <Button data-testid="check-database-cancel-btn" variant="secondary" onClick={handleClose}>{CM.cancel}</Button>
+          <Button data-testid="check-database-run-btn" variant="primary" onClick={handleCheck} icon="play_circle">{CM.ok}</Button>
         </div>
       }
     >
