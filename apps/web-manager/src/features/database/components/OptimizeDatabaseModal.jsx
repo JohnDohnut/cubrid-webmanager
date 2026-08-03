@@ -328,7 +328,7 @@ export default function OptimizeDatabaseModal() {
       testId="optimize-database"
       footer={
         <div className="flex justify-end gap-3 w-full">
-          <Button data-testid="optimize-database-discard-btn" variant="secondary" onClick={handleClose}>
+          <Button data-testid="optimize-database-cancel-btn" variant="secondary" onClick={handleClose}>
             {CM.cancel}
           </Button>
           <Button
