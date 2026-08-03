@@ -557,7 +557,7 @@ export default function RestoreDatabaseModal() {
             <span>{CM.databaseMustBeStopped}</span>
           </div>
           <div className="flex items-center gap-3">
-            <Button data-testid="restore-database-discard-btn" variant="secondary" onClick={handleClose}>{CM.discard}</Button>
+            <Button data-testid="restore-database-cancel-btn" variant="secondary" onClick={handleClose}>{CM.cancel}</Button>
             <Button
               data-testid="restore-database-execute-btn"
               variant="primary"

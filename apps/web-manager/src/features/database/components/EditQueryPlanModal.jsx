@@ -254,7 +254,7 @@ export default function EditQueryPlanModal() {
       testId="edit-query-plan"
       footer={
         <div className="flex justify-end gap-3 w-full">
-          <Button data-testid="edit-query-plan-discard-btn" variant="ghost" onClick={handleClose}>{CM.discard}</Button>
+          <Button data-testid="edit-query-plan-cancel-btn" variant="ghost" onClick={handleClose}>{CM.cancel}</Button>
           <Button data-testid="edit-query-plan-save-btn" variant="primary" onClick={handleSave} icon="save" className="min-w-[140px]">{CM.saveChanges}</Button>
         </div>
       }

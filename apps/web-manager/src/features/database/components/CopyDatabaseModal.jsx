@@ -206,7 +206,7 @@ export default function CopyDatabaseModal() {
       testId="copy-database"
       footer={
         <div className="flex justify-end gap-3 w-full">
-          <Button data-testid="copy-database-discard-btn" variant="ghost" onClick={handleClose}>{CM.discard}</Button>
+          <Button data-testid="copy-database-cancel-btn" variant="ghost" onClick={handleClose}>{CM.cancel}</Button>
           <Button
             data-testid="copy-database-execute-btn"
             variant="primary"

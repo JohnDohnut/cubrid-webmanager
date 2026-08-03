@@ -166,8 +166,8 @@ export default function AddHostModal({ isOpen, onClose }) {
       testId="add-host"
       footer={
         <>
-          <Button data-testid="add-host-discard-btn" variant="secondary" onClick={handleClose} disabled={loading}>
-            {CM.discard}
+          <Button data-testid="add-host-cancel-btn" variant="secondary" onClick={handleClose} disabled={loading}>
+            {CM.cancel}
           </Button>
           <Button
             data-testid="add-host-save-btn"

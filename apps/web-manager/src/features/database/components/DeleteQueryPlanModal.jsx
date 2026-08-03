@@ -141,7 +141,7 @@ export default function DeleteQueryPlanModal() {
       testId="delete-query-plan"
       footer={
         <div className="flex justify-end gap-3 w-full">
-          <Button data-testid="delete-query-plan-discard-btn" variant="ghost" onClick={handleClose}>{CM.discard}</Button>
+          <Button data-testid="delete-query-plan-cancel-btn" variant="ghost" onClick={handleClose}>{CM.cancel}</Button>
           <Button data-testid="delete-query-plan-confirm-btn" variant="danger" onClick={handleDelete} icon="delete" className="min-w-[130px]">{CM.executeDiscard}</Button>
         </div>
       }

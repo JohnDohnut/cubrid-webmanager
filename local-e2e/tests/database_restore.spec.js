@@ -46,7 +46,7 @@ test.describe('Database Restore', () => {
     await expect(modal).toBeVisible();
     await expect(page.getByTestId('restore-database-execute-btn')).toBeVisible();
 
-    await page.getByTestId('restore-database-discard-btn').click();
+    await page.getByTestId('restore-database-cancel-btn').click();
     await expect(modal).not.toBeVisible();
   });
 
@@ -75,7 +75,7 @@ test.describe('Database Restore', () => {
     await expect(modal.getByText('The user-defined recovery path is not valid.')).toBeVisible();
     await expect(executeBtn).toBeDisabled();
 
-    await page.getByTestId('restore-database-discard-btn').click();
+    await page.getByTestId('restore-database-cancel-btn').click();
     await expect(modal).not.toBeVisible();
   });
 });

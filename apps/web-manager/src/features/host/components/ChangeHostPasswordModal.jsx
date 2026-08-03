@@ -117,12 +117,12 @@ export default function ChangeHostPasswordModal() {
         ) : (
           <>
             <Button
-              data-testid="change-host-password-discard-btn"
+              data-testid="change-host-password-cancel-btn"
               variant="secondary"
               onClick={handleClose}
               disabled={loading}
             >
-              {CM.discard}
+              {CM.cancel}
             </Button>
             <Button
               data-testid="change-host-password-submit-btn"

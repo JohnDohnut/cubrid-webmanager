@@ -508,7 +508,7 @@ export default function ImportExportHostModal() {
             ) : (
             <>
             <Button
-              data-testid="import-export-host-discard-btn"
+              data-testid="import-export-host-cancel-btn"
               variant="secondary"
               onClick={() => {
                 if (isPasswordStep) {
@@ -524,7 +524,7 @@ export default function ImportExportHostModal() {
               }}
               disabled={isProcessing}
             >
-              {isPasswordStep ? CM.skip : CM.discard}
+              {isPasswordStep ? CM.skip : CM.cancel}
             </Button>
             {isPasswordStep && (
               <Button

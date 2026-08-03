@@ -49,7 +49,7 @@ test.describe('Database Volume Management', () => {
     await dirInput.fill('');
     await expect(saveBtn).toBeDisabled();
 
-    await page.getByTestId('add-volume-discard-btn').click();
+    await page.getByTestId('add-volume-cancel-btn').click();
     await expect(modal).not.toBeVisible();
   });
 });

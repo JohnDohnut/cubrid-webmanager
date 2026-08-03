@@ -206,7 +206,7 @@ export default function AddVolumeModal() {
             <span>{CM.activeInstanceRequired}</span>
           </div>
           <div className="flex gap-3">
-            <Button data-testid="add-volume-discard-btn" variant="ghost" onClick={handleClose}>{CM.discard}</Button>
+            <Button data-testid="add-volume-cancel-btn" variant="ghost" onClick={handleClose}>{CM.cancel}</Button>
             <Button
               data-testid="add-volume-save-btn"
               variant="primary"

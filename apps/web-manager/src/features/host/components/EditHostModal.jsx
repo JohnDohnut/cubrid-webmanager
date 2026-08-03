@@ -145,8 +145,8 @@ export default function EditHostModal() {
       testId="edit-host"
       footer={
         <>
-          <Button data-testid="edit-host-discard-btn" variant="secondary" onClick={handleClose} disabled={loading}>
-            {CM.discard}
+          <Button data-testid="edit-host-cancel-btn" variant="secondary" onClick={handleClose} disabled={loading}>
+            {CM.cancel}
           </Button>
           <Button
             data-testid="edit-host-save-btn"

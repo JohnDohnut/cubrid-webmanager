@@ -339,7 +339,7 @@ export default function CreateUserModal({ isOpen, onClose, dbname, editingUser }
             <span className="opacity-60 font-mono">{dbname}</span>
           </div>
           <div className="flex gap-2">
-            <Button data-testid="create-user-discard-btn" variant="ghost" onClick={onClose}>{CM.discard}</Button>
+            <Button data-testid="create-user-cancel-btn" variant="ghost" onClick={onClose}>{CM.cancel}</Button>
             <Button data-testid="create-user-save-btn" onClick={handleSave} icon={isEditMode ? 'save' : 'person_add'} disabled={!formData.name} className="min-w-[140px]">
               {isEditMode ? CM.saveChanges : CM.createUser}
             </Button>

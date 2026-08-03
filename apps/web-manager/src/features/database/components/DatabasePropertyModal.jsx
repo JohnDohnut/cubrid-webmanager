@@ -519,7 +519,7 @@ export default function DatabasePropertyModal() {
             )}
           </div>
           <div className="flex gap-2.5">
-            <Button data-testid="database-property-discard-btn" variant="ghost" onClick={handleClose}>{CM.discard}</Button>
+            <Button data-testid="database-property-cancel-btn" variant="ghost" onClick={handleClose}>{CM.cancel}</Button>
             <Button data-testid="database-property-apply-btn" variant="primary" onClick={handleApply} icon="save" className="min-w-[140px]">{CM.applyChanges}</Button>
           </div>
         </div>

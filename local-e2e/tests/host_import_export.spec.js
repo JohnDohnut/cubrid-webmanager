@@ -47,7 +47,7 @@ test.describe('Host Import/Export', () => {
     const actionBtn = page.getByTestId('import-export-host-action-btn');
     await expect(actionBtn).toBeDisabled();
 
-    await page.getByTestId('import-export-host-discard-btn').click();
+    await page.getByTestId('import-export-host-cancel-btn').click();
     await expect(modal).not.toBeVisible();
   });
 });
