@@ -214,7 +214,6 @@ export default function EditHostModal() {
             <div className="col-span-3">
               <Input
                 label={CM.ipAddressDomain}
-                description={CM.ipAddressDomainDescription}
                 name="address"
                 value={formData.address}
                 onChange={handleChange}
