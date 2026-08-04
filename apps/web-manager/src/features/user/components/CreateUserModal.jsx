@@ -88,6 +88,7 @@ export default function CreateUserModal({ isOpen, onClose, dbname, editingUser }
     groups: [],
     members: [],
   });
+  const [errors, setErrors] = useState({});
 
   const [draggedItem, setDraggedItem] = useState(null);
   const [searchTerm, setSearchTerm] = useState('')
@@ -111,6 +112,7 @@ export default function CreateUserModal({ isOpen, onClose, dbname, editingUser }
     }
     if (hasInitializedRef.current) return;
     hasInitializedRef.current = true;
+    setErrors({});
 
     if (dbname && selectedHostUid) {
       resetAction();
@@ -207,6 +209,19 @@ export default function CreateUserModal({ isOpen, onClose, dbname, editingUser }
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
+  };
+
+  // Password is required when creating a new user; when editing, blank means
+  // "leave unchanged" (see the leaveBlankToKeep hint), so it's optional there.
+  const validate = () => {
+    const errs = {};
+    if (!formData.name.trim()) errs.name = CM.usernameRequired;
+    if (!isEditMode && !formData.password) errs.password = CM.passwordRequired;
+    if (formData.password && formData.password !== formData.confirmPassword) {
+      errs.confirmPassword = CM.passwordsDoNotMatch;
+    }
+    return errs;
   };
 
   const togglePermission = (objId, perm) => {
@@ -269,7 +284,11 @@ export default function CreateUserModal({ isOpen, onClose, dbname, editingUser }
   };
 
   const handleSave = async () => {
-    if (!formData.name) return;
+    const errs = validate();
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      return;
+    }
     startAction();
     const authList = Object.keys(objectAuths).map(objId => ({ classname: objId, auth: encodeCUBRIDAuth(objectAuths[objId]) }));
     try {
@@ -393,6 +412,7 @@ export default function CreateUserModal({ isOpen, onClose, dbname, editingUser }
                     name="name"
                     value={formData.name}
                     onChange={handleInputChange}
+                    error={errors.name}
                     placeholder={CM.usernamePlaceholderHint}
                     disabled={isEditMode}
                     required
@@ -421,8 +441,8 @@ export default function CreateUserModal({ isOpen, onClose, dbname, editingUser }
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <Input label={CM.newPassword} type="password" name="password" value={formData.password} onChange={handleInputChange} placeholder="••••••••" />
-                  <Input label={CM.passwordConfirm} type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleInputChange} placeholder="••••••••" />
+                  <Input label={CM.newPassword} type="password" name="password" value={formData.password} onChange={handleInputChange} error={errors.password} placeholder="••••••••" required={!isEditMode} />
+                  <Input label={CM.passwordConfirm} type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleInputChange} error={errors.confirmPassword} placeholder="••••••••" required={!isEditMode} />
                 </div>
                 {formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword && (
                   <div className="flex items-center gap-2 text-[11px] text-rose-500 font-bold px-1">

@@ -639,6 +639,7 @@ export const CM = {
   backupDirFetchError: 'Could not retrieve the default backup directory. Please enter the path manually.',
   levelNumberLabel: (level) => `Level${level}`,
   backupDirRequiredMsg: 'Backup directory is required.',
+  backupPlanIdRequiredMsg: 'A Plan ID is required.',
   databaseBackedUpMsg: (db, dir) => `Database "${db}" has been successfully backed up to "${dir}".`,
   restoringDatabase: 'Restoring Database',
   reconstructingInstance: 'Restoring Database',

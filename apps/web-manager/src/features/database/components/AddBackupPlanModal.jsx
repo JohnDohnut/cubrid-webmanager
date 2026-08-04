@@ -65,10 +65,12 @@ export default function AddBackupPlanModal() {
     backupsToKeep: 0,
     onlineType: 'offline'
   });
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (isAddBackupPlanModalOpen && selectedDatabase) {
       resetAction();
+      setErrors({});
       setFormData({
         backupLevel: '0',
         backupPath: `/home/cubrid/CUBRID/databases/${selectedDatabase}/backup`,
@@ -89,7 +91,15 @@ export default function AddBackupPlanModal() {
 
   if (!isAddBackupPlanModalOpen) return null;
 
+  const validate = () => {
+    const errs = {};
+    if (!formData.backupId.trim()) errs.backupId = CM.backupPlanIdRequiredMsg;
+    if (!formData.backupPath.trim()) errs.backupPath = CM.backupDirRequiredMsg;
+    return errs;
+  };
+
   const handleInputChange = (field, value) => {
+    if (errors[field]) setErrors(prev => ({ ...prev, [field]: '' }));
     if (field === 'periodType') {
       setFormData(prev => ({ 
         ...prev, 
@@ -128,6 +138,11 @@ export default function AddBackupPlanModal() {
 
   const handleSave = async () => {
     if (!selectedDatabase || !selectedHostUid) return;
+    const errs = validate();
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      return;
+    }
 
     startAction();
 
@@ -266,8 +281,8 @@ export default function AddBackupPlanModal() {
 
         {/* Identity & Path */}
         <div className="grid grid-cols-2 gap-4">
-          <Input label={CM.planRegistryId} value={formData.backupId} onChange={(e) => handleInputChange('backupId', e.target.value)} placeholder={CM.backupPlanIdPlaceholder} icon="badge" size="sm" />
-          <Input label={CM.payloadPath} value={formData.backupPath} onChange={(e) => handleInputChange('backupPath', e.target.value)} placeholder={CM.backupDirPlaceholder} icon="folder_zip" size="sm" className="font-mono!" />
+          <Input label={CM.planRegistryId} value={formData.backupId} onChange={(e) => handleInputChange('backupId', e.target.value)} error={errors.backupId} placeholder={CM.backupPlanIdPlaceholder} icon="badge" size="sm" required />
+          <Input label={CM.payloadPath} value={formData.backupPath} onChange={(e) => handleInputChange('backupPath', e.target.value)} error={errors.backupPath} placeholder={CM.backupDirPlaceholder} icon="folder_zip" size="sm" className="font-mono!" required />
         </div>
 
         {/* Recurrence */}

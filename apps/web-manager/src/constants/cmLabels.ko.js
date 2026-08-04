@@ -622,6 +622,7 @@ export const CM_KO = {
   backupDirFetchError: '기본 백업 디렉터리를 조회하지 못했습니다. 경로를 직접 입력하세요.',
   levelNumberLabel: (level) => `레벨${level}`,
   backupDirRequiredMsg: '백업 디렉터리는 필수 입력 항목입니다.',
+  backupPlanIdRequiredMsg: 'Plan ID는 필수 입력 항목입니다.',
   databaseBackedUpMsg: (db, dir) => `데이터베이스 "${db}"가 "${dir}"에 성공적으로 백업되었습니다.`,
   restoringDatabase: '데이터베이스 복구 중',
   reconstructingInstance: '데이터베이스 복구 중',
