@@ -220,6 +220,7 @@ export default function AddHostModal({ isOpen, onClose }) {
             placeholder={CM.friendlyNamePlaceholder}
             icon="label"
             disabled={loading}
+            required
           />
           <Select
             label={CM.groupLabel}
@@ -242,6 +243,7 @@ export default function AddHostModal({ isOpen, onClose }) {
             <div className="col-span-3">
               <Input
                 label={CM.ipAddressDomain}
+                description={CM.ipAddressDomainDescription}
                 name="address"
                 value={formData.address}
                 onChange={handleChange}
@@ -249,6 +251,7 @@ export default function AddHostModal({ isOpen, onClose }) {
                 placeholder={CM.hostAddressPlaceholder}
                 icon="dns"
                 disabled={loading}
+                required
               />
             </div>
             <div className="col-span-1">
@@ -261,6 +264,7 @@ export default function AddHostModal({ isOpen, onClose }) {
                 error={errors.port}
                 placeholder={CM.hostPortPlaceholder}
                 disabled={loading}
+                required
               />
             </div>
           </div>
@@ -279,6 +283,7 @@ export default function AddHostModal({ isOpen, onClose }) {
               placeholder={CM.hostUsernamePlaceholder}
               icon="person"
               disabled={loading}
+              required
             />
             <Input
               label={CM.password}
@@ -290,6 +295,7 @@ export default function AddHostModal({ isOpen, onClose }) {
               placeholder="••••••••"
               icon="key"
               disabled={loading}
+              required
             />
           </div>
         </div>

@@ -199,13 +199,14 @@ export default function EditHostModal() {
             placeholder={CM.friendlyNamePlaceholder}
             icon="label"
             disabled={loading}
+            required
           />
         </div>
 
         {/* Section 2: Host Connection */}
-        <SectionHeader 
-          title={CM.host} 
-          icon="lan" 
+        <SectionHeader
+          title={CM.host}
+          icon="lan"
           className="mt-8"
         />
         <div className="px-1">
@@ -213,6 +214,7 @@ export default function EditHostModal() {
             <div className="col-span-3">
               <Input
                 label={CM.ipAddressDomain}
+                description={CM.ipAddressDomainDescription}
                 name="address"
                 value={formData.address}
                 onChange={handleChange}
@@ -220,6 +222,7 @@ export default function EditHostModal() {
                 placeholder={CM.hostAddressPlaceholder}
                 icon="dns"
                 disabled={loading}
+                required
               />
             </div>
             <div className="col-span-1">
@@ -232,6 +235,7 @@ export default function EditHostModal() {
                 error={errors.port}
                 placeholder={CM.hostPortPlaceholder}
                 disabled={loading}
+                required
               />
             </div>
           </div>
@@ -250,6 +254,7 @@ export default function EditHostModal() {
               placeholder={CM.hostUsernamePlaceholder}
               icon="person"
               disabled={loading}
+              required
             />
             <Input
               label={CM.newPassword}

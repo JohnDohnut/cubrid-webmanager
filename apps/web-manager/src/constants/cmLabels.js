@@ -413,6 +413,7 @@ export const CM = {
   newConnection: 'New Connection',
   friendlyName: 'Alias',
   ipAddressDomain: 'IP Address / Domain',
+  ipAddressDomainDescription: 'The machine running the CUBRID server (CMS) you want to manage — not the address you use to access Web Manager itself.',
   modifyHost: 'Modify Host',
   removeHostConnection: 'Remove Host Connection',
   keepHost: 'Keep Host',

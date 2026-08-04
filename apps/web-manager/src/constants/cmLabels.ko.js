@@ -400,6 +400,7 @@ export const CM_KO = {
   newConnection: '새 연결',
   friendlyName: '별칭',
   ipAddressDomain: 'IP 주소 / 도메인',
+  ipAddressDomainDescription: '지금 Web Manager에 접속 중인 주소가 아니라, 관리하려는 CUBRID 서버(CMS)가 설치된 장비의 주소입니다.',
   modifyHost: '호스트 수정',
   removeHostConnection: '호스트 연결 제거',
   keepHost: '유지',
