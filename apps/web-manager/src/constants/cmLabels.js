@@ -282,6 +282,7 @@ export const CM = {
   jobTypeAddVol: 'Add volume',
   jobTypeRename: 'Rename',
   jobTypeBackupDb: 'Backup',
+  jobTypeRestore: 'Restore',
   databaseAction: 'Database Action',
   brokerAction: 'Broker Action',
   actionFailed: 'Action Failed',
@@ -495,10 +496,6 @@ export const CM = {
   resetCredentials: 'Reset your access credentials.',
   registrationFailed: 'Registration failed. Please try again.',
   loginFailedMsg: 'Login failed. Please check your credentials.',
-  passwordStrengthWeak: 'Weak',
-  passwordStrengthAverage: 'Average',
-  passwordStrengthGood: 'Good',
-  passwordStrengthStrong: 'Strong',
   minChars3: 'At least 3 characters',
 
   // Broker UI
@@ -639,6 +636,8 @@ export const CM = {
   backupDirFetchError: 'Could not retrieve the default backup directory. Please enter the path manually.',
   levelNumberLabel: (level) => `Level${level}`,
   backupDirRequiredMsg: 'Backup directory is required.',
+  existingBackupWarningMsg: (level) =>
+    `A level ${level} backup already exists in this directory. Running the backup again will overwrite it.`,
   backupPlanIdRequiredMsg: 'A Plan ID is required.',
   databaseBackedUpMsg: (db, dir) => `Database "${db}" has been successfully backed up to "${dir}".`,
   restoringDatabase: 'Restoring Database',
@@ -1388,11 +1387,8 @@ export const CM = {
   website: 'Website',
   github: 'GitHub',
   passwordPolicyHint: 'At least 8 characters, including a letter and a number',
+  passwordMeetsRequirements: 'Meets requirements',
   confirmPasswordRequired: 'Please confirm your password',
-  weakPassword: 'Weak',
-  averagePassword: 'Average',
-  goodPassword: 'Good',
-  strongPassword: 'Strong',
   architecture: 'Architecture',
   license: 'License',
   engine: 'Engine',
@@ -1466,6 +1462,7 @@ export const CM = {
   tranTime: 'Tran time',
   waitHolder: 'Wait holder',
   dbUserRequiredForDiagnosticsMsg: 'Database user (dbuser) is required for transaction diagnostics.',
+  dbUserRequiredWhileOnlineMsg: 'Database user (dbuser) is required while the database is online.',
   emptyAllowedPlaceholder: '(empty allowed)',
 
   // UnloadResultModal

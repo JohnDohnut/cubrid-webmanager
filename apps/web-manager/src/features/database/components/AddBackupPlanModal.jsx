@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { closeAddBackupPlanModal, addBackupSchedule } from '../databaseSlice';
+import { closeAddBackupPlanModal, addBackupSchedule, fetchBackupSchedule } from '../databaseSlice';
+import { deriveBackupDir } from '../backupPathUtils';
 import { useCM } from '../../../constants/useCM';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
@@ -35,8 +36,9 @@ export default function AddBackupPlanModal() {
   const CM = useCM();
   const dispatch = useDispatch();
   const { isAddBackupPlanModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
-  const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
+  const { selectedDatabase, databases } = useSelector((state) => state.database, shallowEqual);
   const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
+  const currentDb = databases?.find((db) => db.dbname === selectedDatabase);
 
   const { 
     state, 
@@ -73,7 +75,7 @@ export default function AddBackupPlanModal() {
       setErrors({});
       setFormData({
         backupLevel: '0',
-        backupPath: `/home/cubrid/CUBRID/databases/${selectedDatabase}/backup`,
+        backupPath: deriveBackupDir(currentDb?.dbdir),
         backupId: `backup_${selectedDatabase}_${Date.now().toString().slice(-4)}`,
         periodType: 'Monthly',
         periodDetail: [1],
@@ -87,7 +89,7 @@ export default function AddBackupPlanModal() {
         onlineType: 'offline'
       });
     }
-  }, [isAddBackupPlanModalOpen, selectedDatabase, resetAction]);
+  }, [isAddBackupPlanModalOpen, selectedDatabase, currentDb, resetAction]);
 
   if (!isAddBackupPlanModalOpen) return null;
 
@@ -176,6 +178,7 @@ export default function AddBackupPlanModal() {
 
     try {
       await dispatch(addBackupSchedule({ hostUid: selectedHostUid, dbname: selectedDatabase, payload })).unwrap();
+      dispatch(fetchBackupSchedule({ hostUid: selectedHostUid, dbname: selectedDatabase }));
       endSuccess(`${formData.backupId}`);
     } catch (err) {
       endError(typeof err === 'string' ? err : (err.message || CM.operationFailed));

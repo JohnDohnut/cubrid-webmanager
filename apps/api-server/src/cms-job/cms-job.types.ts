@@ -10,6 +10,7 @@ import {
   LoadDatabaseRequest,
   OptimizeDatabaseRequest,
   RenameDatabaseRequest,
+  RestoreDbClientRequest,
   UnloadDatabaseRequest,
 } from '@api-interfaces';
 
@@ -23,7 +24,8 @@ export type CmsJobPayload =
   | CopyDbRequest
   | AddVolDbRequest
   | RenameDatabaseRequest
-  | BackupDbClientRequest;
+  | BackupDbClientRequest
+  | RestoreDbClientRequest;
 
 export type CmsJobRecord = {
   jobId: string;

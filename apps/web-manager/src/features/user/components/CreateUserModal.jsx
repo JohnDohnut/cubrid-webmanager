@@ -441,8 +441,8 @@ export default function CreateUserModal({ isOpen, onClose, dbname, editingUser }
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <Input label={CM.newPassword} type="password" name="password" value={formData.password} onChange={handleInputChange} error={errors.password} placeholder="••••••••" required={!isEditMode} />
-                  <Input label={CM.passwordConfirm} type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleInputChange} error={errors.confirmPassword} placeholder="••••••••" required={!isEditMode} />
+                  <Input data-testid="create-user-password-input" label={CM.newPassword} type="password" name="password" value={formData.password} onChange={handleInputChange} error={errors.password} placeholder="••••••••" required={!isEditMode} />
+                  <Input data-testid="create-user-confirm-password-input" label={CM.passwordConfirm} type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleInputChange} error={errors.confirmPassword} placeholder="••••••••" required={!isEditMode} />
                 </div>
                 {formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword && (
                   <div className="flex items-center gap-2 text-[11px] text-rose-500 font-bold px-1">

@@ -27,7 +27,7 @@ import {
 
 import {
   createDatabase, copyDatabase, deleteDatabase, renameDatabase, fetchCreateDatabaseInfo,
-  addVolume, restoreDatabase, fetchBackupSchedule, addBackupSchedule,
+  addVolume, fetchBackupSchedule, addBackupSchedule,
   editBackupSchedule, deleteBackupSchedule, fetchBackupList, fetchBackupDbInfo,
   fetchAutoBackupLog, checkDatabase, compactDatabase, optimizeDatabase, loadDatabase,
   unloadDatabase, fetchQueryPlan, setAutoExecQuery, fetchQueryPlanLog, fetchLockInfo,
@@ -997,7 +997,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
             <MenuItem icon="check_circle" label={CM.manageDatabaseMenu.check} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openCheckDatabaseModal()); setDbContextMenu(null); }} />
             <MenuItem icon="compress" label={CM.manageDatabaseMenu.compact} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openCompactDatabaseModal()); setDbContextMenu(null); }} />
             <MenuItem icon="auto_fix_high" label={CM.manageDatabaseMenu.optimize} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openOptimizeDatabaseModal()); setDbContextMenu(null); }} />
-            <MenuItem icon="content_copy" label={CM.manageDatabaseMenu.copy} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openCopyDatabaseModal()); setDbContextMenu(null); }} />
+            <MenuItem icon="content_copy" label={CM.manageDatabaseMenu.copy} disabled={dbContextMenu.isActive} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openCopyDatabaseModal()); setDbContextMenu(null); }} />
             <MenuDivider />
             <MenuItem icon="drive_file_rename_outline" label={CM.manageDatabaseMenu.rename} disabled={dbContextMenu.isActive} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openRenameDatabaseModal()); setDbContextMenu(null); }} />
             <MenuItem icon="restore" label={CM.manageDatabaseMenu.restore} disabled={dbContextMenu.isActive} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openRestoreDatabaseModal()); setDbContextMenu(null); }} />

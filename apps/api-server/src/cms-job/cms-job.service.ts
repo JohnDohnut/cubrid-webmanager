@@ -14,6 +14,7 @@ import {
   LoadDatabaseRequest,
   OptimizeDatabaseRequest,
   RenameDatabaseRequest,
+  RestoreDbClientRequest,
   UnloadDatabaseRequest,
 } from '@api-interfaces';
 import { extractCmsLongJobFailureMessage, isCmsLongJobFailure } from '@common';
@@ -329,6 +330,13 @@ export class CmsJobService implements OnModuleInit, OnModuleDestroy {
           hostUid,
           job.dbname,
           payload as BackupDbClientRequest
+        );
+      case 'restore':
+        return this.backupService.restoreDb(
+          userId,
+          hostUid,
+          job.dbname,
+          payload as RestoreDbClientRequest
         );
       default:
         throw new Error(`Unsupported job type: ${type}`);

@@ -66,13 +66,16 @@ export default function EditBackupPlanModal() {
     onlineType: 'offline'
   });
 
+  const [formLoaded, setFormLoaded] = useState(false);
+
   useEffect(() => {
     if (isEditBackupPlanModalOpen && selectedDatabase && selectedHostUid) {
       resetAction();
+      setFormLoaded(false);
       dispatch(fetchBackupSchedule({ hostUid: selectedHostUid, dbname: selectedDatabase }))
         .unwrap()
         .then((data) => {
-          const backupData = data?.backups || data?.backup_info;
+          const backupData = data?.schedules;
           if (backupData) {
             const plans = Array.isArray(backupData) ? backupData : [backupData];
             const info = selectedBackupId ? plans.find(p => p.backupid === selectedBackupId) : plans[0];
@@ -107,7 +110,9 @@ export default function EditBackupPlanModal() {
               });
             }
           }
-        });
+        })
+        .catch(() => {})
+        .finally(() => setFormLoaded(true));
     }
   }, [isEditBackupPlanModalOpen, selectedDatabase, selectedHostUid, selectedBackupId, dispatch, resetAction]);
 
@@ -244,7 +249,7 @@ export default function EditBackupPlanModal() {
       footer={
         <div className="flex justify-end gap-3 w-full">
           <Button data-testid="edit-backup-plan-cancel-btn" variant="ghost" onClick={handleClose}>{CM.cancel}</Button>
-          <Button data-testid="edit-backup-plan-save-btn" variant="primary" onClick={handleSave} icon="save" className="min-w-[140px]">{CM.saveChanges}</Button>
+          <Button data-testid="edit-backup-plan-save-btn" variant="primary" onClick={handleSave} icon="save" disabled={!formLoaded} className="min-w-[140px]">{CM.saveChanges}</Button>
         </div>
       }
     >

@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { closeRestoreDatabaseModal, fetchBackupList, restoreDatabase } from '../databaseSlice';
+import { closeRestoreDatabaseModal, fetchBackupList } from '../databaseSlice';
+import { databaseJobApi } from '../databaseJobApi';
+import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
+import { getCmsJobLoadingSubtitle } from '../../../infrastructure/cmsJob/cmsJobUi';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -128,17 +131,19 @@ export default function RestoreDatabaseModal() {
   } = useSelector((state) => state.databaseOperation);
   const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
 
-  const { 
-    state, 
-    error: actionError, 
-    startAction, 
-    endSuccess, 
-    endError, 
+  const {
+    state,
+    error: actionError,
+    startAction,
+    endSuccess,
+    endError,
     resetAction,
     isLoading,
     isSuccess,
     isError
   } = useActionState();
+  const { runJob } = useCmsJob();
+  const [jobStatus, setJobStatus] = useState(null);
 
   const [formData, setFormData] = useState({
     selectedBackup: null,
@@ -476,17 +481,17 @@ export default function RestoreDatabaseModal() {
 
     startAction();
     try {
-      await dispatch(restoreDatabase({
-        hostUid: selectedHostUid,
-        dbname: selectedDatabase,
-        payload: {
-          date: dateParam,
-          level: levelVal,
-          partial: partialParam,
-          pathname: pathnameVal,
-          recoverypath: recoverypathParam,
-        }
-      })).unwrap();
+      const payload = {
+        date: dateParam,
+        level: levelVal,
+        partial: partialParam,
+        pathname: pathnameVal,
+        recoverypath: recoverypathParam,
+      };
+      await runJob(
+        () => databaseJobApi.submitRestore(selectedHostUid, selectedDatabase, payload),
+        { onProgress: (j) => setJobStatus(j.jobStatus ?? j.status) }
+      );
       endSuccess(selectedDatabase);
     } catch (error) {
       endError(typeof error === 'string' ? error : (error.message || CM.restoreErrorFallback));
@@ -500,10 +505,10 @@ export default function RestoreDatabaseModal() {
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title={CM.restoringDatabase} icon="settings_backup_restore" onClose={handleClose} maxWidth="600px" iconVariant="danger" showCloseButton={false}>
-        <ModalStatusLoading 
-          title={CM.reconstructingInstance} 
-          subtitle={selectedDatabase}
+      <Modal isOpen title={CM.restoringDatabase} icon="settings_backup_restore" onClose={handleClose} maxWidth="600px" iconVariant="danger">
+        <ModalStatusLoading
+          title={CM.reconstructingInstance}
+          subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
           variant="danger"
         />
       </Modal>

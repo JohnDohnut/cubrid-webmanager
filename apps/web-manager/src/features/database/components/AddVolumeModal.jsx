@@ -366,7 +366,7 @@ export default function AddVolumeModal() {
         <div className="space-y-4">
            <SectionHeader title={CM.volumeName} icon="label" />
           <div className="grid grid-cols-1 gap-4">
-            <Input label={CM.volumeIdentifier} value={volName} onChange={(e) => setVolName(e.target.value)} icon="badge" size="sm" required />
+            <Input data-testid="add-volume-name-input" label={CM.volumeIdentifier} value={volName} onChange={(e) => setVolName(e.target.value)} icon="badge" size="sm" required />
             <Input label={CM.volumeDir} value={path} onChange={(e) => setPath(e.target.value)} placeholder="/var/lib/cubrid/volumes" icon="folder_zip" size="sm" className="font-mono!" required />
           </div>
         </div>

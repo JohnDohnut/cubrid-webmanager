@@ -111,7 +111,15 @@ export default function CopyDatabaseModal() {
         deleteSource: false,
       });
     }
-  }, [isCopyDatabaseModalOpen, resetAction, currentDb, selectedHostUid, dispatch]);
+    // currentDb?.dbdir (not currentDb) is the dependency deliberately — see
+    // RenameDatabaseModal.jsx for the same convention. handleCopy's success
+    // path dispatches fetchDatabaseStartInfo to refresh the tree with the new
+    // clone, which replaces the whole `databases` array and gives `currentDb`
+    // a new object reference with the same dbdir value. Depending on the
+    // object itself re-ran this effect on that refresh alone and called
+    // resetAction() right after endSuccess(), silently bouncing the modal
+    // from its success view back to the form.
+  }, [isCopyDatabaseModalOpen, resetAction, currentDb?.dbdir, selectedHostUid, dispatch]);
 
   if (!isCopyDatabaseModalOpen) return null;
 

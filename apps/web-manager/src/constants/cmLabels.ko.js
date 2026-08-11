@@ -274,6 +274,7 @@ export const CM_KO = {
   jobTypeAddVol: '볼륨 추가',
   jobTypeRename: '이름 변경',
   jobTypeBackupDb: '백업',
+  jobTypeRestore: '복구',
   databaseAction: '데이터베이스 작업',
   brokerAction: '브로커 작업',
   actionFailed: '작업 실패',
@@ -480,10 +481,6 @@ export const CM_KO = {
   resetCredentials: '접근 자격 증명을 재설정합니다.',
   registrationFailed: '등록에 실패했습니다. 다시 시도하세요.',
   loginFailedMsg: '로그인에 실패했습니다. 자격 증명을 확인하세요.',
-  passwordStrengthWeak: '약함',
-  passwordStrengthAverage: '보통',
-  passwordStrengthGood: '좋음',
-  passwordStrengthStrong: '강함',
   minChars3: '3자 이상',
 
   brokerProperties: '브로커 속성',
@@ -622,6 +619,8 @@ export const CM_KO = {
   backupDirFetchError: '기본 백업 디렉터리를 조회하지 못했습니다. 경로를 직접 입력하세요.',
   levelNumberLabel: (level) => `레벨${level}`,
   backupDirRequiredMsg: '백업 디렉터리는 필수 입력 항목입니다.',
+  existingBackupWarningMsg: (level) =>
+    `이 디렉터리에는 이미 레벨 ${level} 백업이 있습니다. 다시 백업하면 기존 백업을 덮어씁니다.`,
   backupPlanIdRequiredMsg: 'Plan ID는 필수 입력 항목입니다.',
   databaseBackedUpMsg: (db, dir) => `데이터베이스 "${db}"가 "${dir}"에 성공적으로 백업되었습니다.`,
   restoringDatabase: '데이터베이스 복구 중',
@@ -1367,11 +1366,8 @@ export const CM_KO = {
   website: '웹사이트',
   github: 'GitHub',
   passwordPolicyHint: '영문자와 숫자를 포함해 8자 이상 입력하세요',
+  passwordMeetsRequirements: '사용 가능한 비밀번호입니다',
   confirmPasswordRequired: '비밀번호를 확인하십시오',
-  weakPassword: '약함',
-  averagePassword: '보통',
-  goodPassword: '좋음',
-  strongPassword: '강함',
   architecture: '아키텍처',
   license: '라이선스',
   engine: '엔진',
@@ -1445,6 +1441,7 @@ export const CM_KO = {
   tranTime: '트랜잭션 시간',
   waitHolder: '대기 홀더',
   dbUserRequiredForDiagnosticsMsg: '트랜잭션 진단을 위해서는 데이터베이스 사용자(dbuser)가 필요합니다.',
+  dbUserRequiredWhileOnlineMsg: '데이터베이스가 온라인 상태일 때는 데이터베이스 사용자(dbuser)가 필요합니다.',
   emptyAllowedPlaceholder: '(비워둘 수 있음)',
 
   // 언로드 결과 모달
