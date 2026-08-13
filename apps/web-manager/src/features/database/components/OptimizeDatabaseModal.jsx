@@ -296,6 +296,7 @@ export default function OptimizeDatabaseModal() {
         <ModalStatusLoading
           title={CM.regeneratingStatistics}
           subtitle={getCmsJobLoadingSubtitle(selectedClassName || selectedDatabase, jobStatus, CM)}
+          onBackground={handleClose}
         />
       </Modal>
     );

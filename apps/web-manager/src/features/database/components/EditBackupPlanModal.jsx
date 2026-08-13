@@ -197,10 +197,11 @@ export default function EditBackupPlanModal() {
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title={CM.editBackupPlanTitle} icon="edit" onClose={handleClose} maxWidth="700px" showCloseButton={false}>
+      <Modal isOpen title={CM.editBackupPlanTitle} icon="edit" onClose={handleClose} maxWidth="700px">
         <ModalStatusLoading
           title={CM.updatingSchedule}
           subtitle={formData.backupId}
+          onBackground={handleClose}
         />
       </Modal>
     );

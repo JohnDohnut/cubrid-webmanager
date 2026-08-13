@@ -97,6 +97,7 @@ export default function CompactDatabaseModal() {
         <ModalStatusLoading
           title={CM.consolidatingBlocks}
           subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
+          onBackground={handleClose}
         />
       </Modal>
     );

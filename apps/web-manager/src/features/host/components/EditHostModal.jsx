@@ -138,6 +138,7 @@ export default function EditHostModal() {
     <Modal
       isOpen={isEditHostModalOpen}
       onClose={handleClose}
+      onSubmit={handleSave}
       title={CM.modifyHost}
       icon="settings_input_component"
       loading={loading}

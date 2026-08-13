@@ -150,12 +150,6 @@ export default function EditQueryPlanModal() {
       endError(CM.sqlStatementRequired);
       return;
     }
-    if (!formData.password.trim()) {
-      // See AddQueryPlanModal.jsx: an empty userpass corrupts the plan on
-      // CMS's side and breaks every later append/edit for this database.
-      endError(CM.queryPasswordRequired);
-      return;
-    }
     const queryString = formData.queryString.trim();
     
     startAction();

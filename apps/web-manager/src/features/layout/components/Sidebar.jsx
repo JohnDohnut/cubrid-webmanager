@@ -672,7 +672,19 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                       onLogTabContextMenu={handleLogTabContextMenu}
                     />
 
-                    <div className="flex-1 overflow-y-auto px-4 pb-4 relative min-h-[200px]">
+                    <div
+                      className="flex-1 overflow-y-auto px-4 pb-4 relative min-h-[200px]"
+                      onContextMenu={(e) => {
+                        // Tree rows stopPropagation() on their own context menu (see
+                        // TreeNode.jsx), so this only ever fires for genuinely blank
+                        // space — including below a short list, which the per-tree
+                        // root handlers (wrapped tightly around their own content)
+                        // never covered.
+                        if (activeTab === 'db') handleDbRootContextMenu(e);
+                        else if (activeTab === 'broker') handleBrokerRootContextMenu(e);
+                        else if (activeTab === 'log') handleLogTabContextMenu(e);
+                      }}
+                    >
                       {/* States Overlay - Full screen fixed overlay directly handled by component */}
                       {sidebarActionLoading && (
                         <RefreshingOverlay 
@@ -993,7 +1005,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           <MenuDivider />
           <SubMenu icon="settings" label={CM.manageDatabase}>
             <MenuItem icon="upload" label={CM.manageDatabaseMenu.unload} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openUnloadDatabaseModal(dbContextMenu.db)); setDbContextMenu(null); }} />
-            <MenuItem icon="download" label={CM.manageDatabaseMenu.load} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openLoadDatabaseModal(dbContextMenu.db)); setDbContextMenu(null); }} />
+            <MenuItem icon="download" label={CM.manageDatabaseMenu.load} disabled={dbContextMenu.isActive} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openLoadDatabaseModal(dbContextMenu.db)); setDbContextMenu(null); }} />
             <MenuItem icon="check_circle" label={CM.manageDatabaseMenu.check} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openCheckDatabaseModal()); setDbContextMenu(null); }} />
             <MenuItem icon="compress" label={CM.manageDatabaseMenu.compact} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openCompactDatabaseModal()); setDbContextMenu(null); }} />
             <MenuItem icon="auto_fix_high" label={CM.manageDatabaseMenu.optimize} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openOptimizeDatabaseModal()); setDbContextMenu(null); }} />
@@ -1611,6 +1623,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
             icon="refresh"
             label={CM.refresh}
             onClick={() => {
+              dispatch(fetchDatabaseSpaceInfo({ hostUid: selectedHostUid, dbname: spaceContextMenu.db }));
               setSpaceContextMenu(null);
             }}
           />

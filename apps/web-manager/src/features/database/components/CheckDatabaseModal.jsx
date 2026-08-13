@@ -82,6 +82,7 @@ export default function CheckDatabaseModal() {
         <ModalStatusLoading
           title={CM.checkDatabase}
           subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
+          onBackground={handleClose}
         />
       </Modal>
     );

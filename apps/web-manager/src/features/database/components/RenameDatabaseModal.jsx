@@ -285,6 +285,7 @@ export default function RenameDatabaseModal() {
         <ModalStatusLoading
           title={CM.updatingIdentity}
           subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
+          onBackground={handleClose}
         />
       </Modal>
     );

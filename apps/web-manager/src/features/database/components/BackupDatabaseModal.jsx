@@ -322,6 +322,7 @@ export default function BackupDatabaseModal() {
         <ModalStatusLoading
           title={CM.snapshotInProgress}
           subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
+          onBackground={handleClose}
         />
       </Modal>
     );

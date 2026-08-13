@@ -510,6 +510,7 @@ export default function RestoreDatabaseModal() {
           title={CM.reconstructingInstance}
           subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
           variant="danger"
+          onBackground={handleClose}
         />
       </Modal>
     );

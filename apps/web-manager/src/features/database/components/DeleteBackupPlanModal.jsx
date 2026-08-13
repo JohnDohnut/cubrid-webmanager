@@ -77,11 +77,12 @@ export default function DeleteBackupPlanModal() {
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title={CM.deletingBackupPlan} icon="delete_forever" onClose={handleClose} maxWidth="440px" iconVariant="danger" showCloseButton={false}>
+      <Modal isOpen title={CM.deletingBackupPlan} icon="delete_forever" onClose={handleClose} maxWidth="440px" iconVariant="danger">
         <ModalStatusLoading
           title={CM.removingRegistry}
           subtitle={`"${selectedBackupId}"`}
           variant="danger"
+          onBackground={handleClose}
         />
       </Modal>
     );

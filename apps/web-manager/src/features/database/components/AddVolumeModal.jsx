@@ -154,6 +154,7 @@ export default function AddVolumeModal() {
         <ModalStatusLoading
           title={CM.scalingFoundation}
           subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
+          onBackground={handleClose}
         />
       </Modal>
     );

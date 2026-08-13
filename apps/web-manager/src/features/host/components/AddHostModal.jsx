@@ -159,6 +159,7 @@ export default function AddHostModal({ isOpen, onClose }) {
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
+      onSubmit={handleSave}
       title={CM.newConnection}
       icon="add_link"
       maxWidth="max-w-[500px]"

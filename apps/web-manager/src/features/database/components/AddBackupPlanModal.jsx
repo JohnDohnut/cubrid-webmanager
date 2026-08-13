@@ -190,10 +190,11 @@ export default function AddBackupPlanModal() {
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
-      <Modal isOpen title={CM.initializingSchedule} icon="backup_table" onClose={handleClose} maxWidth="700px" showCloseButton={false}>
+      <Modal isOpen title={CM.initializingSchedule} icon="backup_table" onClose={handleClose} maxWidth="700px">
         <ModalStatusLoading
           title={CM.savingSchedule}
           subtitle={formData.backupId}
+          onBackground={handleClose}
         />
       </Modal>
     );

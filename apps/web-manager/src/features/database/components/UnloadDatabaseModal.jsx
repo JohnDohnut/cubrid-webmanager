@@ -210,6 +210,7 @@ export default function UnloadDatabaseModal() {
         <ModalStatusLoading
           title={CM.unloadDatabase}
           subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
+          onBackground={handleClose}
         />
       </Modal>
     );

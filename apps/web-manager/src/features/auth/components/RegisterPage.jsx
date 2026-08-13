@@ -131,7 +131,7 @@ export default function RegisterPage() {
         <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-emerald-500/40 via-amber-400 to-emerald-500/40 shadow-[0_1px_8px_rgba(16,185,129,0.25)]" />
 
         {/* Back navigation */}
-        <div className="flex justify-between items-center mb-5">
+        <div className="flex items-center mb-5">
           <Link
             to="/login"
             className="inline-flex items-center gap-1.5 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors group text-[10px] font-bold uppercase tracking-wider"
@@ -139,7 +139,6 @@ export default function RegisterPage() {
             <Icon name="arrow_back" size="sm" weight={300} className="group-hover:-translate-x-0.5 transition-transform" />
             <span>{CM.backToLogin}</span>
           </Link>
-          <span className="font-mono text-[9px] text-slate-400 dark:text-slate-600 font-bold uppercase tracking-widest">v12.4.0</span>
         </div>
 
         {/* Brand header */}
@@ -193,12 +192,12 @@ export default function RegisterPage() {
           {password && !errors.password && (
             <div className="mt-[-8px] mb-1.5 flex items-center gap-1.5 animate-in fade-in duration-200">
               <Icon
-                name={isPasswordValid ? 'check_circle' : 'info'}
+                name={isPasswordValid ? 'check_circle' : 'cancel'}
                 size="xs"
                 weight={300}
-                className={isPasswordValid ? 'text-emerald-500' : 'text-slate-400'}
+                className={isPasswordValid ? 'text-emerald-500' : 'text-rose-500'}
               />
-              <p className={`text-[9px] font-bold uppercase tracking-widest font-mono ${isPasswordValid ? 'text-emerald-500' : 'text-slate-400'}`}>
+              <p className={`text-[9px] font-bold uppercase tracking-widest font-mono ${isPasswordValid ? 'text-emerald-500' : 'text-rose-500'}`}>
                 {isPasswordValid ? CM.passwordMeetsRequirements : CM.passwordPolicyHint}
               </p>
             </div>

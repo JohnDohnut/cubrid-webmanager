@@ -167,6 +167,7 @@ export default function CopyDatabaseModal() {
         <ModalStatusLoading
           title={CM.synchronizingVolumes}
           subtitle={getCmsJobLoadingSubtitle(formData.destName, jobStatus, CM)}
+          onBackground={handleClose}
         />
       </Modal>
     );
