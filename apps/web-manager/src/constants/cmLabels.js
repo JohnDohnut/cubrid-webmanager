@@ -710,7 +710,7 @@ export const CM = {
   updatingRegistry: 'Updating Configuration',
   syncingRegistrySubtitle: 'Updating cubrid.conf on the server.',
   navigation: 'Navigation',
-  context: 'Context',
+  context: 'Target Database',
   loadingLabel: 'Loading',
   queryingHostRegistry: 'Loading configuration…',
   brokerConnection: 'Broker Connection',

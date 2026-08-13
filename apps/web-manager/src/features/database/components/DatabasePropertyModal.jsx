@@ -706,7 +706,7 @@ export default function DatabasePropertyModal() {
               /* ─── ADVANCED PARAMETERS TABLE ─── */
               <div>
                 <div className="px-6 py-6">
-                  <InfoBanner title={CM.advancedHeuristics}>
+                  <InfoBanner>
                     {CM.advancedParamsWarning}
                   </InfoBanner>
                 </div>

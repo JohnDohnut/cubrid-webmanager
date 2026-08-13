@@ -695,7 +695,7 @@ export const CM_KO = {
   updatingRegistry: '설정 갱신 중',
   syncingRegistrySubtitle: '서버 설정(cubrid.conf)을 갱신합니다.',
   navigation: '탐색',
-  context: '컨텍스트',
+  context: '대상 데이터베이스',
   loadingLabel: '로딩',
   queryingHostRegistry: '설정 불러오는 중…',
   brokerConnection: '브로커 연결',
