@@ -854,7 +854,7 @@ export const CM = {
 
   // Header menu (extra)
   actionMenu: 'Top Tasks',
-  configParam: 'Config Param',
+  configParam: 'Edit Config Files',
   editCmConfig: 'Edit CM Config',
   reportBug: 'Report Bug',
   cubridOnlineForum: 'CUBRID Online Forum',
@@ -1653,7 +1653,7 @@ export const CM = {
 
   // LogViewer (Broker Log Viewer)
   brokerLogViewer: 'Broker Log Viewer',
-  noContentAvailable: 'No content available for this range.',
+  noContentAvailable: 'No content available.',
   noSqlStatementsFound: 'No SQL statements found in this page.',
   maxSeconds: 'Max (s)',
   avgSeconds: 'Avg (s)',

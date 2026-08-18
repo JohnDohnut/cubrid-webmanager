@@ -842,7 +842,7 @@ export const CM_KO = {
   description: '설명',
 
   actionMenu: '주요 작업',
-  configParam: '설정 매개변수',
+  configParam: '설정 파일 편집',
   editCmConfig: 'CM 설정 편집',
   reportBug: '버그 보고',
   cubridOnlineForum: 'CUBRID 온라인 포럼',
@@ -1640,7 +1640,7 @@ export const CM_KO = {
 
   // 로그 뷰어 (브로커)
   brokerLogViewer: '브로커 로그 뷰어',
-  noContentAvailable: '이 범위에 사용 가능한 내용이 없습니다.',
+  noContentAvailable: '표시할 내용이 없습니다.',
   noSqlStatementsFound: '이 페이지에서 SQL 구문을 찾을 수 없습니다.',
   maxSeconds: '최대 (초)',
   avgSeconds: '평균 (초)',
