@@ -85,7 +85,6 @@ export default function AddVolumeModal() {
   const [jobStatus, setJobStatus] = useState(null);
 
   const [volStatus, setVolStatus] = useState({ freespace: '', volpath: '' });
-  const [volName, setVolName] = useState('');
   const [purpose, setPurpose] = useState('data');
   const [path, setPath] = useState('');
   const [sizeMB, setSizeMB] = useState(512);
@@ -110,7 +109,6 @@ export default function AddVolumeModal() {
         }
       };
       fetchStatus();
-      setVolName('');
       setPurpose('data');
       setSizeMB(512);
     }
@@ -125,7 +123,7 @@ export default function AddVolumeModal() {
 
     try {
       const payload = {
-        volname: volName,
+        volname: '',
         purpose,
         path,
         numberofpages: numberOfPages.toString(),
@@ -166,7 +164,7 @@ export default function AddVolumeModal() {
       <Modal isOpen title={CM.allocationSuccessful} icon="add_box" iconVariant="success" onClose={handleClose} maxWidth="720px">
         <ModalStatusSuccess
           title={CM.storageExpanded}
-          message={CM.addVolumeSuccessMessage(volName, selectedDatabase)}
+          message={CM.addVolumeSuccessMessage('', selectedDatabase)}
           onConfirm={handleClose}
           confirmText={CM.ok}
         />
@@ -213,7 +211,7 @@ export default function AddVolumeModal() {
               variant="primary"
               onClick={handleAdd}
               icon="add_to_drive"
-              disabled={!volName.trim() || !path || !sizeMB || fetchingStatus}
+              disabled={!path || !sizeMB || fetchingStatus}
               className="min-w-[140px]"
             >
               {CM.addVolume}
@@ -363,11 +361,10 @@ export default function AddVolumeModal() {
           </div>
         </div>
 
-        {/* Volume Identification */}
+        {/* Volume Location */}
         <div className="space-y-4">
-           <SectionHeader title={CM.volumeName} icon="label" />
+           <SectionHeader title={CM.volumeDir} icon="folder_zip" />
           <div className="grid grid-cols-1 gap-4">
-            <Input data-testid="add-volume-name-input" label={CM.volumeIdentifier} value={volName} onChange={(e) => setVolName(e.target.value)} icon="badge" size="sm" required />
             <Input label={CM.volumeDir} value={path} onChange={(e) => setPath(e.target.value)} placeholder="/var/lib/cubrid/volumes" icon="folder_zip" size="sm" className="font-mono!" required />
           </div>
         </div>

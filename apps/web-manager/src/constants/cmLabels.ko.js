@@ -604,7 +604,7 @@ export const CM_KO = {
   totalVolumes: '전체 볼륨',
   genericVolume: '일반 볼륨',
   logVolume: '로그 볼륨',
-  volumeTypeData: '데이터',
+  volumeTypeData: 'Permanent',
   volumeTypeIndex: '인덱스',
   volumeTypeTemp: 'Temp',
   operationInterrupted: '작업 중단됨',

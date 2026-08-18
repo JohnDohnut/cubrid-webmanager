@@ -619,7 +619,7 @@ export const CM = {
   totalVolumes: 'Total volumes',
   genericVolume: 'Generic volume',
   logVolume: 'Log volume',
-  volumeTypeData: 'Data',
+  volumeTypeData: 'Permanent',
   volumeTypeIndex: 'Index',
   volumeTypeTemp: 'Temp',
   operationInterrupted: 'Operation Interrupted',
