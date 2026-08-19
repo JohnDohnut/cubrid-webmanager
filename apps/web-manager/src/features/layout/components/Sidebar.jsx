@@ -60,6 +60,8 @@ import {
   fetchDatabaseLogs,
   startBroker,
   stopBroker,
+  startAllBrokers,
+  stopAllBrokers,
   openBrokerPropertyModal,
   resetBrokerState
 } from '../../broker/brokerSlice';
@@ -1157,12 +1159,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
               setLoadingText(CM.startingAllBrokersMsg);
               startAction();
               try {
-                for (const broker of brokers) {
-                  if (broker.state !== 'ON') {
-                    await dispatch(startBroker({ hostUid: selectedHostUid, brokerName: broker.name })).unwrap();
-                  }
-                }
-                dispatch(fetchBrokerList(selectedHostUid));
+                await dispatch(startAllBrokers(selectedHostUid)).unwrap();
                 resetAction();
               } catch (err) {
                 endError(err);
@@ -1177,12 +1174,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
               setLoadingText(CM.stoppingAllBrokersMsg);
               startAction();
               try {
-                for (const broker of brokers) {
-                  if (broker.state === 'ON') {
-                    await dispatch(stopBroker({ hostUid: selectedHostUid, brokerName: broker.name })).unwrap();
-                  }
-                }
-                dispatch(fetchBrokerList(selectedHostUid));
+                await dispatch(stopAllBrokers(selectedHostUid)).unwrap();
                 resetAction();
               } catch (err) {
                 endError(err);

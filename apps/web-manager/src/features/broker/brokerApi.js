@@ -13,6 +13,12 @@ export const brokerApi = {
   stopBroker: (hostUid, brokerName) => {
     return apiClient.post(`/${hostUid}/broker/stop/${brokerName}`);
   },
+  startAllBrokers: (hostUid) => {
+    return apiClient.post(`/${hostUid}/broker/start-all`);
+  },
+  stopAllBrokers: (hostUid) => {
+    return apiClient.post(`/${hostUid}/broker/stop-all`);
+  },
   getBrokerLogs: (hostUid, brokerName) => {
     return apiClient.get(`/${hostUid}/log/broker/${brokerName}`);
   },
