@@ -723,6 +723,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                   >
                     <div className={activeTab !== 'db' ? 'hidden' : ''}>
                       <DatabaseTree
+                        key={selectedHostUid}
                         onContextMenu={handleDbContextMenu}
                         onRootContextMenu={handleDbRootContextMenu}
                         onUsersContextMenu={handleUsersContextMenu}
@@ -1189,14 +1190,8 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
               setLoadingText(CM.restartingAllBrokersMsg);
               startAction();
               try {
-                const currentActive = brokers.filter(b => b.state === 'ON').map(b => b.name);
-                for (const name of currentActive) {
-                  await dispatch(stopBroker({ hostUid: selectedHostUid, brokerName: name })).unwrap();
-                }
-                for (const name of currentActive) {
-                  await dispatch(startBroker({ hostUid: selectedHostUid, brokerName: name })).unwrap();
-                }
-                dispatch(fetchBrokerList(selectedHostUid));
+                await dispatch(stopAllBrokers(selectedHostUid)).unwrap();
+                await dispatch(startAllBrokers(selectedHostUid)).unwrap();
                 resetAction();
               } catch (err) {
                 endError(err);
