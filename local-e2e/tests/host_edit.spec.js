@@ -26,7 +26,7 @@ test.describe('Edit Host', () => {
     await page.getByTestId('edit-host-save-btn').click();
 
     await expect(modal.getByText('Host name is required')).toBeVisible();
-    await page.getByTestId('edit-host-discard-btn').click();
+    await page.getByTestId('edit-host-cancel-btn').click();
   });
 
   test('별칭을 수정하고 저장하면 트리에 새 이름이 표시된다', async ({ page }) => {

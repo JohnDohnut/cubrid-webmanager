@@ -122,7 +122,7 @@ test.describe('Database Backup Plan', () => {
     await expect(editModal).toBeVisible();
     const l1Preset = editModal.locator('button', { hasText: 'Inc. (L1)' });
     await expect(l1Preset).toHaveClass(/border-amber-500\/40/, { timeout: 10000 });
-    await page.getByTestId('edit-backup-plan-discard-btn').click();
+    await page.getByTestId('edit-backup-plan-cancel-btn').click();
 
     // Cleanup
     await planItem.click({ button: 'right' });
@@ -159,7 +159,7 @@ test.describe('Database Backup Plan', () => {
     await expect(page.getByText(/Permission denied/i)).not.toBeVisible();
     await page.getByRole('button', { name: 'Close', exact: true }).click();
     await expect(addModal).toBeVisible();
-    await page.getByTestId('add-backup-plan-discard-btn').click();
+    await page.getByTestId('add-backup-plan-cancel-btn').click();
     await expect(addModal).not.toBeVisible();
 
     // Cleanup the one plan that did get created.

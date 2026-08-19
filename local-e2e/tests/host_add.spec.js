@@ -22,7 +22,7 @@ test.describe('Add Host', () => {
     await expect(modal.getByText('Username is required')).toBeVisible();
     await expect(modal.getByText('Password is required')).toBeVisible();
 
-    await page.getByTestId('add-host-discard-btn').click();
+    await page.getByTestId('add-host-cancel-btn').click();
     await expect(modal).not.toBeVisible();
   });
 
@@ -63,7 +63,7 @@ test.describe('Add Host', () => {
     const alreadyRegistered = await modal.getByText(/already registered/i)
       .waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false);
     if (alreadyRegistered) {
-      await page.getByTestId('add-host-discard-btn').click();
+      await page.getByTestId('add-host-cancel-btn').click();
       await expect(page.locator(`#host-section [title="${E2E_HOST_ADDRESS}:${E2E_HOST_PORT}"]`)).toBeVisible({ timeout: 10000 });
       return;
     }

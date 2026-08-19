@@ -32,7 +32,7 @@ test.describe('Database Property and Info Modals', () => {
     await expect(modal).toBeVisible({ timeout: 10000 });
     await expect(modal.getByText(E2E_DB).first()).toBeVisible();
 
-    await page.getByTestId('database-property-discard-btn').click();
+    await page.getByTestId('database-property-cancel-btn').click();
     await expect(modal).not.toBeVisible();
   });
 

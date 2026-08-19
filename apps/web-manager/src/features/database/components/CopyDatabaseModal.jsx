@@ -111,7 +111,15 @@ export default function CopyDatabaseModal() {
         deleteSource: false,
       });
     }
-  }, [isCopyDatabaseModalOpen, resetAction, currentDb, selectedHostUid, dispatch]);
+    // currentDb?.dbdir (not currentDb) is the dependency deliberately — see
+    // RenameDatabaseModal.jsx for the same convention. handleCopy's success
+    // path dispatches fetchDatabaseStartInfo to refresh the tree with the new
+    // clone, which replaces the whole `databases` array and gives `currentDb`
+    // a new object reference with the same dbdir value. Depending on the
+    // object itself re-ran this effect on that refresh alone and called
+    // resetAction() right after endSuccess(), silently bouncing the modal
+    // from its success view back to the form.
+  }, [isCopyDatabaseModalOpen, resetAction, currentDb?.dbdir, selectedHostUid, dispatch]);
 
   if (!isCopyDatabaseModalOpen) return null;
 
@@ -159,6 +167,7 @@ export default function CopyDatabaseModal() {
         <ModalStatusLoading
           title={CM.synchronizingVolumes}
           subtitle={getCmsJobLoadingSubtitle(formData.destName, jobStatus, CM)}
+          onBackground={handleClose}
         />
       </Modal>
     );
@@ -206,7 +215,7 @@ export default function CopyDatabaseModal() {
       testId="copy-database"
       footer={
         <div className="flex justify-end gap-3 w-full">
-          <Button data-testid="copy-database-discard-btn" variant="ghost" onClick={handleClose}>{CM.discard}</Button>
+          <Button data-testid="copy-database-cancel-btn" variant="ghost" onClick={handleClose}>{CM.cancel}</Button>
           <Button
             data-testid="copy-database-execute-btn"
             variant="primary"

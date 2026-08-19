@@ -44,7 +44,7 @@ test.describe('Database Rename/Copy', () => {
     await page.getByTestId('rename-database-new-name-input').fill(`${E2E_DB}_v2`);
     await expect(page.getByTestId('rename-database-execute-btn')).toBeEnabled();
 
-    await page.getByTestId('rename-database-discard-btn').click();
+    await page.getByTestId('rename-database-cancel-btn').click();
     await expect(modal).not.toBeVisible();
   });
 
