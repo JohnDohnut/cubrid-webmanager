@@ -280,7 +280,7 @@ export default function OptimizeDatabaseModal() {
 
       endSuccess();
     } catch (err) {
-      endError(typeof err === 'string' ? err : (err.message || 'The optimization sequence was interrupted. Please verify database connectivity and state.'));
+      endError(typeof err === 'string' ? err : (err.message || 'Optimization was interrupted. Check the database connection and try again.'));
     }
   };
 

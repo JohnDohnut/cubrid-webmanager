@@ -366,7 +366,7 @@ export default function DatabasePropertyModal() {
         if (!found) updatedSection.push(`${key}=${value}`);
       });
       await hostApi.setHostConfig(selectedHostUid, { confname: 'cubridconf', confdata: [...otherBefore, ...updatedSection, ...otherAfter] });
-      endSuccess(`Changes to the ${selectedDatabase || 'kernel'} configuration have been committed and synchronized.`);
+      endSuccess(CM.configurationAppliedMsg(selectedDatabase));
     } catch (err) {
       endError(typeof err === 'string' ? err : (err.message || CM.configPatchRejectedMsg));
     }
@@ -412,10 +412,10 @@ export default function DatabasePropertyModal() {
 
   /* ─── LOADING VIEW ─── */
   if (isLoading) return (
-    <Modal isOpen title={CM.syncingConfiguration} icon="settings" onClose={handleClose} maxWidth="900px" showCloseButton={false}>
+    <Modal isOpen title={CM.applyingConfigTitle} icon="settings" onClose={handleClose} maxWidth="900px" showCloseButton={false}>
       <ModalStatusLoading
-        title={CM.updatingRegistry}
-        subtitle={CM.syncingRegistrySubtitle}
+        title={CM.updatingConfigTitle}
+        subtitle={CM.updatingConfigSubtitle}
       />
     </Modal>
   );
@@ -425,7 +425,7 @@ export default function DatabasePropertyModal() {
     <Modal isOpen title={CM.updateSuccessful} icon="check_circle" iconVariant="success" onClose={handleClose} maxWidth="900px">
       <ModalStatusSuccess
         title={CM.configurationReIndexed}
-        message={`Changes to the ${selectedDatabase || 'kernel'} configuration have been committed and synchronized.`}
+        message={CM.configurationAppliedMsg(selectedDatabase)}
         onConfirm={handleClose}
         confirmText={CM.confirmReturn}
       />
@@ -436,12 +436,12 @@ export default function DatabasePropertyModal() {
   if (isError) return (
     <Modal isOpen title={CM.updateRejected} icon="error" iconVariant="danger" onClose={resetAction} maxWidth="900px">
       <ModalStatusError
-        title={CM.synchronizationHalted}
+        title={CM.applyFailedTitle}
         error={actionError}
         onRetry={handleApply}
         onCancel={resetAction}
         retryText={CM.retryPatch}
-        cancelText={CM.discardChanges}
+        cancelText={CM.cancel}
       />
     </Modal>
   );

@@ -205,7 +205,7 @@ export default function BackupDatabaseModal() {
       } else {
         const created = await databaseJobApi.submitBackup(selectedHostUid, selectedDatabase, payload);
         jobId = created?.jobId;
-        if (!jobId) throw new Error('Server did not return a job id');
+        if (!jobId) throw new Error('Backup could not be started. Please try again.');
         // Replace only after confirmed acceptance — preserves the previous pending job if submit fails
         dispatch(setPendingBackupJob({ jobId, hostUid: selectedHostUid, dbname: selectedDatabase, payload }));
       }

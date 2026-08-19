@@ -243,7 +243,7 @@ export default function AddBackupPlanModal() {
       footer={
         <div className="flex justify-end gap-3 w-full">
           <Button data-testid="add-backup-plan-cancel-btn" variant="ghost" onClick={handleClose}>{CM.cancel}</Button>
-          <Button data-testid="add-backup-plan-save-btn" variant="primary" onClick={handleSave} icon="play_circle" className="min-w-[140px]">{CM.initializeCycle}</Button>
+          <Button data-testid="add-backup-plan-save-btn" variant="primary" onClick={handleSave} icon="play_circle" className="min-w-[140px]">{CM.save}</Button>
         </div>
       }
     >
@@ -251,7 +251,7 @@ export default function AddBackupPlanModal() {
         
         {/* Level Presets */}
         <div className="space-y-4">
-           <SectionHeader title={CM.abstractionLevel} icon="architecture" />
+           <SectionHeader title={CM.type} icon="architecture" />
           <div className="grid grid-cols-3 gap-3">
             {LEVEL_PRESETS_DEF.map(item => (
               <button
@@ -285,8 +285,8 @@ export default function AddBackupPlanModal() {
 
         {/* Identity & Path */}
         <div className="grid grid-cols-2 gap-4">
-          <Input label={CM.planRegistryId} value={formData.backupId} onChange={(e) => handleInputChange('backupId', e.target.value)} error={errors.backupId} placeholder={CM.backupPlanIdPlaceholder} icon="badge" size="sm" required />
-          <Input label={CM.payloadPath} value={formData.backupPath} onChange={(e) => handleInputChange('backupPath', e.target.value)} error={errors.backupPath} placeholder={CM.backupDirPlaceholder} icon="folder_zip" size="sm" className="font-mono!" required />
+          <Input label={CM.planIdLabel} value={formData.backupId} onChange={(e) => handleInputChange('backupId', e.target.value)} error={errors.backupId} placeholder={CM.backupPlanIdPlaceholder} icon="badge" size="sm" required />
+          <Input label={CM.path} value={formData.backupPath} onChange={(e) => handleInputChange('backupPath', e.target.value)} error={errors.backupPath} placeholder={CM.backupDirPlaceholder} icon="folder_zip" size="sm" className="font-mono!" required />
         </div>
 
         {/* Recurrence */}
@@ -296,7 +296,7 @@ export default function AddBackupPlanModal() {
             <div className="flex gap-4">
               <div className="flex-1">
                 <Select
-                  label={CM.rotationLogic}
+                  label={CM.rotationLabel}
                   value={formData.periodType}
                   onChange={(e) => handleInputChange('periodType', e.target.value)}
                   options={[
@@ -318,10 +318,10 @@ export default function AddBackupPlanModal() {
                 <div className="space-y-4">
                   <div className="flex flex-wrap gap-2">
                     {[
-                      { id: 'all', label: CM.fullSpectrumPreset, icon: 'select_all' },
-                      { id: 'clear', label: CM.resetGridPreset, icon: 'backspace' },
-                      { id: 'weekdays', label: CM.standardWeekPreset, icon: 'work' },
-                      { id: 'weekends', label: CM.weekendCyclePreset, icon: 'beach_access' },
+                      { id: 'all', label: CM.everyDayPreset, icon: 'select_all' },
+                      { id: 'clear', label: CM.clearAllPreset, icon: 'backspace' },
+                      { id: 'weekdays', label: CM.weekdaysPreset, icon: 'work' },
+                      { id: 'weekends', label: CM.weekendsPreset, icon: 'beach_access' },
                     ].map(preset => (
                       <button
                         key={preset.id}
@@ -376,13 +376,13 @@ export default function AddBackupPlanModal() {
               )}
 
               {formData.periodType === 'Daily' && (
-                <InfoBanner title={CM.standard24hCycle}>
-                  {CM.dailySyncInfoBanner(formData.backupTime)}
+                <InfoBanner title={CM.daily24hCycleLabel}>
+                  {CM.dailyScheduleInfoBanner(formData.backupTime)}
                 </InfoBanner>
               )}
 
               {formData.periodType === 'Specific days' && (
-                <Input type="date" label={CM.registryDate} value={formData.periodDetail} onChange={(e) => handleInputChange('periodDetail', e.target.value)} icon="event" size="sm" />
+                <Input type="date" label={CM.date} value={formData.periodDetail} onChange={(e) => handleInputChange('periodDetail', e.target.value)} icon="event" size="sm" />
               )}
             </div>
           </div>
@@ -390,7 +390,7 @@ export default function AddBackupPlanModal() {
 
         {/* Operational Options */}
         <div className="space-y-4">
-           <SectionHeader title={CM.optimizationMatrix} icon="settings_input_component" />
+           <SectionHeader title={CM.optimizationSectionTitle} icon="settings_input_component" />
           <div className="grid grid-cols-2 gap-3">
             {[
               { label: CM.deleteArchiveLogsLabel, field: 'deleteArchive', icon: 'auto_delete', desc: CM.deleteArchiveLogsDesc },
@@ -430,7 +430,7 @@ export default function AddBackupPlanModal() {
         {/* Resources */}
         <div className="grid grid-cols-2 gap-6">
           <Input type="number" label={CM.concurrentThreads} value={formData.threads} onChange={(e) => handleInputChange('threads', parseInt(e.target.value) || 0)} icon="speed" suffix="CORES" size="sm" />
-          <Input type="number" label={CM.rotationRetention} value={formData.backupsToKeep} onChange={(e) => handleInputChange('backupsToKeep', parseInt(e.target.value) || 0)} icon="history" suffix="SETS" size="sm" />
+          <Input type="number" label={CM.retentionLabel} value={formData.backupsToKeep} onChange={(e) => handleInputChange('backupsToKeep', parseInt(e.target.value) || 0)} icon="history" suffix="SETS" size="sm" />
         </div>
 
         {/* Mode Selector */}
