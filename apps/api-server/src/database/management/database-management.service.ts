@@ -84,12 +84,14 @@ export class DatabaseManagementService extends BaseService {
   }
 
   /**
-   * CMS authorizes tasks like optimizedb/checkdb/compactdb against a
-   * per-connection credential cache ("conlist") on the CMS host, populated
-   * only by a prior dbmtuserlogin call — not from these tasks' own request
-   * fields. Log in first so the cache is populated before running the
-   * operation. Skipped when dbuser isn't provided (offline databases run
-   * through a CLI path on the CMS side that doesn't need this).
+   * optimizedb, when the target database is online, calls CMS's `_op_db_login`
+   * which does a real db_login against a per-connection credential cache
+   * ("conlist") on the CMS host, populated only by a prior dbmtuserlogin call —
+   * not from optimizedb's own request fields. Log in first so the cache is
+   * populated before running the operation. Skipped when dbuser isn't provided
+   * (offline databases run through a CLI path on the CMS side that doesn't
+   * need this). checkdb/compactdb never consult this cache in any mode
+   * (pure CLI wrappers), so this must only be called for optimizedb.
    */
   private async loginIfCredentialsProvided(
     userId: string,
@@ -399,8 +401,6 @@ export class DatabaseManagementService extends BaseService {
     dbname: string,
     request: CheckDatabaseRequest
   ): Promise<CheckDatabaseCmsResponse> {
-    await this.loginIfCredentialsProvided(userId, hostUid, dbname, request.dbuser, request.dbpasswd);
-
     const cmsRequest: CheckDatabaseCmsRequest = {
       task: 'checkdb',
       dbname: dbname,
@@ -447,8 +447,6 @@ export class DatabaseManagementService extends BaseService {
     dbname: string,
     request: CompactDatabaseRequest
   ): Promise<CompactDatabaseCmsResponse> {
-    await this.loginIfCredentialsProvided(userId, hostUid, dbname, request.dbuser, request.dbpasswd);
-
     const cmsRequest: CompactDatabaseCmsRequest = {
       task: 'compactdb',
       dbname: dbname,
