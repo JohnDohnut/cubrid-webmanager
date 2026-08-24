@@ -359,6 +359,7 @@ export default function LoadDatabaseModal() {
         <ModalStatusError
           title={CM.failure}
           error={actionError}
+          guidance={CM.loadDbGuidance}
           onRetry={handleLoadDatabase}
           onCancel={resetAction}
           cancelText={CM.close}

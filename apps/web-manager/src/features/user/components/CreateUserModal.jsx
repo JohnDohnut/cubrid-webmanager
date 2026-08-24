@@ -334,7 +334,7 @@ export default function CreateUserModal({ isOpen, onClose, dbname, editingUser }
   if (isError) {
     return (
       <Modal isOpen title={CM.error} icon="error" iconVariant="danger" onClose={resetAction} maxWidth="max-w-[860px]">
-        <ModalStatusError title={CM.operationFailed} error={actionError} onRetry={handleSave} onCancel={resetAction} retryText={CM.retry} cancelText={CM.dismiss} />
+        <ModalStatusError title={CM.operationFailed} error={actionError} guidance={!isEditMode ? CM.createUserGuidance : undefined} onRetry={handleSave} onCancel={resetAction} retryText={CM.retry} cancelText={CM.dismiss} />
       </Modal>
     );
   }

@@ -207,6 +207,7 @@ export const CM_KO = {
   connect: '연결',
   loginAll: '전체 로그인',
   disconnect: '연결 해제',
+  openDashboard: '대시보드 열기',
   tryAgain: '다시 시도',
   add: '추가',
   edit: '편집',
@@ -308,7 +309,6 @@ export const CM_KO = {
   database: '데이터베이스',
   broker: '브로커',
   addHost: '호스트 추가',
-  changeHost: '호스트 변경',
   exportHost: '호스트보내기',
   importHost: '호스트 가져오기',
   exportHosts: '호스트보내기',
@@ -320,9 +320,6 @@ export const CM_KO = {
   aboutCubridAdmin: 'CUBRID Admin 정보',
   aboutCubrid: 'CUBRID 정보',
   cubridWebManager: 'CUBRID Web Manager',
-  systemDetails: '시스템 정보',
-  coreVersion: '코어 버전',
-  certifiedStable: '안정 인증',
   startService: '서비스 시작',
   stopService: '서비스 중지',
   startStopService: '서비스 시작/중지',
@@ -475,7 +472,6 @@ export const CM_KO = {
 
   signIn: '로그인',
   authorizeAccess: '로그인',
-  authenticationFailed: '인증 실패',
   createAccount: '계정 만들기',
   backToLogin: '로그인으로 돌아가기',
   accountRecovery: '계정 복구',
@@ -763,7 +759,7 @@ export const CM_KO = {
   weekendsPreset: '주말 패턴',
   dailyScheduleInfoBanner: (time) => `매일 ${time}에 실행됩니다.`,
   optimizationSectionTitle: '최적화',
-  retentionLabel: '보존',
+  retentionLabel: '보관할 백업 수',
   deleteBackupPlan: '백업 자동화 계획 삭제',
   deleteQueryPlan: '질의 자동화 계획 삭제',
   deletingQueryPlan: '질의 자동화 계획 삭제 중',
@@ -794,6 +790,105 @@ export const CM_KO = {
   clientValue: '클라이언트 값',
   failedToGetDbParams: '데이터베이스 매개변수를 가져오지 못했습니다.',
   message: '메시지',
+  thingsToCheck: '확인할 부분',
+  showDetails: '자세히 보기',
+  hideDetails: '자세히 보기 닫기',
+
+  // 에러 가이던스 — 각 작업의 실제 선행조건을 바탕으로 정리한 확인 항목.
+  // 원본 CMS 에러 메시지는 "자세히 보기" 안으로 이동합니다.
+  haReplicationProcessTitle: 'HA 복제 프로세스',
+  haReplicationProcessWarning: 'HA 복제 프로세스(copylogdb/applylogdb)입니다 — 일반 사용자 세션이 아니라, kill하면 실제 복제가 끊깁니다.',
+  checkDbGuidance: [
+    '선택한 데이터베이스가 이 호스트에 정상적으로 등록되어 있는지 확인하세요.',
+    '실제 손상이 발견됐다면 복구(Repair) 옵션을 켜고 다시 시도해보세요.',
+  ],
+  compactDbGuidance: [
+    '데이터베이스가 다른 프로세스에 의해 단독(Standalone) 모드로 열려있지 않은지 확인하세요.',
+    '압축 작업은 임시 디스크 공간을 사용합니다 — 여유 공간이 충분한지 확인하세요.',
+  ],
+  optimizeDbGuidance: [
+    '온라인 상태에서는 유효한 데이터베이스 계정 정보가 필요합니다.',
+    '특정 클래스(테이블)를 지정했다면 실제로 존재하는지 확인하세요.',
+  ],
+  loadDbGuidance: [
+    '대상 데이터베이스가 완전히 정지된 상태인지 확인하세요 (Load는 오프라인에서만 동작합니다).',
+    '스키마/데이터 파일 경로와 형식이 올바른지 확인하세요.',
+  ],
+  unloadDbGuidance: [
+    '입력한 데이터베이스 사용자명/비밀번호가 올바른지 다시 확인하세요.',
+    '출력 디렉터리가 존재하고 쓰기 권한이 있는지 확인하세요.',
+  ],
+  backupDbGuidance: [
+    '백업 디렉터리가 존재하고 쓰기 권한이 있는지 확인하세요.',
+    '동일한 이름의 백업 파일이 이미 그 경로에 있을 수 있습니다.',
+  ],
+  restoreDbGuidance: [
+    '복원 전 대상 데이터베이스가 완전히 정지된 상태인지 확인하세요.',
+    '선택한 백업 파일 또는 복원 시점이 실제로 존재하는지 확인하세요.',
+  ],
+  copyDbGuidance: [
+    '원본 데이터베이스가 정지된 상태인지 확인하세요 (Copy는 오프라인에서만 동작합니다).',
+    '대상 이름이 이미 사용 중이지 않은지 확인하세요.',
+    '대상 이름은 16자 이하, ASCII만 가능하며(영문/숫자/"_"/"-"/"." 가능), 공백/"/"/"\\"/"@"를 포함할 수 없고 "#"으로 시작할 수 없습니다.',
+  ],
+  renameDbGuidance: [
+    '이름을 바꾸기 전에 데이터베이스가 정지된 상태인지 확인하세요.',
+    '새 볼륨 경로에 쓰기 권한이 있고 기존 경로와 충돌하지 않는지 확인하세요.',
+  ],
+  deleteDbGuidance: [
+    '삭제 전 데이터베이스가 완전히 정지된 상태인지 확인하세요.',
+    '백업 파일도 함께 삭제하도록 설정했다면 백업 경로 접근 권한을 확인하세요.',
+  ],
+  createDbGuidance: [
+    '이름은 16자 이하로 지어주세요 — 그보다 길면 엔진이 비정상 종료될 수 있습니다.',
+    'ASCII만 가능합니다(한글 등 비ASCII 문자는 안 됨) — 영문/숫자/"_"/"-"/"."은 다 괜찮습니다.',
+    '공백, "/", "\\", "@"는 쓸 수 없고 "#"으로 시작할 수 없습니다.',
+    '볼륨 경로에 쓰기 권한이 있고 디스크 공간이 충분한지 확인하세요.',
+  ],
+  addVolumeGuidance: [
+    '볼륨 경로에 쓰기 권한이 있고 여유 디스크 공간이 충분한지 확인하세요.',
+    '볼륨 목적(Purpose)이 데이터베이스의 현재 상태와 맞는지 확인하세요.',
+  ],
+  backupPlanGuidance: [
+    '백업 디렉터리 경로가 유효하고 접근 가능한지 확인하세요.',
+    '이 Plan ID가 이미 사용 중이지 않은지 확인하세요.',
+  ],
+  deleteBackupPlanGuidance: [
+    '이 Plan ID가 아직 존재하는지 확인하세요 — 다른 곳에서 이미 삭제됐을 수 있습니다.',
+  ],
+  queryPlanGuidance: [
+    'SQL 문에 문법 오류가 없는지 다시 확인하세요 — 아직 자동 문법 검사 기능은 없습니다.',
+    '입력한 데이터베이스 계정 정보가 올바른지 확인하세요.',
+  ],
+  autoVolumeGuidance: [
+    '임계값(Threshold)과 볼륨 경로 설정이 유효한지 확인하세요.',
+  ],
+  databasePropertyGuidance: [
+    '설정 값의 형식과 범위가 유효한지 확인하세요.',
+    '이 호스트의 설정 파일에 쓰기 권한이 있는지 확인하세요.',
+  ],
+  loginDatabaseGuidance: [
+    '입력한 사용자명과 비밀번호를 다시 확인하세요.',
+    '데이터베이스가 현재 실행 중인지 확인하세요.',
+  ],
+  cmsUserGuidance: [
+    '현재 CMS 세션이 사용자 관리 권한을 가지고 있는지 확인하세요.',
+    '해당 아이디가 이미 존재하는지 확인하세요.',
+  ],
+  createUserGuidance: [
+    '사용자 이름이 이미 존재하거나 예약된 이름(PUBLIC, DBA 등)과 충돌하지 않는지 확인하세요.',
+  ],
+  dropUserGuidance: [
+    '이 사용자가 소유한 테이블/뷰가 있으면, 정리되기 전까지 삭제가 거부될 수 있습니다.',
+  ],
+  killTransactionGuidance: [
+    'kill 요청이 도착하기 전에 해당 트랜잭션이 이미 스스로 종료됐을 수 있습니다.',
+    '"동일 호스트" 또는 "동일 프로그램"을 선택했다면, 의도한 것보다 더 많이 걸리지 않는지 확인하세요.',
+  ],
+  brokerOperationGuidance: [
+    '브로커 이름이 올바르고, 브로커 프로세스가 예상 상태인지 확인하세요.',
+    '브로커 설정에 포트 충돌이나 이름 중복이 없는지 확인하세요.',
+  ],
   activeContext: '활성 컨텍스트',
   offlineStatic: '오프라인 정적',
   noConfigParameters: '이 데이터베이스에 대한 설정 매개변수가 없습니다.',
@@ -1415,7 +1510,7 @@ export const CM_KO = {
   managerLogs: '매니저 로그',
   serverLogs: '서버 로그',
   backupPlanLabel: '백업 계획',
-  indexEmpty: '인덱스 없음',
+  emptyListLabel: '없음',
   noDatabasesAvailable: '사용 가능한 데이터베이스 없음',
 
   // 데이터베이스 공간 모니터
@@ -1463,9 +1558,9 @@ export const CM_KO = {
   queryTime: '쿼리 시간',
   tranTime: '트랜잭션 시간',
   waitHolder: '대기 홀더',
-  dbUserRequiredForDiagnosticsMsg: '트랜잭션 진단을 위해서는 데이터베이스 사용자(dbuser)가 필요합니다.',
   dbUserRequiredWhileOnlineMsg: '데이터베이스가 온라인 상태일 때는 데이터베이스 사용자(dbuser)가 필요합니다.',
   emptyAllowedPlaceholder: '(비워둘 수 있음)',
+  alreadyLoggedInPlaceholder: '(이미 로그인됨 — 비워두면 기존 인증 재사용)',
 
   // 언로드 결과 모달
   classLabel: '클래스',
@@ -1783,8 +1878,6 @@ export const CM_KO = {
   // AboutModal
   cubridLogoAlt: 'CUBRID 로고',
   aboutTagline: 'CUBRID를 위한 웹 기반 관리 도구입니다.',
-  webBridgeLabel: '웹 브리지',
-  stackLabel: '스택',
   copyrightNotice: '© 2026 CUBRID Corporation',
 
   // Breadcrumb

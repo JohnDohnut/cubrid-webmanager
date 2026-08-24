@@ -222,6 +222,7 @@ export default function UnloadDatabaseModal() {
         <ModalStatusError
           title={CM.failure}
           error={actionError}
+          guidance={CM.unloadDbGuidance}
           onRetry={handleUnloadDatabase}
           onCancel={resetAction}
           cancelText={CM.close}

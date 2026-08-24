@@ -59,8 +59,9 @@ const SIZE_PRESETS = [
   { label: '256 MB', mb: 256 },
   { label: '512 MB', mb: 512 },
   { label: '1 GB', mb: 1024 },
-  { label: '2 GB', mb: 2048 },
   { label: '4 GB', mb: 4096 },
+  { label: '10 GB', mb: 10240 },
+  { label: '20 GB', mb: 20480 },
 ];
 
 export default function AddVolumeModal() {
@@ -176,9 +177,10 @@ export default function AddVolumeModal() {
   if (isError) {
     return (
       <Modal isOpen title={CM.allocationInterrupted} icon="add_box" iconVariant="danger" onClose={resetAction} maxWidth="720px">
-        <ModalStatusError 
+        <ModalStatusError
           title={CM.scalingFailed}
           error={error}
+          guidance={CM.addVolumeGuidance}
           onRetry={handleAdd}
           onCancel={resetAction}
           retryText={CM.retryAddVolume}
@@ -352,11 +354,11 @@ export default function AddVolumeModal() {
                   purpose === 'data' ? 'bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.4)]' :
                   'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
                 }`}
-                style={{ width: `${Math.min((sizeMB / 4096) * 100, 100)}%` }}
+                style={{ width: `${Math.min((sizeMB / 20480) * 100, 100)}%` }}
               />
             </div>
             <div className="flex justify-between text-[8px] text-slate-400 dark:text-slate-600 font-black uppercase tracking-widest">
-              <span>Empty</span><span>1 GB</span><span>2 GB</span><span>Max (4GB)</span>
+              <span>Empty</span><span>5 GB</span><span>10 GB</span><span>Max (20GB)</span>
             </div>
           </div>
         </div>

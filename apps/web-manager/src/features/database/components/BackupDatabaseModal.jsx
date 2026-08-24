@@ -269,7 +269,7 @@ export default function BackupDatabaseModal() {
 
       {existingBackupAtLevel && (
         <CaDialogField fullWidth>
-          <InfoBanner variant="warning" title={CM.warning} icon="warning">
+          <InfoBanner variant="danger" title={CM.warning} icon="warning">
             {CM.existingBackupWarningMsg(formData.backupLevel)}
           </InfoBanner>
         </CaDialogField>
@@ -344,9 +344,10 @@ export default function BackupDatabaseModal() {
   if (isError) {
     return (
       <Modal isOpen title={CM.backupFailed} icon="backup" iconVariant="danger" onClose={resetAction} maxWidth="720px">
-        <ModalStatusError 
+        <ModalStatusError
           title={CM.operationInterrupted}
           error={error}
+          guidance={CM.backupDbGuidance}
           onRetry={handleBackup}
           onCancel={resetAction}
           retryText={CM.retryBackup}

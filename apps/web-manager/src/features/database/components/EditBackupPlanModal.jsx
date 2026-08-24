@@ -228,6 +228,7 @@ export default function EditBackupPlanModal() {
         <ModalStatusError
           title={CM.operationInterrupted}
           error={actionError}
+          guidance={CM.backupPlanGuidance}
           onRetry={handleSave}
           onCancel={resetAction}
           retryText={CM.retry}
@@ -300,24 +301,20 @@ export default function EditBackupPlanModal() {
         <div className="space-y-4">
            <SectionHeader title={CM.executionSchedule} icon="schedule" />
           <div className="p-5 bg-slate-50/50 dark:bg-white/1 border border-slate-100 dark:border-white/4 rounded-2xl space-y-6 shadow-xs">
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <Select 
-                  label={CM.rotationLabel}
-                  value={formData.periodType}
-                  onChange={(e) => handleInputChange('periodType', e.target.value)}
-                  options={[
-                    { value: 'Monthly', label: CM.monthly },
-                    { value: 'Weekly', label: CM.weekly },
-                    { value: 'Daily', label: CM.daily },
-                    { value: 'Specific days', label: CM.specificDays }
-                  ]}
-                  size="sm"
-                />
-              </div>
-              <div className="w-[140px]">
-                <Input label={CM.targetTime} type="time" value={formData.backupTime} onChange={(e) => handleInputChange('backupTime', e.target.value)} icon="nest_clock_farsight_analog" size="sm" />
-              </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Select
+                label={CM.rotationLabel}
+                value={formData.periodType}
+                onChange={(e) => handleInputChange('periodType', e.target.value)}
+                options={[
+                  { value: 'Monthly', label: CM.monthly },
+                  { value: 'Weekly', label: CM.weekly },
+                  { value: 'Daily', label: CM.daily },
+                  { value: 'Specific days', label: CM.specificDays }
+                ]}
+                size="sm"
+              />
+              <Input label={CM.targetTime} type="time" value={formData.backupTime} onChange={(e) => handleInputChange('backupTime', e.target.value)} icon="nest_clock_farsight_analog" size="sm" />
             </div>
 
             <div className="animate-in fade-in duration-300">

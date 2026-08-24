@@ -308,9 +308,10 @@ export default function CopyDatabaseModal() {
   if (isError) {
     return (
       <Modal isOpen title={CM.cloningFailed} icon="content_copy" iconVariant="danger" onClose={resetAction} maxWidth="640px">
-        <ModalStatusError 
+        <ModalStatusError
           title={CM.operationInterrupted}
           error={error}
+          guidance={CM.copyDbGuidance}
           onRetry={handleCopy}
           onCancel={resetAction}
           retryText={CM.retryClone}
