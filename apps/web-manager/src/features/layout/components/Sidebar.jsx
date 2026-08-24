@@ -811,6 +811,15 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
               }}
             />
           )}
+          <MenuItem
+            icon="space_dashboard"
+            label={CM.openDashboard}
+            onClick={() => {
+              const hostUid = contextMenu.hostUid;
+              setContextMenu(null);
+              handleHostLogin(hostUid);
+            }}
+          />
           <MenuDivider />
           <MenuItem
             icon="play_arrow"
@@ -907,15 +916,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                 setGroupContextMenu(null);
               }}
             />
-            <MenuDivider />
-            <MenuItem
-            icon="add_link"
-            label={CM.addNode}
-            onClick={() => {
-              dispatch(openAddHostModal({ groupId: groupContextMenu.groupId, alias: '', address: '', port: '8001', id: 'admin', password: '' }));
-              setGroupContextMenu(null);
-            }}
-          />
+          <MenuDivider />
           {groupContextMenu.groupId !== UNGROUPED_GROUP_ID && (
             <>
           <MenuItem
@@ -954,7 +955,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
       {dbContextMenu && (
         <ContextMenuWrapper x={dbContextMenu.mouseX} y={dbContextMenu.mouseY} onClose={() => setDbContextMenu(null)}>
           <div className="px-3 py-2 border-b border-slate-100 dark:border-white/5 mb-1 flex items-center justify-between">
-            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">{CM.databaseColon(dbContextMenu.db)}</Typography>
+            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">{CM.database}: <span className="normal-case">{dbContextMenu.db}</span></Typography>
             <Icon name="database" size="xs" className="opacity-30" weight={300} />
           </div>
           {dbContextMenu.isActive ? (
@@ -1022,25 +1023,27 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           </SubMenu>
 
           <SubMenu icon="info" label={CM.databaseInfoMenu} width="w-52">
-            <MenuItem icon="lock_open" label={`${CM.lockingInformation}...`} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openLockInformationModal()); setDbContextMenu(null); }} />
-            <MenuItem icon="swap_horiz" label={`${CM.transactionInformation}...`} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openTransactionInfoModal()); setDbContextMenu(null); }} />
-            <MenuItem 
-              icon="data_object" 
-              label={`${CM.paramDump}`} 
-              onClick={() => { 
-                dispatch(setSelectedDatabase(dbContextMenu.db)); 
-                dispatch(openDatabaseInfoModal()); 
-                setDbContextMenu(null); 
-              }} 
+            <MenuItem icon="lock_open" label={`${CM.lockingInformation}...`} disabled={!dbContextMenu.isActive} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openLockInformationModal()); setDbContextMenu(null); }} />
+            <MenuItem icon="swap_horiz" label={`${CM.transactionInformation}...`} disabled={!dbContextMenu.isActive} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openTransactionInfoModal()); setDbContextMenu(null); }} />
+            <MenuItem
+              icon="data_object"
+              label={`${CM.paramDump}`}
+              disabled={!dbContextMenu.isActive}
+              onClick={() => {
+                dispatch(setSelectedDatabase(dbContextMenu.db));
+                dispatch(openDatabaseInfoModal());
+                setDbContextMenu(null);
+              }}
             />
-            <MenuItem 
-              icon="schema" 
-              label={`${CM.planDump}`} 
-              onClick={() => { 
-                dispatch(setSelectedDatabase(dbContextMenu.db)); 
-                dispatch(openPlanDumpModal()); 
-                setDbContextMenu(null); 
-              }} 
+            <MenuItem
+              icon="schema"
+              label={`${CM.planDump}`}
+              disabled={!dbContextMenu.isActive}
+              onClick={() => {
+                dispatch(setSelectedDatabase(dbContextMenu.db));
+                dispatch(openPlanDumpModal());
+                setDbContextMenu(null);
+              }}
             />
           </SubMenu>
           
