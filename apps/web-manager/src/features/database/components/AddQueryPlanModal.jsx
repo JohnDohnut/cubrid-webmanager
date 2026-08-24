@@ -183,6 +183,7 @@ export default function AddQueryPlanModal() {
         <ModalStatusError
           title={CM.operationInterrupted}
           error={actionError}
+          guidance={CM.queryPlanGuidance}
           onRetry={handleSave}
           onCancel={resetAction}
           retryText={CM.retry}

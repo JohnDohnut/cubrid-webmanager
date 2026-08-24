@@ -383,6 +383,7 @@ export default function CreateDatabaseModal() {
         <ModalStatusError
           title={CM.failure}
           error={error}
+          guidance={CM.createDbGuidance}
           onRetry={handleFinish}
           onCancel={resetAction}
           cancelText={CM.close}

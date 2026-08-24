@@ -89,6 +89,7 @@ export default function RenameDatabaseModal() {
   const [volInfoLoading, setVolInfoLoading] = useState(false);
 
   const editedVolumesRef = useRef({});
+  const isExvolpathEditedRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,22 +101,43 @@ export default function RenameDatabaseModal() {
       setVolumes([]);
       resetAction();
       editedVolumesRef.current = {};
+      isExvolpathEditedRef.current = false;
 
       if (selectedHostUid && selectedDatabase) {
         setVolInfoLoading(true);
         databaseApi.getVolumeInfo(selectedHostUid, selectedDatabase)
           .then((res) => {
             if (cancelled) return;
-            const validTypes = ['generic', 'data', 'index', 'temp'];
+            // CMS reports actual data/index volumes as type PERMANENT/TEMPORARY
+            // (log volumes are Active_log/Archive_log, excluded here — CUBRID
+            // renames those automatically, not via this per-volume mapping).
+            // Their `spacename` is also the volume's *full path*, not a bare
+            // file name, so it must be reduced to a basename here or the
+            // "Current Volume Name" column shows the whole path, the main-volume
+            // check (spacename === dbname) never matches, and the rename
+            // payload's path concatenation below double-includes the path.
+            // Some older CUBRID/CMS builds may report the more granular
+            // generic/data/index/temp purposes instead of PERMANENT/TEMPORARY —
+            // accept both so this doesn't silently break on a version skew.
+            const validTypes = ['permanent', 'temporary', 'generic', 'data', 'index', 'temp'];
             const filteredSpaces = (res?.spaceinfo || []).filter(space =>
               space.type && validTypes.includes(space.type.toLowerCase())
-            ).map(space => ({
-              spacename: space.spacename,
-              type: space.type,
-              location: space.location,
-              newVolumeName: space.spacename,
-              newLocation: space.location
-            }));
+            ).map(space => {
+              // CMS's own `location` field has been observed equal to the full
+              // `spacename` path (not just the directory) — trusting it here
+              // double-includes the path when oldPath is rebuilt below. Derive
+              // the directory ourselves from spacename instead.
+              const sep = getPathSeparator(space.spacename);
+              const baseName = space.spacename ? space.spacename.split(sep).pop() : space.spacename;
+              const dirPath = space.spacename ? getParentDirectory(space.spacename) : space.location;
+              return {
+                spacename: baseName,
+                type: space.type,
+                location: dirPath,
+                newVolumeName: baseName,
+                newLocation: dirPath
+              };
+            });
             setVolumes(filteredSpaces);
           })
           .catch((err) => {
@@ -140,7 +162,9 @@ export default function RenameDatabaseModal() {
     
     if (newDbName) {
       const computedPath = parentDir ? `${parentDir}${separator}${newDbName}` : '';
-      setExvolpath(computedPath);
+      if (!isExvolpathEditedRef.current) {
+        setExvolpath(computedPath);
+      }
 
       setVolumes(prevVolumes => {
         let count = 1;
@@ -180,7 +204,9 @@ export default function RenameDatabaseModal() {
         return changed ? nextVolumes : prevVolumes;
       });
     } else {
-      setExvolpath(parentDir);
+      if (!isExvolpathEditedRef.current) {
+        setExvolpath(parentDir);
+      }
       setVolumes(prevVolumes => {
         let changed = false;
         const nextVolumes = prevVolumes.map((vol, idx) => {
@@ -309,9 +335,10 @@ export default function RenameDatabaseModal() {
   if (isError) {
     return (
       <Modal isOpen title={CM.renameFailed} icon="drive_file_rename_outline" iconVariant="danger" onClose={handleClose} maxWidth="640px">
-        <ModalStatusError 
+        <ModalStatusError
           title={CM.operationFailed}
           error={error}
+          guidance={CM.renameDbGuidance}
           onRetry={handleRename}
           onCancel={handleClose}
           retryText={CM.retryRename}
@@ -383,7 +410,7 @@ export default function RenameDatabaseModal() {
           </div>
           <Input
             value={exvolpath}
-            onChange={(e) => setExvolpath(e.target.value)}
+            onChange={(e) => { isExvolpathEditedRef.current = true; setExvolpath(e.target.value); }}
             placeholder="/home/cubrid/databases/demodb"
             disabled={mode !== 'exvolpath'}
             className="w-full"

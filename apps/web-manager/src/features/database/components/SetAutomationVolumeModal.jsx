@@ -231,6 +231,7 @@ export default function SetAutomationVolumeModal() {
         <ModalStatusError
           title={CM.saveInterrupted}
           error={actionError}
+          guidance={CM.autoVolumeGuidance}
           onRetry={handleSave}
           onCancel={resetAction}
           retryText={CM.retry}

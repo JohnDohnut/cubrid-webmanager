@@ -534,9 +534,10 @@ export default function RestoreDatabaseModal() {
   if (isError) {
     return (
       <Modal isOpen title={CM.recoveryFailed} icon="restore" iconVariant="danger" onClose={resetAction} maxWidth="900px">
-        <ModalStatusError 
+        <ModalStatusError
           title={CM.transactionDropped}
           error={actionError}
+          guidance={CM.restoreDbGuidance}
           onRetry={handleRestore}
           onCancel={resetAction}
           retryText={CM.retryRecovery}

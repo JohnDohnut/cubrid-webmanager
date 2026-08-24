@@ -191,9 +191,10 @@ export default function CopyDatabaseModal() {
   if (isError) {
     return (
       <Modal isOpen title={CM.cloningFailed} icon="content_copy" iconVariant="danger" onClose={resetAction} maxWidth="580px">
-        <ModalStatusError 
+        <ModalStatusError
           title={CM.operationInterrupted}
           error={error}
+          guidance={CM.copyDbGuidance}
           onRetry={handleCopy}
           onCancel={resetAction}
           retryText={CM.retryClone}
@@ -237,7 +238,7 @@ export default function CopyDatabaseModal() {
               <div className="w-8 h-8 rounded-xl bg-slate-200 dark:bg-white/8 flex items-center justify-center shrink-0">
                 <Icon name="database" size="sm" weight={300} className="text-slate-500 dark:text-slate-400" />
               </div>
-              <p className="text-[12.5px] font-black text-slate-700 dark:text-slate-200 truncate">{selectedDatabase}</p>
+              <p className="text-[14px] font-black text-slate-700 dark:text-slate-200 truncate">{selectedDatabase}</p>
             </div>
 
           {/* Center Indicator Pillar */}

@@ -214,6 +214,7 @@ export const CM = {
   connect: 'Connect',
   loginAll: 'Login All',
   disconnect: 'Disconnect',
+  openDashboard: 'Open Dashboard',
   tryAgain: 'Try Again',
   add: 'Add',
   edit: 'Edit',
@@ -317,7 +318,6 @@ export const CM = {
   database: 'Database',
   broker: 'Broker',
   addHost: 'Add Host',
-  changeHost: 'Change Host',
   exportHost: 'Export Host',
   importHost: 'Import Host',
   exportHosts: 'Export Hosts',
@@ -329,9 +329,6 @@ export const CM = {
   aboutCubridAdmin: 'About CUBRID Admin',
   aboutCubrid: 'About CUBRID',
   cubridWebManager: 'CUBRID Web Manager',
-  systemDetails: 'System Details',
-  coreVersion: 'Core Version',
-  certifiedStable: 'Certified Stable',
   startService: 'Start Service',
   stopService: 'Stop Service',
   startStopService: 'Start/Stop Service',
@@ -488,7 +485,6 @@ export const CM = {
   // Auth
   signIn: 'Sign In',
   authorizeAccess: 'Login',
-  authenticationFailed: 'Authentication Failed',
   createAccount: 'Create Account',
   backToLogin: 'Back to Login',
   accountRecovery: 'Account Recovery',
@@ -758,7 +754,7 @@ export const CM = {
   weekendsPreset: 'Weekends',
   dailyScheduleInfoBanner: (time) => `Runs daily at ${time}.`,
   optimizationSectionTitle: 'Optimization',
-  retentionLabel: 'Retention',
+  retentionLabel: 'Backups to Keep',
   deleteBackupPlan: 'Delete Backup Plan',
   deleteQueryPlan: 'Delete Query Plan',
   deletingQueryPlan: 'Deleting Query Plan',
@@ -785,6 +781,106 @@ export const CM = {
   clientValue: 'Client Value',
   failedToGetDbParams: 'Failed to get database parameters.',
   message: 'Message',
+  thingsToCheck: 'Things to check',
+  showDetails: 'Show details',
+  hideDetails: 'Hide details',
+
+  // Error guidance — curated "things to check" bullets per operation,
+  // shown above the raw CMS error (which moves behind a "Show details"
+  // toggle). Based on each CMS task's actual preconditions.
+  haReplicationProcessTitle: 'HA replication process',
+  haReplicationProcessWarning: 'This is an HA replication process (copylogdb/applylogdb), not a user session — killing it disrupts live replication.',
+  checkDbGuidance: [
+    'Make sure the database is registered correctly on this host.',
+    'If real corruption was found, try again with the Repair option turned on.',
+  ],
+  compactDbGuidance: [
+    "Make sure the database isn't already open in standalone mode by another process.",
+    'Compaction needs temporary disk space — check there is enough free space.',
+  ],
+  optimizeDbGuidance: [
+    'While the database is online, valid database credentials are required.',
+    'If a specific class was selected, make sure it still exists.',
+  ],
+  loadDbGuidance: [
+    'The target database must be fully stopped — Load only works offline.',
+    'Check that the schema/data file paths and format are correct.',
+  ],
+  unloadDbGuidance: [
+    'Double-check the database username and password entered.',
+    'Make sure the output directory exists and is writable.',
+  ],
+  backupDbGuidance: [
+    'Make sure the backup directory exists and is writable.',
+    'A backup file with the same name may already exist at that path.',
+  ],
+  restoreDbGuidance: [
+    'The target database must be fully stopped before restoring.',
+    'Make sure the selected backup file or point in time actually exists.',
+  ],
+  copyDbGuidance: [
+    'The source database must be stopped — Copy only works offline.',
+    "Make sure the destination name isn't already in use.",
+    'The destination name must be 16 characters or fewer and ASCII only (letters, numbers, "_", "-", "." are fine), with no spaces, "/", "\\", "@", or a leading "#".',
+  ],
+  renameDbGuidance: [
+    'The database must be stopped before renaming.',
+    "Make sure the new volume path is writable and doesn't collide with an existing one.",
+  ],
+  deleteDbGuidance: [
+    'Make sure the database is fully stopped before deleting it.',
+    'If deleting backups too, check access permissions on the backup path.',
+  ],
+  createDbGuidance: [
+    'Keep the name to 16 characters or fewer — longer names can cause the engine to abort.',
+    'ASCII only (no Korean or other non-ASCII characters) — letters, numbers, "_", "-", "." are all fine.',
+    'No spaces, "/", "\\", or "@", and it cannot start with "#".',
+    'Make sure the volume path is writable and has enough disk space.',
+  ],
+  addVolumeGuidance: [
+    'Make sure the volume path is writable and has enough free disk space.',
+    "Check that the volume purpose matches the database's current state.",
+  ],
+  backupPlanGuidance: [
+    'Make sure the backup directory path is valid and reachable.',
+    "Check that this plan ID isn't already in use.",
+  ],
+  deleteBackupPlanGuidance: [
+    "Make sure this plan ID still exists — it may have already been removed elsewhere.",
+  ],
+  queryPlanGuidance: [
+    'Double-check the SQL for syntax errors — there is no automatic syntax check yet.',
+    'Make sure the database credentials entered are correct.',
+  ],
+  autoVolumeGuidance: [
+    'Check that the threshold and volume path settings are valid.',
+  ],
+  databasePropertyGuidance: [
+    'Make sure the configuration values are in a valid format and range.',
+    'Check that you have write access to the config file on this host.',
+  ],
+  loginDatabaseGuidance: [
+    'Double-check the username and password entered.',
+    'Make sure the database is currently running.',
+  ],
+  cmsUserGuidance: [
+    "Make sure the current CMS session has user-management authority.",
+    "Check whether that user ID already exists.",
+  ],
+  createUserGuidance: [
+    "Check whether the username already exists, or conflicts with a reserved name (PUBLIC, DBA, etc.).",
+  ],
+  dropUserGuidance: [
+    'If this user owns tables or views, the drop may be rejected until those are removed or reassigned.',
+  ],
+  killTransactionGuidance: [
+    'The transaction may have already ended on its own before the kill request arrived.',
+    "If you selected \"same host\" or \"same program\", make sure that isn't matching more than you intended.",
+  ],
+  brokerOperationGuidance: [
+    'Make sure the broker name is correct and the broker process is in the expected state.',
+    'Check the broker configuration for conflicting ports or duplicate names.',
+  ],
   activeContext: 'Active Context',
   offlineStatic: 'Offline Static',
   noConfigParameters: 'No configuration parameters found for this database.',
@@ -1408,7 +1504,7 @@ export const CM = {
   managerLogs: 'Manager Logs',
   serverLogs: 'Server Logs',
   backupPlanLabel: 'Backup Plan',
-  indexEmpty: 'Index Empty',
+  emptyListLabel: 'Empty',
   noDatabasesAvailable: 'No databases available',
 
   // DatabaseSpaceMonitor
@@ -1456,9 +1552,9 @@ export const CM = {
   queryTime: 'Query time',
   tranTime: 'Tran time',
   waitHolder: 'Wait holder',
-  dbUserRequiredForDiagnosticsMsg: 'Database user (dbuser) is required for transaction diagnostics.',
   dbUserRequiredWhileOnlineMsg: 'Database user (dbuser) is required while the database is online.',
   emptyAllowedPlaceholder: '(empty allowed)',
+  alreadyLoggedInPlaceholder: '(already logged in — leave blank to reuse)',
 
   // UnloadResultModal
   classLabel: 'Class',
@@ -1776,8 +1872,6 @@ export const CM = {
   // AboutModal
   cubridLogoAlt: 'CUBRID logo',
   aboutTagline: 'A web-based administration tool for CUBRID.',
-  webBridgeLabel: 'Web Bridge',
-  stackLabel: 'Stack',
   copyrightNotice: '© 2026 CUBRID Corporation',
 
   // Breadcrumb

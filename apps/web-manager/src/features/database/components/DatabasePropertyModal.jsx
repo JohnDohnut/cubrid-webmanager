@@ -438,6 +438,7 @@ export default function DatabasePropertyModal() {
       <ModalStatusError
         title={CM.applyFailedTitle}
         error={actionError}
+        guidance={CM.databasePropertyGuidance}
         onRetry={handleApply}
         onCancel={resetAction}
         retryText={CM.retryPatch}
