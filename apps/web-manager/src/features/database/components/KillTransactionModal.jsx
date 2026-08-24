@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { closeKillTransactionModal } from '../databaseSlice';
+import { closeKillTransactionModal, notifyTransactionKilled } from '../databaseSlice';
 import { databaseApi } from '../databaseApi';
-import { buildKillParameter } from '../transactionUtils';
+import { buildKillParameter, isHaReplicationProcess } from '../transactionUtils';
 import { useCM } from '../../../constants/useCM';
 
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -10,10 +10,11 @@ import { Button } from '../../../components/ds/foundation/Button';
 import { Input } from '../../../components/ds/forms/Input';
 import { Select } from '../../../components/ds/forms/Select';
 import { Typography } from '../../../components/ds/foundation/Typography';
+import { InfoBanner } from '../../../components/ds/foundation/InfoBanner';
 import { useActionState } from '../../../infrastructure/hooks/useActionState';
 import { ModalStatusLoading, ModalStatusSuccess, ModalStatusError } from '../../../components/ds/feedback/ActionStatus';
 
-export default function KillTransactionModal({ onTransactionKilled }) {
+export default function KillTransactionModal() {
   const CM = useCM();
   const dispatch = useDispatch();
   const { isKillTransactionModalOpen, killTransactionData } = useSelector((state) => state.databaseUI, shallowEqual);
@@ -56,7 +57,7 @@ export default function KillTransactionModal({ onTransactionKilled }) {
 
       await databaseApi.killTransaction(selectedHostUid, selectedDatabase, { type: killType, parameter });
       endSuccess();
-      onTransactionKilled?.();
+      dispatch(notifyTransactionKilled());
 
       setTimeout(() => dispatch(closeKillTransactionModal()), 800);
     } catch (err) {
@@ -65,6 +66,8 @@ export default function KillTransactionModal({ onTransactionKilled }) {
   };
 
   const handleClose = () => dispatch(closeKillTransactionModal());
+
+  const isHaTarget = isHaReplicationProcess(killTransactionData?.program || killTransactionData?.pname);
 
   if (isLoading) {
     return (
@@ -93,6 +96,7 @@ export default function KillTransactionModal({ onTransactionKilled }) {
         <ModalStatusError
           title={CM.failure}
           error={actionError}
+          guidance={CM.killTransactionGuidance}
           onRetry={handleKill}
           onCancel={resetAction}
           cancelText={CM.close}
@@ -119,6 +123,12 @@ export default function KillTransactionModal({ onTransactionKilled }) {
       }
     >
       <div className="space-y-6">
+        {isHaTarget && (
+          <InfoBanner variant="danger" title={CM.haReplicationProcessTitle}>
+            {CM.haReplicationProcessWarning}
+          </InfoBanner>
+        )}
+
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
             <Typography variant="caption" className="text-slate-500 ml-1">{CM.userNameCol}</Typography>
