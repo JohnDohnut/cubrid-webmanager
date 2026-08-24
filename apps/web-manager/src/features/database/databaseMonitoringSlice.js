@@ -2,6 +2,10 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { databaseApi } from './databaseApi';
 import { brokerApi } from '../broker/brokerApi';
 import { buildDashboardLockRows } from './lockMappers';
+import { createRateTracker } from '../broker/rateTracker';
+
+// Module-level so the previous-sample baseline survives across polls.
+const casRateTracker = createRateTracker();
 
 export const fetchDatabaseVolumes = createAsyncThunk(
   'database/fetchDatabaseVolumes',
@@ -105,11 +109,14 @@ export const fetchDashboardCAS = createAsyncThunk(
         const brokerName = actualBrokerList[idx]?.name;
         status.asinfo.forEach(cas => {
           if (cas.as_dbname?.toLowerCase() === dbname.toLowerCase()) {
+            // as_num_query is a per-AS lifetime total, not a rate — derive a
+            // real per-second value from the delta between consecutive polls.
+            const qps = casRateTracker(`${hostUid}:${brokerName}:${cas.as_id}:qps`, cas.as_num_query);
             brokersCAS.push({
               broker: brokerName,
               id: cas.as_id,
               pid: cas.as_pid,
-              qps: cas.as_num_query,
+              qps: qps === null ? null : qps.toFixed(1),
               lqs: cas.as_long_query,
               status: cas.as_status,
               lastConn: cas.as_lct,
@@ -118,7 +125,7 @@ export const fetchDashboardCAS = createAsyncThunk(
               // Raw numeric fields for correct sort (CMS returns strings)
               _idNum: parseInt(cas.as_id, 10) || 0,
               _pidNum: parseInt(cas.as_pid, 10) || 0,
-              _qpsNum: parseFloat(cas.as_num_query) || 0,
+              _qpsNum: qps ?? 0,
               _lqsNum: parseFloat(cas.as_long_query) || 0,
             });
           }

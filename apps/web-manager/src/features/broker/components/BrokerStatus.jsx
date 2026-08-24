@@ -2,6 +2,7 @@ import { usePollingRefresh } from '../../../infrastructure/hooks/usePollingRefre
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useSelector, useDispatch , shallowEqual } from 'react-redux';
 import { fetchDetailedBrokerStatus } from '../brokerSlice';
+import { createRateTracker } from '../rateTracker';
 import MonitoringSettingsPopover from '../../user/components/MonitoringSettingsPopover';
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Card } from '../../../components/ds/layout/Card';
@@ -51,6 +52,19 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
 
   const asInfo = status.data?.asinfo || [];
   const jobInfo = status.data?.jobinfo || [];
+
+  // as_num_query/as_num_tran are per-AS lifetime totals, not a rate — derive
+  // a real per-second value from the delta between consecutive polls, merged
+  // back onto each row so the table's sort-by-column still works correctly.
+  const rateTrackerRef = useRef(createRateTracker());
+  const [asInfoWithRates, setAsInfoWithRates] = useState([]);
+  useEffect(() => {
+    setAsInfoWithRates(asInfo.map((as) => ({
+      ...as,
+      qps: rateTrackerRef.current(`${as.as_id}:qps`, as.as_num_query),
+      tps: rateTrackerRef.current(`${as.as_id}:tps`, as.as_num_tran),
+    })));
+  }, [asInfo]);
   const brokerFromList = brokers?.find((b) => b.name === brokerName) || {};
   const basicInfo = {
     pid: status.data?.binfo?.[0]?.pid ?? brokerFromList.pid,
@@ -66,8 +80,8 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
   const asColumns = [
     { header: CM.idLabel,  accessor: 'as_id',        width: '60px',  render: (v) => <span className="font-mono text-amber-600 dark:text-amber-400">{v}</span> },
     { header: CM.pid, accessor: 'as_pid',       width: '80px',  render: (v) => <span className="font-mono">{v}</span> },
-    { header: CM.qps, accessor: 'as_num_query', width: '60px',  render: (v) => <span className="font-mono">{v}</span> },
-    { header: CM.tps, accessor: 'as_num_tran',  width: '60px',  render: (v) => <span className="font-mono">{v}</span> },
+    { header: CM.qps, accessor: 'qps', width: '60px',  render: (v) => <span className="font-mono">{v?.toFixed(1) ?? '—'}</span> },
+    { header: CM.tps, accessor: 'tps', width: '60px',  render: (v) => <span className="font-mono">{v?.toFixed(1) ?? '—'}</span> },
     { header: CM.port, accessor: 'as_port',     width: '80px',  render: (v) => <span className="font-mono">{v}</span> },
     { header: CM.memory, accessor: 'as_psize', width: '100px', render: (v) => <span className="font-mono">{(parseInt(v) / 1024).toFixed(1)} KB</span> },
     { 
@@ -230,11 +244,11 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
           bodyClassName="p-0"
           collapsible
         >
-          <Table 
-            columns={asColumns} 
-            data={asInfo} 
-            sortable 
-            zebra 
+          <Table
+            columns={asColumns}
+            data={asInfoWithRates}
+            sortable
+            zebra
             emptyMessage={CM.noAppServersActiveMsg}
           />
         </Card>

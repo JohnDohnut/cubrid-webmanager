@@ -1,14 +1,17 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { databaseApi } from './databaseApi';
+import { fetchDatabaseStartInfo } from './databaseCoreSlice';
+import { isAmbiguousFailure } from '../../api/isAmbiguousFailure';
 
 // Lifecycle Operations
 export const createDatabase = createAsyncThunk(
   'database/createDatabase',
-  async ({ hostUid, payload }, { rejectWithValue }) => {
+  async ({ hostUid, payload }, { rejectWithValue, dispatch }) => {
     try {
       const response = await databaseApi.createDatabase(hostUid, payload);
       return response;
     } catch (err) {
+      if (isAmbiguousFailure(err)) dispatch(fetchDatabaseStartInfo(hostUid));
       return rejectWithValue(err.response?.data?.message || 'Failed to create database');
     }
   }
@@ -16,11 +19,12 @@ export const createDatabase = createAsyncThunk(
 
 export const copyDatabase = createAsyncThunk(
   'database/copyDatabase',
-  async ({ hostUid, payload }, { rejectWithValue }) => {
+  async ({ hostUid, payload }, { rejectWithValue, dispatch }) => {
     try {
       const response = await databaseApi.copyDatabase(hostUid, payload);
       return response;
     } catch (err) {
+      if (isAmbiguousFailure(err)) dispatch(fetchDatabaseStartInfo(hostUid));
       return rejectWithValue(err.response?.data?.message || 'Failed to copy database');
     }
   }
@@ -28,11 +32,12 @@ export const copyDatabase = createAsyncThunk(
 
 export const deleteDatabase = createAsyncThunk(
   'database/deleteDatabase',
-  async ({ hostUid, dbname, payload }, { rejectWithValue }) => {
+  async ({ hostUid, dbname, payload }, { rejectWithValue, dispatch }) => {
     try {
       const response = await databaseApi.deleteDatabase(hostUid, dbname, payload);
       return { dbname, response };
     } catch (err) {
+      if (isAmbiguousFailure(err)) dispatch(fetchDatabaseStartInfo(hostUid));
       return rejectWithValue(err.response?.data?.message || `Failed to delete database ${dbname}`);
     }
   }
@@ -40,11 +45,12 @@ export const deleteDatabase = createAsyncThunk(
 
 export const renameDatabase = createAsyncThunk(
   'database/renameDatabase',
-  async ({ hostUid, dbname, payload }, { rejectWithValue }) => {
+  async ({ hostUid, dbname, payload }, { rejectWithValue, dispatch }) => {
     try {
       const response = await databaseApi.renameDatabase(hostUid, dbname, payload);
       return { dbname, newName: payload.newName, response };
     } catch (err) {
+      if (isAmbiguousFailure(err)) dispatch(fetchDatabaseStartInfo(hostUid));
       return rejectWithValue(err.response?.data?.message || `Failed to rename database ${dbname}`);
     }
   }
