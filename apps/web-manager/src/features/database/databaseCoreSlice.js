@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { databaseApi } from './databaseApi';
+import { isAmbiguousFailure } from '../../api/isAmbiguousFailure';
 
 export const fetchDatabaseStartInfo = createAsyncThunk(
   'database/fetchDatabaseStartInfo',
@@ -16,11 +17,14 @@ export const fetchDatabaseStartInfo = createAsyncThunk(
 
 export const startDatabase = createAsyncThunk(
   'database/startDatabase',
-  async ({ hostUid, dbname }, { rejectWithValue }) => {
+  async ({ hostUid, dbname }, { rejectWithValue, dispatch }) => {
     try {
       const response = await databaseApi.startDatabase(hostUid, dbname);
       return response;
     } catch (err) {
+      if (isAmbiguousFailure(err)) {
+        dispatch(fetchDatabaseStartInfo(hostUid));
+      }
       return rejectWithValue(err.response?.data?.message || err.response?.data?.error || `Failed to start database ${dbname}`);
     }
   }
@@ -28,11 +32,14 @@ export const startDatabase = createAsyncThunk(
 
 export const stopDatabase = createAsyncThunk(
   'database/stopDatabase',
-  async ({ hostUid, dbname }, { rejectWithValue }) => {
+  async ({ hostUid, dbname }, { rejectWithValue, dispatch }) => {
     try {
       const response = await databaseApi.stopDatabase(hostUid, dbname);
       return response;
     } catch (err) {
+      if (isAmbiguousFailure(err)) {
+        dispatch(fetchDatabaseStartInfo(hostUid));
+      }
       return rejectWithValue(err.response?.data?.message || err.response?.data?.error || `Failed to stop database ${dbname}`);
     }
   }
