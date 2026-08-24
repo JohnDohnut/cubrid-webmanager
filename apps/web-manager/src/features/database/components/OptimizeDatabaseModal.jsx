@@ -199,9 +199,9 @@ export default function OptimizeDatabaseModal() {
   const CM = useCM();
   const dispatch = useDispatch();
   const { isOptimizeDatabaseModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
-  const { selectedDatabase, activeDatabases } = useSelector((state) => state.database, shallowEqual);
+  const { selectedDatabase, activeDatabases, loggedInDatabases } = useSelector((state) => state.database, shallowEqual);
   const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
-  
+
   const {
     error,
     startAction,
@@ -223,7 +223,11 @@ export default function OptimizeDatabaseModal() {
   const [isLoadingClasses, setIsLoadingClasses] = useState(false);
 
   const isActive = selectedDatabase && activeDatabases.includes(selectedDatabase);
-  
+  // optimizedb only needs credentials while online, and only to satisfy CMS's
+  // per-connection login cache — if a prior "Login Database" already
+  // populated that cache for this db, there's nothing new to authenticate.
+  const alreadyLoggedIn = isActive && loggedInDatabases.includes(selectedDatabase);
+
   const fetchClasses = useCallback(async () => {
     if (!selectedHostUid || !selectedDatabase) return;
     setIsLoadingClasses(true);
@@ -246,12 +250,14 @@ export default function OptimizeDatabaseModal() {
   useEffect(() => {
     if (isOptimizeDatabaseModalOpen && selectedDatabase) {
       setSelectedClassName('');
-      setDbuser('dba');
+      // Blank when a prior login already covers this db — leaving it blank
+      // tells the backend to reuse that cache instead of logging in again.
+      setDbuser(alreadyLoggedIn ? '' : 'dba');
       setDbpasswd('');
       resetAction();
       fetchClasses();
     }
-  }, [isOptimizeDatabaseModalOpen, selectedDatabase, fetchClasses, resetAction]);
+  }, [isOptimizeDatabaseModalOpen, selectedDatabase, alreadyLoggedIn, fetchClasses, resetAction]);
 
   if (!isOptimizeDatabaseModalOpen) return null;
 
@@ -260,8 +266,9 @@ export default function OptimizeDatabaseModal() {
 
     // CMS authorizes optimizedb against a per-connection credential cache
     // populated by dbmtuserlogin — required whenever the database is
-    // online (see database-management.service.ts's loginIfCredentialsProvided).
-    if (isActive && !dbuser.trim()) {
+    // online (see database-management.service.ts's loginIfCredentialsProvided),
+    // unless a prior Login Database already populated that cache.
+    if (isActive && !alreadyLoggedIn && !dbuser.trim()) {
       endError(CM.dbUserRequiredWhileOnlineMsg);
       return;
     }
@@ -270,7 +277,7 @@ export default function OptimizeDatabaseModal() {
     try {
       const payload = {
         ...(selectedClassName && { classname: selectedClassName }),
-        ...(isActive && { dbuser: dbuser.trim(), dbpasswd }),
+        ...(isActive && dbuser.trim() && { dbuser: dbuser.trim(), dbpasswd }),
       };
 
       await runJob(
@@ -323,6 +330,7 @@ export default function OptimizeDatabaseModal() {
         <ModalStatusError
           title={CM.optimizationFailed}
           error={error}
+          guidance={CM.optimizeDbGuidance}
           onRetry={handleOptimize}
           onCancel={handleClose}
           retryText={CM.retryOptimization}
@@ -381,7 +389,13 @@ export default function OptimizeDatabaseModal() {
             {isActive && (
               <>
                 <CaDialogField label={CM.userName}>
-                  <Input data-testid="optimize-database-dbuser-input" value={dbuser} onChange={(e) => setDbuser(e.target.value)} icon="account_circle" />
+                  <Input
+                    data-testid="optimize-database-dbuser-input"
+                    value={dbuser}
+                    onChange={(e) => setDbuser(e.target.value)}
+                    icon="account_circle"
+                    placeholder={alreadyLoggedIn ? CM.alreadyLoggedInPlaceholder : undefined}
+                  />
                 </CaDialogField>
                 <CaDialogField label={CM.password}>
                   <Input data-testid="optimize-database-dbpasswd-input" type="password" value={dbpasswd} onChange={(e) => setDbpasswd(e.target.value)} icon="password" placeholder={CM.emptyAllowedPlaceholder} />
