@@ -185,7 +185,7 @@ export default function DatabaseInfoModal() {
               <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20">
                 <Icon name="bar_chart" size="sm" weight={300} />
               </div>
-              <Typography variant="label" className="text-slate-400 uppercase tracking-widest font-bold text-[10px]">
+              <Typography variant="label" className="text-slate-400 uppercase tracking-widest font-bold text-[11px]">
                 {CM.databaseName}: <Typography variant="span" className="text-amber-500 ml-1 font-mono">{selectedDatabase}</Typography>
               </Typography>
             </div>
@@ -196,11 +196,10 @@ export default function DatabaseInfoModal() {
             </div>
           </div>
 
-          <div className="flex-1 min-h-0 bg-white dark:bg-transparent flex flex-col">
-            <Table 
+          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar bg-white dark:bg-transparent flex flex-col">
+            <Table
               columns={columns}
               data={paramList}
-              className="h-full"
               emptyMessage={CM.noConfigParameters}
             />
           </div>
