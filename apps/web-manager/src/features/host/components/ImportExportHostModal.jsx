@@ -50,8 +50,13 @@ export default function ImportExportHostModal() {
   useEffect(() => {
     if (isImportExportModalOpen) {
       if (importExportMode === 'export') {
-        setImportList(hosts);
-        setSelectedHosts(hosts.map(h => h.uid));
+        // Row selection (select-all + per-row checkboxes) is keyed by
+        // rowId/isSelectable everywhere in this modal — those only exist on
+        // parsed import preview rows, so export-mode hosts need the same
+        // fields or every checkbox renders permanently disabled.
+        const exportRows = hosts.map(h => ({ ...h, rowId: h.uid, isSelectable: true }));
+        setImportList(exportRows);
+        setSelectedHosts(exportRows.map(h => h.rowId));
       } else {
         setImportList([]);
         setSelectedHosts([]);
@@ -694,7 +699,7 @@ export default function ImportExportHostModal() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
                <Table
                   className="h-full"
                    columns={[
