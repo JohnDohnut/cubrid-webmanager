@@ -54,6 +54,7 @@ export function CmsJobProvider({ children }) {
       setJobResults((prev) => [
         ...prev,
         {
+          jobId: job.jobId,
           type: job.type,
           dbname: job.dbname,
           status: job.jobStatus,
@@ -65,6 +66,16 @@ export function CmsJobProvider({ children }) {
     },
     []
   );
+
+  // Lets a caller that's still mounted and showing its own result (via
+  // useCmsJob's runJob) suppress the global toast for that same job, so the
+  // two don't both appear for one completion. If the caller already
+  // unmounted (e.g. user clicked "continue in background"), this never gets
+  // called and the global toast remains the only notification.
+  const dismissJobResult = useCallback((jobId) => {
+    if (!jobId) return;
+    setJobResults((prev) => prev.filter((r) => r.jobId !== jobId));
+  }, []);
 
   const startTracking = useCallback(
     async (jobId, options = {}) => {
@@ -236,6 +247,7 @@ export function CmsJobProvider({ children }) {
       runJob,
       trackJob,
       dismissJob,
+      dismissJobResult,
       clearCompleted,
     }),
     [
@@ -246,6 +258,7 @@ export function CmsJobProvider({ children }) {
       runJob,
       trackJob,
       dismissJob,
+      dismissJobResult,
       clearCompleted,
     ]
   );
