@@ -341,7 +341,7 @@ export class DatabaseBackupService extends BaseService {
 
     this.logger.debug(`Executing backup for database: ${dbname} level: ${request.level}`);
 
-    await this.executeCmsRequest<BackupDbCmsRequest, BackupDbCmsResponse>(
+    await this.executeAsyncCmsJobRequest<BackupDbCmsRequest, BackupDbCmsResponse>(
       userId,
       hostUid,
       cmsRequest
@@ -380,7 +380,7 @@ export class DatabaseBackupService extends BaseService {
 
     this.logger.debug(`Restoring database: ${dbname} on host: ${hostUid}`);
 
-    await this.executeCmsRequest<RestoreDbCmsRequest, RestoreDbCmsResponse>(
+    await this.executeAsyncCmsJobRequest<RestoreDbCmsRequest, RestoreDbCmsResponse>(
       userId,
       hostUid,
       cmsRequest

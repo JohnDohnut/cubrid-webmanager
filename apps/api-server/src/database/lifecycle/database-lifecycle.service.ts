@@ -399,7 +399,7 @@ export class DatabaseLifecycleService extends BaseService {
       overwrite_config_file: request.overwrite_config_file,
     };
 
-    this.logger.log(JSON.stringify(await this.executeCmsRequest<CreateDatabaseCmsRequest, CreateDatabaseCmsResponse>(
+    this.logger.log(JSON.stringify(await this.executeAsyncCmsJobRequest<CreateDatabaseCmsRequest, CreateDatabaseCmsResponse>(
       userId,
       hostUid,
       cmsRequest
