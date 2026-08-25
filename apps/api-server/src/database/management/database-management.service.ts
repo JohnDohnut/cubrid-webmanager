@@ -146,7 +146,7 @@ export class DatabaseManagementService extends BaseService {
       }
     }
 
-    return this.executeLongRunningCmsRequest<CopyDbCmsRequest, CopyDbCmsResponse>(
+    return this.executeAsyncCmsJobRequest<CopyDbCmsRequest, CopyDbCmsResponse>(
       userId,
       hostUid,
       cmsRequest,
@@ -230,7 +230,7 @@ export class DatabaseManagementService extends BaseService {
       lofile: request.lofile,
     };
 
-    return this.executeLongRunningCmsRequest<UnloadDatabaseCmsRequest, UnloadDatabaseCmsResponse>(
+    return this.executeAsyncCmsJobRequest<UnloadDatabaseCmsRequest, UnloadDatabaseCmsResponse>(
       userId,
       hostUid,
       cmsRequest,
@@ -319,7 +319,7 @@ export class DatabaseManagementService extends BaseService {
       ignoreclassfile: request.ignoreclassfile,
     };
 
-    return this.executeLongRunningCmsRequest<LoadDatabaseCmsRequest, LoadDatabaseCmsResponse>(
+    return this.executeAsyncCmsJobRequest<LoadDatabaseCmsRequest, LoadDatabaseCmsResponse>(
       userId,
       hostUid,
       cmsRequest,
@@ -364,7 +364,7 @@ export class DatabaseManagementService extends BaseService {
       ...(request.classname && { classname: request.classname }),
     };
 
-    return this.executeLongRunningCmsRequest<OptimizeDatabaseCmsRequest, OptimizeDatabaseCmsResponse>(
+    return this.executeAsyncCmsJobRequest<OptimizeDatabaseCmsRequest, OptimizeDatabaseCmsResponse>(
       userId,
       hostUid,
       cmsRequest,
@@ -407,7 +407,7 @@ export class DatabaseManagementService extends BaseService {
       repairdb: request.repairdb,
     };
 
-    return this.executeLongRunningCmsRequest<CheckDatabaseCmsRequest, CheckDatabaseCmsResponse>(
+    return this.executeAsyncCmsJobRequest<CheckDatabaseCmsRequest, CheckDatabaseCmsResponse>(
       userId,
       hostUid,
       cmsRequest,
@@ -453,7 +453,7 @@ export class DatabaseManagementService extends BaseService {
       verbose: request.verbose,
     };
 
-    return this.executeLongRunningCmsRequest<CompactDatabaseCmsRequest, CompactDatabaseCmsResponse>(
+    return this.executeAsyncCmsJobRequest<CompactDatabaseCmsRequest, CompactDatabaseCmsResponse>(
       userId,
       hostUid,
       cmsRequest,
@@ -507,7 +507,7 @@ export class DatabaseManagementService extends BaseService {
       cmsRequest.volume = [volumeMapping];
     }
 
-    return this.executeLongRunningCmsRequest<RenameDatabaseCmsRequest, RenameDatabaseCmsResponse>(
+    return this.executeAsyncCmsJobRequest<RenameDatabaseCmsRequest, RenameDatabaseCmsResponse>(
       userId,
       hostUid,
       cmsRequest,
@@ -589,7 +589,7 @@ export class DatabaseManagementService extends BaseService {
       size_need_mb: request.size_need_mb,
     };
 
-    return this.executeLongRunningCmsRequest<AddVolDbCmsRequest, AddVolDbCmsResponse>(
+    return this.executeAsyncCmsJobRequest<AddVolDbCmsRequest, AddVolDbCmsResponse>(
       userId,
       hostUid,
       cmsRequest,
