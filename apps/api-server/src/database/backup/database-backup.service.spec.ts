@@ -391,7 +391,9 @@ describe('DatabaseBackupService', () => {
           mt: '2',
           zip: 'y',
           safereplication: 'n',
-        })
+          async: 'yes',
+        }),
+        expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
       expect(result).toEqual({ success: true });
     });
@@ -421,7 +423,9 @@ describe('DatabaseBackupService', () => {
           mt: '0',
           zip: 'n',
           safereplication: 'n',
-        })
+          async: 'yes',
+        }),
+        expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
     });
   });
@@ -464,7 +468,9 @@ describe('DatabaseBackupService', () => {
           partial: mockRequest.partial,
           pathname: mockRequest.pathname,
           recoverypath: mockRequest.recoverypath,
-        })
+          async: 'yes',
+        }),
+        expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
 
       expect(result).toEqual({ success: true });
