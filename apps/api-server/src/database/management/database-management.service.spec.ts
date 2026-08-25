@@ -663,6 +663,7 @@ describe('DatabaseManagementService', () => {
           token: mockHost.token,
           dbname: mockDbname,
           repairdb: 'n',
+          async: 'yes',
         },
         expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
@@ -777,6 +778,7 @@ describe('DatabaseManagementService', () => {
           token: mockHost.token,
           dbname: mockDbname,
           verbose: 'y',
+          async: 'yes',
         },
         expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
@@ -907,6 +909,7 @@ describe('DatabaseManagementService', () => {
           advanced: 'on',
           volume: expectedCmsVolumeMapping,
           forcedel: 'n',
+          async: 'yes',
         },
         expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
@@ -1133,6 +1136,7 @@ describe('DatabaseManagementService', () => {
           path: mockRequest.path,
           numberofpages: mockRequest.numberofpages,
           size_need_mb: mockRequest.size_need_mb,
+          async: 'yes',
         },
         expect.objectContaining({ timeoutMs: expect.any(Number) })
       );

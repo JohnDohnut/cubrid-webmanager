@@ -913,7 +913,9 @@ describe('DatabaseLifecycleService', () => {
           task: 'createdb',
           logsize: '32768',
           logpagesize: '16384',
-        })
+          async: 'yes',
+        }),
+        expect.objectContaining({ timeoutMs: expect.any(Number) })
       );
     });
   });
