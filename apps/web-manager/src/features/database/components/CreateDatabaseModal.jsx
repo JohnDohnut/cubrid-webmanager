@@ -663,12 +663,24 @@ export default function CreateDatabaseModal() {
                       />
                       <Input
                         type="number"
-                        value={vol.size}
-                        onChange={(e) => handleVolumeChange(idx, 'size', Number(e.target.value))}
+                        value={vol.unit === 'GB' ? parseFloat((vol.size / 1024).toFixed(3)) : vol.size}
+                        onChange={(e) => {
+                          const parsed = Number(e.target.value) || 0;
+                          handleVolumeChange(idx, 'size', vol.unit === 'GB' ? parsed * 1024 : parsed);
+                        }}
                         size="sm"
-                        min={1}
+                        min={0}
                         placeholder={CM.sizeMb}
-                        suffix="MB"
+                        suffix={
+                          <button
+                            type="button"
+                            onClick={() => handleVolumeChange(idx, 'unit', vol.unit === 'GB' ? 'MB' : 'GB')}
+                            className="text-[10px] font-black text-slate-400 dark:text-slate-500 hover:text-amber-500 uppercase tracking-widest bg-slate-100 dark:bg-white/5 hover:bg-amber-500/10 px-2 py-0.5 rounded-md border border-slate-200/50 dark:border-white/5 hover:border-amber-500/30 transition-all cursor-pointer"
+                            title={CM.switchUnit}
+                          >
+                            {vol.unit === 'GB' ? 'GB' : 'MB'}
+                          </button>
+                        }
                       />
                       <Input
                         value={vol.path}

@@ -89,7 +89,16 @@ export default function AddVolumeModal() {
   const [purpose, setPurpose] = useState('data');
   const [path, setPath] = useState('');
   const [sizeMB, setSizeMB] = useState(512);
+  const [sizeUnit, setSizeUnit] = useState('MB');
   const [fetchingStatus, setFetchingStatus] = useState(false);
+
+  // Custom-capacity input displays/accepts whichever unit is selected, but
+  // sizeMB itself (used for numberOfPages/payload/presets) always stays in MB.
+  const displaySize = sizeUnit === 'GB' ? parseFloat((sizeMB / 1024).toFixed(3)) : sizeMB;
+  const handleDisplaySizeChange = (value) => {
+    const parsed = parseFloat(value) || 0;
+    setSizeMB(sizeUnit === 'GB' ? parsed * 1024 : parsed);
+  };
 
   const numberOfPages = Math.floor(sizeMB * 1024 / 16);
   const selectedPurpose = PURPOSE_OPTIONS.find(o => o.value === purpose);
@@ -321,11 +330,20 @@ export default function AddVolumeModal() {
             <Input
               type="number"
               label={CM.customCapacity}
-              value={sizeMB}
-              onChange={(e) => setSizeMB(parseFloat(e.target.value) || 0)}
+              value={displaySize}
+              onChange={(e) => handleDisplaySizeChange(e.target.value)}
               icon="memory"
-              suffix="MB"
-              min={1}
+              suffix={
+                <button
+                  type="button"
+                  onClick={() => setSizeUnit((u) => (u === 'MB' ? 'GB' : 'MB'))}
+                  className="text-[10px] font-black text-slate-400 dark:text-slate-500 hover:text-amber-500 uppercase tracking-widest bg-slate-100 dark:bg-white/5 hover:bg-amber-500/10 px-2 py-0.5 rounded-md border border-slate-200/50 dark:border-white/5 hover:border-amber-500/30 transition-all cursor-pointer"
+                  title={CM.switchUnit}
+                >
+                  {sizeUnit}
+                </button>
+              }
+              min={0}
               size="sm"
             />
             <div className="space-y-1">
