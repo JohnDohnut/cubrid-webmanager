@@ -171,6 +171,8 @@ export function getPublicClientErrorMessage(payload: PublicErrorPayload): string
         return 'Invalid host information format.';
       case HostErrorCode.DUPLICATED_HOST:
         return 'This host is already registered.';
+      case HostErrorCode.DUPLICATED_ALIAS:
+        return 'This name is already used by another host. Choose a different name.';
       case HostErrorCode.INTERNAL_ERROR:
       case HostErrorCode.UNKNOWN:
         return 'A host operation failed.';

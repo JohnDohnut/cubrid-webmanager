@@ -57,7 +57,12 @@ export default function EditHostModal() {
 
   const validate = () => {
     const errs = {};
-    if (!formData.alias.trim()) errs.alias = CM.hostNameRequired;
+    const trimmedAlias = formData.alias.trim();
+    if (!trimmedAlias) {
+      errs.alias = CM.hostNameRequired;
+    } else if (hosts.some((h) => h.uid !== hostToEditUid && h.alias?.trim() === trimmedAlias)) {
+      errs.alias = CM.hostNameDuplicate;
+    }
     if (!formData.address.trim()) errs.address = CM.addressRequired;
     if (!formData.port.trim()) errs.port = CM.portRequired;
     if (!formData.id.trim()) errs.id = CM.usernameRequired;
