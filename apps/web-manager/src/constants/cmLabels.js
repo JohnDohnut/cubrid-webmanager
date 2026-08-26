@@ -241,6 +241,7 @@ export const CM = {
   leaveBlankToKeep: 'Leave blank to keep current password',
   passwordsDoNotMatch: 'Passwords do not match',
   hostNameRequired: 'Host name is required',
+  hostNameDuplicate: 'This name is already used by another host. Choose a different name.',
   addressRequired: 'Address is required',
   portRequired: 'Port is required',
   usernameRequired: 'Username is required',
@@ -667,6 +668,7 @@ export const CM = {
   renameDowntimeHint: 'Ensure the database service is fully stopped before renaming to prevent binary corruption.',
   extendedVolumePath: 'Extended volume path',
   renameIndividualVolumes: 'Rename individual volumes',
+  individualRenameUnsupportedLayout: "This database's extended volumes span multiple directories, so their on-disk order can't be preserved through this form — renaming them individually isn't safe here. Use the extended volume path option instead, or contact an administrator to relocate the volumes first.",
   currentVolumeName: 'Current volume name',
   newVolumeName: 'New volume name',
   currentDirectoryPath: 'Current directory path',
@@ -826,6 +828,8 @@ export const CM = {
     'The target database must be fully stopped — Load only works offline.',
     'Check that the schema/data file paths and format are correct.',
   ],
+  loadDbLoginRequiredTitle: 'Database Login Required',
+  loadDbLoginRequiredMsg: 'This database hasn\'t been logged in yet. Start the database, use "Login Database" to authenticate, then stop it again before loading.',
   unloadDbGuidance: [
     'Double-check the database username and password entered.',
     'Make sure the output directory exists and is writable.',
@@ -1119,6 +1123,8 @@ export const CM = {
   // Query plan modals (Add/Edit)
   queryIdentifierRequired: 'A Query ID is required.',
   sqlStatementRequired: 'An SQL statement is required.',
+  multilineQueryLineCommentError: "This query has both line breaks and a '--' comment. The server stores each plan as a single line, so line breaks are collapsed to spaces on save — that would let the comment swallow the rest of the statement. Remove the '--' comment (use /* */ instead) or rewrite the query on one line.",
+  multilineQueryCollapseNote: 'Line breaks are for readability only — the server stores each plan as a single line, so they’re collapsed to spaces when saved.',
   queryPasswordRequired: 'A database password is required.',
   queryPlanAdded: 'Query Plan Added',
   addQueryPlanFailed: 'Failed to Add Query Plan',

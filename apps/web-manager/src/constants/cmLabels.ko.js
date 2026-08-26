@@ -234,6 +234,7 @@ export const CM_KO = {
   leaveBlankToKeep: '비워 두면 기존 비밀번호 유지',
   passwordsDoNotMatch: '비밀번호가 일치하지 않습니다.',
   hostNameRequired: '호스트 이름을 입력하세요.',
+  hostNameDuplicate: '이미 다른 호스트가 사용 중인 이름입니다. 다른 이름을 입력하세요.',
   addressRequired: '주소를 입력하세요.',
   portRequired: '포트를 입력하세요.',
   usernameRequired: '사용자 이름을 입력하세요.',
@@ -652,6 +653,7 @@ export const CM_KO = {
   renameDowntimeHint: '이름 변경 전 데이터베이스 서비스를 완전히 중지하세요.',
   extendedVolumePath: '확장 볼륨 경로',
   renameIndividualVolumes: '각 볼륨별 이름 변경',
+  individualRenameUnsupportedLayout: '이 데이터베이스의 확장 볼륨들이 여러 디렉터리에 나뉘어 있어, 이 화면으로는 디스크상의 순서를 그대로 보존할 수 없어 개별 이름 변경이 안전하지 않습니다. 확장 볼륨 경로 옵션을 대신 사용하거나, 관리자에게 볼륨을 한 곳으로 옮겨달라고 요청하세요.',
   currentVolumeName: '기존 볼륨 이름',
   newVolumeName: '새 볼륨 이름',
   currentDirectoryPath: '기존 경로',
@@ -814,6 +816,8 @@ export const CM_KO = {
     '대상 데이터베이스가 완전히 정지된 상태인지 확인하세요 (Load는 오프라인에서만 동작합니다).',
     '스키마/데이터 파일 경로와 형식이 올바른지 확인하세요.',
   ],
+  loadDbLoginRequiredTitle: '데이터베이스 로그인이 필요합니다',
+  loadDbLoginRequiredMsg: '이 데이터베이스는 아직 로그인 이력이 없습니다. 데이터베이스를 시작한 뒤 "Login Database"로 로그인하고, 다시 정지한 후 Load를 실행하세요.',
   unloadDbGuidance: [
     '입력한 데이터베이스 사용자명/비밀번호가 올바른지 다시 확인하세요.',
     '출력 디렉터리가 존재하고 쓰기 권한이 있는지 확인하세요.',
@@ -1104,6 +1108,8 @@ export const CM_KO = {
   // Query plan modals (Add/Edit)
   queryIdentifierRequired: '질의 자동화 계획 ID가 필요합니다.',
   sqlStatementRequired: 'SQL 구문을 입력해야 합니다.',
+  multilineQueryLineCommentError: "이 쿼리에 줄바꿈과 '--' 주석이 함께 있습니다. 서버가 계획을 한 줄로 저장하기 때문에 저장 시 줄바꿈이 공백으로 합쳐지는데, 그러면 주석이 뒤 구문까지 전부 삼켜버립니다. '--' 주석을 지우거나(/* */ 사용) 쿼리를 한 줄로 다시 작성해주세요.",
+  multilineQueryCollapseNote: '줄바꿈은 가독성을 위한 것으로, 서버가 계획을 한 줄로 저장하기 때문에 저장 시 공백으로 합쳐집니다.',
   queryPasswordRequired: '데이터베이스 비밀번호가 필요합니다.',
   queryPlanAdded: '질의 자동화 계획 추가 완료',
   addQueryPlanFailed: '질의 자동화 계획 추가 실패',
