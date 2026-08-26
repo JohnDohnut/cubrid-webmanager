@@ -716,6 +716,11 @@ export class DatabaseManagementService extends BaseService {
       dbname: dbname,
       type: request.type,
       ...(request.type !== 'd' && request.parameter && { parameter: request.parameter }),
+      // CMS's own conlist auto-fill runs first for any request carrying
+      // dbname, then this request's own _DBPASSWD (parsed earlier and thus
+      // searched first) wins — so sending it here takes priority over
+      // whatever a prior dbmtuserlogin cached server-side.
+      ...(request.dbpasswd && { _DBPASSWD: request.dbpasswd }),
     };
 
     this.logger.debug(

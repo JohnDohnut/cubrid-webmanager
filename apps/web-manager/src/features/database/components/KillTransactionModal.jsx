@@ -18,8 +18,14 @@ export default function KillTransactionModal() {
   const CM = useCM();
   const dispatch = useDispatch();
   const { isKillTransactionModalOpen, killTransactionData } = useSelector((state) => state.databaseUI, shallowEqual);
-  const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
+  const { selectedDatabase, loggedInDatabases } = useSelector((state) => state.database, shallowEqual);
   const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
+
+  // killtransaction only needs the DBA password (no username) to authorize
+  // killing another user's transaction. CMS otherwise falls back to whatever
+  // a prior "Login Database" cached server-side, which may be stale or
+  // absent — sending it directly here takes priority over that cache.
+  const alreadyLoggedIn = !!selectedDatabase && loggedInDatabases.includes(selectedDatabase);
 
   const {
     error: actionError,
@@ -33,11 +39,13 @@ export default function KillTransactionModal() {
   } = useActionState();
 
   const [killType, setKillType] = useState('i');
+  const [dbpasswd, setDbpasswd] = useState('');
 
   useEffect(() => {
     if (isKillTransactionModalOpen) {
       resetAction();
       setKillType('i');
+      setDbpasswd('');
     }
   }, [isKillTransactionModalOpen, resetAction]);
 
@@ -55,7 +63,11 @@ export default function KillTransactionModal() {
         return;
       }
 
-      await databaseApi.killTransaction(selectedHostUid, selectedDatabase, { type: killType, parameter });
+      await databaseApi.killTransaction(selectedHostUid, selectedDatabase, {
+        type: killType,
+        parameter,
+        ...(dbpasswd && { dbpasswd }),
+      });
       endSuccess();
       dispatch(notifyTransactionKilled());
 
@@ -158,6 +170,17 @@ export default function KillTransactionModal() {
               { value: 'h', label: CM.killSameHost },
               { value: 'p', label: CM.killSameProgram },
             ]}
+          />
+        </div>
+
+        <div className="space-y-1">
+          <Typography variant="caption" className="text-slate-500 ml-1">{CM.dbaPassword}</Typography>
+          <Input
+            type="password"
+            value={dbpasswd}
+            onChange={(e) => setDbpasswd(e.target.value)}
+            icon="password"
+            placeholder={alreadyLoggedIn ? CM.alreadyLoggedInPlaceholder : CM.emptyAllowedPlaceholder}
           />
         </div>
       </div>

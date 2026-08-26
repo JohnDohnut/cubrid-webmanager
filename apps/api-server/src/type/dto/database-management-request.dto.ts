@@ -292,4 +292,8 @@ export class KillTransactionDto {
   @IsString()
   @IsNotEmpty()
   parameter?: string;
+
+  @IsOptional()
+  @IsString()
+  dbpasswd?: string;
 }
