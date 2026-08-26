@@ -15,6 +15,7 @@ import { Modal } from '../../../components/ds/layout/Modal';
 import { Button } from '../../../components/ds/foundation/Button';
 import { Typography } from '../../../components/ds/foundation/Typography';
 import { Icon } from '../../../components/ds/foundation/Icon';
+import { EmptyState } from '../../../components/ds/feedback/EmptyState';
 import { useActionState } from '../../../infrastructure/hooks/useActionState';
 import {
   ModalStatusLoading,
@@ -26,8 +27,15 @@ export default function LoadDatabaseModal() {
   const CM = useCM();
   const dispatch = useDispatch();
   const { isLoadDatabaseModalOpen: isLoadDBModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
-  const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
+  const { selectedDatabase, loggedInDatabases } = useSelector((state) => state.database, shallowEqual);
   const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
+
+  // Load only ever targets an offline database, so this can't be satisfied by
+  // logging in right now — it must have happened earlier, while the database
+  // was still online (loggedInDatabases persists across stop, see
+  // databaseCoreSlice's stopDatabase.fulfilled). Enforces the required
+  // sequence: start -> Login Database -> stop -> Load.
+  const isLoggedIn = !!selectedDatabase && loggedInDatabases.includes(selectedDatabase);
 
   const {
     error: actionError,
@@ -103,6 +111,8 @@ export default function LoadDatabaseModal() {
         targetDbName: selectedDatabase,
       }));
 
+      if (!isLoggedIn) return;
+
       databaseApi.getUnloadInfo(selectedHostUid).then((res) => {
         const dbs = res.database || [];
         setUnloadList(dbs);
@@ -113,7 +123,7 @@ export default function LoadDatabaseModal() {
         }
       }).catch((err) => console.error('Failed to fetch unload info:', err));
     }
-  }, [isLoadDBModalOpen, selectedDatabase, selectedHostUid, resetAction]);
+  }, [isLoadDBModalOpen, selectedDatabase, selectedHostUid, isLoggedIn, resetAction]);
 
   if (!isLoadDBModalOpen) return null;
 
@@ -216,7 +226,7 @@ export default function LoadDatabaseModal() {
   };
 
   const handleLoadDatabase = async () => {
-    if (!selectedHostUid || !selectedDatabase) return;
+    if (!selectedHostUid || !selectedDatabase || !isLoggedIn) return;
 
     startAction();
     try {
@@ -363,6 +373,31 @@ export default function LoadDatabaseModal() {
           onRetry={handleLoadDatabase}
           onCancel={resetAction}
           cancelText={CM.close}
+        />
+      </Modal>
+    );
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <Modal
+        isOpen={isLoadDBModalOpen}
+        onClose={handleClose}
+        title={CM.loadDatabase}
+        icon="download"
+        maxWidth="480px"
+        testId="load-database"
+        footer={
+          <div className="flex justify-end w-full">
+            <Button data-testid="load-database-cancel-btn" variant="secondary" onClick={handleClose}>{CM.close}</Button>
+          </div>
+        }
+      >
+        <EmptyState
+          icon="lock"
+          accent="amber"
+          title={CM.loadDbLoginRequiredTitle}
+          subtitle={CM.loadDbLoginRequiredMsg}
         />
       </Modal>
     );
