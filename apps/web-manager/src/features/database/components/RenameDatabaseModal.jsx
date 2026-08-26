@@ -50,6 +50,27 @@ const validateVolumeName = (name) => {
   return /^[a-zA-Z0-9_-]+$/.test(name);
 };
 
+// CMS rebuilds our per-volume rename mapping as a plain JSON object keyed by
+// oldPath, and always walks that object's keys in sorted (alphabetical)
+// order when writing CUBRID's rename control file — regardless of the array
+// order we send it in. CUBRID, in turn, requires that file's lines to be in
+// strict ascending volid order (primary volume, volid 0, first) with each
+// line's old path matching the volume's real current label. So this only
+// works when a host's volumes already happen to sort alphabetically by path
+// in volid order (true for the common case of everything living in one
+// directory as `dbname`, `dbname_x001`, `dbname_x002`, ...; false once an
+// extended volume lives under a different directory than the primary).
+// Detect the unsafe case up front instead of silently submitting a rename
+// CUBRID will reject or corrupt.
+const isVolumeOrderSafe = (vols) => {
+  if (vols.some((v) => v.volid === null)) return true; // no volid to check against — don't block
+  const byVolid = [...vols].sort((a, b) => a.volid - b.volid);
+  const byOldPathSort = [...vols].sort((a, b) =>
+    a.originalPath < b.originalPath ? -1 : a.originalPath > b.originalPath ? 1 : 0
+  );
+  return byVolid.every((v, i) => v.originalPath === byOldPathSort[i].originalPath);
+};
+
 const validatePath = (path) => {
   if (!path) return false;
   if (!/^[\x20-\x7E]+$/.test(path)) return false;
@@ -111,15 +132,15 @@ export default function RenameDatabaseModal() {
             // CMS reports actual data/index volumes as type PERMANENT/TEMPORARY
             // (log volumes are Active_log/Archive_log, excluded here — CUBRID
             // renames those automatically, not via this per-volume mapping).
-            // Their `spacename` is also the volume's *full path*, not a bare
-            // file name, so it must be reduced to a basename here or the
-            // "Current Volume Name" column shows the whole path, the main-volume
-            // check (spacename === dbname) never matches, and the rename
-            // payload's path concatenation below double-includes the path.
+            // TEMPORARY volumes are excluded too: CUBRID's renamedb control-file
+            // mechanism only walks *permanent* volumes (fileio_find_next_perm_volume);
+            // including a temp volume's line desyncs the file's sequential reads
+            // and every subsequent volume fails with "unordered entries".
             // Some older CUBRID/CMS builds may report the more granular
-            // generic/data/index/temp purposes instead of PERMANENT/TEMPORARY —
-            // accept both so this doesn't silently break on a version skew.
-            const validTypes = ['permanent', 'temporary', 'generic', 'data', 'index', 'temp'];
+            // generic/data/index purposes instead of PERMANENT — accept those
+            // too so this doesn't silently break on a version skew (but still
+            // never "temp").
+            const validTypes = ['permanent', 'generic', 'data', 'index'];
             const filteredSpaces = (res?.spaceinfo || []).filter(space =>
               space.type && validTypes.includes(space.type.toLowerCase())
             ).map(space => {
@@ -135,8 +156,29 @@ export default function RenameDatabaseModal() {
                 type: space.type,
                 location: dirPath,
                 newVolumeName: baseName,
-                newLocation: dirPath
+                newLocation: dirPath,
+                // Sent verbatim as `oldPath` on submit — CMS/CUBRID require this
+                // to byte-match the volume's real current label, so it must be
+                // the exact string CMS gave us, not a rejoin of the split-apart
+                // basename/directory above (which can differ on separator or
+                // trailing-slash edge cases).
+                originalPath: space.spacename,
+                // CMS assigns the control-file line for this volume based on
+                // where `oldPath` sorts alphabetically among all entries (its
+                // JSON parser rebuilds our volume list as a plain object keyed
+                // by oldPath, which it always walks in sorted-key order) — but
+                // CUBRID requires the file's lines to be in ascending volid
+                // order, primary volume (volid 0) first. Keeping volid here
+                // lets us sort the table into that same order and detect (see
+                // isVolumeOrderSafe below) when a host's on-disk layout can't
+                // be expressed correctly through this API at all.
+                volid: space.volid !== undefined && space.volid !== null && space.volid !== ''
+                  ? Number(space.volid)
+                  : null,
               };
+            }).sort((a, b) => {
+              if (a.volid === null || b.volid === null) return 0;
+              return a.volid - b.volid;
             });
             setVolumes(filteredSpaces);
           })
@@ -154,7 +196,15 @@ export default function RenameDatabaseModal() {
     return () => {
       cancelled = true;
     };
-  }, [isRenameDatabaseModalOpen, selectedHostUid, selectedDatabase, currentDb?.dbdir, resetAction]);
+    // Only (re)initialize when the modal opens — NOT whenever selectedDatabase
+    // changes while it's already open. A successful rename dispatches
+    // fetchDatabaseStartInfo, which clears state.database.selectedDatabase to
+    // null once the old name no longer matches any database (see
+    // databaseCoreSlice's parseDbResponse). That change used to re-trigger
+    // this effect mid-flow, call resetAction(), and bounce the modal off its
+    // success screen back onto a blank form.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRenameDatabaseModalOpen]);
 
   useEffect(() => {
     const parentDir = getParentDirectory(currentDb?.dbdir || '');
@@ -272,7 +322,9 @@ export default function RenameDatabaseModal() {
       };
       if (mode === 'advanced') {
         payload.volume = volumes.map(vol => ({
-          oldPath: `${vol.location}${separator}${vol.spacename}`,
+          // Verbatim — CMS/CUBRID require this to byte-match the volume's
+          // real current on-disk label; must not be a reconstruction.
+          oldPath: vol.originalPath,
           newPath: `${vol.newLocation}${separator}${vol.newVolumeName}`
         }));
       }
@@ -298,8 +350,11 @@ export default function RenameDatabaseModal() {
   const isNameValid = validateDbName(newDbName);
   const isNameChanged = newDbName.trim() !== selectedDatabase;
   const isExvolpathValid = mode === 'exvolpath' ? validatePath(exvolpath) : true;
+  const isVolumeOrderValid = mode === 'advanced' ? isVolumeOrderSafe(volumes) : true;
   const areVolumesValid = mode === 'advanced'
-    ? volumes.length > 0 && volumes.every(vol => validateVolumeName(vol.newVolumeName) && validatePath(vol.newLocation))
+    ? volumes.length > 0
+      && volumes.every(vol => validateVolumeName(vol.newVolumeName) && validatePath(vol.newLocation))
+      && isVolumeOrderValid
     : true;
 
   const isFormValid = isNameValid && isNameChanged && isExvolpathValid && areVolumesValid;
@@ -428,6 +483,13 @@ export default function RenameDatabaseModal() {
             onChange={() => setMode('advanced')}
           />
         </div>
+
+        {mode === 'advanced' && !isVolumeOrderValid && (
+          <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-[12px] text-rose-700 dark:text-rose-400">
+            <span className="material-symbols-outlined text-[16px] shrink-0 mt-0.5">error</span>
+            <span>{CM.individualRenameUnsupportedLayout}</span>
+          </div>
+        )}
 
         {/* Volume mapping table */}
         <div className={`transition-all duration-200 ${mode !== 'advanced' ? 'opacity-50 pointer-events-none' : ''}`}>
