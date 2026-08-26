@@ -3,6 +3,7 @@ import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeEditQueryPlanModal, updateAutoExecQueryPlan, fetchQueryPlan } from '../databaseSlice';
 import Editor from '@monaco-editor/react';
 import { useCM } from '../../../constants/useCM';
+import { hasLineCommentAcrossLines, normalizeQueryForCms } from '../queryPlanUtils';
 
 import { Icon } from '../../../components/ds/foundation/Icon';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -150,8 +151,12 @@ export default function EditQueryPlanModal() {
       endError(CM.sqlStatementRequired);
       return;
     }
-    const queryString = formData.queryString.trim();
-    
+    if (hasLineCommentAcrossLines(formData.queryString)) {
+      endError(CM.multilineQueryLineCommentError);
+      return;
+    }
+    const queryString = normalizeQueryForCms(formData.queryString);
+
     startAction();
 
     const WEEK_ABBRS = { 1: 'MON', 2: 'TUE', 3: 'WED', 4: 'THU', 5: 'FRI', 6: 'SAT', 7: 'SUN' };
@@ -403,6 +408,9 @@ export default function EditQueryPlanModal() {
           </div>
           <InfoBanner>
             {CM.systemComplianceNote}
+          </InfoBanner>
+          <InfoBanner variant="warning" icon="info">
+            {CM.multilineQueryCollapseNote}
           </InfoBanner>
         </div>
       </div>
