@@ -121,10 +121,14 @@ const Component = function DatabaseDashboard({ hostUid: propHostUid, dbname }) {
   };
 
   const activeHost = hosts.find(h => h.uid === selectedHostUid);
-  const data = dashboardData[dbname] || { volumes: [], spaceInfo: [], locks: [], performance: {} };
-  const isLoading = dashboardLoading[dbname];
-  
-  const isTabActive = document.visibilityState === 'visible' && activeMainTab === `db:${dbname}`;
+  const dashboardKey = `${hostUid}:${dbname}`;
+  const data = dashboardData[dashboardKey] || { volumes: [], spaceInfo: [], locks: [], performance: {} };
+  const isLoading = dashboardLoading[dashboardKey];
+
+  // Tabs are always opened as `db:${hostUid}:${dbname}` (DatabaseTree.jsx) —
+  // comparing against a bare `db:${dbname}` here never matched, so every
+  // dashboard section's "became active, refetch" effect silently never fired.
+  const isTabActive = document.visibilityState === 'visible' && activeMainTab === `db:${hostUid}:${dbname}`;
 
 
   // Pass polling props to sections

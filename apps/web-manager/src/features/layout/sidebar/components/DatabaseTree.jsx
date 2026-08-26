@@ -301,8 +301,8 @@ export default function DatabaseTree({
               db={db}
               selectedDatabase={selectedDatabase}
               selectedDatabaseSubItem={selectedDatabaseSubItem}
-              spaceInfo={spaceInfo[db.dbname]}
-              spaceInfoLoading={spaceInfoLoading[db.dbname]}
+              spaceInfo={spaceInfo[`${selectedHostUid}:${db.dbname}`]}
+              spaceInfoLoading={spaceInfoLoading[`${selectedHostUid}:${db.dbname}`]}
               onSpaceContextMenu={onSpaceContextMenu}
               onSelect={handleSelectSubItem}
               onTabOpen={handleTabOpen}

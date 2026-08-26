@@ -7,6 +7,13 @@ import { createRateTracker } from '../broker/rateTracker';
 // Module-level so the previous-sample baseline survives across polls.
 const casRateTracker = createRateTracker();
 
+// All per-database dashboard/space caches below are keyed by this, not by
+// bare dbname — two different hosts routinely have a same-named database
+// (demodb, testdb, ...), and a dbname-only key means switching hosts shows
+// the PREVIOUS host's numbers (silently, no loading state) until the next
+// poll happens to overwrite them, or forever if it fails.
+const dashboardKey = (hostUid, dbname) => `${hostUid}:${dbname}`;
+
 export const fetchDatabaseVolumes = createAsyncThunk(
   'database/fetchDatabaseVolumes',
   async (arg, { rejectWithValue, getState }) => {
@@ -41,7 +48,7 @@ export const fetchDatabaseSpaceInfo = createAsyncThunk(
   async ({ hostUid, dbname }, { rejectWithValue }) => {
     try {
       const response = await databaseApi.getVolumeInfo(hostUid, dbname);
-      return { dbname, data: response };
+      return { hostUid, dbname, data: response };
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || `Failed to fetch space info for ${dbname}`);
     }
@@ -53,8 +60,9 @@ export const fetchDashboardVolumes = createAsyncThunk(
   async ({ hostUid, dbname }, { rejectWithValue }) => {
     try {
       const response = await databaseApi.getVolumeInfo(hostUid, dbname);
-      return { 
-        dbname, 
+      return {
+        hostUid,
+        dbname,
         volumes: response.spaceinfo || [],
         pagesize: response.pagesize,
         logpagesize: response.logpagesize
@@ -70,7 +78,7 @@ export const fetchDashboardLocks = createAsyncThunk(
   async ({ hostUid, dbname }, { rejectWithValue }) => {
     try {
       const response = await databaseApi.getLockInfo(hostUid, dbname);
-      return { dbname, locks: buildDashboardLockRows(response) };
+      return { hostUid, dbname, locks: buildDashboardLockRows(response) };
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || 'Failed to fetch locks');
     }
@@ -82,7 +90,7 @@ export const fetchDashboardPerformance = createAsyncThunk(
   async ({ hostUid, dbname }, { rejectWithValue }) => {
     try {
       const response = await databaseApi.getStatDump(hostUid, dbname);
-      return { dbname, performance: response };
+      return { hostUid, dbname, performance: response };
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || 'Failed to fetch performance stats');
     }
@@ -131,7 +139,7 @@ export const fetchDashboardCAS = createAsyncThunk(
           }
         });
       });
-      return { dbname, brokersCAS };
+      return { hostUid, dbname, brokersCAS };
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || 'Failed to fetch CAS stats');
     }
@@ -168,6 +176,7 @@ export const fetchDashboardData = createAsyncThunk(
     const space = spaceR.status === 'fulfilled' ? spaceR.value : { data: {} };
 
     return {
+      hostUid,
       dbname,
       volumes: vol.volumes,
       locks: lock.locks,
@@ -196,11 +205,20 @@ const databaseMonitoringSlice = createSlice({
   initialState,
   reducers: {
     clearMonitoringError: (state, action) => {
-      const dbname = action.payload;
-      if (dbname) delete state.dashboardError[dbname];
+      const key = action.payload;
+      if (key) delete state.dashboardError[key];
     }
   },
   extraReducers: (builder) => {
+    const emptyDashboardEntry = () => ({
+      volumes: [],
+      spaceInfo: [],
+      locks: [],
+      performance: {},
+      brokersCAS: [],
+      volumeSummary: [],
+    });
+
     builder
       .addCase(fetchDatabaseVolumes.pending, (state) => {
         state.volumesLoading = true;
@@ -210,44 +228,67 @@ const databaseMonitoringSlice = createSlice({
         state.volumes = action.payload;
       })
       .addCase(fetchDatabaseSpaceInfo.fulfilled, (state, action) => {
-        const { dbname, data } = action.payload;
-        state.spaceInfoLoading[dbname] = false;
-        state.spaceInfo[dbname] = {
+        const { hostUid, dbname, data } = action.payload;
+        const key = dashboardKey(hostUid, dbname);
+        state.spaceInfoLoading[key] = false;
+        state.spaceInfo[key] = {
           volumes: data.spaceinfo || [],
           summary: data.dbinfo || [],
           files: data.fileinfo || []
         };
+        // Also merge into the per-DB dashboard cache — DBSpaceInfoSection's
+        // own "became active" refresh dispatches this thunk, and the
+        // dashboard reads from `dashboardData`, not `spaceInfo`.
+        const existing = state.dashboardData[key] || emptyDashboardEntry();
+        state.dashboardData[key] = {
+          ...existing,
+          spaceInfo: data.fileinfo || [],
+          volumeSummary: data.dbinfo || [],
+        };
+      })
+      .addCase(fetchDashboardVolumes.fulfilled, (state, action) => {
+        const { hostUid, dbname, volumes, pagesize, logpagesize } = action.payload;
+        const key = dashboardKey(hostUid, dbname);
+        const existing = state.dashboardData[key] || emptyDashboardEntry();
+        state.dashboardData[key] = { ...existing, volumes, pagesize, logpagesize };
+      })
+      .addCase(fetchDashboardPerformance.fulfilled, (state, action) => {
+        const { hostUid, dbname, performance } = action.payload;
+        const key = dashboardKey(hostUid, dbname);
+        const existing = state.dashboardData[key] || emptyDashboardEntry();
+        state.dashboardData[key] = { ...existing, performance };
+      })
+      .addCase(fetchDashboardCAS.fulfilled, (state, action) => {
+        const { hostUid, dbname, brokersCAS } = action.payload;
+        const key = dashboardKey(hostUid, dbname);
+        const existing = state.dashboardData[key] || emptyDashboardEntry();
+        state.dashboardData[key] = { ...existing, brokersCAS };
       })
       .addCase(fetchDashboardLocks.fulfilled, (state, action) => {
-        const { dbname, locks } = action.payload;
-        const existing = state.dashboardData[dbname] || {
-          volumes: [],
-          spaceInfo: [],
-          locks: [],
-          performance: {},
-          brokersCAS: [],
-          volumeSummary: [],
-        };
-        state.dashboardData[dbname] = { ...existing, locks };
+        const { hostUid, dbname, locks } = action.payload;
+        const key = dashboardKey(hostUid, dbname);
+        const existing = state.dashboardData[key] || emptyDashboardEntry();
+        state.dashboardData[key] = { ...existing, locks };
       })
       .addCase(fetchDashboardData.fulfilled, (state, action) => {
-        const { dbname, volumes, locks, performance, brokersCAS, spaceInfo, volumeSummary, pagesize, logpagesize } = action.payload;
-        state.dashboardData[dbname] = { volumes, locks, performance, brokersCAS, spaceInfo, volumeSummary, pagesize, logpagesize };
-        state.dashboardLoading[dbname] = false;
+        const { hostUid, dbname, volumes, locks, performance, brokersCAS, spaceInfo, volumeSummary, pagesize, logpagesize } = action.payload;
+        const key = dashboardKey(hostUid, dbname);
+        state.dashboardData[key] = { volumes, locks, performance, brokersCAS, spaceInfo, volumeSummary, pagesize, logpagesize };
+        state.dashboardLoading[key] = false;
       })
       // Cleanup on tab close to prevent memory leaks
       .addMatcher(
         (action) => action.type === 'layout/closeTab',
         (state, action) => {
           const tabId = action.payload;
-          const match = tabId.match(/^(?:db|db_space|vol_category|vol_info|table_info|view_info):[^:]+:([^:]+)/) || tabId.match(/^db:(.+)/);
+          const match = tabId.match(/^(?:db|db_space|vol_category|vol_info|table_info|view_info):([^:]+):([^:]+)/);
           if (match) {
-            const dbname = match[1];
-            delete state.dashboardData[dbname];
-            delete state.dashboardLoading[dbname];
-            delete state.dashboardError[dbname];
-            delete state.spaceInfo[dbname];
-            delete state.spaceInfoLoading[dbname];
+            const key = dashboardKey(match[1], match[2]);
+            delete state.dashboardData[key];
+            delete state.dashboardLoading[key];
+            delete state.dashboardError[key];
+            delete state.spaceInfo[key];
+            delete state.spaceInfoLoading[key];
           }
         }
       )
