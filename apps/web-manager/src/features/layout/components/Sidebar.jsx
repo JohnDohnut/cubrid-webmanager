@@ -905,6 +905,14 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           {groupContextMenu.groupId && (
             <>
             <MenuItem
+              icon="add_link"
+              label={CM.addNodeToGroup}
+              onClick={() => {
+                dispatch(openAddHostModal({ groupId: groupContextMenu.groupId, alias: '', address: '', port: '8001', id: 'admin', password: '' }));
+                setGroupContextMenu(null);
+              }}
+            />
+            <MenuItem
               icon="login"
               label={CM.loginAll}
               disabled={

@@ -1,9 +1,8 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { useDispatch } from 'react-redux';
-import { setSelectedGroup, openAddHostModal, moveHost } from '../../../host/hostSlice';
+import { setSelectedGroup, moveHost } from '../../../host/hostSlice';
 import { orderedGroupEntries, sortHostUidsByHaRole, UNGROUPED_GROUP_ID, HOST_DRAG_MIME } from '../../../host/hostGroupUtils';
 import ServerListItem from './ServerListItem';
-import { Icon } from '../../../../components/ds/foundation/Icon';
 import { TreeNode } from '../../../../components/domain/tree/TreeNode';
 import { useCM } from '../../../../constants/useCM';
 
@@ -167,16 +166,6 @@ export default function HostGroupTree({
                 );
               })}
             </TreeNode>
-            {isGroupSelected && (
-              <button
-                type="button"
-                onClick={() => dispatch(openAddHostModal({ groupId, alias: '', address: '', port: '8001', id: 'admin', password: '' }))}
-                className="ml-8 mb-1 flex items-center gap-1 px-2 py-0.5 text-[10px] text-slate-400 hover:text-amber-500 transition-colors"
-              >
-                <Icon name="add" size="12px" />
-                {CM.addNodeToGroup}
-              </button>
-            )}
           </div>
         );
       })}
