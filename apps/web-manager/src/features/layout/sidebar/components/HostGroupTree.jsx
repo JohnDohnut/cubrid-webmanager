@@ -15,6 +15,8 @@ export default function HostGroupTree({
   onContextMenu,
   onGroupContextMenu,
   onHostActivate,
+  selectedHostUids,
+  onSelectedHostUidsChange,
 }) {
   const CM = useCM();
   const dispatch = useDispatch();
@@ -22,6 +24,10 @@ export default function HostGroupTree({
   const [draggedHost, setDraggedHost] = useState(null);
   const [dropTargetGroupId, setDropTargetGroupId] = useState(null);
   const draggedHostRef = useRef(null);
+  // Anchor for shift-click range selection — the last host clicked WITHOUT
+  // shift (plain or cmd/ctrl click). Not reset by shift-clicks themselves,
+  // matching standard file-manager range-select behavior.
+  const lastClickedHostUidRef = useRef(null);
 
   const clearDragState = useCallback(() => {
     draggedHostRef.current = null;
@@ -111,6 +117,46 @@ export default function HostGroupTree({
   const ungroupedHostUids = sortHostUidsByHaRole(Object.keys(ungroupedHostsMap), ungroupedHostsMap, haInfo);
   const isUngroupedDropTarget = dropTargetGroupId === UNGROUPED_GROUP_ID && draggedHost?.sourceGroupId !== UNGROUPED_GROUP_ID;
 
+  // Flattened top-to-bottom host order (regardless of group collapse state)
+  // for shift-click range selection — must match the order rendered below.
+  const flattenedHostUids = [
+    ...groupEntries.flatMap(([, group]) => {
+      const hostsMap = group.hosts || {};
+      return sortHostUidsByHaRole(Object.keys(hostsMap), hostsMap, haInfo);
+    }),
+    ...ungroupedHostUids,
+  ];
+
+  const handleMultiSelect = useCallback((e, uid) => {
+    if (!onSelectedHostUidsChange) return;
+
+    if (e.shiftKey && lastClickedHostUidRef.current) {
+      const startIdx = flattenedHostUids.indexOf(lastClickedHostUidRef.current);
+      const endIdx = flattenedHostUids.indexOf(uid);
+      if (startIdx !== -1 && endIdx !== -1) {
+        const [from, to] = startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
+        onSelectedHostUidsChange(new Set(flattenedHostUids.slice(from, to + 1)));
+        return;
+      }
+    }
+
+    if (e.metaKey || e.ctrlKey) {
+      onSelectedHostUidsChange((prev) => {
+        const next = new Set(prev);
+        if (next.has(uid)) next.delete(uid);
+        else next.add(uid);
+        return next;
+      });
+      lastClickedHostUidRef.current = uid;
+      return;
+    }
+
+    // Plain click — clear multi-select, ServerListItem still runs its own
+    // normal single-select/activate-tab logic for this case.
+    onSelectedHostUidsChange(new Set());
+    lastClickedHostUidRef.current = uid;
+  }, [flattenedHostUids, onSelectedHostUidsChange]);
+
   return (
     <div className="py-1">
       {groupEntries.map(([groupId, group]) => {
@@ -152,6 +198,8 @@ export default function HostGroupTree({
                     <ServerListItem
                       host={host}
                       isSelected={selectedHostUid === uid}
+                      isMultiSelected={selectedHostUids?.has(uid)}
+                      onMultiSelect={handleMultiSelect}
                       isAuthorized={authorizedHosts.includes(uid)}
                       haInfo={haInfo[uid]}
                       onContextMenu={onContextMenu}
@@ -186,6 +234,8 @@ export default function HostGroupTree({
               key={uid}
               host={host}
               isSelected={selectedHostUid === uid}
+              isMultiSelected={selectedHostUids?.has(uid)}
+              onMultiSelect={handleMultiSelect}
               isAuthorized={authorizedHosts.includes(uid)}
               haInfo={haInfo[uid]}
               onContextMenu={onContextMenu}

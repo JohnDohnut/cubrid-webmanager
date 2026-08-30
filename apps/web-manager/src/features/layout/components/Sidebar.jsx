@@ -13,7 +13,8 @@ import {
   openCmsUserManagementModal,
   startService,
   stopService,
-  moveHost
+  moveHost,
+  deleteHost
 } from '../../host/hostSlice';
 import {
   fetchDatabaseStartInfo, startDatabase, stopDatabase, loginDatabase, registerDatabase,
@@ -95,7 +96,7 @@ import SidebarEmptyState from '../sidebar/components/SidebarEmptyState';
 import CMSUserManagementModal from '../../host/components/CMSUserManagementModal';
 import EditCMSUserModal from '../../host/components/EditCMSUserModal';
 import { openCreateGroupModal, openDeleteGroupModal, openRenameGroupModal, openAddHostModal, openManageGroupMembersModal } from '../../host/hostSlice';
-import { getUnauthorizedHostUids, UNGROUPED_GROUP_ID, HOST_DRAG_MIME } from '../../host/hostGroupUtils';
+import { getUnauthorizedHostUids, UNGROUPED_GROUP_ID, HOST_DRAG_MIME, orderedGroupEntries } from '../../host/hostGroupUtils';
 import { useHostActivation } from '../../host/useHostActivation';
 
 export default function Sidebar({ isCollapsed, onAddHost }) {
@@ -111,6 +112,12 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
   const sidebarRef = useRef(null);
   const hostSectionRef = useRef(null);
   const [activeTab, setActiveTab] = useState('db');
+  // Cmd/Ctrl+click and Shift+click multi-selection in the host tree — see
+  // HostGroupTree/ServerListItem. Separate from selectedHostUid, which drives
+  // which host's dashboard/tree content is shown.
+  const [selectedHostUids, setSelectedHostUids] = useState(() => new Set());
+  const [bulkHostContextMenu, setBulkHostContextMenu] = useState(null);
+  const [bulkDeleteHostConfirm, setBulkDeleteHostConfirm] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
   const [groupContextMenu, setGroupContextMenu] = useState(null);
   const [dbContextMenu, setDbContextMenu] = useState(null);
@@ -164,6 +171,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
 
   const closeAllContextMenus = useCallback(() => {
     setContextMenu(null);
+    setBulkHostContextMenu(null);
     setGroupContextMenu(null);
     setDbContextMenu(null);
     setBrokerContextMenu(null);
@@ -251,8 +259,81 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
 
   const handleContextMenu = (e, serverName, hostUid, alias) => {
     e.preventDefault();
+    // Right-clicking a host that's part of the current multi-selection acts
+    // on the whole selection; right-clicking outside it replaces the
+    // selection with just this host and falls through to the normal menu.
+    if (selectedHostUids.size > 1 && selectedHostUids.has(hostUid)) {
+      closeAllContextMenus();
+      setBulkHostContextMenu({ mouseX: e.clientX, mouseY: e.clientY, hostUids: Array.from(selectedHostUids) });
+      return;
+    }
+    setSelectedHostUids(new Set());
     closeAllContextMenus();
     setContextMenu({ mouseX: e.clientX, mouseY: e.clientY, server: serverName, hostUid, alias });
+  };
+
+  const handleBulkLoginSelected = () => {
+    const uids = (bulkHostContextMenu?.hostUids || []).filter((uid) => !authorizedHosts.includes(uid));
+    setBulkHostContextMenu(null);
+    if (uids.length === 0) return;
+
+    dispatch(loginHostsBatch(uids))
+      .unwrap()
+      .then(({ successCount, failed }) => {
+        let message = CM.connectedHostsMsg(successCount);
+        if (failed.length > 0) {
+          message += CM.failedListSuffix(failed.join(', '));
+        }
+        dispatch(showStatusModal({
+          type: failed.length > 0 && successCount === 0 ? 'error' : 'success',
+          title: CM.loginSelectedHosts,
+          message,
+        }));
+      })
+      .catch(() => {
+        dispatch(showStatusModal({
+          type: 'error',
+          title: CM.loginSelectedHosts,
+          message: CM.loginToHostsFailedMsg,
+        }));
+      });
+  };
+
+  const handleBulkMoveSelected = async (targetGroupId) => {
+    const uids = bulkHostContextMenu?.hostUids || [];
+    setBulkHostContextMenu(null);
+    setSelectedHostUids(new Set());
+    await Promise.all(uids.map((hostUid) => dispatch(moveHost({ hostUid, targetGroupId }))));
+  };
+
+  const handleBulkDeleteConfirm = async () => {
+    const uids = bulkDeleteHostConfirm?.hostUids || [];
+    setBulkDeleteHostConfirm(null);
+    let successCount = 0;
+    const failedUids = [];
+    for (const hostUid of uids) {
+      try {
+        await dispatch(deleteHost(hostUid)).unwrap();
+        dispatch(closeHostTabs(hostUid));
+        dispatch(clearHostSummary(hostUid));
+        if (selectedHostUid === hostUid) {
+          dispatch(setSelectedHost(null));
+          dispatch(resetDatabaseState());
+          dispatch(resetBrokerState());
+        }
+        successCount += 1;
+      } catch {
+        failedUids.push(hostUid);
+      }
+    }
+    setSelectedHostUids(new Set());
+    dispatch(showStatusModal({
+      type: failedUids.length > 0 && successCount === 0 ? 'error' : 'success',
+      title: CM.deleteSelectedHosts,
+      message: failedUids.length > 0
+        ? CM.bulkDeleteHostsPartialMsg(successCount, failedUids.length)
+        : CM.bulkDeleteHostsSuccessMsg(successCount),
+    }));
   };
 
   const handleGroupContextMenu = (e, groupId, groupName) => {
@@ -610,6 +691,8 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                       onContextMenu={handleContextMenu}
                       onGroupContextMenu={handleGroupContextMenu}
                       onHostActivate={handleHostLogin}
+                      selectedHostUids={selectedHostUids}
+                      onSelectedHostUidsChange={setSelectedHostUids}
                     />
                   </div>
                 )
@@ -863,6 +946,36 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
         </ContextMenuWrapper>
       )}
 
+      {bulkHostContextMenu && (
+        <ContextMenuWrapper x={bulkHostContextMenu.mouseX} y={bulkHostContextMenu.mouseY} onClose={() => setBulkHostContextMenu(null)}>
+          <div className="px-3 py-2 border-b border-slate-100 dark:border-white/5 mb-1 flex items-center justify-between">
+            <Typography variant="caption" className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-[9px]">
+              {CM.selectedHostsCountLabel(bulkHostContextMenu.hostUids.length)}
+            </Typography>
+            <Icon name="dns" size="xs" className="opacity-30" weight={300} />
+          </div>
+          <MenuItem icon="login" label={CM.loginSelectedHosts} onClick={handleBulkLoginSelected} />
+          <SubMenu icon="drive_file_move" label={CM.moveToGroupMenu}>
+            <MenuItem icon="folder_off" label={CM.ungroupedHosts} onClick={() => handleBulkMoveSelected(UNGROUPED_GROUP_ID)} />
+            {orderedGroupEntries(hostGroups)
+              .filter(([groupId]) => groupId !== UNGROUPED_GROUP_ID)
+              .map(([groupId, group]) => (
+                <MenuItem key={groupId} icon="folder" label={group.name} onClick={() => handleBulkMoveSelected(groupId)} />
+              ))}
+          </SubMenu>
+          <MenuDivider />
+          <MenuItem
+            icon="delete"
+            label={CM.deleteSelectedHosts}
+            onClick={() => {
+              const uids = bulkHostContextMenu.hostUids;
+              setBulkHostContextMenu(null);
+              setBulkDeleteHostConfirm({ hostUids: uids });
+            }}
+          />
+        </ContextMenuWrapper>
+      )}
+
       {groupContextMenu && (
         <ContextMenuWrapper x={groupContextMenu.mouseX} y={groupContextMenu.mouseY} onClose={() => setGroupContextMenu(null)}>
           <div className="px-3 py-2 border-b border-slate-100 dark:border-white/5 mb-1 flex items-center justify-between">
@@ -1020,6 +1133,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
             <MenuItem icon="download" label={CM.manageDatabaseMenu.load} disabled={dbContextMenu.isActive} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openLoadDatabaseModal(dbContextMenu.db)); setDbContextMenu(null); }} />
             <MenuItem icon="check_circle" label={CM.manageDatabaseMenu.check} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openCheckDatabaseModal()); setDbContextMenu(null); }} />
             <MenuItem icon="compress" label={CM.manageDatabaseMenu.compact} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openCompactDatabaseModal()); setDbContextMenu(null); }} />
+            <MenuItem icon="add_to_drive" label={CM.manageDatabaseMenu.addVol} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openAddVolumeModal()); setDbContextMenu(null); }} />
             <MenuItem icon="auto_fix_high" label={CM.manageDatabaseMenu.optimize} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openOptimizeDatabaseModal()); setDbContextMenu(null); }} />
             <MenuItem icon="content_copy" label={CM.manageDatabaseMenu.copy} disabled={dbContextMenu.isActive} onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openCopyDatabaseModal()); setDbContextMenu(null); }} />
             <MenuDivider />
@@ -1757,6 +1871,15 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           handleServiceAction(hostUid, 'stop');
         }}
         onCancel={closeStopServiceConfirm}
+      />
+      <ConfirmDialog
+        isOpen={!!bulkDeleteHostConfirm}
+        title={CM.bulkDeleteHostsConfirmTitle}
+        description={CM.bulkDeleteHostsConfirmDesc(bulkDeleteHostConfirm?.hostUids?.length || 0)}
+        confirmLabel={CM.deleteSelectedHosts}
+        variant="danger"
+        onConfirm={handleBulkDeleteConfirm}
+        onCancel={() => setBulkDeleteHostConfirm(null)}
       />
       {isSidebarActionError && (
         <Modal isOpen title={CM.actionFailed} icon="error" iconVariant="danger" onClose={resetAction} maxWidth="400px">

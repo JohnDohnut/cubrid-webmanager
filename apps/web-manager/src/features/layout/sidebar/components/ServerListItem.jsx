@@ -15,6 +15,8 @@ const HA_ROLE_CONFIG = {
 export default function ServerListItem({
   host,
   isSelected,
+  isMultiSelected = false,
+  onMultiSelect,
   isAuthorized,
   haInfo,
   onContextMenu,
@@ -62,9 +64,21 @@ export default function ServerListItem({
         ${compact ? 'pl-6 pr-2' : 'pl-3 pr-2'}
         ${isSelected
           ? 'bg-amber-500/8 dark:bg-amber-500/10'
-          : 'hover:bg-slate-100/80 dark:hover:bg-white/[0.04]'
-        }`}
-      onClick={() => {
+          : isMultiSelected
+            ? 'bg-sky-500/8 dark:bg-sky-500/10'
+            : 'hover:bg-slate-100/80 dark:hover:bg-white/[0.04]'
+        }
+        ${isMultiSelected ? 'ring-1 ring-inset ring-sky-400/40' : ''}`}
+      onClick={(e) => {
+        // Cmd/Ctrl-click toggles this host in the multi-selection, shift-click
+        // range-selects — neither changes the active dashboard host. A plain
+        // click clears any multi-selection and falls through to the normal
+        // single-select behavior below.
+        if (e.metaKey || e.ctrlKey || e.shiftKey) {
+          onMultiSelect?.(e, host.uid);
+          return;
+        }
+        onMultiSelect?.(e, host.uid);
         dispatch(setSelectedHost(host.uid));
         if (isAuthorized) {
           dispatch(fetchDatabaseStartInfo(host.uid));
