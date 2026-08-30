@@ -47,7 +47,7 @@ export default function LoadDatabaseModal() {
     isSuccess,
     isError,
   } = useActionState();
-  const { runJob } = useCmsJob();
+  const { runJob, background } = useCmsJob();
   const [jobStatus, setJobStatus] = useState(null);
 
   const [unloadList, setUnloadList] = useState([]);
@@ -338,13 +338,21 @@ export default function LoadDatabaseModal() {
   const validationError = getValidationError();
   const isFormValid = !!formData.dbUsername && !validationError;
 
+  // handleLoadDatabase itself doesn't re-check isFormValid (only the footer
+  // button's disabled prop does), so Enter-to-submit needs its own guard to
+  // avoid bypassing that gate.
+  const handleFormSubmit = () => {
+    if (!isFormValid) return;
+    handleLoadDatabase();
+  };
+
   if (isLoading) {
     return (
       <Modal isOpen title={CM.loadDatabase} icon="download" onClose={handleClose} maxWidth="720px">
         <ModalStatusLoading
           title={CM.loadDatabase}
           subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
-          onBackground={handleClose}
+          onBackground={() => { background(); handleClose(); }}
         />
       </Modal>
     );
@@ -421,6 +429,7 @@ export default function LoadDatabaseModal() {
       icon="download"
       maxWidth="720px"
       testId="load-database"
+      onSubmit={handleFormSubmit}
       footer={
         <div className="flex justify-end gap-2 w-full">
           <Button data-testid="load-database-cancel-btn" variant="ghost" onClick={handleClose}>{CM.cancel}</Button>

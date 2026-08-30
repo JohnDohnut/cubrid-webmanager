@@ -59,7 +59,7 @@ export default function UnloadDatabaseModal() {
     isLoading,
     isError,
   } = useActionState();
-  const { runJob } = useCmsJob();
+  const { runJob, background } = useCmsJob();
   const [jobStatus, setJobStatus] = useState(null);
 
   const [formData, setFormData] = useState(INITIAL_FORM_DATA);
@@ -210,7 +210,7 @@ export default function UnloadDatabaseModal() {
         <ModalStatusLoading
           title={CM.unloadDatabase}
           subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
-          onBackground={handleClose}
+          onBackground={() => { background(); handleClose(); }}
         />
       </Modal>
     );
@@ -240,6 +240,7 @@ export default function UnloadDatabaseModal() {
       icon="upload"
       maxWidth="740px"
       testId="unload-database"
+      onSubmit={handleUnloadDatabase}
       footer={
         <div className="flex justify-end gap-2 w-full">
           <Button data-testid="unload-database-cancel-btn" variant="ghost" onClick={handleClose}>{CM.cancel}</Button>

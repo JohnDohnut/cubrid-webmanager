@@ -208,6 +208,7 @@ export default function AddQueryPlanModal() {
       icon="bolt"
       maxWidth="max-w-[720px]"
       testId="add-query-plan"
+      onSubmit={handleSave}
       footer={
         <div className="flex justify-end gap-3 w-full">
           <Button data-testid="add-query-plan-cancel-btn" variant="ghost" onClick={handleClose}>{CM.cancel}</Button>

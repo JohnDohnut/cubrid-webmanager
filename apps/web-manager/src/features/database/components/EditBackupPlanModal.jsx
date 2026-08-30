@@ -156,7 +156,13 @@ export default function EditBackupPlanModal() {
     startAction();
 
     let periodDateValue = '';
-    if (formData.periodType === 'Weekly') {
+    if (formData.periodType === 'Daily') {
+      // CMS's nv_get_val treats an empty-string value as if the parameter
+      // were absent entirely ("Parameter(period_date) missing in the
+      // request") — Daily does no further validation on the value itself,
+      // so any non-empty placeholder satisfies it.
+      periodDateValue = 'none';
+    } else if (formData.periodType === 'Weekly') {
       const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
       const selectedDays = Array.isArray(formData.periodDetail) ? formData.periodDetail : [];
       periodDateValue = selectedDays.map(dayNum => dayNames[dayNum - 1]).join(',');
@@ -248,6 +254,7 @@ export default function EditBackupPlanModal() {
       icon="edit_calendar"
       maxWidth="700px"
       testId="edit-backup-plan"
+      onSubmit={handleSave}
       footer={
         <div className="flex justify-end gap-3 w-full">
           <Button data-testid="edit-backup-plan-cancel-btn" variant="ghost" onClick={handleClose}>{CM.cancel}</Button>

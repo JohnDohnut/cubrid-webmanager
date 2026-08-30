@@ -448,6 +448,11 @@ export default function ImportExportHostModal() {
   const hasValidationErrors = importList.some((h) => h.validationError && !h.isDuplicate);
   const fileHasPrefsGroups = importList.some((row) => row.hasPrefsGroups);
 
+  // Mirrors the footer's primary button, which switches target handler by
+  // step. The password-prompt confirmation step and the initial file-picker
+  // step have no text inputs, so Enter there never reaches this handler.
+  const handleFormSubmit = isPasswordStep ? handleApplyImportedPasswords : handleAction;
+
   return (
     <Modal
       isOpen={isImportExportModalOpen}
@@ -457,6 +462,7 @@ export default function ImportExportHostModal() {
       loading={isProcessing}
       maxWidth="max-w-[720px]"
       testId="import-export-host"
+      onSubmit={handleFormSubmit}
       subtitle={isPasswordPromptStep
         ? CM.pendingPasswordsSubtitle(pendingPasswordHosts.length)
         : isPasswordStep

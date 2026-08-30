@@ -250,6 +250,7 @@ export default function SetAutomationVolumeModal() {
       subtitle={selectedDatabase ? CM.setAutomationVolumeSubtitle(selectedDatabase) : ''}
       icon="settings_suggest"
       maxWidth="max-w-[580px]"
+      onSubmit={handleSave}
       footer={
         <div className="flex items-center justify-between w-full">
           <Typography variant="caption" className="text-[9px] text-slate-400 font-mono hidden sm:block">

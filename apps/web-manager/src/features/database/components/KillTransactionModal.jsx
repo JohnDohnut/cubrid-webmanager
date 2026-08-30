@@ -125,6 +125,7 @@ export default function KillTransactionModal() {
       subtitle={selectedDatabase ? `${CM.databaseName}: ${selectedDatabase}` : undefined}
       icon="cancel"
       maxWidth="520px"
+      onSubmit={handleKill}
       footer={
         <div className="flex justify-end gap-3 w-full">
           <Button variant="ghost" onClick={handleClose}>{CM.cancel}</Button>

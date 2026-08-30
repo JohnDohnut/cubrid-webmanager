@@ -48,7 +48,7 @@ export default function CopyDatabaseModal() {
     isSuccess,
     isError
   } = useActionState();
-  const { runJob } = useCmsJob();
+  const { runJob, background } = useCmsJob();
   const [jobStatus, setJobStatus] = useState(null);
 
   const [formData, setFormData] = useState({
@@ -284,7 +284,7 @@ export default function CopyDatabaseModal() {
         <ModalStatusLoading
           title={CM.synchronizingVolumes}
           subtitle={getCmsJobLoadingSubtitle(formData.destName, jobStatus, CM)}
-          onBackground={handleClose}
+          onBackground={() => { background(); handleClose(); }}
         />
       </Modal>
     );
@@ -331,6 +331,7 @@ export default function CopyDatabaseModal() {
       icon="content_copy"
       maxWidth="820px"
       testId="copy-database"
+      onSubmit={handleCopy}
       footer={
         <div className="flex justify-end gap-3 w-full">
           <Button data-testid="copy-database-cancel-btn" variant="ghost" onClick={handleClose}>{CM.cancel}</Button>

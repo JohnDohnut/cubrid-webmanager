@@ -82,7 +82,7 @@ export default function AddVolumeModal() {
     isSuccess,
     isError
   } = useActionState();
-  const { runJob } = useCmsJob();
+  const { runJob, background } = useCmsJob();
   const [jobStatus, setJobStatus] = useState(null);
 
   const [volStatus, setVolStatus] = useState({ freespace: '', volpath: '' });
@@ -162,7 +162,7 @@ export default function AddVolumeModal() {
         <ModalStatusLoading
           title={CM.scalingFoundation}
           subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
-          onBackground={handleClose}
+          onBackground={() => { background(); handleClose(); }}
         />
       </Modal>
     );
@@ -209,6 +209,7 @@ export default function AddVolumeModal() {
       icon="add_to_drive"
       maxWidth="560px"
       testId="add-volume"
+      onSubmit={handleAdd}
       footer={
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500 text-[10px] font-bold uppercase tracking-widest italic">

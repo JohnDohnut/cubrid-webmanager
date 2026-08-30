@@ -365,6 +365,7 @@ export default function BackupDatabaseModal() {
       icon="backup"
       maxWidth="720px"
       testId="backup-database"
+      onSubmit={handleBackup}
       footer={
         <div className="flex justify-end gap-3 w-full">
           <Button data-testid="backup-database-cancel-btn" variant="secondary" onClick={handleClose}>{CM.cancel}</Button>

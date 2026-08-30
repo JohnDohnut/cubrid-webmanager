@@ -212,7 +212,7 @@ export default function OptimizeDatabaseModal() {
     isSuccess,
     isError,
   } = useActionState();
-  const { runJob } = useCmsJob();
+  const { runJob, background } = useCmsJob();
   const [selectedClassName, setSelectedClassName] = useState('');
   const [jobStatus, setJobStatus] = useState(null);
   const [dbuser, setDbuser] = useState('dba');
@@ -296,6 +296,13 @@ export default function OptimizeDatabaseModal() {
     resetAction();
   };
 
+  // Mirrors the footer button's disabled={isLoadingClasses} gate, which
+  // handleOptimize itself doesn't check.
+  const handleFormSubmit = () => {
+    if (isLoadingClasses) return;
+    handleOptimize();
+  };
+
   /* ─── LOADING view ─── */
   if (isLoading) {
     return (
@@ -303,7 +310,7 @@ export default function OptimizeDatabaseModal() {
         <ModalStatusLoading
           title={CM.regeneratingStatistics}
           subtitle={getCmsJobLoadingSubtitle(selectedClassName || selectedDatabase, jobStatus, CM)}
-          onBackground={handleClose}
+          onBackground={() => { background(); handleClose(); }}
         />
       </Modal>
     );
@@ -350,6 +357,7 @@ export default function OptimizeDatabaseModal() {
       icon="auto_fix_high"
       maxWidth="480px"
       testId="optimize-database"
+      onSubmit={handleFormSubmit}
       footer={
         <div className="flex justify-end gap-3 w-full">
           <Button data-testid="optimize-database-cancel-btn" variant="secondary" onClick={handleClose}>

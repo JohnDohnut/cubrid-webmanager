@@ -99,7 +99,7 @@ export default function RenameDatabaseModal() {
     isSuccess,
     isError
   } = useActionState();
-  const { runJob } = useCmsJob();
+  const { runJob, background } = useCmsJob();
   const [jobStatus, setJobStatus] = useState(null);
 
   const [newDbName, setNewDbName] = useState('');
@@ -108,6 +108,12 @@ export default function RenameDatabaseModal() {
   const [exvolpath, setExvolpath] = useState('');
   const [volumes, setVolumes] = useState([]);
   const [volInfoLoading, setVolInfoLoading] = useState(false);
+  // Snapshot of the name being renamed, for the success screen. Redux's
+  // selectedDatabase can't be used there — a successful rename dispatches
+  // fetchDatabaseStartInfo, which nulls selectedDatabase out once the old
+  // name no longer matches any database (see databaseCoreSlice's
+  // parseDbResponse), so by the time the success view renders it's gone.
+  const [renamedFromDb, setRenamedFromDb] = useState('');
 
   const editedVolumesRef = useRef({});
   const isExvolpathEditedRef = useRef(false);
@@ -120,6 +126,7 @@ export default function RenameDatabaseModal() {
       setMode('exvolpath');
       setExvolpath('');
       setVolumes([]);
+      setRenamedFromDb('');
       resetAction();
       editedVolumesRef.current = {};
       isExvolpathEditedRef.current = false;
@@ -332,6 +339,7 @@ export default function RenameDatabaseModal() {
         () => databaseJobApi.submitRename(selectedHostUid, selectedDatabase, payload),
         { onProgress: (j) => setJobStatus(j.jobStatus ?? j.status) }
       );
+      setRenamedFromDb(selectedDatabase);
       dispatch(fetchDatabaseStartInfo(selectedHostUid));
       endSuccess(CM.databaseRenamedMsg(selectedDatabase, newDbName.trim()));
     } catch (err) {
@@ -366,7 +374,7 @@ export default function RenameDatabaseModal() {
         <ModalStatusLoading
           title={CM.updatingIdentity}
           subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
-          onBackground={handleClose}
+          onBackground={() => { background(); handleClose(); }}
         />
       </Modal>
     );
@@ -378,7 +386,7 @@ export default function RenameDatabaseModal() {
       <Modal isOpen title={CM.renameComplete} icon="drive_file_rename_outline" iconVariant="success" onClose={handleClose} maxWidth="640px">
         <ModalStatusSuccess
           title={CM.renameSuccessful}
-          message={CM.databaseRenamedMsg(selectedDatabase, newDbName.trim())}
+          message={CM.databaseRenamedMsg(renamedFromDb, newDbName.trim())}
           onConfirm={handleClose}
           confirmText={CM.ok}
         />
@@ -412,6 +420,7 @@ export default function RenameDatabaseModal() {
       icon="drive_file_rename_outline"
       maxWidth="640px"
       testId="rename-database"
+      onSubmit={handleRename}
       footer={
         <div className="flex justify-end gap-3 w-full">
           <Button data-testid="rename-database-cancel-btn" variant="secondary" onClick={handleClose}>{CM.cancel}</Button>

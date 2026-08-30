@@ -39,7 +39,7 @@ export default function CompactDatabaseModal() {
     isSuccess,
     isError
   } = useActionState();
-  const { runJob } = useCmsJob();
+  const { runJob, background } = useCmsJob();
   const [jobStatus, setJobStatus] = useState(null);
 
   const [verbose, setVerbose] = useState(false);
@@ -83,7 +83,7 @@ export default function CompactDatabaseModal() {
         <ModalStatusLoading
           title={CM.consolidatingBlocks}
           subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
-          onBackground={handleClose}
+          onBackground={() => { background(); handleClose(); }}
         />
       </Modal>
     );
@@ -127,6 +127,7 @@ export default function CompactDatabaseModal() {
       icon="compress"
       maxWidth="480px"
       testId="compact-database"
+      onSubmit={handleCompact}
       footer={
         <div className="flex justify-end gap-3 w-full">
           <Button data-testid="compact-database-cancel-btn" variant="secondary" onClick={handleClose}>

@@ -252,6 +252,7 @@ export default function EditQueryPlanModal() {
       icon="edit"
       maxWidth="max-w-[720px]"
       testId="edit-query-plan"
+      onSubmit={handleSave}
       footer={
         <div className="flex justify-end gap-3 w-full">
           <Button data-testid="edit-query-plan-cancel-btn" variant="ghost" onClick={handleClose}>{CM.cancel}</Button>

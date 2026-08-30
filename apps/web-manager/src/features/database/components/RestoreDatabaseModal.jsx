@@ -142,7 +142,7 @@ export default function RestoreDatabaseModal() {
     isSuccess,
     isError
   } = useActionState();
-  const { runJob } = useCmsJob();
+  const { runJob, background } = useCmsJob();
   const [jobStatus, setJobStatus] = useState(null);
 
   const [formData, setFormData] = useState({
@@ -510,7 +510,7 @@ export default function RestoreDatabaseModal() {
           title={CM.reconstructingInstance}
           subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
           variant="danger"
-          onBackground={handleClose}
+          onBackground={() => { background(); handleClose(); }}
         />
       </Modal>
     );
@@ -557,6 +557,7 @@ export default function RestoreDatabaseModal() {
       icon="settings_backup_restore"
       maxWidth="680px"
       testId="restore-database"
+      onSubmit={handleRestore}
       footer={
         <div className="flex items-center justify-between w-full gap-3">
           <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium">

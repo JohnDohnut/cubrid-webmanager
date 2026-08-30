@@ -27,7 +27,7 @@ export default function CheckDatabaseModal() {
 
   const { error, startAction, endSuccess, endError, resetAction, isLoading, isSuccess, isError } =
     useActionState();
-  const { runJob } = useCmsJob();
+  const { runJob, background } = useCmsJob();
   const [jobStatus, setJobStatus] = useState(null);
   const [repair, setRepair] = useState(false);
 
@@ -68,7 +68,7 @@ export default function CheckDatabaseModal() {
         <ModalStatusLoading
           title={CM.checkDatabase}
           subtitle={getCmsJobLoadingSubtitle(selectedDatabase, jobStatus, CM)}
-          onBackground={handleClose}
+          onBackground={() => { background(); handleClose(); }}
         />
       </Modal>
     );
@@ -110,6 +110,7 @@ export default function CheckDatabaseModal() {
       icon="verified"
       maxWidth="480px"
       testId="check-database"
+      onSubmit={handleCheck}
       footer={
         <div className="flex justify-end gap-2 w-full">
           <Button data-testid="check-database-cancel-btn" variant="secondary" onClick={handleClose}>{CM.cancel}</Button>

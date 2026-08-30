@@ -133,7 +133,7 @@ export default function CreateDatabaseModal() {
     isError
   } = useActionState();
 
-  const { runJob } = useCmsJob();
+  const { runJob, background } = useCmsJob();
   const [jobStatus, setJobStatus] = useState(null);
   const jobDismissedRef = useRef(false);
 
@@ -346,6 +346,16 @@ export default function CreateDatabaseModal() {
     resetAction();
   };
 
+  // Mirrors the footer's step-dependent primary button: Next (gated by
+  // isFormValid) on steps 1-4, Finish on step 5.
+  const handleFormSubmit = () => {
+    if (step < 5) {
+      if (isFormValid()) handleNext();
+    } else {
+      handleFinish();
+    }
+  };
+
   const totalStorage = formData.genericVolSize + formData.logVolSize + formData.volumes.reduce((a, v) => a + v.size, 0);
 
 
@@ -356,7 +366,7 @@ export default function CreateDatabaseModal() {
         <ModalStatusLoading
           title={CM.createDatabase}
           subtitle={getCmsJobLoadingSubtitle(formData.dbName, jobStatus, CM)}
-          onBackground={handleClose}
+          onBackground={() => { background(); handleClose(); }}
         />
       </Modal>
     );
@@ -402,6 +412,7 @@ export default function CreateDatabaseModal() {
       icon="add_circle"
       maxWidth="780px"
       testId="create-database"
+      onSubmit={handleFormSubmit}
       footer={
         <div className="flex w-full items-center justify-between">
           <div className="flex items-center gap-1.5">
