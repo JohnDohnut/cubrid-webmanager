@@ -19,6 +19,14 @@ export const registerClearReconnectingHost = (fn) => {
 // Suppresses duplicate 401 modal triggers while the modal is visible.
 const reconnectingHosts = new Set();
 
+// Timestamp of each host's last successful CMS (re)login. A request issued
+// just before a password-change relogin can still be in flight when CMS
+// invalidates its (now superseded) token, so its 401 lands after the fresh
+// login already succeeded — without this, that stale rejection alone pops a
+// confusing reconnect prompt for a host the user just finished reconnecting.
+const lastLoginSuccessAt = new Map();
+const STALE_TOKEN_GRACE_MS = 5000;
+
 // Directly export so ReconnectHostModal can clear the guard on close.
 export const clearReconnectingHost = (hostUid) => {
   reconnectingHosts.delete(hostUid);
@@ -189,6 +197,11 @@ const getHostUidFromUrl = (url) => {
 
 apiClient.interceptors.response.use(
   (response) => {
+    if (response.config?.url?.includes('/cms-auth/login')) {
+      const hostUid = getHostUidFromUrl(response.config.url);
+      if (hostUid) lastLoginSuccessAt.set(hostUid, Date.now());
+    }
+
     const rawData = response.data;
     if (rawData && typeof rawData === 'object' && Object.prototype.hasOwnProperty.call(rawData, 'data')) {
       if (rawData.data === false || rawData.data === null || rawData.data === 0) {
@@ -262,6 +275,13 @@ apiClient.interceptors.response.use(
         if (isInvalidTokenError) {
           // If we're already waiting for the user to reconnect, silently drop this 401.
           if (reconnectingHosts.has(hostUid)) {
+            return Promise.reject(error);
+          }
+          // A request in flight before a fresh (re)login can still land its 401
+          // after that login already succeeded — that's a stale race, not an
+          // actual takeover, so don't second-guess the session that's already valid.
+          const sinceLogin = Date.now() - (lastLoginSuccessAt.get(hostUid) || 0);
+          if (sinceLogin < STALE_TOKEN_GRACE_MS) {
             return Promise.reject(error);
           }
           console.warn(`Host token for ${hostUid} was invalidated (session taken over). Showing reconnect modal.`);
