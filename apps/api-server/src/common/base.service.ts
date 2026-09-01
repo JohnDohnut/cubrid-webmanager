@@ -216,10 +216,16 @@ export abstract class BaseService {
         polls === 0 ? CMS_ASYNC_JOB_FIRST_POLL_INTERVAL_MS : CMS_ASYNC_JOB_POLL_INTERVAL_MS
       );
       polls += 1;
+      // Re-read the host's token on every poll instead of reusing the one
+      // captured at the top: CMS ties a single token per dbmt user, so a
+      // relogin to this host anywhere else while a long job (hours) is
+      // still polling would otherwise invalidate the captured token and
+      // break tracking of a CMS job that's actually still running fine.
+      const currentHost = await this.hostService.findHostInternal(userId, hostUid);
       response = await this.cmsClient.postAuthenticated<
         { task: string; token: string; uuid: unknown },
         any
-      >(url, { task: 'gettaskstatus', token: host.token || '', uuid: response.uuid });
+      >(url, { task: 'gettaskstatus', token: currentHost.token || '', uuid: response.uuid });
     }
 
     this.logger.log(
