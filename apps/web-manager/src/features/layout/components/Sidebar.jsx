@@ -1116,7 +1116,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
               }}
             />
           )}
-          {dbContextMenu.isActive && !loggedInDatabases.includes(dbContextMenu.db) && (
+          {!loggedInDatabases.includes(dbContextMenu.db) && (
             <MenuItem
               icon="login"
               label={CM.loginDatabase}
