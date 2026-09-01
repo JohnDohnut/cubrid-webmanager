@@ -3,7 +3,7 @@ import { getStoredLocale, setStoredLocale } from '../../constants/useCM';
 import { userApi } from './userApi';
 
 export const DEFAULT_PREFERENCES = {
-  dashboardInterval: 0,
+  dashboardInterval: 3,
   brokerStatusInterval: 0,
   uiLocale: 'en',
 };
