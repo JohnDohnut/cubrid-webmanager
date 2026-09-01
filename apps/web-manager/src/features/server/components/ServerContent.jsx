@@ -2,7 +2,6 @@ import { usePollingRefresh } from '../../../infrastructure/hooks/usePollingRefre
 import React, { useState, useCallback } from 'react';
 import { useSelector, useDispatch , shallowEqual } from 'react-redux';
 import { hostApi } from '../../host/hostApi';
-import { databaseApi } from '../../database/databaseApi';
 import { fetchHostEnv } from '../../host/hostSlice';
 import { fetchDatabaseStartInfo } from '../../database/databaseSlice';
 import { fetchBrokerList } from '../../broker/brokerSlice';
@@ -87,18 +86,6 @@ const Component = function ServerContent({ hostUid }) {
 
   const { activeMainTab } = useSelector((state) => state.layout, shallowEqual);
   const isTabActive = activeMainTab === `host:${hostUid}`;
-
-
-  const handleAutoStartToggle = async (dbname, isCurrentlyAutoStart) => {
-    try {
-      const payload = { confname: 'cubridconf', dbname };
-      if (isCurrentlyAutoStart) await databaseApi.removeAutoStart(hostUid, payload);
-      else await databaseApi.setAutoStart(hostUid, payload);
-      fetchAutoStartInfo();
-    } catch (err) {
-      console.error('Failed to update auto-start:', err);
-    }
-  };
 
   const haHeartbeat = hostData?.haHeartbeat;
   const haDbs = React.useMemo(() => {
@@ -213,7 +200,7 @@ const Component = function ServerContent({ hostUid }) {
         <DatabaseVolumes hostUid={hostUid} activeDatabases={activeDatabases} />
         <Brokers hostUid={hostUid} isSection={true} />
         <SystemStatusSection hostUid={hostUid} isTabActive={isTabActive} />
-        <DatabaseListSection dbListDisplay={dbListDisplay} handleAutoStartToggle={handleAutoStartToggle} isHA={isHA} />
+        <DatabaseListSection dbListDisplay={dbListDisplay} />
         <SystemInfo hostUid={hostUid} />
       </div>
     </div>
