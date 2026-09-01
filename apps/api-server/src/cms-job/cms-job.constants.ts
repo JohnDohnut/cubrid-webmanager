@@ -13,6 +13,9 @@ export const CMS_ASYNC_JOB_POLL_INTERVAL_MS = 3000;
  */
 export const CMS_ASYNC_JOB_FIRST_POLL_INTERVAL_MS = 500;
 
+/** Cap on how many jobs `GET /jobs/recent` returns, matching the frontend's MAX_TRACKED. */
+export const CMS_JOB_RECENT_LIST_LIMIT = 50;
+
 export function getLongJobCmsTimeoutMs(): number {
   const hours = Number(
     process.env.CMS_JOB_LONG_TIMEOUT_HOURS ?? CMS_JOB_LONG_TIMEOUT_HOURS_DEFAULT

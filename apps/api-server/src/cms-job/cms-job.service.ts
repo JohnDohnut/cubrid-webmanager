@@ -34,6 +34,7 @@ import {
 } from './cms-job.types';
 import { CmsJobStore } from './cms-job.store';
 import { CMS_JOB_CLEANUP_INTERVAL_MS, isTerminalJobStatus } from './cms-job.cleanup';
+import { CMS_JOB_RECENT_LIST_LIMIT } from './cms-job.constants';
 
 @Injectable()
 export class CmsJobService implements OnModuleInit, OnModuleDestroy {
@@ -423,6 +424,23 @@ export class CmsJobService implements OnModuleInit, OnModuleDestroy {
     const jobs = await this.store.listJobsForUser(this.userKey(userId));
     return jobs
       .filter((j) => j.userId === userId && (j.status === 'queued' || j.status === 'running'))
+      .map((j) => this.toStatusResponse(j));
+  }
+
+  /**
+   * Active jobs plus recently-finished ones (bounded by the same retention
+   * window `purgeExpiredJobs` enforces), most recent first. Lets a client
+   * reconnecting after a while (browser closed, tab reloaded) learn about a
+   * job that finished while it was gone — `listActiveJobs` alone only shows
+   * jobs still queued/running, so a completed job's result was otherwise
+   * unrecoverable even though its record is still sitting on disk.
+   */
+  async listRecentJobs(userId: string): Promise<CmsJobStatusResponse[]> {
+    const jobs = await this.store.listJobsForUser(this.userKey(userId));
+    return jobs
+      .filter((j) => j.userId === userId)
+      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+      .slice(0, CMS_JOB_RECENT_LIST_LIMIT)
       .map((j) => this.toStatusResponse(j));
   }
 
