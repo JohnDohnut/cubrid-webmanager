@@ -163,11 +163,12 @@ export default function Header({ theme, toggleTheme }) {
 
             {/* Logout */}
             <button
-              className={`${btnBase} w-8 bg-rose-500/5 border-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white hover:border-rose-500`}
+              className={`${btnBase} gap-1.5 px-2.5 bg-rose-500/5 border-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white hover:border-rose-500`}
               onClick={handleLogout}
               title={CM.logout}
             >
-              <Icon name="logout" size="18px" weight={300} />
+              <Icon name="logout" size="16px" weight={300} />
+              <span className="text-[12px] font-bold tracking-tight">{CM.logout}</span>
             </button>
           </div>
         </div>
