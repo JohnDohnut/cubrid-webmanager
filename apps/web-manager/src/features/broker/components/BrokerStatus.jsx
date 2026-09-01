@@ -25,6 +25,27 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
     onFetch: (silent) => (dispatch) => dispatch(fetchDetailedBrokerStatus({ hostUid, brokerName, isBackground: silent }))
   });
 
+  const asInfo = status.data?.asinfo || [];
+  const jobInfo = status.data?.jobinfo || [];
+
+  // as_num_query/as_num_tran are per-AS lifetime totals, not a rate — derive
+  // a real per-second value from the delta between consecutive polls, merged
+  // back onto each row so the table's sort-by-column still works correctly.
+  //
+  // Must run unconditionally, before the loading/error early returns below —
+  // React error #300 otherwise (this component toggles between those returns
+  // and the full render on every refresh, which would change the number of
+  // hooks called from one render to the next).
+  const rateTrackerRef = useRef(createRateTracker());
+  const [asInfoWithRates, setAsInfoWithRates] = useState([]);
+  useEffect(() => {
+    setAsInfoWithRates(asInfo.map((as) => ({
+      ...as,
+      qps: rateTrackerRef.current(`${as.as_id}:qps`, as.as_num_query),
+      tps: rateTrackerRef.current(`${as.as_id}:tps`, as.as_num_tran),
+    })));
+  }, [asInfo]);
+
   /* Loading */
   if (status.loading && !status.data?.asinfo) {
     return (
@@ -50,21 +71,6 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
     );
   }
 
-  const asInfo = status.data?.asinfo || [];
-  const jobInfo = status.data?.jobinfo || [];
-
-  // as_num_query/as_num_tran are per-AS lifetime totals, not a rate — derive
-  // a real per-second value from the delta between consecutive polls, merged
-  // back onto each row so the table's sort-by-column still works correctly.
-  const rateTrackerRef = useRef(createRateTracker());
-  const [asInfoWithRates, setAsInfoWithRates] = useState([]);
-  useEffect(() => {
-    setAsInfoWithRates(asInfo.map((as) => ({
-      ...as,
-      qps: rateTrackerRef.current(`${as.as_id}:qps`, as.as_num_query),
-      tps: rateTrackerRef.current(`${as.as_id}:tps`, as.as_num_tran),
-    })));
-  }, [asInfo]);
   const brokerFromList = brokers?.find((b) => b.name === brokerName) || {};
   const basicInfo = {
     pid: status.data?.binfo?.[0]?.pid ?? brokerFromList.pid,
