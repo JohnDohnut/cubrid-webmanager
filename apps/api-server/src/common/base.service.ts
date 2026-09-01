@@ -5,11 +5,8 @@ import { checkCmsTokenError } from './decorators/handle-cms-token-errors.decorat
 import { Logger } from '@nestjs/common';
 import { BaseCmsRequest } from '@type/cms-request/base-cms-request';
 import { formatAuditLog } from '@util';
-import {
-  CMS_ASYNC_JOB_FIRST_POLL_INTERVAL_MS,
-  CMS_ASYNC_JOB_POLL_INTERVAL_MS,
-  getLongJobCmsTimeoutMs,
-} from '../cms-job/cms-job.constants';
+import { getLongJobCmsTimeoutMs } from '../cms-job/cms-job.constants';
+import { pollCmsAsyncJob } from './poll-cms-async-job';
 
 /**
  * Base service class for CMS API communication.
@@ -178,13 +175,12 @@ export abstract class BaseService {
     userId: string,
     hostUid: string,
     cmsRequest: TRequest,
-    options?: { skipStatusCheck?: boolean }
+    options?: { skipStatusCheck?: boolean; onUuid?: (uuid: string) => void | Promise<void> }
   ): Promise<TResponse> {
     const host = await this.hostService.findHostInternal(userId, hostUid);
     const url = `https://${host.address}:${host.port}/cm_api`;
     const requestWithToken = { ...cmsRequest, token: host.token || '', async: 'yes' };
     const timeoutMs = getLongJobCmsTimeoutMs();
-    const deadline = Date.now() + timeoutMs;
     const startedAt = Date.now();
 
     this.logger.log(
@@ -199,34 +195,20 @@ export abstract class BaseService {
       })
     );
 
-    let response = await this.cmsClient.postAuthenticated<typeof requestWithToken, any>(
+    const initialResponse = await this.cmsClient.postAuthenticated<typeof requestWithToken, any>(
       url,
       requestWithToken,
       { timeoutMs }
     );
 
-    let polls = 0;
-    while (response?.['job-status'] === 'running') {
-      if (Date.now() > deadline) {
-        throw new Error(
-          `CMS async job for task "${cmsRequest.task}" did not finish within ${timeoutMs}ms`
-        );
-      }
-      await this.sleep(
-        polls === 0 ? CMS_ASYNC_JOB_FIRST_POLL_INTERVAL_MS : CMS_ASYNC_JOB_POLL_INTERVAL_MS
-      );
-      polls += 1;
-      // Re-read the host's token on every poll instead of reusing the one
-      // captured at the top: CMS ties a single token per dbmt user, so a
-      // relogin to this host anywhere else while a long job (hours) is
-      // still polling would otherwise invalidate the captured token and
-      // break tracking of a CMS job that's actually still running fine.
-      const currentHost = await this.hostService.findHostInternal(userId, hostUid);
-      response = await this.cmsClient.postAuthenticated<
-        { task: string; token: string; uuid: unknown },
-        any
-      >(url, { task: 'gettaskstatus', token: currentHost.token || '', uuid: response.uuid });
-    }
+    const { response, polls } = await pollCmsAsyncJob(
+      { hostService: this.hostService, cmsClient: this.cmsClient },
+      userId,
+      hostUid,
+      cmsRequest.task,
+      initialResponse,
+      { onUuid: options?.onUuid, deadlineMs: timeoutMs }
+    );
 
     this.logger.log(
       formatAuditLog('cms_response', {
@@ -251,10 +233,6 @@ export abstract class BaseService {
     }
 
     return response as TResponse;
-  }
-
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**

@@ -127,7 +127,8 @@ export class DatabaseManagementService extends BaseService {
   async copyDbCmsResponse(
     userId: string,
     hostUid: string,
-    request: CopyDbRequest
+    request: CopyDbRequest,
+    onUuid?: (uuid: string) => void | Promise<void>
   ): Promise<CopyDbCmsResponse> {
     const cmsRequest: CopyDbCmsRequest = {
       task: 'copydb',
@@ -150,7 +151,7 @@ export class DatabaseManagementService extends BaseService {
       userId,
       hostUid,
       cmsRequest,
-      { skipStatusCheck: true }
+      { skipStatusCheck: true, onUuid }
     );
   }
 
@@ -188,7 +189,8 @@ export class DatabaseManagementService extends BaseService {
     userId: string,
     hostUid: string,
     dbname: string,
-    request: UnloadDatabaseRequest
+    request: UnloadDatabaseRequest,
+    onUuid?: (uuid: string) => void | Promise<void>
   ): Promise<UnloadDatabaseCmsResponse> {
     let target: 'schema' | 'object' | 'both';
 
@@ -234,7 +236,7 @@ export class DatabaseManagementService extends BaseService {
       userId,
       hostUid,
       cmsRequest,
-      { skipStatusCheck: true }
+      { skipStatusCheck: true, onUuid }
     );
   }
 
@@ -298,7 +300,8 @@ export class DatabaseManagementService extends BaseService {
     userId: string,
     hostUid: string,
     dbname: string,
-    request: LoadDatabaseRequest
+    request: LoadDatabaseRequest,
+    onUuid?: (uuid: string) => void | Promise<void>
   ): Promise<LoadDatabaseCmsResponse> {
     const cmsRequest: LoadDatabaseCmsRequest = {
       task: 'loaddb',
@@ -322,7 +325,7 @@ export class DatabaseManagementService extends BaseService {
       userId,
       hostUid,
       cmsRequest,
-      { skipStatusCheck: true }
+      { skipStatusCheck: true, onUuid }
     );
   }
 
@@ -353,7 +356,8 @@ export class DatabaseManagementService extends BaseService {
     userId: string,
     hostUid: string,
     dbname: string,
-    request: OptimizeDatabaseRequest
+    request: OptimizeDatabaseRequest,
+    onUuid?: (uuid: string) => void | Promise<void>
   ): Promise<OptimizeDatabaseCmsResponse> {
     await this.loginIfCredentialsProvided(userId, hostUid, dbname, request.dbuser, request.dbpasswd);
 
@@ -367,7 +371,7 @@ export class DatabaseManagementService extends BaseService {
       userId,
       hostUid,
       cmsRequest,
-      { skipStatusCheck: true }
+      { skipStatusCheck: true, onUuid }
     );
   }
 
@@ -398,7 +402,8 @@ export class DatabaseManagementService extends BaseService {
     userId: string,
     hostUid: string,
     dbname: string,
-    request: CheckDatabaseRequest
+    request: CheckDatabaseRequest,
+    onUuid?: (uuid: string) => void | Promise<void>
   ): Promise<CheckDatabaseCmsResponse> {
     const cmsRequest: CheckDatabaseCmsRequest = {
       task: 'checkdb',
@@ -410,7 +415,7 @@ export class DatabaseManagementService extends BaseService {
       userId,
       hostUid,
       cmsRequest,
-      { skipStatusCheck: true }
+      { skipStatusCheck: true, onUuid }
     );
   }
 
@@ -444,7 +449,8 @@ export class DatabaseManagementService extends BaseService {
     userId: string,
     hostUid: string,
     dbname: string,
-    request: CompactDatabaseRequest
+    request: CompactDatabaseRequest,
+    onUuid?: (uuid: string) => void | Promise<void>
   ): Promise<CompactDatabaseCmsResponse> {
     const cmsRequest: CompactDatabaseCmsRequest = {
       task: 'compactdb',
@@ -456,7 +462,7 @@ export class DatabaseManagementService extends BaseService {
       userId,
       hostUid,
       cmsRequest,
-      { skipStatusCheck: true }
+      { skipStatusCheck: true, onUuid }
     );
   }
 
@@ -487,7 +493,8 @@ export class DatabaseManagementService extends BaseService {
     userId: string,
     hostUid: string,
     dbname: string,
-    request: RenameDatabaseRequest
+    request: RenameDatabaseRequest,
+    onUuid?: (uuid: string) => void | Promise<void>
   ): Promise<RenameDatabaseCmsResponse> {
     const cmsRequest: RenameDatabaseCmsRequest = {
       task: 'renamedb',
@@ -510,7 +517,7 @@ export class DatabaseManagementService extends BaseService {
       userId,
       hostUid,
       cmsRequest,
-      { skipStatusCheck: true }
+      { skipStatusCheck: true, onUuid }
     );
   }
 
@@ -576,7 +583,8 @@ export class DatabaseManagementService extends BaseService {
     userId: string,
     hostUid: string,
     dbname: string,
-    request: AddVolDbRequest
+    request: AddVolDbRequest,
+    onUuid?: (uuid: string) => void | Promise<void>
   ): Promise<AddVolDbCmsResponse> {
     const cmsRequest: AddVolDbCmsRequest = {
       task: 'addvoldb',
@@ -592,7 +600,7 @@ export class DatabaseManagementService extends BaseService {
       userId,
       hostUid,
       cmsRequest,
-      { skipStatusCheck: true }
+      { skipStatusCheck: true, onUuid }
     );
   }
 

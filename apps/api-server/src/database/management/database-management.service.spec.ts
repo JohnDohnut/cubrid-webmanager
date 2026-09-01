@@ -709,13 +709,22 @@ describe('DatabaseManagementService', () => {
       ).rejects.toThrow(CmsError);
     });
 
-    it('should throw CmsError if CMS token error occurs', async () => {
-      cmsClient.postAuthenticated.mockResolvedValue({ __EXEC_TIME: '0 ms', note: 'Request is rejected due to invalid token. Please reconnect.', status: 'error', task: 'cms' });
-      const request: CheckDatabaseRequest = { repairdb: 'n' };
+    // An invalid-token response no longer fails the job immediately — CMS
+    // keeps the async task alive independent of our token, so the poll loop
+    // keeps retrying with a freshly-read token instead, only giving up once
+    // the overall job deadline elapses (forced very small here so a
+    // persistently-invalid token surfaces as a timeout within the test).
+    it('keeps retrying instead of failing fast on an invalid-token response, until the job deadline elapses', async () => {
+      process.env.CMS_JOB_LONG_TIMEOUT_HOURS = '0.0001';
+      try {
+        cmsClient.postAuthenticated.mockResolvedValue({ __EXEC_TIME: '0 ms', note: 'Request is rejected due to invalid token. Please reconnect.', status: 'error', task: 'cms' });
+        const request: CheckDatabaseRequest = { repairdb: 'n' };
 
-      await expect(
-        service.checkDatabase(mockUserId, mockHostUid, mockDbname, request)
-      ).rejects.toThrow(CmsError);
+        const err = await service.checkDatabase(mockUserId, mockHostUid, mockDbname, request).catch((e) => e);
+          expect(err.originalError?.message).toMatch(/did not finish within/);
+      } finally {
+        delete process.env.CMS_JOB_LONG_TIMEOUT_HOURS;
+      }
     });
 
     it('should throw CmsError if CMS status is fail', async () => {
@@ -827,18 +836,22 @@ describe('DatabaseManagementService', () => {
       ).rejects.toThrow(CmsError);
     });
 
-    it('should throw CmsError if CMS token error occurs', async () => {
-      cmsClient.postAuthenticated.mockResolvedValue({
-        __EXEC_TIME: '0 ms',
-        note: 'Request is rejected due to invalid token. Please reconnect.',
-        status: 'error',
-        task: 'compactdb',
-      });
-      const request: CompactDatabaseRequest = { verbose: 'y' };
+    it('keeps retrying instead of failing fast on an invalid-token response, until the job deadline elapses', async () => {
+      process.env.CMS_JOB_LONG_TIMEOUT_HOURS = '0.0001';
+      try {
+        cmsClient.postAuthenticated.mockResolvedValue({
+          __EXEC_TIME: '0 ms',
+          note: 'Request is rejected due to invalid token. Please reconnect.',
+          status: 'error',
+          task: 'compactdb',
+        });
+        const request: CompactDatabaseRequest = { verbose: 'y' };
 
-      await expect(
-        service.compactDatabase(mockUserId, mockHostUid, mockDbname, request)
-      ).rejects.toThrow(CmsError);
+        const err = await service.compactDatabase(mockUserId, mockHostUid, mockDbname, request).catch((e) => e);
+          expect(err.originalError?.message).toMatch(/did not finish within/);
+      } finally {
+        delete process.env.CMS_JOB_LONG_TIMEOUT_HOURS;
+      }
     });
 
     it('should throw CmsError if CMS status is fail', async () => {
@@ -1001,18 +1014,22 @@ describe('DatabaseManagementService', () => {
       ).rejects.toThrow(CmsError);
     });
 
-    it('should throw CmsError if CMS token error occurs', async () => {
-      cmsClient.postAuthenticated.mockResolvedValue({ __EXEC_TIME: '0 ms', note: 'Request is rejected due to invalid token. Please reconnect.', status: 'error', task: 'cms' });
-      const request: RenameDatabaseRequest = {
-        rename: 'renamed_db',
-        exvolpath: 'none',
-        advanced: 'off',
-        forcedel: 'n',
-      };
+    it('keeps retrying instead of failing fast on an invalid-token response, until the job deadline elapses', async () => {
+      process.env.CMS_JOB_LONG_TIMEOUT_HOURS = '0.0001';
+      try {
+        cmsClient.postAuthenticated.mockResolvedValue({ __EXEC_TIME: '0 ms', note: 'Request is rejected due to invalid token. Please reconnect.', status: 'error', task: 'cms' });
+        const request: RenameDatabaseRequest = {
+          rename: 'renamed_db',
+          exvolpath: 'none',
+          advanced: 'off',
+          forcedel: 'n',
+        };
 
-      await expect(
-        service.renameDatabase(mockUserId, mockHostUid, mockDbname, request)
-      ).rejects.toThrow(CmsError);
+        const err = await service.renameDatabase(mockUserId, mockHostUid, mockDbname, request).catch((e) => e);
+          expect(err.originalError?.message).toMatch(/did not finish within/);
+      } finally {
+        delete process.env.CMS_JOB_LONG_TIMEOUT_HOURS;
+      }
     });
 
     it('should throw CmsError if CMS status is fail', async () => {
@@ -1162,12 +1179,16 @@ describe('DatabaseManagementService', () => {
       ).rejects.toThrow(CmsError);
     });
 
-    it('should throw CmsError if CMS token error occurs', async () => {
-      cmsClient.postAuthenticated.mockResolvedValue({ __EXEC_TIME: '0 ms', note: 'Request is rejected due to invalid token. Please reconnect.', status: 'error', task: 'cms' });
+    it('keeps retrying instead of failing fast on an invalid-token response, until the job deadline elapses', async () => {
+      process.env.CMS_JOB_LONG_TIMEOUT_HOURS = '0.0001';
+      try {
+        cmsClient.postAuthenticated.mockResolvedValue({ __EXEC_TIME: '0 ms', note: 'Request is rejected due to invalid token. Please reconnect.', status: 'error', task: 'cms' });
 
-      await expect(
-        service.addVolDb(mockUserId, mockHostUid, mockDbname, mockRequest)
-      ).rejects.toThrow(CmsError);
+        const err = await service.addVolDb(mockUserId, mockHostUid, mockDbname, mockRequest).catch((e) => e);
+          expect(err.originalError?.message).toMatch(/did not finish within/);
+      } finally {
+        delete process.env.CMS_JOB_LONG_TIMEOUT_HOURS;
+      }
     });
 
     it('should throw CmsError if CMS status is fail', async () => {

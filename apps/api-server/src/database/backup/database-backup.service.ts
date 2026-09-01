@@ -316,7 +316,8 @@ export class DatabaseBackupService extends BaseService {
     userId: string,
     hostUid: string,
     dbname: string,
-    request: BackupDbClientRequest
+    request: BackupDbClientRequest,
+    onUuid?: (uuid: string) => void | Promise<void>
   ): Promise<BackupDbClientResponse> {
     const cmsRequest: BackupDbCmsRequest = {
       task: 'backupdb',
@@ -344,7 +345,8 @@ export class DatabaseBackupService extends BaseService {
     await this.executeAsyncCmsJobRequest<BackupDbCmsRequest, BackupDbCmsResponse>(
       userId,
       hostUid,
-      cmsRequest
+      cmsRequest,
+      { onUuid }
     );
 
     return { success: true };
@@ -366,7 +368,8 @@ export class DatabaseBackupService extends BaseService {
     userId: string,
     hostUid: string,
     dbname: string,
-    request: RestoreDbClientRequest
+    request: RestoreDbClientRequest,
+    onUuid?: (uuid: string) => void | Promise<void>
   ): Promise<RestoreDbClientResponse> {
     const cmsRequest: RestoreDbCmsRequest = {
       task: 'restoredb',
@@ -383,7 +386,8 @@ export class DatabaseBackupService extends BaseService {
     await this.executeAsyncCmsJobRequest<RestoreDbCmsRequest, RestoreDbCmsResponse>(
       userId,
       hostUid,
-      cmsRequest
+      cmsRequest,
+      { onUuid }
     );
 
     return { success: true };

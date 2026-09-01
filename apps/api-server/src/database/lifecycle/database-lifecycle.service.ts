@@ -411,7 +411,8 @@ export class DatabaseLifecycleService extends BaseService {
   async createDatabaseInternal(
     userId: string,
     hostUid: string,
-    request: CreateDatabaseClientRequest
+    request: CreateDatabaseClientRequest,
+    onUuid?: (uuid: string) => void | Promise<void>
   ): Promise<CreateDatabaseClientResponse> {
     const host = await this.hostService.findHostInternal(userId, hostUid);
 
@@ -511,7 +512,8 @@ export class DatabaseLifecycleService extends BaseService {
     this.logger.log(JSON.stringify(await this.executeAsyncCmsJobRequest<CreateDatabaseCmsRequest, CreateDatabaseCmsResponse>(
       userId,
       hostUid,
-      cmsRequest
+      cmsRequest,
+      { onUuid }
     )));
 
     return { success: true };
@@ -531,7 +533,8 @@ export class DatabaseLifecycleService extends BaseService {
   async createDatabase(
     userId: string,
     hostUid: string,
-    request: CreateDatabaseWithConfigRequest
+    request: CreateDatabaseWithConfigRequest,
+    onUuid?: (uuid: string) => void | Promise<void>
   ): Promise<CreateDatabaseWithConfigResponse> {
     const { username, updateUser, setAutoAddVol, setAutoStart, ...createDbRequest } = request;
 
@@ -545,7 +548,8 @@ export class DatabaseLifecycleService extends BaseService {
     const createDatabaseResult = await this.createDatabaseInternal(
       userId,
       hostUid,
-      createDbRequest
+      createDbRequest,
+      onUuid
     );
 
     response.createDatabase = {

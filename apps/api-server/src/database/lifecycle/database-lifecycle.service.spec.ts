@@ -718,7 +718,8 @@ describe('DatabaseLifecycleService', () => {
       expect(service.createDatabaseInternal).toHaveBeenCalledWith(
         mockUserId,
         mockHostUid,
-        mockCreateDbRequest
+        mockCreateDbRequest,
+        undefined
       );
       expect(result).toEqual({
         createDatabase: {
@@ -755,7 +756,8 @@ describe('DatabaseLifecycleService', () => {
       expect(service.createDatabaseInternal).toHaveBeenCalledWith(
         mockUserId,
         mockHostUid,
-        mockCreateDbRequest
+        mockCreateDbRequest,
+        undefined
       );
       expect(databaseUserService.updateUser).toHaveBeenCalledWith(
         mockUserId,
