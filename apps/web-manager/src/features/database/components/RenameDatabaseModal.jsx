@@ -2,20 +2,18 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeRenameDatabaseModal, fetchDatabaseStartInfo } from '../databaseSlice';
 import { databaseJobApi } from '../databaseJobApi';
-import { databaseApi } from '../databaseApi';
 import { useCmsJob } from '../../../infrastructure/hooks/useCmsJob';
 import { getCmsJobLoadingSubtitle } from '../../../infrastructure/cmsJob/cmsJobUi';
 
 import { Modal } from '../../../components/ds/layout/Modal';
 import { Button } from '../../../components/ds/foundation/Button';
 import { Input } from '../../../components/ds/forms/Input';
-import { Radio } from '../../../components/ds/forms/Radio';
 import { Checkbox } from '../../../components/ds/forms/Checkbox';
 import { useActionState } from '../../../infrastructure/hooks/useActionState';
-import { 
-  ModalStatusLoading, 
-  ModalStatusSuccess, 
-  ModalStatusError 
+import {
+  ModalStatusLoading,
+  ModalStatusSuccess,
+  ModalStatusError
 } from '../../../components/ds/feedback/ActionStatus';
 import { useCM } from '../../../constants/useCM';
 
@@ -41,36 +39,6 @@ const validateDbName = (name) => {
   return /^[a-zA-Z][a-zA-Z0-9_-]*$/.test(name);
 };
 
-const validateVolumeName = (name) => {
-  if (!name) return false;
-  if (name.includes(' ')) return false;
-  if (name.startsWith('#') || name.startsWith('-')) return false;
-  if (name === '.' || name === '..') return false;
-  if (name.length > 255) return false;
-  return /^[a-zA-Z0-9_-]+$/.test(name);
-};
-
-// CMS rebuilds our per-volume rename mapping as a plain JSON object keyed by
-// oldPath, and always walks that object's keys in sorted (alphabetical)
-// order when writing CUBRID's rename control file — regardless of the array
-// order we send it in. CUBRID, in turn, requires that file's lines to be in
-// strict ascending volid order (primary volume, volid 0, first) with each
-// line's old path matching the volume's real current label. So this only
-// works when a host's volumes already happen to sort alphabetically by path
-// in volid order (true for the common case of everything living in one
-// directory as `dbname`, `dbname_x001`, `dbname_x002`, ...; false once an
-// extended volume lives under a different directory than the primary).
-// Detect the unsafe case up front instead of silently submitting a rename
-// CUBRID will reject or corrupt.
-const isVolumeOrderSafe = (vols) => {
-  if (vols.some((v) => v.volid === null)) return true; // no volid to check against — don't block
-  const byVolid = [...vols].sort((a, b) => a.volid - b.volid);
-  const byOldPathSort = [...vols].sort((a, b) =>
-    a.originalPath < b.originalPath ? -1 : a.originalPath > b.originalPath ? 1 : 0
-  );
-  return byVolid.every((v, i) => v.originalPath === byOldPathSort[i].originalPath);
-};
-
 const validatePath = (path) => {
   if (!path) return false;
   if (!/^[\x20-\x7E]+$/.test(path)) return false;
@@ -89,11 +57,11 @@ export default function RenameDatabaseModal() {
   const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
   const currentDb = databases?.find((db) => db.dbname === selectedDatabase);
 
-  const { 
-    error, 
-    startAction, 
-    endSuccess, 
-    endError, 
+  const {
+    error,
+    startAction,
+    endSuccess,
+    endError,
     resetAction,
     isLoading,
     isSuccess,
@@ -104,10 +72,7 @@ export default function RenameDatabaseModal() {
 
   const [newDbName, setNewDbName] = useState('');
   const [forcedel, setForcedel] = useState(false);
-  const [mode, setMode] = useState('exvolpath'); // 'exvolpath' | 'advanced'
   const [exvolpath, setExvolpath] = useState('');
-  const [volumes, setVolumes] = useState([]);
-  const [volInfoLoading, setVolInfoLoading] = useState(false);
   // Snapshot of the name being renamed, for the success screen. Redux's
   // selectedDatabase can't be used there — a successful rename dispatches
   // fetchDatabaseStartInfo, which nulls selectedDatabase out once the old
@@ -115,94 +80,17 @@ export default function RenameDatabaseModal() {
   // parseDbResponse), so by the time the success view renders it's gone.
   const [renamedFromDb, setRenamedFromDb] = useState('');
 
-  const editedVolumesRef = useRef({});
   const isExvolpathEditedRef = useRef(false);
 
   useEffect(() => {
-    let cancelled = false;
     if (isRenameDatabaseModalOpen) {
       setNewDbName('');
       setForcedel(false);
-      setMode('exvolpath');
-      setExvolpath('');
-      setVolumes([]);
+      setExvolpath(getParentDirectory(currentDb?.dbdir || ''));
       setRenamedFromDb('');
       resetAction();
-      editedVolumesRef.current = {};
       isExvolpathEditedRef.current = false;
-
-      if (selectedHostUid && selectedDatabase) {
-        setVolInfoLoading(true);
-        databaseApi.getVolumeInfo(selectedHostUid, selectedDatabase)
-          .then((res) => {
-            if (cancelled) return;
-            // CMS reports actual data/index volumes as type PERMANENT/TEMPORARY
-            // (log volumes are Active_log/Archive_log, excluded here — CUBRID
-            // renames those automatically, not via this per-volume mapping).
-            // TEMPORARY volumes are excluded too: CUBRID's renamedb control-file
-            // mechanism only walks *permanent* volumes (fileio_find_next_perm_volume);
-            // including a temp volume's line desyncs the file's sequential reads
-            // and every subsequent volume fails with "unordered entries".
-            // Some older CUBRID/CMS builds may report the more granular
-            // generic/data/index purposes instead of PERMANENT — accept those
-            // too so this doesn't silently break on a version skew (but still
-            // never "temp").
-            const validTypes = ['permanent', 'generic', 'data', 'index'];
-            const filteredSpaces = (res?.spaceinfo || []).filter(space =>
-              space.type && validTypes.includes(space.type.toLowerCase())
-            ).map(space => {
-              // CMS's own `location` field has been observed equal to the full
-              // `spacename` path (not just the directory) — trusting it here
-              // double-includes the path when oldPath is rebuilt below. Derive
-              // the directory ourselves from spacename instead.
-              const sep = getPathSeparator(space.spacename);
-              const baseName = space.spacename ? space.spacename.split(sep).pop() : space.spacename;
-              const dirPath = space.spacename ? getParentDirectory(space.spacename) : space.location;
-              return {
-                spacename: baseName,
-                type: space.type,
-                location: dirPath,
-                newVolumeName: baseName,
-                newLocation: dirPath,
-                // Sent verbatim as `oldPath` on submit — CMS/CUBRID require this
-                // to byte-match the volume's real current label, so it must be
-                // the exact string CMS gave us, not a rejoin of the split-apart
-                // basename/directory above (which can differ on separator or
-                // trailing-slash edge cases).
-                originalPath: space.spacename,
-                // CMS assigns the control-file line for this volume based on
-                // where `oldPath` sorts alphabetically among all entries (its
-                // JSON parser rebuilds our volume list as a plain object keyed
-                // by oldPath, which it always walks in sorted-key order) — but
-                // CUBRID requires the file's lines to be in ascending volid
-                // order, primary volume (volid 0) first. Keeping volid here
-                // lets us sort the table into that same order and detect (see
-                // isVolumeOrderSafe below) when a host's on-disk layout can't
-                // be expressed correctly through this API at all.
-                volid: space.volid !== undefined && space.volid !== null && space.volid !== ''
-                  ? Number(space.volid)
-                  : null,
-              };
-            }).sort((a, b) => {
-              if (a.volid === null || b.volid === null) return 0;
-              return a.volid - b.volid;
-            });
-            setVolumes(filteredSpaces);
-          })
-          .catch((err) => {
-            if (cancelled) return;
-            console.error('Failed to fetch volume info:', err);
-          })
-          .finally(() => {
-            if (!cancelled) {
-              setVolInfoLoading(false);
-            }
-          });
-      }
     }
-    return () => {
-      cancelled = true;
-    };
     // Only (re)initialize when the modal opens — NOT whenever selectedDatabase
     // changes while it's already open. A successful rename dispatches
     // fetchDatabaseStartInfo, which clears state.database.selectedDatabase to
@@ -214,127 +102,23 @@ export default function RenameDatabaseModal() {
   }, [isRenameDatabaseModalOpen]);
 
   useEffect(() => {
+    if (isExvolpathEditedRef.current) return;
     const parentDir = getParentDirectory(currentDb?.dbdir || '');
-    const separator = getPathSeparator(currentDb?.dbdir || '');
-    
-    if (newDbName) {
-      const computedPath = parentDir ? `${parentDir}${separator}${newDbName}` : '';
-      if (!isExvolpathEditedRef.current) {
-        setExvolpath(computedPath);
-      }
-
-      setVolumes(prevVolumes => {
-        let count = 1;
-        let changed = false;
-        const nextVolumes = prevVolumes.map((vol, idx) => {
-          const isMainVolume = vol.spacename === selectedDatabase;
-          const isNameEdited = editedVolumesRef.current[idx]?.name;
-          const isLocationEdited = editedVolumesRef.current[idx]?.location;
-
-          let newName = vol.newVolumeName;
-          if (isMainVolume) {
-            newName = newDbName;
-          } else if (mode === 'exvolpath' || !isNameEdited) {
-            const countStr = String(count).padStart(3, '0');
-            newName = `${newDbName}_x${countStr}`;
-          }
-
-          if (!isMainVolume) {
-            count++;
-          }
-
-          let newLoc = vol.newLocation;
-          if (mode === 'exvolpath' || !isLocationEdited) {
-            newLoc = computedPath;
-          }
-
-          if (newName !== vol.newVolumeName || newLoc !== vol.newLocation) {
-            changed = true;
-          }
-
-          return {
-            ...vol,
-            newVolumeName: newName,
-            newLocation: newLoc
-          };
-        });
-        return changed ? nextVolumes : prevVolumes;
-      });
-    } else {
-      if (!isExvolpathEditedRef.current) {
-        setExvolpath(parentDir);
-      }
-      setVolumes(prevVolumes => {
-        let changed = false;
-        const nextVolumes = prevVolumes.map((vol, idx) => {
-          const isNameEdited = editedVolumesRef.current[idx]?.name;
-          const isLocationEdited = editedVolumesRef.current[idx]?.location;
-          
-          const newName = (mode === 'exvolpath' || !isNameEdited) ? vol.spacename : vol.newVolumeName;
-          const newLoc = (mode === 'exvolpath' || !isLocationEdited) ? vol.location : vol.newLocation;
-
-          if (newName !== vol.newVolumeName || newLoc !== vol.newLocation) {
-            changed = true;
-          }
-
-          return {
-            ...vol,
-            newVolumeName: newName,
-            newLocation: newLoc
-          };
-        });
-        return changed ? nextVolumes : prevVolumes;
-      });
-    }
-  }, [newDbName, selectedDatabase, currentDb?.dbdir, mode, volumes]);
+    setExvolpath(parentDir);
+  }, [selectedDatabase, currentDb?.dbdir]);
 
   if (!isRenameDatabaseModalOpen) return null;
-
-  const handleVolumeNameChange = (index, value) => {
-    editedVolumesRef.current[index] = {
-      ...editedVolumesRef.current[index],
-      name: true
-    };
-    setVolumes(prev => prev.map((vol, idx) => {
-      if (idx === index) {
-        return { ...vol, newVolumeName: value };
-      }
-      return vol;
-    }));
-  };
-
-  const handleVolumeLocationChange = (index, value) => {
-    editedVolumesRef.current[index] = {
-      ...editedVolumesRef.current[index],
-      location: true
-    };
-    setVolumes(prev => prev.map((vol, idx) => {
-      if (idx === index) {
-        return { ...vol, newLocation: value };
-      }
-      return vol;
-    }));
-  };
 
   const handleRename = async () => {
     if (!selectedHostUid || !selectedDatabase || !isFormValid) return;
     startAction();
     try {
-      const separator = getPathSeparator(currentDb?.dbdir || '/');
       const payload = {
         rename: newDbName.trim(),
-        exvolpath: mode === 'exvolpath' ? exvolpath.trim() : 'none',
-        advanced: mode === 'advanced' ? 'on' : 'off',
+        exvolpath: exvolpath.trim(),
+        advanced: 'off',
         forcedel: forcedel ? 'y' : 'n',
       };
-      if (mode === 'advanced') {
-        payload.volume = volumes.map(vol => ({
-          // Verbatim — CMS/CUBRID require this to byte-match the volume's
-          // real current on-disk label; must not be a reconstruction.
-          oldPath: vol.originalPath,
-          newPath: `${vol.newLocation}${separator}${vol.newVolumeName}`
-        }));
-      }
       await runJob(
         () => databaseJobApi.submitRename(selectedHostUid, selectedDatabase, payload),
         { onProgress: (j) => setJobStatus(j.jobStatus ?? j.status) }
@@ -357,15 +141,9 @@ export default function RenameDatabaseModal() {
 
   const isNameValid = validateDbName(newDbName);
   const isNameChanged = newDbName.trim() !== selectedDatabase;
-  const isExvolpathValid = mode === 'exvolpath' ? validatePath(exvolpath) : true;
-  const isVolumeOrderValid = mode === 'advanced' ? isVolumeOrderSafe(volumes) : true;
-  const areVolumesValid = mode === 'advanced'
-    ? volumes.length > 0
-      && volumes.every(vol => validateVolumeName(vol.newVolumeName) && validatePath(vol.newLocation))
-      && isVolumeOrderValid
-    : true;
+  const isExvolpathValid = validatePath(exvolpath);
 
-  const isFormValid = isNameValid && isNameChanged && isExvolpathValid && areVolumesValid;
+  const isFormValid = isNameValid && isNameChanged && isExvolpathValid;
 
   /* ─── LOADING view ─── */
   if (isLoading) {
@@ -418,7 +196,7 @@ export default function RenameDatabaseModal() {
       onClose={handleClose}
       title={CM.renameDatabase}
       icon="drive_file_rename_outline"
-      maxWidth="640px"
+      maxWidth="560px"
       testId="rename-database"
       onSubmit={handleRename}
       footer={
@@ -429,7 +207,7 @@ export default function RenameDatabaseModal() {
             variant="primary"
             onClick={handleRename}
             icon="drive_file_rename_outline"
-            disabled={!isFormValid || volInfoLoading}
+            disabled={!isFormValid}
             className="min-w-[140px]"
           >
             {CM.executeRename}
@@ -463,107 +241,16 @@ export default function RenameDatabaseModal() {
 
         {/* Extended Volume Path Row */}
         <div className="grid grid-cols-[170px_1fr] items-center gap-4">
-          <div className="flex items-center">
-            <Radio
-              name="rename-mode"
-              label={CM.extendedVolumePath}
-              value="exvolpath"
-              checked={mode === 'exvolpath'}
-              onChange={() => setMode('exvolpath')}
-            />
-          </div>
+          <label className="font-medium text-slate-700 dark:text-slate-200">
+            {CM.extendedVolumePath}
+          </label>
           <Input
             value={exvolpath}
             onChange={(e) => { isExvolpathEditedRef.current = true; setExvolpath(e.target.value); }}
             placeholder="/home/cubrid/databases/demodb"
-            disabled={mode !== 'exvolpath'}
             className="w-full"
-            error={mode === 'exvolpath' && exvolpath && !validatePath(exvolpath) ? "Invalid path format" : undefined}
+            error={exvolpath && !validatePath(exvolpath) ? "Invalid path format" : undefined}
           />
-        </div>
-
-        {/* Rename Individual Volumes Radio */}
-        <div className="pt-2">
-          <Radio
-            name="rename-mode"
-            label={CM.renameIndividualVolumes}
-            value="advanced"
-            checked={mode === 'advanced'}
-            onChange={() => setMode('advanced')}
-          />
-        </div>
-
-        {mode === 'advanced' && !isVolumeOrderValid && (
-          <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-[12px] text-rose-700 dark:text-rose-400">
-            <span className="material-symbols-outlined text-[16px] shrink-0 mt-0.5">error</span>
-            <span>{CM.individualRenameUnsupportedLayout}</span>
-          </div>
-        )}
-
-        {/* Volume mapping table */}
-        <div className={`transition-all duration-200 ${mode !== 'advanced' ? 'opacity-50 pointer-events-none' : ''}`}>
-          <div className="rounded-lg border border-slate-200 dark:border-white/10 overflow-hidden bg-white dark:bg-slate-900/50">
-            <div className="max-h-[220px] overflow-y-auto">
-              <table className="w-full text-left text-[12px] border-collapse">
-                <thead className="bg-slate-50 dark:bg-white/5 text-[11px] font-semibold text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-white/10 sticky top-0 z-10">
-                  <tr>
-                    <th className="px-3 py-2">{CM.currentVolumeName}</th>
-                    <th className="px-3 py-2">{CM.newVolumeName}</th>
-                    <th className="px-3 py-2">{CM.currentDirectoryPath}</th>
-                    <th className="px-3 py-2">{CM.newDirectoryPath}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-                  {volInfoLoading ? (
-                    <tr>
-                      <td colSpan={4} className="px-3 py-6 text-center text-slate-400 dark:text-slate-500">
-                        <div className="flex items-center justify-center gap-2">
-                          <span className="animate-spin w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full" />
-                          Loading...
-                        </div>
-                      </td>
-                    </tr>
-                  ) : volumes.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="px-3 py-6 text-center text-slate-400 dark:text-slate-500">
-                        No volumes found.
-                      </td>
-                    </tr>
-                  ) : (
-                    volumes.map((vol, idx) => {
-                      const isMainVolume = vol.spacename === selectedDatabase;
-                      const isVolNameValid = validateVolumeName(vol.newVolumeName);
-                      const isVolPathValid = validatePath(vol.newLocation);
-                      return (
-                        <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-white/2 transition-colors">
-                          <td className="px-3 py-1.5 font-medium text-slate-600 dark:text-slate-400">{vol.spacename}</td>
-                          <td className="px-2 py-1">
-                            <input
-                              type="text"
-                              value={vol.newVolumeName}
-                              disabled={isMainVolume || mode !== 'advanced'}
-                              onChange={(e) => handleVolumeNameChange(idx, e.target.value)}
-                              className={`w-full px-2.5 py-1 bg-slate-50 dark:bg-white/3 border ${!isVolNameValid ? 'border-rose-500 focus:border-rose-500 bg-rose-500/5' : 'border-slate-200 dark:border-white/5 focus:border-amber-500 focus:bg-white dark:focus:bg-slate-900'} rounded-lg outline-none text-[12px] font-mono transition-all text-slate-700 dark:text-slate-200 disabled:opacity-50 disabled:cursor-not-allowed`}
-                            />
-                          </td>
-                          <td className="px-3 py-1.5 text-slate-500 dark:text-slate-500 truncate max-w-[120px]" title={vol.location}>{vol.location}</td>
-                          <td className="px-2 py-1">
-                            <input
-                              type="text"
-                              value={vol.newLocation}
-                              disabled={mode !== 'advanced'}
-                              onChange={(e) => handleVolumeLocationChange(idx, e.target.value)}
-                              className={`w-full px-2.5 py-1 bg-slate-50 dark:bg-white/3 border ${!isVolPathValid ? 'border-rose-500 focus:border-rose-500 bg-rose-500/5' : 'border-slate-200 dark:border-white/5 focus:border-amber-500 focus:bg-white dark:focus:bg-slate-900'} rounded-lg outline-none text-[12px] font-mono transition-all text-slate-700 dark:text-slate-200 disabled:opacity-50`}
-                            />
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
         </div>
 
         {/* Force Delete Checkbox */}
