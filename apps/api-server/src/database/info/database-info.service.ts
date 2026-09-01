@@ -66,6 +66,16 @@ export class DatabaseInfoService extends BaseService {
   }
 
   /**
+   * All database names listed in `[common]` `ha_db_list` in cubrid_ha.conf (`haconf`).
+   * Used to partition a host's databases into HA vs non-HA for bulk start/stop.
+   */
+  @HandleCmsErrors()
+  async getHaDbNames(userId: string, hostUid: string): Promise<Set<string>> {
+    const haConf = await this.cmsConfigService.getAllSystemParam(userId, hostUid, CMS_CONFNAME_HACONF);
+    return parseHaDbListDbNamesFromHaConf(haConf);
+  }
+
+  /**
    * True when `dbname` is listed in `[common]` `ha_db_list` in cubrid_ha.conf (`haconf`).
    * Used by database start/stop/restart to choose `ha_*` vs `startdb`/`stopdb`.
    */
@@ -75,8 +85,7 @@ export class DatabaseInfoService extends BaseService {
     hostUid: string,
     dbname: string
   ): Promise<boolean> {
-    const haConf = await this.cmsConfigService.getAllSystemParam(userId, hostUid, CMS_CONFNAME_HACONF);
-    const haDbNames = parseHaDbListDbNamesFromHaConf(haConf);
+    const haDbNames = await this.getHaDbNames(userId, hostUid);
     return haDbNames.has(dbname.trim());
   }
 

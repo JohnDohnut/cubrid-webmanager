@@ -209,17 +209,6 @@ const getServiceOperationError = (err) => (
   || String(err || 'Unknown error')
 );
 
-const collectServiceFailures = async (items, operation) => {
-  const results = await Promise.allSettled(items.map(operation));
-  return results
-    .map((result, index) => (
-      result.status === 'rejected'
-        ? { name: items[index].name, error: getServiceOperationError(result.reason) }
-        : null
-    ))
-    .filter(Boolean);
-};
-
 const formatServiceFailures = (actionLabel, failures) => (
   `Failed to ${actionLabel} for: ${failures.map(({ name, error }) => `${name} (${error})`).join(', ')}`
 );
@@ -260,13 +249,20 @@ export const startService = createAsyncThunk(
         }
       }
 
-      // 3. Start auto-start databases if service is enabled
+      // 3. Start auto-start databases (plus every HA-configured database,
+      // which the backend always includes regardless of this list — HA
+      // databases can't appear in the non-HA autostart list to begin with)
+      // as one whole-service call instead of N independent per-database
+      // calls: HA databases are started together via a single bulk
+      // `ha_start`, which avoids racing cub_master's global HA activation.
       if (serviceEnabled && autoStartServers.length > 0) {
         dispatch(hostSlice.actions.setServiceProgressMessage(`Starting databases (${autoStartServers.join(', ')})...`));
-        failures.push(...await collectServiceFailures(
-          autoStartServers.map(dbname => ({ name: dbname })),
-          db => databaseApi.startDatabase(hostUid, db.name)
-        ));
+        try {
+          const { failed } = await databaseApi.startAllDatabases(hostUid, autoStartServers);
+          failures.push(...failed.map(({ dbname, error }) => ({ name: dbname, error })));
+        } catch (err) {
+          failures.push({ name: 'databases', error: getServiceOperationError(err) });
+        }
       }
 
       // Refresh everything
@@ -298,15 +294,20 @@ export const stopService = createAsyncThunk(
         failures.push({ name: 'brokers', error: getServiceOperationError(err) });
       }
 
-      // 2. Stop all Databases
+      // 2. Stop all Databases (plus every HA-configured database, which the
+      // backend always includes regardless of this list) as one
+      // whole-service call — see startService for why HA databases are
+      // stopped together via a single bulk `ha_stop` instead of one per database.
       dispatch(hostSlice.actions.setServiceProgressMessage('Stopping databases...'));
       const databaseResponse = await databaseApi.getStartInfo(hostUid);
       const dbList = databaseResponse?.dblist?.dbs || [];
       if (dbList.length > 0) {
-        failures.push(...await collectServiceFailures(
-          dbList.map(db => ({ name: db.dbname })),
-          db => databaseApi.stopDatabase(hostUid, db.name)
-        ));
+        try {
+          const { failed } = await databaseApi.stopAllDatabases(hostUid, dbList.map(db => db.dbname));
+          failures.push(...failed.map(({ dbname, error }) => ({ name: dbname, error })));
+        } catch (err) {
+          failures.push({ name: 'databases', error: getServiceOperationError(err) });
+        }
       }
 
       // Refresh everything
@@ -1127,9 +1128,10 @@ export const loginHostsBatch = createAsyncThunk(
         await dispatch(loginToHost(uid)).unwrap();
         succeededUids.push(uid);
         successCount += 1;
-      } catch {
+      } catch (err) {
         const host = getState().host.hosts.find((h) => h.uid === uid);
-        failed.push(host?.alias || host?.id || uid);
+        const reason = typeof err === 'string' ? err : (err?.message || String(err));
+        failed.push({ name: host?.alias || host?.id || uid, reason });
       }
     }
 

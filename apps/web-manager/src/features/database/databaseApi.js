@@ -10,6 +10,12 @@ export const databaseApi = {
   stopDatabase: (hostUid, dbname) => {
     return apiClient.post(`/${hostUid}/database/stop/${encodeURIComponent(dbname)}`, {});
   },
+  startAllDatabases: (hostUid, dbnames) => {
+    return apiClient.post(`/${hostUid}/database/start-all`, { dbnames });
+  },
+  stopAllDatabases: (hostUid, dbnames) => {
+    return apiClient.post(`/${hostUid}/database/stop-all`, { dbnames });
+  },
   getVolumeInfo: (hostUid, dbname) => {
     return apiClient.get(`/${hostUid}/database/volume-info/${dbname}`);
   },

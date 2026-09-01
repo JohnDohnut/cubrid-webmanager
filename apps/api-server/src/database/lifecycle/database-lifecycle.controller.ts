@@ -5,7 +5,7 @@ import {
   GetCreatedbInfoClientResponse,
   StartInfoClientResponse,
 } from '@api-interfaces';
-import { SaveDatabaseProfileDto, DeleteDatabaseDto, CreateDatabaseWithConfigDto } from '@type/index';
+import { SaveDatabaseProfileDto, DeleteDatabaseDto, CreateDatabaseWithConfigDto, StartStopAllDatabasesDto } from '@type/index';
 import { DatabaseLifecycleService } from './database-lifecycle.service';
 import { CmsJobService } from '@cms-job/cms-job.service';
 
@@ -146,6 +146,58 @@ export class DatabaseLifecycleController {
     this.logger.log(`Restarting database: ${dbname} on host: ${hostUid}`);
     const result = await this.lifecycleService.restartDatabase(userId, hostUid, dbname);
     return result;
+  }
+
+  /**
+   * Start every database in the request body on a host, as one whole-service
+   * operation rather than N independent per-database calls — HA-configured
+   * databases are started together via a single bulk `ha_start`.
+   *
+   * @route POST /:hostUid/database/start-all
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param body Database names to start
+   * @returns Per-database succeeded/failed outcome
+   * @example
+   * // POST /host-uid/database/start-all
+   * // Body: { "dbnames": ["demodb", "testdb"] }
+   */
+  @Post('start-all')
+  async startAllDatabases(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Body() body: StartStopAllDatabasesDto
+  ): Promise<{ succeeded: string[]; failed: Array<{ dbname: string; error: string }> }> {
+    const userId = req.user.sub;
+
+    this.logger.log(`Starting all databases (${body.dbnames.join(', ')}) on host: ${hostUid}`);
+    return await this.lifecycleService.startAllDatabases(userId, hostUid, body.dbnames);
+  }
+
+  /**
+   * Stop every database in the request body on a host, as one whole-service
+   * operation — see startAllDatabases for why HA databases are stopped
+   * together via a single bulk `ha_stop`.
+   *
+   * @route POST /:hostUid/database/stop-all
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @param body Database names to stop
+   * @returns Per-database succeeded/failed outcome
+   * @example
+   * // POST /host-uid/database/stop-all
+   * // Body: { "dbnames": ["demodb", "testdb"] }
+   */
+  @Post('stop-all')
+  async stopAllDatabases(
+    @Request() req,
+    @Param('hostUid') hostUid: string,
+    @Body() body: StartStopAllDatabasesDto
+  ): Promise<{ succeeded: string[]; failed: Array<{ dbname: string; error: string }> }> {
+    const userId = req.user.sub;
+
+    this.logger.log(`Stopping all databases (${body.dbnames.join(', ')}) on host: ${hostUid}`);
+    return await this.lifecycleService.stopAllDatabases(userId, hostUid, body.dbnames);
   }
 
   /**

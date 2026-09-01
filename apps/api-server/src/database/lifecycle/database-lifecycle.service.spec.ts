@@ -357,6 +357,97 @@ describe('DatabaseLifecycleService', () => {
     });
   });
 
+  describe('startAllDatabases', () => {
+    const successResponse = {
+      __EXEC_TIME: '10 ms',
+      note: 'none',
+      status: 'success',
+    };
+
+    it('starts every HA database with a single bulk ha_start, regardless of the passed dbnames', async () => {
+      jest.spyOn(databaseInfoService as any, 'getHaDbNames').mockResolvedValue(new Set(['hadb1', 'hadb2']));
+      cmsClient.postAuthenticated.mockResolvedValue({ ...successResponse, task: 'ha_start' });
+
+      const result = await service.startAllDatabases(mockUserId, mockHostUid, ['nonhadb']);
+
+      expect(cmsClient.postAuthenticated).toHaveBeenCalledWith(
+        `https://${mockHost.address}:${mockHost.port}/cm_api`,
+        expect.objectContaining({ task: 'ha_start' })
+      );
+      // Only one ha_start call for both HA databases, not one per database.
+      const haStartCalls = cmsClient.postAuthenticated.mock.calls.filter(
+        ([, body]) => body.task === 'ha_start'
+      );
+      expect(haStartCalls).toHaveLength(1);
+      expect(haStartCalls[0][1]).not.toHaveProperty('dbname');
+      expect(result.succeeded).toEqual(expect.arrayContaining(['hadb1', 'hadb2']));
+    });
+
+    it('starts non-HA databases individually with startdb', async () => {
+      jest.spyOn(databaseInfoService as any, 'getHaDbNames').mockResolvedValue(new Set());
+      cmsClient.postAuthenticated.mockResolvedValue({ ...successResponse, task: 'startdb' });
+
+      const result = await service.startAllDatabases(mockUserId, mockHostUid, ['db1', 'db2']);
+
+      const startdbCalls = cmsClient.postAuthenticated.mock.calls.filter(
+        ([, body]) => body.task === 'startdb'
+      );
+      expect(startdbCalls).toHaveLength(2);
+      expect(result.succeeded).toEqual(expect.arrayContaining(['db1', 'db2']));
+      expect(result.failed).toEqual([]);
+    });
+
+    it('isolates a failed bulk ha_start from non-HA database results', async () => {
+      jest.spyOn(databaseInfoService as any, 'getHaDbNames').mockResolvedValue(new Set(['hadb1']));
+      cmsClient.postAuthenticated.mockImplementation((_url, body) => {
+        if (body.task === 'ha_start') {
+          return Promise.reject(new Error('heartbeat start: fail'));
+        }
+        return Promise.resolve({ ...successResponse, task: 'startdb' });
+      });
+
+      const result = await service.startAllDatabases(mockUserId, mockHostUid, ['nonhadb']);
+
+      expect(result.succeeded).toEqual(['nonhadb']);
+      expect(result.failed).toHaveLength(1);
+      expect(result.failed[0].dbname).toBe('hadb1');
+    });
+  });
+
+  describe('stopAllDatabases', () => {
+    const successResponse = {
+      __EXEC_TIME: '10 ms',
+      note: 'none',
+      status: 'success',
+    };
+
+    it('stops every HA database with a single bulk ha_stop, regardless of the passed dbnames', async () => {
+      jest.spyOn(databaseInfoService as any, 'getHaDbNames').mockResolvedValue(new Set(['hadb1', 'hadb2']));
+      cmsClient.postAuthenticated.mockResolvedValue({ ...successResponse, task: 'ha_stop' });
+
+      const result = await service.stopAllDatabases(mockUserId, mockHostUid, ['nonhadb']);
+
+      const haStopCalls = cmsClient.postAuthenticated.mock.calls.filter(
+        ([, body]) => body.task === 'ha_stop'
+      );
+      expect(haStopCalls).toHaveLength(1);
+      expect(haStopCalls[0][1]).not.toHaveProperty('dbname');
+      expect(result.succeeded).toEqual(expect.arrayContaining(['hadb1', 'hadb2']));
+    });
+
+    it('skips the bulk ha_stop call entirely when the host has no HA databases', async () => {
+      jest.spyOn(databaseInfoService as any, 'getHaDbNames').mockResolvedValue(new Set());
+      cmsClient.postAuthenticated.mockResolvedValue({ ...successResponse, task: 'stopdb' });
+
+      await service.stopAllDatabases(mockUserId, mockHostUid, ['db1']);
+
+      const haStopCalls = cmsClient.postAuthenticated.mock.calls.filter(
+        ([, body]) => body.task === 'ha_stop'
+      );
+      expect(haStopCalls).toHaveLength(0);
+    });
+  });
+
   describe('restartDatabase', () => {
     const mockBaseResponse = {
       __EXEC_TIME: '10 ms',

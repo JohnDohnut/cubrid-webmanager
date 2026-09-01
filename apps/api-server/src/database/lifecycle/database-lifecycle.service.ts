@@ -190,6 +190,115 @@ export class DatabaseLifecycleService extends BaseService {
   }
 
   /**
+   * Start every database in `dbnames` on a host, correctly for the whole
+   * service (not one database at a time): HA-configured databases are
+   * started with a single bulk `ha_start` (no dbname) instead of one
+   * `ha_start` per database, which was racing cub_master's global HA
+   * activation when several fired in parallel and intermittently failed
+   * with "Cannot connect to server"/"heartbeat start: fail". Non-HA
+   * databases are still started individually (`startdb`) in parallel.
+   *
+   * HA is host-wide (a database can't selectively opt out of the auto-start
+   * list the way a plain database can — CUBRID itself refuses to start an
+   * HA database through the non-HA `server=` autostart list), so every
+   * `ha_db_list` entry is started regardless of whether it's also present
+   * in `dbnames`.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param dbnames Non-HA database names to start (e.g. the auto-start list)
+   * @returns Per-database outcome; never throws for individual failures
+   */
+  async startAllDatabases(
+    userId: string,
+    hostUid: string,
+    dbnames: string[]
+  ): Promise<{ succeeded: string[]; failed: Array<{ dbname: string; error: string }> }> {
+    const haDbNames = await this.databaseInfoService.getHaDbNames(userId, hostUid);
+    const haTargets = [...haDbNames];
+    const nonHaTargets = dbnames.filter((d) => !haDbNames.has(d));
+
+    const succeeded: string[] = [];
+    const failed: Array<{ dbname: string; error: string }> = [];
+
+    if (haTargets.length > 0) {
+      try {
+        await this.haService.haStart(userId, hostUid);
+        succeeded.push(...haTargets);
+      } catch (err: unknown) {
+        const error = err instanceof Error ? err.message : String(err);
+        haTargets.forEach((dbname) => failed.push({ dbname, error }));
+      }
+    }
+
+    const results = await Promise.allSettled(
+      nonHaTargets.map((dbname) => this.startNonHaDatabase(userId, hostUid, dbname))
+    );
+    results.forEach((result, index) => {
+      const dbname = nonHaTargets[index];
+      if (result.status === 'fulfilled') {
+        succeeded.push(dbname);
+      } else {
+        const error = result.reason instanceof Error ? result.reason.message : String(result.reason);
+        failed.push({ dbname, error });
+      }
+    });
+
+    return { succeeded, failed };
+  }
+
+  /**
+   * Stop every database in `dbnames` on a host, correctly for the whole
+   * service — see startAllDatabases for why HA databases are stopped with a
+   * single bulk `ha_stop` (no dbname) instead of one per database.
+   *
+   * Every `ha_db_list` entry is stopped regardless of whether it's also
+   * present in `dbnames` — see startAllDatabases.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @param dbnames Non-HA database names to stop (e.g. the currently active list)
+   * @returns Per-database outcome; never throws for individual failures
+   */
+  async stopAllDatabases(
+    userId: string,
+    hostUid: string,
+    dbnames: string[]
+  ): Promise<{ succeeded: string[]; failed: Array<{ dbname: string; error: string }> }> {
+    const haDbNames = await this.databaseInfoService.getHaDbNames(userId, hostUid);
+    const haTargets = [...haDbNames];
+    const nonHaTargets = dbnames.filter((d) => !haDbNames.has(d));
+
+    const succeeded: string[] = [];
+    const failed: Array<{ dbname: string; error: string }> = [];
+
+    if (haTargets.length > 0) {
+      try {
+        await this.haService.haStop(userId, hostUid);
+        succeeded.push(...haTargets);
+      } catch (err: unknown) {
+        const error = err instanceof Error ? err.message : String(err);
+        haTargets.forEach((dbname) => failed.push({ dbname, error }));
+      }
+    }
+
+    const results = await Promise.allSettled(
+      nonHaTargets.map((dbname) => this.stopNonHaDatabase(userId, hostUid, dbname))
+    );
+    results.forEach((result, index) => {
+      const dbname = nonHaTargets[index];
+      if (result.status === 'fulfilled') {
+        succeeded.push(dbname);
+      } else {
+        const error = result.reason instanceof Error ? result.reason.message : String(result.reason);
+        failed.push({ dbname, error });
+      }
+    });
+
+    return { succeeded, failed };
+  }
+
+  /**
    * Create or update a stored database profile for a host (id/password used by Web Manager).
    * If a profile for `dbname` already exists, it is overwritten.
    *
