@@ -211,7 +211,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
       .then(({ successCount, failed }) => {
         let message = CM.connectedHostsMsg(successCount);
         if (failed.length > 0) {
-          message += CM.failedListSuffix(failed.join(', '));
+          message += CM.failedListSuffix(failed.map((f) => `${f.name} (${f.reason})`).join(', '));
         }
         dispatch(showStatusModal({
           type: failed.length > 0 && successCount === 0 ? 'error' : 'success',
@@ -282,7 +282,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
       .then(({ successCount, failed }) => {
         let message = CM.connectedHostsMsg(successCount);
         if (failed.length > 0) {
-          message += CM.failedListSuffix(failed.join(', '));
+          message += CM.failedListSuffix(failed.map((f) => `${f.name} (${f.reason})`).join(', '));
         }
         dispatch(showStatusModal({
           type: failed.length > 0 && successCount === 0 ? 'error' : 'success',
