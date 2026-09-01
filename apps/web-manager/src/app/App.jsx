@@ -116,7 +116,12 @@ function DashboardLayout() {
       acc[tabId] = host ? (host.alias || host.id) : CM.unknownHost;
     } else if (tabId.startsWith('db:')) {
       const parts = tabId.split(':');
-      acc[tabId] = parts.length > 2 ? parts[2] : parts[1];
+      if (parts.length > 2) {
+        const host = hosts.find(h => h.uid === parts[1]);
+        acc[tabId] = `${host ? (host.alias || host.id) : CM.unknownHost}:${parts[2]}`;
+      } else {
+        acc[tabId] = parts[1];
+      }
     } else if (tabId.startsWith('edit_config:')) {
       acc[tabId] = CM.editConfigTab(tabId.split(':')[2]);
     } else if (tabId.startsWith('broker_config:')) {
