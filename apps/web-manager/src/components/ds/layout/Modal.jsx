@@ -185,7 +185,7 @@ export const Modal = ({
           </div>
         </div>
 
-        <div className="px-5 py-5 overflow-y-auto custom-scrollbar flex-1">
+        <div className="px-5 py-5 overflow-y-auto overflow-x-auto custom-scrollbar flex-1">
           {children}
         </div>
 
