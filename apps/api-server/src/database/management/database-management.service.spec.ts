@@ -413,9 +413,8 @@ describe('DatabaseManagementService', () => {
     const baseRequest: LoadDatabaseRequest = {
       checkoption: 'both',
       period: 'none',
-      user: 'dba',
       _DBID: 'dba',
-      _DBPASSWD: '',
+      _DBPASSWD: 'secret',
       estimated: 'none',
       oiduse: 'yes',
       statisticsuse: 'yes',
@@ -461,7 +460,6 @@ describe('DatabaseManagementService', () => {
           dbname: mockDbname,
           checkoption: baseRequest.checkoption,
           period: baseRequest.period,
-          user: baseRequest.user,
           _DBID: baseRequest._DBID,
           _DBPASSWD: baseRequest._DBPASSWD,
           estimated: baseRequest.estimated,
@@ -483,7 +481,6 @@ describe('DatabaseManagementService', () => {
       const fullRequest: LoadDatabaseRequest = {
         checkoption: 'both',
         period: 'none',
-        user: 'dba',
         _DBID: 'dba',
         _DBPASSWD: 'secret',
         estimated: 'none',
@@ -506,7 +503,6 @@ describe('DatabaseManagementService', () => {
         expect.objectContaining({
           checkoption: fullRequest.checkoption,
           period: fullRequest.period,
-          user: fullRequest.user,
           _DBID: fullRequest._DBID,
           _DBPASSWD: fullRequest._DBPASSWD,
           estimated: fullRequest.estimated,

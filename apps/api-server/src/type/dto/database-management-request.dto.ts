@@ -146,10 +146,6 @@ export class LoadDatabaseDto {
 
   @IsString()
   @IsNotEmpty()
-  user: string;
-
-  @IsString()
-  @IsNotEmpty()
   _DBID: string;
 
   @IsString()

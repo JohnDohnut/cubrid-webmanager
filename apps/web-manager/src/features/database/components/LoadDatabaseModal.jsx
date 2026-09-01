@@ -250,11 +250,19 @@ export default function LoadDatabaseModal() {
       const payload = {
         dbname: selectedDatabase,
         ...loadObject,
-        user: formData.dbUsername,
+        // Sent as-is from the form fields, always — omitting --user entirely
+        // makes CUBRID's loaddb default to PUBLIC (not DBA), which typically
+        // can't create classes, so a visible, always-sent value here is
+        // safer than a clever fallback the user can't see or override.
         _DBID: formData.dbUsername,
-        _DBPASSWD: formData.dbPassword ?? '',
-        oiduse: toYesNo(formData.checkBoxes.oiduse),
-        statisticsuse: toYesNo(formData.checkBoxes.statisticsuse),
+        _DBPASSWD: formData.dbPassword,
+        // Inverted on purpose: the checkboxes are labeled "Don't use OID" /
+        // "Don't update statistics" (checked = disable), but CMS's oiduse/
+        // statisticsuse fields are worded the other way — CMS only adds
+        // --no-oid/--no-statistics when the value is "no", so checked here
+        // must send "no", not "yes".
+        oiduse: formData.checkBoxes.oiduse ? 'no' : 'yes',
+        statisticsuse: formData.checkBoxes.statisticsuse ? 'no' : 'yes',
         nolog: toYesNo(formData.checkBoxes.nolog),
         period: formData.checkBoxes.period ? formData.values.period : 'none',
         estimated: formData.checkBoxes.estimated ? formData.values.estimated : 'none',
@@ -336,7 +344,7 @@ export default function LoadDatabaseModal() {
   };
 
   const validationError = getValidationError();
-  const isFormValid = !!formData.dbUsername && !validationError;
+  const isFormValid = !validationError;
 
   // handleLoadDatabase itself doesn't re-check isFormValid (only the footer
   // button's disabled prop does), so Enter-to-submit needs its own guard to
