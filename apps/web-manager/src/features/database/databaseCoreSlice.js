@@ -91,18 +91,30 @@ const parseDbResponse = (state, payload) => {
   const dbsFound = payload.dblist?.dbs;
   const activeFound = payload.activelist?.active;
 
-  if (dbsFound !== undefined) {
-    const rawList = Array.isArray(dbsFound) ? dbsFound : dbsFound ? [dbsFound] : [];
-    if (JSON.stringify(state.databases) !== JSON.stringify(rawList)) {
-      state.databases = rawList;
+  let newActive;
+  if (payload.activelist !== undefined) {
+    const rawActive = Array.isArray(activeFound) ? activeFound : activeFound ? [activeFound] : [];
+    newActive = rawActive.map(d => (typeof d === 'string' ? d : d?.dbname)).filter(Boolean);
+    if (JSON.stringify(state.activeDatabases) !== JSON.stringify(newActive)) {
+      state.activeDatabases = newActive;
     }
   }
 
-  if (payload.activelist !== undefined) {
-    const rawActive = Array.isArray(activeFound) ? activeFound : activeFound ? [activeFound] : [];
-    const newActive = rawActive.map(d => (typeof d === 'string' ? d : d?.dbname)).filter(Boolean);
-    if (JSON.stringify(state.activeDatabases) !== JSON.stringify(newActive)) {
-      state.activeDatabases = newActive;
+  if (dbsFound !== undefined) {
+    const rawList = Array.isArray(dbsFound) ? dbsFound : dbsFound ? [dbsFound] : [];
+    // CMS's dblist can omit a database that startinfo's own activelist still
+    // reports as active — seen consistently on HA replica nodes, where the
+    // database is genuinely running/replicating there but was never locally
+    // "registered" the way dblist expects. Without this, such a database is
+    // simply missing from the tree entirely instead of just showing as on.
+    const knownNames = new Set(rawList.map((db) => db.dbname));
+    const activeNames = newActive ?? state.activeDatabases ?? [];
+    const missingActiveNames = activeNames.filter((name) => !knownNames.has(name));
+    const mergedList = missingActiveNames.length > 0
+      ? [...rawList, ...missingActiveNames.map((dbname) => ({ dbname, isProfileExists: false }))]
+      : rawList;
+    if (JSON.stringify(state.databases) !== JSON.stringify(mergedList)) {
+      state.databases = mergedList;
     }
   }
 
