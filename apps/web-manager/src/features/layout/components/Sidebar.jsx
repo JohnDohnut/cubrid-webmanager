@@ -662,15 +662,35 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                   setIsServerListDropTarget(false);
                 }
               }}
-              onDrop={(e) => {
+              onDrop={async (e) => {
                 e.preventDefault();
                 setIsServerListDropTarget(false);
                 const raw = e.dataTransfer.getData(HOST_DRAG_MIME);
                 if (!raw) return;
                 try {
-                  const { hostUid, sourceGroupId } = JSON.parse(raw);
-                  if (hostUid && sourceGroupId !== UNGROUPED_GROUP_ID) {
-                    dispatch(moveHost({ hostUid, targetGroupId: UNGROUPED_GROUP_ID }));
+                  const { hostUid } = JSON.parse(raw);
+                  if (!hostUid) return;
+
+                  // Dragging a host that's part of the current multi-selection
+                  // ungroups every selected host, not just the one under the
+                  // cursor — same rule as HostGroupTree's own drop zones.
+                  const hostUidsToMove =
+                    selectedHostUids?.size > 1 && selectedHostUids.has(hostUid)
+                      ? [...selectedHostUids]
+                      : [hostUid];
+
+                  const currentGroupIdByHostUid = new Map();
+                  for (const [gid, group] of Object.entries(hostGroups || {})) {
+                    for (const uid of Object.keys(group.hosts || {})) {
+                      currentGroupIdByHostUid.set(uid, gid);
+                    }
+                  }
+
+                  const targets = hostUidsToMove.filter(
+                    (uid) => currentGroupIdByHostUid.get(uid) !== UNGROUPED_GROUP_ID
+                  );
+                  for (const uid of targets) {
+                    await dispatch(moveHost({ hostUid: uid, targetGroupId: UNGROUPED_GROUP_ID }));
                   }
                 } catch {
                   // ignore malformed drag payload
