@@ -903,6 +903,28 @@ describe('DatabaseLifecycleService', () => {
       );
     });
 
+    it('does not start the database or call updateUser when userpass is empty and auto-start is off', async () => {
+      const startDatabaseSpy = jest.spyOn(service, 'startDatabase');
+      const request = {
+        ...mockCreateDbRequest,
+        setAutoStart: false,
+        username: 'dba',
+        updateUser: {
+          userpass: '',
+        },
+      };
+
+      const result = await service.createDatabase(mockUserId, mockHostUid, request);
+
+      // A newly created database's dba user already has a blank password,
+      // so an empty userpass is a no-op — it shouldn't force the database
+      // to start just because the updateUser object was present.
+      expect(startDatabaseSpy).not.toHaveBeenCalled();
+      expect(databaseUserService.updateUser).not.toHaveBeenCalled();
+      expect(result.startDatabase).toBeUndefined();
+      expect(result.updateUser).toBeUndefined();
+    });
+
     it('should handle createDatabase failure and continue with other operations', async () => {
       const createError = DatabaseError.Unknown();
       jest.spyOn(service, 'createDatabaseInternal').mockRejectedValue(createError);

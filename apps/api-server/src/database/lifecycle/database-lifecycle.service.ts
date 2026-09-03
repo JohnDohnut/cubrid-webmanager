@@ -712,9 +712,15 @@ export class DatabaseLifecycleService extends BaseService {
       data: createDatabaseResult,
     };
 
+    // A freshly created database's dba user already has a blank password, so
+    // an empty `userpass` is a no-op update — treating it as "requested"
+    // anyway forced the database to start (see below) even with both the
+    // auto-start toggle and the password field left off/empty.
+    const wantsPasswordChange = Boolean(updateUser?.userpass);
+
     // 1-1. Start database when requested OR when updateUser needs DB access.
     // userinfo/updateuser CMS tasks require the database to be running.
-    if (setAutoStart || updateUser) {
+    if (setAutoStart || wantsPasswordChange) {
       try {
         const startInfo = await this.startDatabase(userId, hostUid, createDbRequest.dbname);
         response.startDatabase = {
@@ -739,7 +745,7 @@ export class DatabaseLifecycleService extends BaseService {
     }
 
     // 2. Update user if requested
-    if (updateUser) {
+    if (updateUser?.userpass) {
       try {
         const usernameToUse = username || 'dba';
 
