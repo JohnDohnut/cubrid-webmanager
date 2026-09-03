@@ -303,7 +303,13 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
     const uids = bulkHostContextMenu?.hostUids || [];
     setBulkHostContextMenu(null);
     setSelectedHostUids(new Set());
-    await Promise.all(uids.map((hostUid) => dispatch(moveHost({ hostUid, targetGroupId }))));
+    // Sequential, not Promise.all: each move's response is a full host_groups
+    // snapshot that overwrites Redux state, so parallel requests can resolve
+    // out of order and have a stale (pre-other-move) snapshot clobber the
+    // up-to-date one, making it look like only one host moved.
+    for (const hostUid of uids) {
+      await dispatch(moveHost({ hostUid, targetGroupId }));
+    }
   };
 
   const handleBulkDeleteConfirm = async () => {
