@@ -19,6 +19,12 @@ export const databaseApi = {
   stopAllDatabases: (hostUid, dbnames) => {
     return apiClient.post(`/${hostUid}/database/stop-all`, { dbnames });
   },
+  startWholeService: (hostUid) => {
+    return apiClient.post(`/${hostUid}/database/service/start`, {});
+  },
+  stopWholeService: (hostUid) => {
+    return apiClient.post(`/${hostUid}/database/service/stop`, {});
+  },
   getVolumeInfo: (hostUid, dbname) => {
     const url = `/${hostUid}/database/volume-info/${encodeURIComponent(dbname)}`;
     // Do not share a response across login sessions.

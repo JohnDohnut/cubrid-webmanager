@@ -9,6 +9,7 @@ import { DatabaseInfoService } from '../info/database-info.service';
 import { HaService } from '@ha';
 import { DatabaseUserService } from '../user/database-user.service';
 import { DatabaseConfigService } from '../config/database-config.service';
+import { BrokerService } from '@broker';
 import { DatabaseError } from '@error/database/database-error';
 import { DatabaseErrorCode } from '@error/database/database-error-code';
 import { HostError } from '@error/index';
@@ -89,6 +90,11 @@ describe('DatabaseLifecycleService', () => {
       removeAutoStart: jest.fn(),
     };
 
+    const mockBrokerService = {
+      startAllBrokers: jest.fn().mockResolvedValue({ success: true }),
+      stopAllBrokers: jest.fn().mockResolvedValue({ success: true }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DatabaseLifecycleService,
@@ -122,6 +128,10 @@ describe('DatabaseLifecycleService', () => {
           useValue: mockDatabaseConfigService,
         },
         HaService,
+        {
+          provide: BrokerService,
+          useValue: mockBrokerService,
+        },
       ],
     }).compile();
 

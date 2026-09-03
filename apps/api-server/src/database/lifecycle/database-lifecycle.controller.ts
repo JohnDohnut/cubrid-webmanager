@@ -201,6 +201,50 @@ export class DatabaseLifecycleController {
   }
 
   /**
+   * Start the whole service on a host in one call: brokers, then databases
+   * (auto-start list + bulk `ha_start` for HA), matching `cubrid service start`.
+   *
+   * @route POST /:hostUid/database/service/start
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @returns Failures across brokers and databases
+   * @example
+   * // POST /host-uid/database/service/start
+   */
+  @Post('service/start')
+  async startWholeService(
+    @Request() req,
+    @Param('hostUid') hostUid: string
+  ): Promise<{ failed: Array<{ name: string; error: string }> }> {
+    const userId = req.user.sub;
+
+    this.logger.log(`Starting whole service on host: ${hostUid}`);
+    return await this.lifecycleService.startWholeService(userId, hostUid);
+  }
+
+  /**
+   * Stop the whole service on a host in one call: databases (bulk `ha_stop`
+   * for HA), then brokers, matching `cubrid service stop`.
+   *
+   * @route POST /:hostUid/database/service/stop
+   * @param req Express request (contains authenticated user)
+   * @param hostUid Host unique identifier from path parameter
+   * @returns Failures across databases and brokers
+   * @example
+   * // POST /host-uid/database/service/stop
+   */
+  @Post('service/stop')
+  async stopWholeService(
+    @Request() req,
+    @Param('hostUid') hostUid: string
+  ): Promise<{ failed: Array<{ name: string; error: string }> }> {
+    const userId = req.user.sub;
+
+    this.logger.log(`Stopping whole service on host: ${hostUid}`);
+    return await this.lifecycleService.stopWholeService(userId, hostUid);
+  }
+
+  /**
    * Create or update a database profile for a host (same route for first save and credential refresh).
    * Returns latest start info on success (isProfileExists is updated).
    *

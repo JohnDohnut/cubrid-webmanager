@@ -19,6 +19,7 @@ import { DatabaseManagementService } from './management/database-management.serv
 import { DatabaseConfigController } from './config/database-config.controller';
 import { DatabaseConfigService } from './config/database-config.service';
 import { CmsJobModule } from '@cms-job/cms-job.module';
+import { BrokerModule } from '@broker';
 
 /**
  * Module for managing database functionalities.
@@ -53,6 +54,7 @@ import { CmsJobModule } from '@cms-job/cms-job.module';
     DatabaseInfoModule,
     HaModule,
     CmsJobModule,
+    BrokerModule,
   ],
 })
 export class DatabaseModule {}

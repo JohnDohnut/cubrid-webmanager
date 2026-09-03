@@ -39,7 +39,14 @@ import {
   DeleteDatabaseCmsResponse,
   DbSpaceInfoCmsResponse,
 } from '@type/cms-response';
-import { convertExvolArrayToCmsFormat, isHostHaModeOnFromCubridConf } from '@util';
+import { GetAllSysParamCmsResponse } from '@type/cms-response/get-all-sys-param-cms-response';
+import {
+  convertExvolArrayToCmsFormat,
+  isHostHaModeOnFromCubridConf,
+  getSectionParams,
+  parseConfigParamsBySection,
+} from '@util';
+import { BrokerService } from '@broker';
 
 /**
  * Service for managing database lifecycle operations.
@@ -59,7 +66,8 @@ export class DatabaseLifecycleService extends BaseService {
     private readonly databaseUserService: DatabaseUserService,
     private readonly databaseConfigService: DatabaseConfigService,
     private readonly databaseInfoService: DatabaseInfoService,
-    private readonly haService: HaService
+    private readonly haService: HaService,
+    private readonly brokerService: BrokerService
   ) {
     super(hostService, cmsClient);
   }
@@ -358,6 +366,91 @@ export class DatabaseLifecycleService extends BaseService {
     });
 
     return { succeeded, failed };
+  }
+
+  /**
+   * Start the whole service on a host in one call: brokers, then databases —
+   * matching `cubrid service start`. Reads cubridconf's `[service]` section
+   * to decide whether server autostart is enabled (`service=...,server,...`)
+   * and which non-HA databases are in the autostart list (`server=`);
+   * HA-configured databases are always included via startAllDatabases's bulk
+   * `ha_start` regardless of this list (a host can be entirely HA with no
+   * `server=` line at all).
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @returns Failures across brokers and databases; never throws for partial
+   *   failures (a cubridconf read failure is the one exception, since the
+   *   autostart list can't be determined without it)
+   */
+  @HandleCmsErrors()
+  async startWholeService(
+    userId: string,
+    hostUid: string
+  ): Promise<{ failed: Array<{ name: string; error: string }> }> {
+    const failed: Array<{ name: string; error: string }> = [];
+
+    try {
+      await this.brokerService.startAllBrokers(userId, hostUid);
+    } catch (err: unknown) {
+      failed.push({ name: 'brokers', error: err instanceof Error ? err.message : String(err) });
+    }
+
+    const cubridConf = await this.cmsConfigService.getAllSystemParam(
+      userId,
+      hostUid,
+      CMS_CONFNAME_CUBRID
+    );
+    const serviceParams =
+      getSectionParams(parseConfigParamsBySection(cubridConf as GetAllSysParamCmsResponse), 'service') || {};
+    const serviceEnabled = (serviceParams.service || '')
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .includes('server');
+    const autoStartServers = (serviceParams.server || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (serviceEnabled) {
+      const { failed: dbFailed } = await this.startAllDatabases(userId, hostUid, autoStartServers);
+      failed.push(...dbFailed.map(({ dbname, error }) => ({ name: dbname, error })));
+    }
+
+    return { failed };
+  }
+
+  /**
+   * Stop the whole service on a host in one call: databases, then brokers —
+   * matching `cubrid service stop`. Every currently-active database (from
+   * start-info's `dblist`) is stopped, with HA-configured databases always
+   * included via stopAllDatabases's bulk `ha_stop` regardless of this list.
+   *
+   * @param userId User ID from JWT
+   * @param hostUid Host UID
+   * @returns Failures across databases and brokers; never throws for partial
+   *   failures
+   */
+  @HandleCmsErrors()
+  async stopWholeService(
+    userId: string,
+    hostUid: string
+  ): Promise<{ failed: Array<{ name: string; error: string }> }> {
+    const failed: Array<{ name: string; error: string }> = [];
+
+    const startInfo = await this.databaseInfoService.startInfo(userId, hostUid);
+    const dbnames = (startInfo?.dblist?.dbs || []).map((db) => db.dbname);
+
+    const { failed: dbFailed } = await this.stopAllDatabases(userId, hostUid, dbnames);
+    failed.push(...dbFailed.map(({ dbname, error }) => ({ name: dbname, error })));
+
+    try {
+      await this.brokerService.stopAllBrokers(userId, hostUid);
+    } catch (err: unknown) {
+      failed.push({ name: 'brokers', error: err instanceof Error ? err.message : String(err) });
+    }
+
+    return { failed };
   }
 
   /**
