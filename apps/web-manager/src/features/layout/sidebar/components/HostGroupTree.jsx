@@ -183,11 +183,23 @@ export default function HostGroupTree({
       return;
     }
 
-    // Plain click — clear multi-select, ServerListItem still runs its own
-    // normal single-select/activate-tab logic for this case.
+    // Plain click on a host that's already part of the current
+    // multi-selection: leave the selection alone instead of collapsing it.
+    // A drag can start from the exact same mousedown that produced this
+    // click (browsers don't always suppress click cleanly once a drag
+    // begins), so clearing here was intermittently wiping the selection
+    // out from under a multi-host drag before handleGroupDrop ever saw it.
+    if (selectedHostUids?.has(uid)) {
+      lastClickedHostUidRef.current = uid;
+      return;
+    }
+
+    // Plain click on a host outside the current selection — clear
+    // multi-select, ServerListItem still runs its own normal
+    // single-select/activate-tab logic for this case.
     onSelectedHostUidsChange(new Set());
     lastClickedHostUidRef.current = uid;
-  }, [flattenedHostUids, onSelectedHostUidsChange]);
+  }, [flattenedHostUids, onSelectedHostUidsChange, selectedHostUids]);
 
   return (
     <div className="py-1">
