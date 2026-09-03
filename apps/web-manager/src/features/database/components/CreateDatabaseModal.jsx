@@ -135,6 +135,12 @@ export default function CreateDatabaseModal() {
 
   const { runJob, background } = useCmsJob();
   const [jobStatus, setJobStatus] = useState(null);
+  // The database itself can succeed while a follow-up step (auto-start,
+  // dba password, auto-add-vol config) fails — the job still reports
+  // 'succeeded' for that (see cms-job.service.ts's applyCmsOutcome), so this
+  // surfaces which follow-up steps didn't apply instead of the plain
+  // success message hiding it.
+  const [creationWarning, setCreationWarning] = useState(null);
   const jobDismissedRef = useRef(false);
 
   const [step, setStep] = useState(1);
@@ -165,6 +171,7 @@ export default function CreateDatabaseModal() {
     setStep(1);
     resetAction();
     setFormData(INITIAL_FORM_DATA);
+    setCreationWarning(null);
 
     // Backend fallback in case hostEnv (below) never arrives or is stale.
     // Uses functional merges (prev.x || dir), so it's safe even if the user
@@ -308,7 +315,7 @@ export default function CreateDatabaseModal() {
         }
       };
 
-      await runJob(
+      const finishedJob = await runJob(
         () => databaseJobApi.submitCreate(selectedHostUid, payload),
         {
           onProgress: (j) => {
@@ -320,6 +327,22 @@ export default function CreateDatabaseModal() {
       );
 
       dispatch(fetchDatabaseStartInfo({ hostUid: selectedHostUid, isBackground: true }));
+
+      // The database itself can be created successfully even when a
+      // follow-up step (start, dba password, auto-add-vol config) didn't
+      // apply — surface which ones so it isn't silently lost.
+      const result = finishedJob?.result;
+      const failedSteps = [
+        result?.startDatabase?.success === false && { label: CM.startDatabase, message: result.startDatabase.error?.message },
+        result?.updateUser?.success === false && { label: CM.wizardSetDbaPass, message: result.updateUser.error?.message },
+        result?.setAutoAddVol?.success === false && { label: CM.wizardAutoVol, message: result.setAutoAddVol.error?.message },
+        result?.setAutoStart?.success === false && { label: CM.autoStart, message: result.setAutoStart.error?.message },
+      ].filter(Boolean);
+      setCreationWarning(
+        failedSteps.length > 0
+          ? failedSteps.map((s) => `${s.label}: ${s.message || CM.databaseCreationErrorMsg}`).join(' / ')
+          : null
+      );
 
       if (!jobDismissedRef.current) {
         endSuccess(CM.databaseInitializedMsg(formData.dbName));
@@ -375,10 +398,22 @@ export default function CreateDatabaseModal() {
   /* ─── SUCCESS view ─── */
   if (isSuccess) {
     return (
-      <Modal isOpen title={CM.createDatabase} icon="add_circle" iconVariant="success" onClose={handleClose} maxWidth="600px" testId="create-database">
+      <Modal
+        isOpen
+        title={CM.createDatabase}
+        icon={creationWarning ? 'warning' : 'add_circle'}
+        iconVariant={creationWarning ? 'warning' : 'success'}
+        onClose={handleClose}
+        maxWidth="600px"
+        testId="create-database"
+      >
         <ModalStatusSuccess
           title={CM.success}
-          message={CM.createDbJobComplete(CM.createDatabase)}
+          message={
+            creationWarning
+              ? CM.createDbPartialWarningMsg(formData.dbName, creationWarning)
+              : CM.createDbJobComplete(CM.createDatabase)
+          }
           onConfirm={handleClose}
           confirmText={CM.ok}
         />

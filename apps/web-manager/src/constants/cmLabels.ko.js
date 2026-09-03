@@ -107,6 +107,7 @@ export const CM_KO = {
   createDbFailed: '데이터베이스를 시작하지 못했습니다. 연결 정보를 확인하십시오.',
   databaseInitializedMsg: (dbName) => `데이터베이스 "${dbName}"가 성공적으로 초기화되어 서비스에 등록되었습니다.`,
   databaseCreationErrorMsg: '데이터베이스 생성 중 예기치 않은 오류가 발생했습니다.',
+  createDbPartialWarningMsg: (dbName, detail) => `데이터베이스 "${dbName}"는 생성되었지만 일부 후속 작업이 완료되지 않았습니다: ${detail}`,
   systemBadge: '시스템',
   criticalBadge: '중요',
   startAfterCreationLabel: '생성 후 데이터베이스 시작',

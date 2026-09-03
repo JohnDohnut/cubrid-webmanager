@@ -110,6 +110,7 @@ export const CM = {
   createDbFailed: 'Failed to start the database. Please verify that the connection credentials are correct.',
   databaseInitializedMsg: (dbName) => `Database "${dbName}" has been successfully initialized and commissioned.`,
   databaseCreationErrorMsg: 'An unexpected error occurred during database creation.',
+  createDbPartialWarningMsg: (dbName, detail) => `Database "${dbName}" was created, but some follow-up steps didn't complete: ${detail}`,
   systemBadge: 'System',
   criticalBadge: 'Critical',
   startAfterCreationLabel: 'Start database after creation',
