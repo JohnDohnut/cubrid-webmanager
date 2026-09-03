@@ -112,7 +112,13 @@ export const dropDatabaseUser = createAsyncThunk(
   }
 );
 
-const initialState = {
+// A plain object here would only ever read getStoredLocale() once, at module
+// load. redux-toolkit calls a function initialState fresh every time the
+// slice is reset to "no state" (e.g. host/revokeHostLogin's selective
+// reset in store.js, which drops the whole user slice on host disconnect) —
+// without that, a locale switched mid-session would silently revert to
+// whatever locale was in localStorage back at app boot.
+const buildInitialState = () => ({
   isProfileOpen: false,
   profile: {
     fullName: 'Admin User',
@@ -138,11 +144,11 @@ const initialState = {
   preferencesLoading: false,
   actionLoading: false,
   error: null,
-};
+});
 
 const userSlice = createSlice({
   name: 'user',
-  initialState,
+  initialState: buildInitialState,
   reducers: {
     openProfileModal: (state) => {
       state.isProfileOpen = true;
