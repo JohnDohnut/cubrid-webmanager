@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { brokerApi } from '../../broker/brokerApi';
 import { showStatusModal, setTabDirty } from '../../layout/layoutSlice';
@@ -19,10 +19,11 @@ export default function BrokerConfigEditor({ hostUid }) {
   const currentHost = hosts.find(h => h.uid === hostUid);
   const hostDisplayName = currentHost ? (currentHost.alias || currentHost.id) : CM.unknownHost;
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
   // Source View State
+  const originalRawContentRef = useRef('');
   const [rawContent, setRawContent] = useState('');
   const [originalRawContent, setOriginalRawContent] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
@@ -34,6 +35,7 @@ export default function BrokerConfigEditor({ hostUid }) {
       const lines = response?.conflist?.[0]?.confdata || [];
       
       const content = lines.join('\n');
+      originalRawContentRef.current = content;
       setRawContent(content);
       setOriginalRawContent(content);
       setHasChanges(false);
@@ -58,12 +60,13 @@ export default function BrokerConfigEditor({ hostUid }) {
 
   const handleSourceChange = (e) => {
     setRawContent(e.target.value);
-    setHasChanges(e.target.value !== originalRawContent);
-    dispatch(setTabDirty({ tabId, isDirty: e.target.value !== originalRawContent }));
+    const changed = e.target.value !== originalRawContentRef.current;
+    setHasChanges(changed);
+    dispatch(setTabDirty({ tabId, isDirty: changed }));
   };
 
   const handleUndo = () => {
-    setRawContent(originalRawContent);
+    setRawContent(originalRawContentRef.current);
     setHasChanges(false);
     dispatch(setTabDirty({ tabId, isDirty: false }));
   };
@@ -75,6 +78,7 @@ export default function BrokerConfigEditor({ hostUid }) {
 
       await brokerApi.updateBrokerConfig(hostUid, confdata);
       
+      originalRawContentRef.current = rawContent;
       setOriginalRawContent(rawContent);
       setHasChanges(false);
       dispatch(setTabDirty({ tabId, isDirty: false }));
@@ -111,16 +115,15 @@ export default function BrokerConfigEditor({ hostUid }) {
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-hidden flex flex-col relative bg-slate-100 dark:bg-black/20">
-        {loading ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
+        <ConfigSourceEditor 
+          rawContent={rawContent}
+          handleSourceChange={handleSourceChange}
+        />
+        {loading && (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-white/80 dark:bg-bk-side/80 backdrop-blur-xs">
             <Spinner size="lg" />
             <Typography variant="overline" className="text-slate-600 dark:text-bk-yellow tracking-widest animate-pulse">{CM.initializingEditor}</Typography>
           </div>
-        ) : (
-          <ConfigSourceEditor 
-            rawContent={rawContent}
-            handleSourceChange={handleSourceChange}
-          />
         )}
       </div>
       

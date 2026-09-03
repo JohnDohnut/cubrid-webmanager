@@ -1,5 +1,5 @@
 import { usePollingRefresh } from '../../../infrastructure/hooks/usePollingRefresh';
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useSelector, useDispatch , shallowEqual } from 'react-redux';
 import { hostApi } from '../../host/hostApi';
 import { fetchHostEnv } from '../../host/hostSlice';
@@ -32,6 +32,9 @@ const Component = function ServerContent({ hostUid }) {
   const { preferences } = useSelector((state) => state.user, shallowEqual);
   const { refreshCounter } = useSelector((state) => state.layout, shallowEqual);
   const [autoStartDBs, setAutoStartDBs] = useState([]);
+  const [autoStartReady, setAutoStartReady] = useState(false);
+  const autoStartReadVersion = useRef(0);
+  const autoStartWritePending = useRef(false);
   
   const currentHost = hosts.find(h => h.uid === hostUid);
   const hostHaInfo = haInfo[hostUid] || {};
@@ -62,7 +65,11 @@ const Component = function ServerContent({ hostUid }) {
     }
   });
 
-  const fetchAutoStartInfo = async () => {
+  const fetchAutoStartInfo = async (afterWrite = false) => {
+    // Background refreshes must not publish a pre-write configuration while
+    // the user is changing it. The write performs its own authoritative read.
+    if (autoStartWritePending.current && !afterWrite) return;
+    const version = ++autoStartReadVersion.current;
     try {
       const response = await hostApi.getHostConfig(hostUid, 'cubridconf');
       const lines = response?.conflist?.[0]?.confdata || [];
@@ -78,8 +85,12 @@ const Component = function ServerContent({ hostUid }) {
           servers = (trimmed.split('=')[1] || '').split(',').map(s => s.trim());
         }
       }
-      setAutoStartDBs(serviceEnabled ? servers : []);
+      if (version === autoStartReadVersion.current) {
+        setAutoStartDBs(serviceEnabled ? servers : []);
+        setAutoStartReady(true);
+      }
     } catch (err) {
+      if (version === autoStartReadVersion.current) setAutoStartReady(false);
       console.error('Failed to fetch auto-start info:', err);
     }
   };

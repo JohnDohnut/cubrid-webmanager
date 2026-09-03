@@ -19,8 +19,10 @@ export default function TransactionInfoModal() {
   const CM = useCM();
   const dispatch = useDispatch();
   const { isTransactionInfoModalOpen, transactionKillSignal } = useSelector((state) => state.databaseUI, shallowEqual);
-  const { selectedDatabase } = useSelector((state) => state.database, shallowEqual);
+  const { selectedDatabase, activeDatabases } = useSelector((state) => state.database, shallowEqual);
   const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
+
+  const isActive = selectedDatabase && activeDatabases?.includes(selectedDatabase);
 
   const [view, setView] = useState(VIEW_LOADING);
   const [transactions, setTransactions] = useState([]);
@@ -33,6 +35,11 @@ export default function TransactionInfoModal() {
   // pre-11 legacy branch, which does still read them.
   const fetchTransactionInfo = async () => {
     if (!selectedHostUid || !selectedDatabase) return;
+    if (!isActive) {
+      setErrorMsg('Database is stopped. Transaction information is only available when the database is running.');
+      setView(VIEW_ERROR);
+      return;
+    }
 
     setView(VIEW_LOADING);
     setErrorMsg('');

@@ -27,9 +27,10 @@ export default function LoadDatabaseModal() {
   const CM = useCM();
   const dispatch = useDispatch();
   const { isLoadDatabaseModalOpen: isLoadDBModalOpen } = useSelector((state) => state.databaseUI, shallowEqual);
-  const { selectedDatabase, loggedInDatabases } = useSelector((state) => state.database, shallowEqual);
+  const { selectedDatabase, activeDatabases, loggedInDatabases } = useSelector((state) => state.database, shallowEqual);
   const { selectedHostUid } = useSelector((state) => state.host, shallowEqual);
 
+  const isActive = !!selectedDatabase && activeDatabases?.includes(selectedDatabase);
   // Load only ever targets an offline database, so this can't be satisfied by
   // logging in right now — it must have happened earlier, while the database
   // was still online (loggedInDatabases persists across stop, see
@@ -344,7 +345,7 @@ export default function LoadDatabaseModal() {
   };
 
   const validationError = getValidationError();
-  const isFormValid = !validationError;
+  const isFormValid = !isActive && !!formData.dbUsername && !validationError;
 
   // handleLoadDatabase itself doesn't re-check isFormValid (only the footer
   // button's disabled prop does), so Enter-to-submit needs its own guard to
@@ -448,6 +449,12 @@ export default function LoadDatabaseModal() {
       }
     >
       <div className="space-y-6">
+        {isActive && (
+          <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-2.5 text-amber-700 dark:text-amber-400 text-xs">
+            <Icon name="warning" size="sm" />
+            <span>Database loading can only be performed when the database is stopped.</span>
+          </div>
+        )}
         <LoadConfigSection formData={formData} handleInputChange={handleInputChange} />
         <LoadSourceSection
           radio={radio}

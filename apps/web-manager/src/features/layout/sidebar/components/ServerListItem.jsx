@@ -1,9 +1,3 @@
-import { useDispatch, useSelector, shallowEqual } from 'react-redux';
-import { setSelectedHost } from '../../../host/hostSlice';
-import { fetchDatabaseStartInfo } from '../../../database/databaseSlice';
-import { fetchBrokerList } from '../../../broker/brokerSlice';
-import { setActiveMainTab } from '../../layoutSlice';
-import { Icon } from '../../../../components/ds/foundation/Icon';
 import { useCM } from '../../../../constants/useCM';
 
 const HA_ROLE_CONFIG = {
@@ -20,6 +14,7 @@ export default function ServerListItem({
   isAuthorized,
   haInfo,
   onContextMenu,
+  onSelect,
   onActivate,
   compact = false,
   draggable = false,
@@ -28,8 +23,6 @@ export default function ServerListItem({
   onDragEnd,
 }) {
   const CM = useCM();
-  const dispatch = useDispatch();
-  const { openTabs } = useSelector((state) => state.layout, shallowEqual);
 
   const getInferredHaInfo = () => {
     if (haInfo?.isHA) return haInfo;
@@ -73,23 +66,15 @@ export default function ServerListItem({
         // Cmd/Ctrl-click toggles this host in the multi-selection, shift-click
         // range-selects — neither changes the active dashboard host. A plain
         // click clears any multi-selection and falls through to the normal
-        // single-select behavior below.
+        // single-select (focus-only) behavior below.
         if (e.metaKey || e.ctrlKey || e.shiftKey) {
           onMultiSelect?.(e, host.uid);
           return;
         }
         onMultiSelect?.(e, host.uid);
-        dispatch(setSelectedHost(host.uid));
-        if (isAuthorized) {
-          dispatch(fetchDatabaseStartInfo(host.uid));
-          dispatch(fetchBrokerList(host.uid));
-        }
-        // Bring an already-open dashboard tab for this host to the front.
-        // Never opens/logs in on its own — that stays a double-click-only action.
-        const tabId = `host:${host.uid}`;
-        if (openTabs.includes(tabId)) {
-          dispatch(setActiveMainTab(tabId));
-        }
+        // A click only moves the visual focus in the server list. The active
+        // host (and therefore Resources) changes exclusively on activation.
+        onSelect?.(host.uid);
       }}
       onDoubleClick={() => {
         // Login (if needed) + open the dashboard — never on single click.
