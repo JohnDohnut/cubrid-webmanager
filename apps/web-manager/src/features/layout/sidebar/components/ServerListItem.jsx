@@ -4,6 +4,11 @@ const HA_ROLE_CONFIG = {
   master:  { cmKey: 'haMaster',  icon: 'star',                    className: 'bg-amber-500/15 border-amber-500/30 text-amber-600 dark:text-amber-400' },
   slave:   { cmKey: 'haSlave',   icon: 'settings_backup_restore', className: 'bg-slate-500/10 border-slate-400/20 text-slate-500 dark:text-slate-400' },
   replica: { cmKey: 'haReplica', icon: 'copy_all',                className: 'bg-blue-500/10 border-blue-400/20 text-blue-600 dark:text-blue-400'   },
+  // The backend falls back to this when heartbeatlist doesn't resolve a
+  // known role (e.g. mid-failover, right after ha_start before the node
+  // settles) — surfacing it as its own badge instead of silently showing
+  // nothing makes that transitional/unhealthy state visible.
+  unknown: { cmKey: 'haUnknown', icon: 'help',                    className: 'bg-orange-500/10 border-orange-400/20 text-orange-600 dark:text-orange-400' },
 };
 
 export default function ServerListItem({

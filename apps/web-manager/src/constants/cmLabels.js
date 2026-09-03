@@ -1002,6 +1002,7 @@ export const CM = {
   haMaster: 'Master',
   haSlave: 'Slave',
   haReplica: 'Replica',
+  haUnknown: 'Unknown',
   clusterOverview: 'Cluster Overview',
   expandGroupTitle: 'Expand group',
   collapseGroupTitle: 'Collapse group',
