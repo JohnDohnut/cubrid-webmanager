@@ -89,7 +89,30 @@ export default function HostGroupTree({
 
     clearDragState();
 
-    if (!payload?.hostUid || payload.sourceGroupId === groupId) {
+    if (!payload?.hostUid) {
+      return;
+    }
+
+    // Dragging a host that's part of the current multi-selection moves every
+    // selected host, not just the one under the cursor — matching how
+    // multi-select drags work in a normal file manager.
+    const hostUidsToMove =
+      selectedHostUids?.size > 1 && selectedHostUids.has(payload.hostUid)
+        ? [...selectedHostUids]
+        : [payload.hostUid];
+
+    // Each host may currently live in a different group when moving a
+    // multi-selection, so look up each one's own current group instead of
+    // relying on the single dragged host's sourceGroupId.
+    const currentGroupIdByHostUid = new Map();
+    for (const [gid, group] of Object.entries(hostGroups || {})) {
+      for (const uid of Object.keys(group.hosts || {})) {
+        currentGroupIdByHostUid.set(uid, gid);
+      }
+    }
+
+    const targets = hostUidsToMove.filter((uid) => currentGroupIdByHostUid.get(uid) !== groupId);
+    if (targets.length === 0) {
       return;
     }
 
@@ -99,8 +122,10 @@ export default function HostGroupTree({
       return next;
     });
 
-    await dispatch(moveHost({ hostUid: payload.hostUid, targetGroupId: groupId }));
-  }, [clearDragState, dispatch]);
+    for (const hostUid of targets) {
+      await dispatch(moveHost({ hostUid, targetGroupId: groupId }));
+    }
+  }, [clearDragState, dispatch, selectedHostUids, hostGroups]);
 
   const toggleGroup = (groupId) => {
     setExpandedGroups((prev) => {
