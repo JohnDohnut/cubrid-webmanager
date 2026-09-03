@@ -644,6 +644,14 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
               className={`flex-1 overflow-y-auto py-1 bg-slate-50/50 dark:bg-black/20 transition-opacity duration-200 ${isServerListCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'} ${isServerListDropTarget ? 'bg-amber-500/8' : ''}`}
               id="host-section"
               onContextMenu={handleHostRootContextMenu}
+              onClick={(e) => {
+                // Clicking empty space (not bubbled from a host/group row)
+                // clears a shift/cmd-click multi-selection, instead of
+                // requiring each host to be cmd/ctrl-clicked off one by one.
+                if (e.target === e.currentTarget && selectedHostUids.size > 0) {
+                  setSelectedHostUids(new Set());
+                }
+              }}
               onDragOver={(e) => {
                 if (!e.dataTransfer.types.includes(HOST_DRAG_MIME)) return;
                 e.preventDefault();
