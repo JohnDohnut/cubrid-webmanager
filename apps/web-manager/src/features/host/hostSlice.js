@@ -255,8 +255,17 @@ export const startService = createAsyncThunk(
       // as one whole-service call instead of N independent per-database
       // calls: HA databases are started together via a single bulk
       // `ha_start`, which avoids racing cub_master's global HA activation.
-      if (serviceEnabled && autoStartServers.length > 0) {
-        dispatch(hostSlice.actions.setServiceProgressMessage(`Starting databases (${autoStartServers.join(', ')})...`));
+      // Not gated on autoStartServers.length: a host whose databases are all
+      // HA-configured has nothing in the plain `server=` autostart list at
+      // all (see the comment above), so requiring it to be non-empty here
+      // skipped this whole step — and therefore the backend's ha_start —
+      // on every all-HA host. The backend independently discovers HA
+      // databases regardless of what's passed here, so an empty list is a
+      // safe no-op for the non-HA side.
+      if (serviceEnabled) {
+        dispatch(hostSlice.actions.setServiceProgressMessage(
+          autoStartServers.length > 0 ? `Starting databases (${autoStartServers.join(', ')})...` : 'Starting databases...'
+        ));
         try {
           const { failed } = await databaseApi.startAllDatabases(hostUid, autoStartServers);
           failures.push(...failed.map(({ dbname, error }) => ({ name: dbname, error })));
@@ -301,13 +310,16 @@ export const stopService = createAsyncThunk(
       dispatch(hostSlice.actions.setServiceProgressMessage('Stopping databases...'));
       const databaseResponse = await databaseApi.getStartInfo(hostUid);
       const dbList = databaseResponse?.dblist?.dbs || [];
-      if (dbList.length > 0) {
-        try {
-          const { failed } = await databaseApi.stopAllDatabases(hostUid, dbList.map(db => db.dbname));
-          failures.push(...failed.map(({ dbname, error }) => ({ name: dbname, error })));
-        } catch (err) {
-          failures.push({ name: 'databases', error: getServiceOperationError(err) });
-        }
+      // Not gated on dbList.length: CMS's dblist can come back empty for a
+      // host whose databases are all HA (seen on replica nodes in
+      // particular), which would otherwise skip this step — and therefore
+      // the backend's ha_stop — entirely. The backend independently
+      // discovers HA databases regardless of what's passed here.
+      try {
+        const { failed } = await databaseApi.stopAllDatabases(hostUid, dbList.map(db => db.dbname));
+        failures.push(...failed.map(({ dbname, error }) => ({ name: dbname, error })));
+      } catch (err) {
+        failures.push({ name: 'databases', error: getServiceOperationError(err) });
       }
 
       // Refresh everything
