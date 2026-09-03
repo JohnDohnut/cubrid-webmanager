@@ -270,20 +270,18 @@ export class CmsJobService implements OnModuleInit, OnModuleDestroy {
   private applyCmsOutcome(job: CmsJobRecord, cmsResponse: unknown): boolean {
     if (job.type === 'create') {
       const res = cmsResponse as CreateDatabaseWithConfigResponse;
-      const ops: Array<{ success: boolean; error?: { message: string; code?: string } }> = [
-        res?.createDatabase,
-        res?.startDatabase,
-        res?.updateUser,
-        res?.setAutoAddVol,
-        res?.setAutoStart,
-      ].filter(Boolean) as any;
 
-      const failed = ops.find((op) => op.success === false);
-      if (failed) {
+      // The database itself is the artifact the job is about — a later
+      // follow-up step failing (auto-start, dba password, auto-add-vol
+      // config) doesn't mean creation failed, it means the database now
+      // exists but needs manual follow-up. Reporting the whole job as
+      // "failed" in that case hid a database that actually got created.
+      // Each step's own success/error is still on job.result either way.
+      if (res?.createDatabase?.success !== true) {
         job.status = 'failed';
         job.error = {
-          message: failed.error?.message || 'Create database failed',
-          code: failed.error?.code,
+          message: res?.createDatabase?.error?.message || 'Create database failed',
+          code: res?.createDatabase?.error?.code,
         };
         job.result = res;
         return false;
