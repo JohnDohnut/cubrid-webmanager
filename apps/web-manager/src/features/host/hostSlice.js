@@ -218,6 +218,7 @@ export const startService = createAsyncThunk(
       dispatch(hostSlice.actions.setServiceProgressMessage('Refreshing status...'));
       dispatch(fetchDatabaseStartInfo(hostUid));
       dispatch(fetchBrokerList(hostUid));
+      dispatch(refreshHaInfo(hostUid));
       if (failed.length > 0) {
         return rejectWithValue(formatServiceFailures('start service', failed));
       }
@@ -241,6 +242,7 @@ export const stopService = createAsyncThunk(
       dispatch(hostSlice.actions.setServiceProgressMessage('Refreshing status...'));
       dispatch(fetchDatabaseStartInfo(hostUid));
       dispatch(fetchBrokerList(hostUid));
+      dispatch(refreshHaInfo(hostUid));
       if (failed.length > 0) {
         return rejectWithValue(formatServiceFailures('stop service', failed));
       }
@@ -269,6 +271,34 @@ export const loginToHost = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.response?.data?.error || `Failed to login to host ${hostUid}`);
     }
+  }
+);
+
+// Async thunk to re-derive a host's HA badge (role/peers) without a full
+// relogin — used after anything that can change HA role server-side
+// (Service Start/Stop's ha_start/ha_stop) and by the manual server-list
+// refresh, since haInfo is otherwise only ever populated at login time.
+export const refreshHaInfo = createAsyncThunk(
+  'host/refreshHaInfo',
+  async (hostUid, { rejectWithValue }) => {
+    try {
+      const response = await hostApi.getHaInfo(hostUid);
+      return { hostUid, ...response };
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || `Failed to refresh HA info for ${hostUid}`);
+    }
+  }
+);
+
+// Async thunk for a manual "refresh" of the whole server list: re-fetches
+// the host/group tree, then re-derives HA info for every logged-in host.
+export const refreshServerList = createAsyncThunk(
+  'host/refreshServerList',
+  async (_, { dispatch, getState }) => {
+    await dispatch(fetchHosts());
+    const { authorizedHosts } = getState().host;
+    await Promise.all(authorizedHosts.map((hostUid) => dispatch(refreshHaInfo(hostUid))));
+    return true;
   }
 );
 
@@ -671,6 +701,13 @@ const hostSlice = createSlice({
         if (!state.isBatchHostLogin) {
           state.error = action.payload;
         }
+      })
+      // Silent background refresh — no loading/error state, so a failure
+      // (e.g. a host that went offline) doesn't surface an error banner.
+      .addCase(refreshHaInfo.fulfilled, (state, action) => {
+        const { hostUid, ...haInfo } = action.payload;
+        state.haInfo[hostUid] = haInfo;
+        syncHaInfoStorage(state);
       })
       .addCase(deleteHost.pending, (state) => {
         state.loading = true;

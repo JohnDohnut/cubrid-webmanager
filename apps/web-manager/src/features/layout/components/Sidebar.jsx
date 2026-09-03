@@ -14,7 +14,8 @@ import {
   startService,
   stopService,
   moveHost,
-  deleteHost
+  deleteHost,
+  refreshServerList
 } from '../../host/hostSlice';
 import {
   fetchDatabaseStartInfo, startDatabase, stopDatabase, loginDatabase, registerDatabase,
@@ -634,6 +635,20 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                     <span className="text-[10px] font-semibold tracking-wide">{CM.loginAll}</span>
                   </button>
                 )}
+                {!isServerListCollapsed && (
+                  <button
+                    data-testid="refresh-server-list-toolbar-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      dispatch(refreshServerList());
+                    }}
+                    disabled={hostsLoading}
+                    className="flex items-center justify-center h-6 w-6 rounded-sm border border-slate-200 dark:border-white/10 bg-white dark:bg-white/4 text-slate-400 hover:text-amber-500 hover:border-amber-400/50 hover:bg-amber-500/5 dark:hover:bg-amber-500/10 transition-all active:scale-95 shadow-xs disabled:opacity-50 disabled:pointer-events-none"
+                    title={CM.refresh}
+                  >
+                    <Icon name="refresh" size="12px" weight={400} className={hostsLoading ? 'animate-spin' : ''} />
+                  </button>
+                )}
               </div>
 
 
@@ -1018,6 +1033,15 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
             </Typography>
             <Icon name="folder" size="xs" className="opacity-30" weight={300} />
           </div>
+          <MenuItem
+            icon="refresh"
+            label={CM.refresh}
+            onClick={() => {
+              dispatch(refreshServerList());
+              setGroupContextMenu(null);
+            }}
+          />
+          <MenuDivider />
           <MenuItem
             icon="create_new_folder"
             label={CM.newGroup}

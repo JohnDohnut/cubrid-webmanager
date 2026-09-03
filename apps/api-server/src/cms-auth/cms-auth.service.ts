@@ -109,10 +109,20 @@ export class CmsAuthService {
       return user;
     });
 
-    return this.buildHaLoginPayload(userId, uid);
+    return this.getHaInfo(userId, uid);
   }
 
-  private async buildHaLoginPayload(userId: string, uid: string): Promise<CmsHostLoginClientResponse> {
+  /**
+   * Re-derives the same HA role/peer payload `login` returns, without
+   * re-authenticating — for refreshing a host's HA badge after something
+   * that can change its role (e.g. Service Start/Stop's `ha_start`/`ha_stop`)
+   * without the client having to log in again.
+   *
+   * @param userId User ID from JWT
+   * @param uid Host UID
+   * @returns HA-aware payload (`isHA` false has no extra fields; true includes node role and peers)
+   */
+  public async getHaInfo(userId: string, uid: string): Promise<CmsHostLoginClientResponse> {
     const conf = await this.cmsConfigService.getAllSystemParam(userId, uid, CMS_CONFNAME_CUBRID);
     if (!isHostHaModeOnFromCubridConf(conf)) {
       return { success: true, isHA: false };
