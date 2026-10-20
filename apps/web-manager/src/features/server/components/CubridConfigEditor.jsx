@@ -52,6 +52,10 @@ function validateConfText(confname, text, databaseParamSchema) {
         problems.push(`Line ${lineNo}: ${key} can only be set in [common], not [${section.name}]`);
         continue;
       }
+      if (entry.instanceOnly && isCommonSection) {
+        problems.push(`Line ${lineNo}: ${key} cannot be set in [${section.name ?? 'common'}], only per-database`);
+        continue;
+      }
       const reason = validateParamValue(entry.guard, value);
       if (reason) problems.push(`Line ${lineNo}: ${key} = "${value}" — ${reason}`);
     }

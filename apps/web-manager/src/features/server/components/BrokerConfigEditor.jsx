@@ -12,9 +12,10 @@ import ConfigEditorToolbar from './broker/ConfigEditorToolbar';
 import ConfigSourceEditor from './broker/ConfigSourceEditor';
 
 // Same purpose as CubridConfigEditor.jsx's identical pair — see its
-// comment. No commonOnly-equivalent check here since no current
-// BROKER_PARAM_SCHEMA entry needs one, but kept section-aware (not just
-// a flat key scan) so that's a small addition later, not a rewrite.
+// comment. Section-aware so commonOnly/instanceOnly violations (e.g. one
+// of the 5 [broker]-only keys set inside a [%name] section, or BROKER_PORT/
+// APPL_SERVER_SHM_ID set inside [broker] itself — see
+// broker-param-schema.ts) are caught here too, not just server-side.
 function parseConfSections(text) {
   const sections = [];
   let current = { name: null, entries: [] };
@@ -40,9 +41,18 @@ function validateConfText(text, brokerParamSchema) {
   const schemaByKey = new Map(brokerParamSchema.map(e => [e.key.toLowerCase(), e]));
   const problems = [];
   for (const section of parseConfSections(text)) {
+    const isCommonSection = section.name === null || section.name === 'broker';
     for (const { key, value, lineNo } of section.entries) {
       const entry = schemaByKey.get(key.toLowerCase());
       if (!entry) continue;
+      if (entry.commonOnly && !isCommonSection) {
+        problems.push(`Line ${lineNo}: ${key} can only be set in [broker], not [${section.name}]`);
+        continue;
+      }
+      if (entry.instanceOnly && isCommonSection) {
+        problems.push(`Line ${lineNo}: ${key} cannot be set in [${section.name ?? 'broker'}], only per-broker`);
+        continue;
+      }
       const reason = validateParamValue(entry.guard, value);
       if (reason) problems.push(`Line ${lineNo}: ${key} = "${value}" — ${reason}`);
     }

@@ -29,7 +29,7 @@ import { BaseCmsResponse } from '@type/cms-response/base-cms-response';
 import { BaseService, HandleCmsErrors } from '@common';
 import { DatabaseUserService } from '@database/user/database-user.service';
 import { resolveHostParamSchemas } from './param-schema.util';
-import { ParamSchemaEntry, validateParams } from '@api-interfaces';
+import { ParamSchemaEntry, validateParams, validateParamValue } from '@api-interfaces';
 
 /**
  * Service for managing CMS environment configuration operations.
@@ -205,6 +205,29 @@ export class CmsConfigService extends BaseService {
   }
 
   /**
+   * Entry point for the raw cubridconf/cmconf text editor's save — unlike
+   * `setSystemParam` (also called internally by `setDatabaseConfigParams`
+   * with an already-guard-checked, freshly-merged `confdata`), this is the
+   * only place arbitrary hand-edited conf text reaches the server, so it's
+   * the one place that text needs validating before being accepted.
+   * cmconf has no schema at all (see `assertValidConfText`'s guard) and is
+   * passed straight through unchanged, same as before this existed.
+   */
+  @HandleCmsErrors()
+  async setSystemParamFromRawEdit(
+    userId: string,
+    hostUid: string,
+    confname: string,
+    confdata: string[]
+  ): Promise<SetSysParamClientResponse> {
+    if (confname === 'cubridconf') {
+      const { database: schema } = (await this.getEnv(userId, hostUid)).paramSchemas;
+      this.assertValidConfText(schema, confdata, ['common']);
+    }
+    return this.setSystemParam(userId, hostUid, confname, confdata);
+  }
+
+  /**
    * Set system parameters in a configuration file on a CMS host.
    * Returns domain-only data (CMS envelope removed).
    *
@@ -267,6 +290,24 @@ export class CmsConfigService extends BaseService {
       conflist: cms.conflist,
       confname: cms.confname,
     };
+  }
+
+  /**
+   * Entry point for the raw brokerconf text editor's save — same reasoning
+   * as `setSystemParamFromRawEdit`: `setBrokerParam` is also called
+   * internally by `setBrokerConfigParams` with already-guard-checked
+   * `confdata`, so this is the one place hand-edited broker.conf text
+   * needs validating before being accepted.
+   */
+  @HandleCmsErrors()
+  async setBrokerParamFromRawEdit(
+    userId: string,
+    hostUid: string,
+    confdata: string[]
+  ): Promise<SetSysParamClientResponse> {
+    const { broker: schema } = (await this.getEnv(userId, hostUid)).paramSchemas;
+    this.assertValidConfText(schema, confdata, ['broker']);
+    return this.setBrokerParam(userId, hostUid, confdata);
   }
 
   /**
@@ -462,6 +503,80 @@ export class CmsConfigService extends BaseService {
       // would be silently replaced by "The field format is invalid."
       throw ValidationError.InvalidFieldFormat('params', undefined, {
         message: `Invalid parameter value(s): ${problems.join('; ')}`,
+      });
+    }
+  }
+
+  /**
+   * Splits raw conf text into sections of `{key, value, lineNo}` entries,
+   * same shape/semantics as the frontend's identical `parseConfSections`
+   * helper in CubridConfigEditor.jsx/BrokerConfigEditor.jsx (kept in sync
+   * by hand — this one only exists to re-check what that one already
+   * checked, in case a request reaches this endpoint some other way).
+   * `name` is `null` for any content before the first `[...]` header.
+   */
+  private parseConfTextSections(
+    lines: string[]
+  ): { name: string | null; entries: { key: string; value: string; lineNo: number }[] }[] {
+    const sections: { name: string | null; entries: { key: string; value: string; lineNo: number }[] }[] = [];
+    let current: { name: string | null; entries: { key: string; value: string; lineNo: number }[] } = {
+      name: null,
+      entries: [],
+    };
+    lines.forEach((line, i) => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) return;
+      const sectionMatch = trimmed.match(/^\[%?(.+)\]$/);
+      if (sectionMatch) {
+        if (current.name !== null || current.entries.length > 0) sections.push(current);
+        current = { name: sectionMatch[1].toLowerCase(), entries: [] };
+        return;
+      }
+      const eq = trimmed.indexOf('=');
+      if (eq === -1) return;
+      current.entries.push({ key: trimmed.slice(0, eq).trim(), value: trimmed.slice(eq + 1).trim(), lineNo: i + 1 });
+    });
+    if (current.entries.length > 0) sections.push(current);
+    return sections;
+  }
+
+  /**
+   * Guard-checks raw, hand-edited conf text (the free-text editor's save
+   * path) against `schema` — the one validation surface `assertValidParams`
+   * doesn't cover, since that only ever sees a pre-merged, already-targeted
+   * `params` object for one known section. Here the section is whatever
+   * the user actually typed, so each recognized key is checked both for
+   * its value (same `validateParamValue` every other path uses) and for
+   * `commonOnly`/`instanceOnly` scope against whichever section it's
+   * actually sitting in. `commonSectionNames` is `['common']` for
+   * cubrid.conf or `['broker']` for broker.conf — the one section name
+   * that counts as "shared," everything else is a per-instance section.
+   * An unrecognized key is left alone (not every key has schema coverage;
+   * see `setSystemParamFromRawEdit`'s cmconf case for the extreme of that).
+   */
+  private assertValidConfText(schema: ParamSchemaEntry[], lines: string[], commonSectionNames: string[]): void {
+    const schemaByKey = new Map(schema.map((entry) => [entry.key.toLowerCase(), entry]));
+    const problems: string[] = [];
+    for (const section of this.parseConfTextSections(lines)) {
+      const isCommonSection = section.name === null || commonSectionNames.includes(section.name);
+      for (const { key, value, lineNo } of section.entries) {
+        const entry = schemaByKey.get(key.toLowerCase());
+        if (!entry) continue;
+        if (entry.commonOnly && !isCommonSection) {
+          problems.push(`Line ${lineNo}: ${key} can only be set in [${commonSectionNames[0]}], not [${section.name}]`);
+          continue;
+        }
+        if (entry.instanceOnly && isCommonSection) {
+          problems.push(`Line ${lineNo}: ${key} cannot be set in [${section.name ?? commonSectionNames[0]}], only per-instance`);
+          continue;
+        }
+        const reason = validateParamValue(entry.guard, value);
+        if (reason) problems.push(`Line ${lineNo}: ${key} = "${value}" — ${reason}`);
+      }
+    }
+    if (problems.length > 0) {
+      throw ValidationError.InvalidFieldFormat('confdata', undefined, {
+        message: `Invalid configuration value(s): ${problems.join('; ')}`,
       });
     }
   }
