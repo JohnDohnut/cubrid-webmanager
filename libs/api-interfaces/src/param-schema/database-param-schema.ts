@@ -26,7 +26,12 @@ export const DATABASE_PARAM_SCHEMA: VersionedParamSchemaEntry[] = [
   { key: 'access_ip_control', category: 'advanced', scope: 'SERVER', guard: { kind: 'enum', options: ['yes', 'no'] }, default: 'no' },
   { key: 'access_ip_control_file', category: 'advanced', scope: 'SERVER', guard: { kind: 'string' }, default: '' },
   { key: 'async_commit', category: 'advanced', scope: 'SERVER', guard: { kind: 'enum', options: ['yes', 'no'] }, default: 'no' },
-  { key: 'checkpoint_every_npages', category: 'advanced', scope: 'SERVER', guard: { kind: 'int', min: 10 }, default: '10' },
+  // Real engine default is 100000 (system_parameter.c:1400) — '10' was the
+  // *lower bound* (same struct's last field, system_parameter.c:1402)
+  // mistakenly copied into the default slot. Live-confirmed via CMS
+  // paramdump against a real 11.4.5 host with no conf override for this
+  // key: reported value was exactly 100000.
+  { key: 'checkpoint_every_npages', category: 'advanced', scope: 'SERVER', guard: { kind: 'int', min: 10 }, default: '100000' },
   { key: 'data_aout_ratio', category: 'advanced', scope: 'SERVER', guard: { kind: 'float', min: 0.0, max: 3.0 }, default: '0.0' },
   { key: 'data_buffer_flush_ratio', category: 'advanced', scope: 'SERVER', guard: { kind: 'float', min: 0.01, max: 0.95 }, default: '0.01' },
   // Real engine default IS 0 (system_parameter.c:1669) — every consuming
@@ -111,7 +116,11 @@ export const DATABASE_PARAM_SCHEMA: VersionedParamSchemaEntry[] = [
   { key: 'lock_escalation', category: 'general', guard: { kind: 'int', min: 5 }, default: '100000' },
   { key: 'lock_timeout_in_secs', category: 'general', guard: { kind: 'int', min: -1 }, default: '-1' }, // -1 = unlimited sentinel
   { key: 'deadlock_detection_interval_in_secs', category: 'general', guard: { kind: 'float', min: 0.1 }, default: '1' },
-  { key: 'checkpoint_interval_in_mins', category: 'general', guard: { kind: 'int', min: 1 }, default: '1000' },
+  // Real engine default is 360 SECONDS internally (system_parameter.c:1422,
+  // PRM_ID_LOG_CHECKPOINT_INTERVAL_SECS) = 6 minutes via prm_sec_to_min.
+  // '1000' had no traceable source. Live-confirmed: a real 11.4.5 host with
+  // no conf override for this key reported exactly 6.
+  { key: 'checkpoint_interval_in_mins', category: 'general', guard: { kind: 'int', min: 1 }, default: '6' },
   // TRAN_REP_CLASS_COMMIT_INSTANCE == TRAN_READ_COMMITTED, the engine's own
   // literal default (system_parameter.c, isolation_level's prm_Def entry).
   { key: 'isolation_level', category: 'general', guard: { kind: 'enum', options: ['TRAN_SERIALIZABLE', 'TRAN_REP_CLASS_REP_INSTANCE', 'TRAN_REP_CLASS_COMMIT_INSTANCE'] }, default: 'TRAN_REP_CLASS_COMMIT_INSTANCE' },
@@ -133,14 +142,30 @@ export const DATABASE_PARAM_SCHEMA: VersionedParamSchemaEntry[] = [
   //    1347 on develop) to decide whether to construct the single
   //    host-wide server_monitor that watches/restarts every crashed
   //    cub_server process — `commonOnly` from here on.
-  { key: 'auto_restart_server', category: 'general', guard: { kind: 'enum', options: ['yes', 'no'] }, default: 'no', maxVersion: '11.3.999' },
-  { key: 'auto_restart_server', category: 'general', guard: { kind: 'enum', options: ['yes', 'no'] }, default: 'no', commonOnly: true, minVersion: '11.4' },
+  //
+  // Real engine default is `true` ("yes") on every branch checked
+  // (release/11.0: prm_auto_restart_server_default = true; develop:
+  // {false, {.b = true}}) — this was inverted. Live-confirmed: a real
+  // 11.4.5 host with no conf override for this key reported "y".
+  { key: 'auto_restart_server', category: 'general', guard: { kind: 'enum', options: ['yes', 'no'] }, default: 'yes', maxVersion: '11.3.999' },
+  { key: 'auto_restart_server', category: 'general', guard: { kind: 'enum', options: ['yes', 'no'] }, default: 'yes', commonOnly: true, minVersion: '11.4' },
 
   // ── buffer (pages/size pairs — only one side of each pair is ever sent,
   // per the UI's radio choice) ──
-  { key: 'data_buffer_pages', category: 'buffer', guard: { kind: 'int', min: 1024 }, default: '25000', bufferGroup: { pairKey: 'data', role: 'pages' } },
+  // Real engine default is 32768 pages (system_parameter.c:1211,
+  // PRM_ID_PB_NBUFFERS) — '25000' had no traceable source. At the default
+  // 16KB IO page size this is exactly 512M, matching data_buffer_size's
+  // default below (which was already correct) — live-confirmed too: a
+  // real 11.4.5 host with data_buffer_size explicitly set to 512M in conf
+  // reported exactly 32768 for this key.
+  { key: 'data_buffer_pages', category: 'buffer', guard: { kind: 'int', min: 1024 }, default: '32768', bufferGroup: { pairKey: 'data', role: 'pages' } },
   { key: 'data_buffer_size', category: 'buffer', guard: { kind: 'size' }, default: '512', bufferGroup: { pairKey: 'data', role: 'size' } },
-  { key: 'sort_buffer_pages', category: 'buffer', guard: { kind: 'int', min: 1 }, default: '16', bufferGroup: { pairKey: 'sort', role: 'pages' } },
+  // Real engine default is 128 pages (system_parameter.c:1178,
+  // PRM_ID_SR_NBUFFERS) — '16' had no traceable source. At the default
+  // 16KB IO page size this is exactly 2M, matching sort_buffer_size's
+  // default below (already correct) — live-confirmed the same way as
+  // data_buffer_pages above.
+  { key: 'sort_buffer_pages', category: 'buffer', guard: { kind: 'int', min: 1 }, default: '128', bufferGroup: { pairKey: 'sort', role: 'pages' } },
   { key: 'sort_buffer_size', category: 'buffer', guard: { kind: 'size' }, default: '2', bufferGroup: { pairKey: 'sort', role: 'size' } },
   // Real engine default is `16 * ONE_K` = 16384 pages (system_parameter.c:1378,
   // comment: "16k pages => 64M / 128M / 256M based on log page size") — the
@@ -149,14 +174,15 @@ export const DATABASE_PARAM_SCHEMA: VersionedParamSchemaEntry[] = [
   // or defaulted) was checked, regardless of which buffer pair side the UI
   // had selected.
   { key: 'log_buffer_pages', category: 'buffer', guard: { kind: 'int', min: 128 }, default: '16384', bufferGroup: { pairKey: 'log', role: 'pages' } }, // LOGPB_BUFFER_NPAGES_LOWER
-  // Byte-equivalent default intentionally NOT kept in exact lockstep with
-  // log_buffer_pages' default — the real conversion is log-page-size
-  // dependent (same source comment above), not a fixed ratio; '4' (MB) is
-  // a placeholder in the same spirit as the other buffer pairs' size
-  // defaults, not a value anyone should treat as exactly matching 16384
-  // pages. No guard bounds here, so unlike the pages side this can't
-  // itself fail validation regardless of its exact value.
-  { key: 'log_buffer_size', category: 'buffer', guard: { kind: 'size' }, default: '4', bufferGroup: { pairKey: 'log', role: 'size' } },
+  // Byte-equivalent default: the real conversion is log-page-size
+  // dependent (same source comment above — 64M/128M/256M depending on
+  // that setting), not a fixed ratio, so this can't be universally exact
+  // the way data/sort_buffer_size's defaults are. '256' (M) is not a
+  // guess though — live-confirmed on a real 11.4.5 host (its log page
+  // size resolves 16384 pages to exactly 256M). No guard bounds here, so
+  // unlike the pages side this can't itself fail validation regardless of
+  // its exact value either way.
+  { key: 'log_buffer_size', category: 'buffer', guard: { kind: 'size' }, default: '256', bufferGroup: { pairKey: 'log', role: 'size' } },
   // index_scan_oid_buffer_{pages,size} share one underlying PRM (same
   // dynamic_flag in system_parameter.c) exactly like the other three
   // pairs — unlike those, the "pages" side is a float ratio (engine range
