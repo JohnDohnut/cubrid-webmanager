@@ -15,6 +15,7 @@ import { Input } from '../../../components/ds/forms/Input';
 import { Select } from '../../../components/ds/forms/Select';
 import { Typography } from '../../../components/ds/foundation/Typography';
 import { SectionHeader } from '../../../components/ds/foundation/SectionHeader';
+import { InfoBanner } from '../../../components/ds/foundation/InfoBanner';
 import { ModalStatusError } from '../../../components/ds/feedback/ActionStatus';
 import { validateEffectiveParams } from '@api-interfaces';
 
@@ -333,6 +334,11 @@ export default function BrokerPropertyModal() {
               </div>
             ) : (
               <div>
+                <div className="px-5 pt-4">
+                  <InfoBanner variant="info">
+                    {CM.usingDefaultExplainerBanner}
+                  </InfoBanner>
+                </div>
                 <div className="flex items-center h-10 px-5 bg-slate-50 dark:bg-bk-main border-b border-slate-200 dark:border-white/8 sticky top-0 z-20">
                   <SectionHeader title={CM.propertyName} icon="label" className="w-[280px] !m-0" />
                   <SectionHeader title={CM.type} icon="code" className="w-[90px] !m-0" />
