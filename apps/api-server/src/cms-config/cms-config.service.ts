@@ -607,6 +607,17 @@ export class CmsConfigService extends BaseService {
    * together instead, with a warning logged so the underlying duplicate
    * (a pre-existing data issue, not something this merge introduces) stays
    * visible.
+   *
+   * Deliberately add/update-only — there's no way to express "delete this
+   * line" through `params` (a key just absent from it is left alone, not
+   * removed), so a param once explicitly set can't be reverted back to an
+   * implicit engine default through the typed table endpoints. That's a
+   * real gap but an intentionally unfixed one: the raw conf editor
+   * (CubridConfigEditor/BrokerConfigEditor) already deletes a line exactly
+   * the way a text editor should — the user removes it and the unchanged
+   * `confdata` is saved verbatim (see `setSystemParamFromRawEdit`) — so
+   * building delete semantics into this merge model and the table UI on
+   * top of it would duplicate a capability that already exists for free.
    */
   private mergeNamedSection(
     lines: string[],
