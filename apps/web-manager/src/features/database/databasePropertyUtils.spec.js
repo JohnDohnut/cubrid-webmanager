@@ -48,4 +48,21 @@ describe('getModifiedKeys', () => {
     // Restoring the conf file's own explicit value clears the change.
     expect(getModifiedKeys(loaded, { csql_history_num: '30' }, defaults)).toEqual([]);
   });
+
+  it('clears the change when a never-set key is typed into and then cleared back to blank', () => {
+    const loaded = {};
+    const defaults = { csql_history_num: '50' };
+
+    expect(getModifiedKeys(loaded, { csql_history_num: '75' }, defaults)).toEqual(['csql_history_num']);
+    // Cleared back out — still matches the original "never set" state,
+    // regardless of what the (non-blank) schema default happens to be.
+    expect(getModifiedKeys(loaded, { csql_history_num: '' }, defaults)).toEqual([]);
+  });
+
+  it('still reports a genuinely loaded value cleared to blank as modified', () => {
+    const loaded = { csql_history_num: '30' };
+    const defaults = { csql_history_num: '50' };
+
+    expect(getModifiedKeys(loaded, { csql_history_num: '' }, defaults)).toEqual(['csql_history_num']);
+  });
 });

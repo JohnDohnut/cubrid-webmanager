@@ -174,6 +174,14 @@ export default function BrokerPropertyModal() {
   // when there's no real loaded value fixes that, matching
   // databasePropertyUtils.getModifiedKeys's identical fix on the DB side.
   const isKeyModified = (key) => {
+    // A never-explicitly-set key (initialParams[key] undefined) that's
+    // been typed into and cleared back out still reads as `''` here (React
+    // state doesn't un-set the key just because the input emptied), not
+    // back to `undefined`. Comparing that `''` against brokerDefaults[key]
+    // would wrongly keep it "modified" forever once touched, for any key
+    // whose default isn't itself blank — blank only means "back to
+    // implicit" when nothing was explicit before either.
+    if (initialParams[key] === undefined && localParams[key] === '') return false;
     const before = initialParams[key] !== undefined ? initialParams[key] : brokerDefaults[key];
     return localParams[key] !== before;
   };
