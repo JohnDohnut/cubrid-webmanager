@@ -446,26 +446,27 @@ export default function DatabasePropertyModal() {
     && !HA_MODE_OFF_KEYWORDS.includes(String(params.ha_mode).trim().toLowerCase());
 
   const generalRows = useMemo(() => databaseParamSchema
-    .filter(e => e.category === 'general')
-    .map(e => {
-      // Same commonOnly enforcement as advancedRows below (cubrid_port_id,
-      // auto_restart_server on 11.4+) — these two happen to be 'general'
-      // category, not 'advanced', but the server-side rejection applies
-      // identically regardless of which UI tab a key is grouped under.
-      const isCommonOnlyBlocked = e.commonOnly && !!selectedDatabase;
-      return {
-        ...e,
-        value: params[e.key],
-        isModified: modifiedKeySet.has(e.key),
-        error: guardErrors[e.key],
-        disabled: isCommonOnlyBlocked,
-        disabledHint: isCommonOnlyBlocked ? CM.paramCommonOnlyHint : null,
-      };
-    })
-  , [databaseParamSchema, params, modifiedKeySet, guardErrors, selectedDatabase, CM]);
+    // commonOnly keys (cubrid_port_id, auto_restart_server on 11.4+) only
+    // belong in [common] — hidden entirely while editing a specific
+    // database, same as advancedRows below and BrokerPropertyModal's
+    // identical commonOnly filter, so the entry point you opened (공통
+    // 속성 편집 vs 개별 속성 편집) and the param set you actually see
+    // always match instead of showing-then-disabling a field that could
+    // never be saved from here anyway.
+    .filter(e => e.category === 'general' && !(e.commonOnly && selectedDatabase))
+    .map(e => ({
+      ...e,
+      value: params[e.key],
+      isModified: modifiedKeySet.has(e.key),
+      error: guardErrors[e.key],
+    }))
+  , [databaseParamSchema, params, modifiedKeySet, guardErrors, selectedDatabase]);
 
   const advancedRows = useMemo(() => databaseParamSchema
-    .filter(e => e.category === 'advanced')
+    // See generalRows' comment — commonOnly keys (ha_mode/ha_node_list/
+    // ha_port_id) are hidden entirely while a specific database is being
+    // edited, not shown-and-disabled.
+    .filter(e => e.category === 'advanced' && !(e.commonOnly && selectedDatabase))
     .map(e => {
       // Non-blocking hint only — never affects validity/Apply. Reads the
       // OTHER param's effective value (falling back to its own schema
@@ -479,21 +480,12 @@ export default function DatabasePropertyModal() {
               .trim().toLowerCase()
           )
         : false;
-      // commonOnly keys (ha_mode/ha_node_list/ha_port_id) are blocked
-      // server-side when writing to a per-database [@dbname] section —
-      // see CmsConfigService.setDatabaseConfigParams. Disabling them here
-      // too (only while editing a specific database, not [common] itself)
-      // keeps the UI from showing an edit that would just be rejected on
-      // Apply.
-      const isCommonOnlyBlocked = e.commonOnly && !!selectedDatabase;
       return {
         ...e,
         value: params[e.key] !== undefined ? params[e.key] : e.default,
         isModified: modifiedKeySet.has(e.key),
         error: guardErrors[e.key],
         inactiveHint: isInactive ? CM.paramInactiveWhileHint(dep.dependsOnKey) : null,
-        disabled: isCommonOnlyBlocked,
-        disabledHint: isCommonOnlyBlocked ? CM.paramCommonOnlyHint : null,
       };
     })
   , [databaseParamSchema, params, modifiedKeySet, guardErrors, schemaDefaults, CM, selectedDatabase]);
@@ -545,8 +537,8 @@ export default function DatabasePropertyModal() {
             value={isHaForcedOff ? 'no' : row.value}
             defaultValue={row.default}
             onChange={(val) => setParams({ ...params, [row.key]: val })}
-            disabled={row.disabled || isHaForcedOff}
-            disabledHint={row.disabled ? row.disabledHint : CM.autoRestartHaDisabledHint}
+            disabled={isHaForcedOff}
+            disabledHint={CM.autoRestartHaDisabledHint}
             error={row.error}
           />
         );
@@ -582,31 +574,27 @@ export default function DatabasePropertyModal() {
         // loses precision on 64-bit values.
         const isNumberInput = row.guard.kind === 'int' || row.guard.kind === 'float';
         return options ? (
-          <div className="w-full max-w-none" title={row.disabled ? row.disabledHint : undefined}>
+          <div className="w-full max-w-none">
             <Select
               size="sm"
               value={row.value}
               options={options.map(o => ({ value: o, label: o.toUpperCase() }))}
               onChange={e => setParams({ ...params, [row.key]: e.target.value })}
               className="w-full max-w-none"
-              disabled={row.disabled}
             />
-            {row.disabled && <p className="text-11 text-slate-400 dark:text-slate-500 italic mt-0.5">{row.disabledHint}</p>}
-            {!row.disabled && row.inactiveHint && <p className="text-11 text-slate-400 dark:text-slate-500 italic mt-0.5">{row.inactiveHint}</p>}
+            {row.inactiveHint && <p className="text-11 text-slate-400 dark:text-slate-500 italic mt-0.5">{row.inactiveHint}</p>}
           </div>
         ) : (
-          <div title={row.disabled ? row.disabledHint : row.error}>
+          <div title={row.error}>
             <Input
               type={isNumberInput ? 'number' : 'text'}
               size="sm"
               value={row.value}
               onChange={e => setParams({ ...params, [row.key]: e.target.value })}
               className={`w-full max-w-none ${row.error ? 'ring-1 ring-rose-500' : ''}`}
-              disabled={row.disabled}
             />
-            {row.disabled && <p className="text-11 text-slate-400 dark:text-slate-500 italic mt-0.5">{row.disabledHint}</p>}
-            {!row.disabled && row.error && <p className="text-11 text-rose-500 mt-0.5">{row.error}</p>}
-            {!row.disabled && !row.error && row.inactiveHint && <p className="text-11 text-slate-400 dark:text-slate-500 italic mt-0.5">{row.inactiveHint}</p>}
+            {row.error && <p className="text-11 text-rose-500 mt-0.5">{row.error}</p>}
+            {!row.error && row.inactiveHint && <p className="text-11 text-slate-400 dark:text-slate-500 italic mt-0.5">{row.inactiveHint}</p>}
           </div>
         );
       },

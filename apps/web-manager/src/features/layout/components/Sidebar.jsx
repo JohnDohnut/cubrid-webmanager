@@ -1517,7 +1517,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           <MenuDivider />
           <MenuItem
             icon="tune"
-            label={CM.properties}
+            label={CM.editInstanceProperties}
             disabled={!loggedInDatabases.includes(dbKey(selectedHostUid, dbContextMenu.db))}
             onClick={() => { dispatch(setSelectedDatabase(dbContextMenu.db)); dispatch(openDatabasePropertyModal()); setDbContextMenu(null); }}
           />
@@ -1641,7 +1641,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
             }}
           />
           <MenuDivider />
-          <MenuItem icon="tune" label={CM.properties} onClick={() => { setDbRootContextMenu(null); dispatch(setSelectedDatabase(null)); dispatch(openDatabasePropertyModal()); }} />
+          <MenuItem icon="tune" label={CM.editCommonProperties} onClick={() => { setDbRootContextMenu(null); dispatch(setSelectedDatabase(null)); dispatch(openDatabasePropertyModal()); }} />
         </ContextMenuWrapper>
       )}
 
@@ -1756,7 +1756,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           <MenuDivider />
           <MenuItem
             icon="tune"
-            label={CM.properties}
+            label={CM.editCommonProperties}
             onClick={() => {
               setBrokerRootContextMenu(null);
               dispatch(openBrokerPropertyModal({ hostUid: selectedHostUid, brokerName: null }));
@@ -1837,7 +1837,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           />
           <MenuItem
             icon="tune"
-            label={CM.properties}
+            label={CM.editInstanceProperties}
             onClick={() => {
                 dispatch(openBrokerPropertyModal({ hostUid: selectedHostUid, brokerName: brokerContextMenu.broker }));
                 setBrokerContextMenu(null);

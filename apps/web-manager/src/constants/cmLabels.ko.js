@@ -391,6 +391,8 @@ export const CM_KO = {
   paramDump: '파라미터 덤프...',
   planDump: '질의 수행 계획 캐시 정보...',
   properties: '속성',
+  editCommonProperties: '공통 속성 편집',
+  editInstanceProperties: '개별 속성 편집',
   databaseInfoMenu: '데이터베이스 정보',
 
   users: '사용자',
@@ -751,7 +753,6 @@ export const CM_KO = {
   serverNavLabel: '서버',
   autoRestartHaDisabledHint: 'HA가 활성화된 경우 CUBRID가 auto_restart_server를 항상 비활성화합니다 — 서버가 비정상 종료되면 그 자리에서 재시작하는 대신 HA를 통해 failover되어야 하기 때문입니다.',
   paramInactiveWhileHint: (dependsOnKey) => `${dependsOnKey}이(가) 꺼져 있으면 적용되지 않습니다`,
-  paramCommonOnlyHint: '이 파라미터는 [common]에서만 설정할 수 있습니다 — HA 클러스터링은 데이터베이스 단위가 아니라 호스트 단위입니다.',
   autoStartHaDisabledHint: 'CUBRID는 HA로 설정된 데이터베이스를 일반 서비스 자동시작 목록으로는 시작을 거부합니다 — HA heartbeat start를 사용해야 합니다.',
   generalParamsTab: '일반 설정',
   advancedParamsTab: '고급 설정',

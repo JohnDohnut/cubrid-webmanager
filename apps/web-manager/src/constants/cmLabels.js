@@ -401,6 +401,8 @@ export const CM = {
   paramDump: 'Param Dump...',
   planDump: 'Plan Dump...',
   properties: 'Properties',
+  editCommonProperties: 'Edit Common Properties',
+  editInstanceProperties: 'Edit Instance Properties',
   databaseInfoMenu: 'Database Info',
 
   // Sidebar tree
@@ -766,7 +768,6 @@ export const CM = {
   serverNavLabel: 'Server',
   autoRestartHaDisabledHint: 'CUBRID always disables auto_restart_server when HA is enabled — an abnormally terminated server should fail over via HA, not restart in place.',
   paramInactiveWhileHint: (dependsOnKey) => `Has no effect while ${dependsOnKey} is off`,
-  paramCommonOnlyHint: 'This parameter can only be set in [common], not per-database — HA clustering is per-host, not per-database.',
   autoStartHaDisabledHint: 'CUBRID refuses to start an HA-configured database through the plain service autostart list — use HA heartbeat start instead.',
   generalParamsTab: 'General Settings',
   advancedParamsTab: 'Advanced Settings',
