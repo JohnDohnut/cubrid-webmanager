@@ -58,10 +58,14 @@ export const DATABASE_PARAM_SCHEMA: VersionedParamSchemaEntry[] = [
   { key: 'file_lock', category: 'advanced', scope: 'SERVER', guard: { kind: 'enum', options: ['yes', 'no'] }, default: 'yes' },
   { key: 'garbage_collection', category: 'advanced', scope: 'CLIENT', guard: { kind: 'enum', options: ['yes', 'no'] }, default: 'no' },
   { key: 'group_commit_interval_in_msecs', category: 'advanced', scope: 'SERVER', guard: { kind: 'int', min: 0 }, default: '0' },
-  // [common] only (commonOnly) — source-confirmed via boot_sr.c:2146's
-  // ER_PRM_CONFLICT_EXISTS_ON_MULTIPLE_SECTIONS: the engine hard-fails
-  // boot if a [@dbname] section's ha_mode disagrees with [common]'s.
-  { key: 'ha_mode', category: 'advanced', scope: 'SERVER', guard: { kind: 'enum', options: ['on', 'off', 'yes', 'no', 'replica'] }, default: 'off', commonOnly: true },
+  // NOT commonOnly — a [@dbname] override is a real, intentional engine
+  // feature: prm_read_and_parse_ini_file (system_parameter.c:6857-6862)
+  // reads [common] then explicitly re-applies [@dbname] on top of it, and
+  // boot_sr.c:2146's ER_PRM_CONFLICT_EXISTS_ON_MULTIPLE_SECTIONS check is
+  // gated behind `!HA_DISABLED()` — i.e. it never fires when the
+  // per-database override resolves to ha_mode=off. This is exactly how an
+  // otherwise-HA host runs one specific database standalone (non-HA).
+  { key: 'ha_mode', category: 'advanced', scope: 'SERVER', guard: { kind: 'enum', options: ['on', 'off', 'yes', 'no', 'replica'] }, default: 'off' },
   // [common] only — ha_node_list is PRM_FOR_HA; whenever ha_mode is on,
   // system_parameter.c's sysprm_load_and_init_internal re-reads
   // cubrid_ha.conf's (db-agnostic, [@dbname]-incapable) [common] section
