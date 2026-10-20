@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { brokerApi } from '../../broker/brokerApi';
 import { showStatusModal, setTabDirty } from '../../layout/layoutSlice';
@@ -6,16 +6,57 @@ import { isAmbiguousFailure } from '../../../api/isAmbiguousFailure';
 import { Typography } from '../../../components/ds/foundation/Typography';
 import { Spinner } from '../../../components/ds/foundation/Spinner';
 import { useCM } from '../../../constants/useCM';
+import { validateParamValue } from '@api-interfaces';
 
 import ConfigEditorToolbar from './broker/ConfigEditorToolbar';
 import ConfigSourceEditor from './broker/ConfigSourceEditor';
+
+// Same purpose as CubridConfigEditor.jsx's identical pair — see its
+// comment. No commonOnly-equivalent check here since no current
+// BROKER_PARAM_SCHEMA entry needs one, but kept section-aware (not just
+// a flat key scan) so that's a small addition later, not a rewrite.
+function parseConfSections(text) {
+  const sections = [];
+  let current = { name: null, entries: [] };
+  text.split('\n').forEach((line, i) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) return;
+    const sectionMatch = trimmed.match(/^\[%?(.+)\]$/);
+    if (sectionMatch) {
+      if (current.name !== null || current.entries.length > 0) sections.push(current);
+      current = { name: sectionMatch[1].toLowerCase(), entries: [] };
+      return;
+    }
+    const eq = trimmed.indexOf('=');
+    if (eq === -1) return;
+    current.entries.push({ key: trimmed.slice(0, eq).trim(), value: trimmed.slice(eq + 1).trim(), lineNo: i + 1 });
+  });
+  if (current.entries.length > 0) sections.push(current);
+  return sections;
+}
+
+function validateConfText(text, brokerParamSchema) {
+  if (!brokerParamSchema?.length) return [];
+  const schemaByKey = new Map(brokerParamSchema.map(e => [e.key.toLowerCase(), e]));
+  const problems = [];
+  for (const section of parseConfSections(text)) {
+    for (const { key, value, lineNo } of section.entries) {
+      const entry = schemaByKey.get(key.toLowerCase());
+      if (!entry) continue;
+      const reason = validateParamValue(entry.guard, value);
+      if (reason) problems.push(`Line ${lineNo}: ${key} = "${value}" — ${reason}`);
+    }
+  }
+  return problems;
+}
 
 export default function BrokerConfigEditor({ hostUid }) {
   const CM = useCM();
   const tabId = `broker_config:${hostUid}`;
   const dispatch = useDispatch();
-  const { hosts } = useSelector((state) => state.host, shallowEqual);
+  const { hosts, hostEnvs } = useSelector((state) => state.host, shallowEqual);
   const { refreshCounter, refreshTabId } = useSelector((state) => state.layout, shallowEqual);
+  const brokerParamSchema = useMemo(() => hostEnvs[hostUid]?.paramSchemas?.broker ?? [], [hostEnvs, hostUid]);
   const currentHost = hosts.find(h => h.uid === hostUid);
   const hostDisplayName = currentHost ? (currentHost.alias || currentHost.id) : CM.unknownHost;
 
@@ -77,6 +118,16 @@ export default function BrokerConfigEditor({ hostUid }) {
   };
 
   const handleSave = async () => {
+    const problems = validateConfText(rawContent, brokerParamSchema);
+    if (problems.length > 0) {
+      dispatch(showStatusModal({
+        type: 'error',
+        title: CM.invalidConfigValues,
+        message: CM.invalidConfigValuesMsg,
+        guidance: problems,
+      }));
+      return;
+    }
     setSaving(true);
     try {
       const confdata = rawContent.split('\n');

@@ -321,6 +321,24 @@ export class CmsConfigService extends BaseService {
     const { database: schema } = (await this.getEnv(userId, hostUid)).paramSchemas;
     this.assertValidParams(schema, params);
 
+    // Some keys (ha_mode, ha_node_list, ha_port_id) are marked
+    // commonOnly in the schema — writing them into a per-database
+    // [@dbname] section is source-confirmed to either get silently
+    // clobbered by a later, db-agnostic cubrid_ha.conf reload, or (for
+    // ha_mode specifically) make the database refuse to boot at all
+    // (ER_PRM_CONFLICT_EXISTS_ON_MULTIPLE_SECTIONS). Reject the request
+    // outright rather than let the UI write something that looks saved
+    // but is either a no-op or an active hazard.
+    if (dbname) {
+      const schemaByKey = new Map(schema.map((entry) => [entry.key, entry]));
+      const commonOnlyKeys = Object.keys(params).filter((key) => schemaByKey.get(key)?.commonOnly);
+      if (commonOnlyKeys.length > 0) {
+        throw ValidationError.InvalidFieldFormat('params', undefined, {
+          message: `These parameters can only be set in [common], not per-database: ${commonOnlyKeys.join(', ')}`,
+        });
+      }
+    }
+
     const current = await this.getAllSystemParam(userId, hostUid, 'cubridconf');
     const lines = current.conflist?.[0]?.confdata ?? [];
     const sectionName = dbname ? `[@${dbname.toLowerCase()}]` : '[common]';
@@ -381,6 +399,14 @@ export class CmsConfigService extends BaseService {
    * on, by design — see `setDatabaseConfigParams`'s class-level comment.
    */
   private assertValidParams(schema: ParamSchemaEntry[], params: Record<string, string | number>): void {
+    // A malformed body (e.g. `params` missing or not an object) must fail
+    // with a clear, specific message here — not reach Object.entries
+    // inside validateParams and crash as an opaque, unhelpful 500.
+    if (params === null || typeof params !== 'object' || Array.isArray(params)) {
+      throw ValidationError.InvalidFieldFormat('params', undefined, {
+        message: '"params" must be an object of paramKey -> value.',
+      });
+    }
     const { errors, unknownKeys } = validateParams(schema, params);
     const problems = [
       ...unknownKeys.map((key) => `${key}: not supported on this host's engine version`),

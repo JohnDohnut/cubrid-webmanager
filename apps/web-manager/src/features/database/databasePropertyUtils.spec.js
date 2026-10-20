@@ -26,4 +26,26 @@ describe('getModifiedKeys', () => {
     expect(getModifiedKeys(loaded, edited)).toEqual(['max_clients']);
     expect(getModifiedKeys(loaded, { max_clients: '100' })).toEqual([]);
   });
+
+  it('does not report a key as modified when retyped to match its schema default', () => {
+    // csql_history_num was never explicitly in the conf file (absent from
+    // `loaded`); the field shows the schema default as a placeholder/value.
+    // Retyping that exact default should not count as a real change.
+    const loaded = {};
+    const defaults = { csql_history_num: '50' };
+
+    expect(getModifiedKeys(loaded, { csql_history_num: '50' }, defaults)).toEqual([]);
+    expect(getModifiedKeys(loaded, { csql_history_num: '75' }, defaults)).toEqual(['csql_history_num']);
+  });
+
+  it('still reports a genuinely loaded value as modified regardless of the schema default', () => {
+    const loaded = { csql_history_num: '30' };
+    const defaults = { csql_history_num: '50' };
+
+    // Retyping the SCHEMA default here is a real change — the conf file's
+    // own explicit value (30) differs from it.
+    expect(getModifiedKeys(loaded, { csql_history_num: '50' }, defaults)).toEqual(['csql_history_num']);
+    // Restoring the conf file's own explicit value clears the change.
+    expect(getModifiedKeys(loaded, { csql_history_num: '30' }, defaults)).toEqual([]);
+  });
 });

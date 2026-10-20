@@ -29,7 +29,13 @@ export const DATABASE_PARAM_SCHEMA: VersionedParamSchemaEntry[] = [
   { key: 'checkpoint_every_npages', category: 'advanced', scope: 'SERVER', guard: { kind: 'int', min: 10 }, default: '10' },
   { key: 'data_aout_ratio', category: 'advanced', scope: 'SERVER', guard: { kind: 'float', min: 0.0, max: 3.0 }, default: '0.0' },
   { key: 'data_buffer_flush_ratio', category: 'advanced', scope: 'SERVER', guard: { kind: 'float', min: 0.01, max: 0.95 }, default: '0.01' },
-  { key: 'backup_volume_max_size_bytes', category: 'advanced', scope: 'SERVER', guard: { kind: 'bigint', min: '32768' }, default: '0' },
+  // Real engine default IS 0 (system_parameter.c:1669) — every consuming
+  // site in file_io.c checks `prm > 0` before treating it as an actual
+  // cap, so 0 means "no backup-volume split limit," not "zero bytes."
+  // zeroIsUnlimited lets the schema's own default (0) pass its own guard
+  // instead of permanently failing against the documented [32768, max]
+  // range the moment a user retypes exactly what was already shown.
+  { key: 'backup_volume_max_size_bytes', category: 'advanced', scope: 'SERVER', guard: { kind: 'bigint', min: '32768', zeroIsUnlimited: true }, default: '0' },
   { key: 'block_ddl_statement', category: 'advanced', scope: 'CLIENT', guard: { kind: 'enum', options: ['yes', 'no'] }, default: 'no' },
   { key: 'block_nowhere_statement', category: 'advanced', scope: 'CLIENT', guard: { kind: 'enum', options: ['yes', 'no'] }, default: 'no' },
   { key: 'call_stack_dump_activation_list', category: 'advanced', scope: 'BOTH', guard: { kind: 'intList' }, default: '' },
@@ -52,9 +58,22 @@ export const DATABASE_PARAM_SCHEMA: VersionedParamSchemaEntry[] = [
   { key: 'file_lock', category: 'advanced', scope: 'SERVER', guard: { kind: 'enum', options: ['yes', 'no'] }, default: 'yes' },
   { key: 'garbage_collection', category: 'advanced', scope: 'CLIENT', guard: { kind: 'enum', options: ['yes', 'no'] }, default: 'no' },
   { key: 'group_commit_interval_in_msecs', category: 'advanced', scope: 'SERVER', guard: { kind: 'int', min: 0 }, default: '0' },
-  { key: 'ha_mode', category: 'advanced', scope: 'SERVER', guard: { kind: 'enum', options: ['on', 'off', 'yes', 'no', 'replica'] }, default: 'off' },
-  { key: 'ha_node_list', category: 'advanced', scope: 'SERVER', guard: { kind: 'string' }, default: '' },
-  { key: 'ha_port_id', category: 'advanced', scope: 'SERVER', guard: { kind: 'int', min: 1, max: 65535 }, default: '' },
+  // [common] only (commonOnly) — source-confirmed via boot_sr.c:2146's
+  // ER_PRM_CONFLICT_EXISTS_ON_MULTIPLE_SECTIONS: the engine hard-fails
+  // boot if a [@dbname] section's ha_mode disagrees with [common]'s.
+  { key: 'ha_mode', category: 'advanced', scope: 'SERVER', guard: { kind: 'enum', options: ['on', 'off', 'yes', 'no', 'replica'] }, default: 'off', commonOnly: true },
+  // [common] only — ha_node_list is PRM_FOR_HA; whenever ha_mode is on,
+  // system_parameter.c's sysprm_load_and_init_internal re-reads
+  // cubrid_ha.conf's (db-agnostic, [@dbname]-incapable) [common] section
+  // afterward and overwrites it, so a [@dbname] value here is silently
+  // clobbered, not actually applied per-database.
+  { key: 'ha_node_list', category: 'advanced', scope: 'SERVER', guard: { kind: 'string' }, default: '', commonOnly: true },
+  // Source-confirmed (not a guess): PRM_ID_HA_PORT_ID is read exclusively
+  // by master_heartbeat.c (the host-wide HA heartbeat daemon, not
+  // database-specific) — setting it has no effect at all unless ha_mode
+  // is actually on, and [common] only for the same cubrid_ha.conf-reload
+  // reason as ha_node_list above (HA clustering is per-host, not per-db).
+  { key: 'ha_port_id', category: 'advanced', scope: 'SERVER', guard: { kind: 'int', min: 1, max: 65535 }, default: '', advisory: { dependsOnKey: 'ha_mode', inactiveWhen: ['off', 'no', 'n', '0', 'false'] }, commonOnly: true },
   { key: 'hostvar_late_binding', category: 'advanced', scope: 'CLIENT', guard: { kind: 'enum', options: ['yes', 'no'] }, default: 'no' },
   { key: 'index_scan_in_oid_order', category: 'advanced', scope: 'CLIENT', guard: { kind: 'enum', options: ['yes', 'no'] }, default: 'no' },
   { key: 'insert_execution_mode', category: 'advanced', scope: 'CLIENT', guard: { kind: 'int', min: 0, max: 31 }, default: '1' }, // bitmask

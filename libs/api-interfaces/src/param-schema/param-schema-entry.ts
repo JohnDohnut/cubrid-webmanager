@@ -24,6 +24,32 @@ export interface ParamSchemaEntry {
    * two independent rows (see DatabasePropertyModal's BufferChoiceGroup).
    */
   bufferGroup?: { pairKey: string; role: 'pages' | 'size' };
+  /**
+   * Non-blocking: this param's value is still saved, but has no real
+   * engine effect while `dependsOnKey`'s current value is one of
+   * `inactiveWhen`. Unlike `guard`, this never fails validation or blocks
+   * Apply — it's purely an inline hint. Only added per-entry after
+   * confirming the relationship against actual engine source (e.g.
+   * ha_port_id is read exclusively by master_heartbeat.c, which only runs
+   * once HA is actually configured) — not a general "maybe related"
+   * guess.
+   */
+  advisory?: { dependsOnKey: string; inactiveWhen: string[] };
+  /**
+   * Database entries only. `true` means this key must only ever be
+   * written to the [common] section — never a per-database [@dbname]
+   * section. Unlike `advisory`, this is enforced server-side (a write
+   * attempt is rejected, not just hinted at in the UI): source-confirmed
+   * (not a guess) that the engine's own per-db conf merge
+   * (`prm_read_and_parse_ini_file`, system_parameter.c) either silently
+   * clobbers a [@dbname] override for these HA keys with a later,
+   * db-agnostic cubrid_ha.conf reload, or — for ha_mode specifically —
+   * makes the database refuse to boot at all
+   * (ER_PRM_CONFLICT_EXISTS_ON_MULTIPLE_SECTIONS, boot_sr.c) when
+   * [common] and [@dbname] disagree. HA clustering is a per-host concept,
+   * not a per-database one, by engine design.
+   */
+  commonOnly?: boolean;
 }
 
 /**

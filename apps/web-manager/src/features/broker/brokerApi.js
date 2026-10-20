@@ -41,6 +41,6 @@ export const brokerApi = {
     return apiClient.post(`/${hostUid}/cms-config/broker-set-param`, { confdata });
   },
   setBrokerConfigParams: (hostUid, brokerName, params) => {
-    return apiClient.post(`/${hostUid}/cms-config/broker-params/${brokerName}`, params);
+    return apiClient.post(`/${hostUid}/cms-config/broker-params/${brokerName}`, { params });
   },
 };

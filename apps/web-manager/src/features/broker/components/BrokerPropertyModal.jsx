@@ -84,6 +84,13 @@ export default function BrokerPropertyModal() {
   // activation/login; the effect below covers the case where it isn't yet.
   const hostEnv = useSelector((state) => state.host.hostEnvs[hostUid]);
   const brokerParamSchema = useMemo(() => hostEnv?.paramSchemas?.broker ?? [], [hostEnv]);
+  // Keyed lookup of each schema entry's own default — see isKeyModified's
+  // comment for why this matters for a key with no explicit [broker]/
+  // [%name] line of its own.
+  const brokerDefaults = useMemo(
+    () => Object.fromEntries(brokerParamSchema.map(p => [p.key, p.default])),
+    [brokerParamSchema]
+  );
 
   const [activeTab, setActiveTab] = useState('common');
   const [localParams, setLocalParams] = useState({});
@@ -144,6 +151,20 @@ export default function BrokerPropertyModal() {
     setSpecificParams((prev) => { const n = new Set(prev); n.add(name); return n; });
   };
 
+  // A key with no explicit [broker]/[%name] line has `initialParams[key]`
+  // undefined — the field only ever showed `p.default` as a fallback (see
+  // ParamRow's `value={localParams[p.key] ?? p.default}`). Comparing
+  // `localParams[key]` straight against `initialParams[key]` in that case
+  // means retyping that exact same default reads as a real change
+  // (`undefined !== "AUTO"` is always true), with no way to type it back to
+  // "unmodified". Falling back to the schema default as the "before" value
+  // when there's no real loaded value fixes that, matching
+  // databasePropertyUtils.getModifiedKeys's identical fix on the DB side.
+  const isKeyModified = (key) => {
+    const before = initialParams[key] !== undefined ? initialParams[key] : brokerDefaults[key];
+    return localParams[key] !== before;
+  };
+
   const handleReset = () => {
     setLocalParams(initialParams);
     setSpecificParams(new Set(initialSpecificParams));
@@ -158,13 +179,14 @@ export default function BrokerPropertyModal() {
     // this session, regardless of whether the final value actually differs
     // from what was loaded — merely clicking into a field that was only
     // ever inheriting a global/default value and retyping the same text
-    // would otherwise add a brand-new per-broker override line for it.
-    // Only send a key here if it's genuinely changed, or if it already was
-    // an explicit line before this session started (in which case leaving
-    // it out would silently fall back to the global/default value instead
-    // of staying as-is).
+    // (including the schema's own default, via isKeyModified) would
+    // otherwise add a brand-new per-broker override line for it. Only send
+    // a key here if it's genuinely changed, or if it already was an
+    // explicit line before this session started (in which case leaving it
+    // out would silently fall back to the global/default value instead of
+    // staying as-is).
     const keysToWrite = [...specificParams].filter(
-      key => localParams[key] !== initialParams[key] || initialSpecificParams.has(key)
+      key => isKeyModified(key) || initialSpecificParams.has(key)
     );
     const params = {};
     for (const key of keysToWrite) {
@@ -184,7 +206,7 @@ export default function BrokerPropertyModal() {
   };
 
   const handleClose = () => dispatch(closeBrokerPropertyModal());
-  const modifiedCount = Object.keys(localParams).filter(k => localParams[k] !== initialParams[k]).length;
+  const modifiedCount = Object.keys(localParams).filter(isKeyModified).length;
   const guardErrors = useMemo(() => validateParams(brokerParamSchema, localParams).errors, [brokerParamSchema, localParams]);
   const guardErrorCount = Object.keys(guardErrors).length;
   const tabs = [
@@ -270,7 +292,7 @@ export default function BrokerPropertyModal() {
                       key={p.key}
                       param={p}
                       value={localParams[p.key] ?? p.default}
-                      isModified={localParams[p.key] !== initialParams[p.key]}
+                      isModified={isKeyModified(p.key)}
                       onChange={handleParamChange}
                       error={guardErrors[p.key]}
                     />

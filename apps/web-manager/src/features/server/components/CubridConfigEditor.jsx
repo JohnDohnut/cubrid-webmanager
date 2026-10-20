@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { hostApi } from '../../host/hostApi';
 import { showStatusModal, setTabDirty } from '../../layout/layoutSlice';
@@ -8,6 +8,56 @@ import { StatusBadge } from '../../../components/ds/foundation/StatusBadge';
 import { PageToolbar } from '../../../components/ds/layout/PageToolbar';
 import { useCM } from '../../../constants/useCM';
 import { createSingleFlight } from '../../../infrastructure/utils/singleFlight';
+import { validateParamValue } from '@api-interfaces';
+
+// This editor is also used for cmconf, which has no schema in this app at
+// all (no table-form UI ever consumed it, so one was never built) — only
+// cubridconf gets guard-checked here. An unrecognized key is left alone
+// either way (not flagged as an error): it might just not be modeled yet,
+// not actually wrong.
+//
+// Parses into sections so a commonOnly violation (e.g. ha_mode set inside
+// a [@dbname] section — see database-param-schema.ts) can be caught here
+// too, not just through the table-form editor's own typed endpoint.
+function parseConfSections(text) {
+  const sections = [];
+  let current = { name: null, entries: [] };
+  text.split('\n').forEach((line, i) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) return;
+    const sectionMatch = trimmed.match(/^\[%?(.+)\]$/);
+    if (sectionMatch) {
+      if (current.name !== null || current.entries.length > 0) sections.push(current);
+      current = { name: sectionMatch[1].toLowerCase(), entries: [] };
+      return;
+    }
+    const eq = trimmed.indexOf('=');
+    if (eq === -1) return;
+    current.entries.push({ key: trimmed.slice(0, eq).trim(), value: trimmed.slice(eq + 1).trim(), lineNo: i + 1 });
+  });
+  if (current.entries.length > 0) sections.push(current);
+  return sections;
+}
+
+function validateConfText(confname, text, databaseParamSchema) {
+  if (confname !== 'cubridconf' || !databaseParamSchema?.length) return [];
+  const schemaByKey = new Map(databaseParamSchema.map(e => [e.key.toLowerCase(), e]));
+  const problems = [];
+  for (const section of parseConfSections(text)) {
+    const isCommonSection = section.name === null || section.name === 'common';
+    for (const { key, value, lineNo } of section.entries) {
+      const entry = schemaByKey.get(key.toLowerCase());
+      if (!entry) continue;
+      if (entry.commonOnly && !isCommonSection) {
+        problems.push(`Line ${lineNo}: ${key} can only be set in [common], not [${section.name}]`);
+        continue;
+      }
+      const reason = validateParamValue(entry.guard, value);
+      if (reason) problems.push(`Line ${lineNo}: ${key} = "${value}" — ${reason}`);
+    }
+  }
+  return problems;
+}
 
 // ── Highlighted Source View ────────────────────────────────────────────────
 function renderHighlighted(content) {
@@ -38,8 +88,9 @@ export default function CubridConfigEditor({ hostUid, confname }) {
   const CM = useCM();
   const tabId = `edit_config:${hostUid}:${confname}`;
   const dispatch = useDispatch();
-  const { hosts } = useSelector((state) => state.host, shallowEqual);
+  const { hosts, hostEnvs } = useSelector((state) => state.host, shallowEqual);
   const { refreshCounter, refreshTabId } = useSelector((state) => state.layout, shallowEqual);
+  const databaseParamSchema = useMemo(() => hostEnvs[hostUid]?.paramSchemas?.database ?? [], [hostEnvs, hostUid]);
   const currentHost = hosts.find(h => h.uid === hostUid);
   const hostDisplayName = currentHost ? (currentHost.alias || currentHost.id) : CM.unknownHost;
 
@@ -115,6 +166,16 @@ export default function CubridConfigEditor({ hostUid, confname }) {
   };
 
   const handleSave = async () => {
+    const problems = validateConfText(confname, content, databaseParamSchema);
+    if (problems.length > 0) {
+      dispatch(showStatusModal({
+        type: 'error',
+        title: CM.invalidConfigValues,
+        message: CM.invalidConfigValuesMsg,
+        guidance: problems,
+      }));
+      return;
+    }
     setSaving(true);
     try {
       const payload = { confname, confdata: content.split('\n') };

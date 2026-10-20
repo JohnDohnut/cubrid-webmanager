@@ -24,6 +24,7 @@ export function validateParamValue(guard: ParamGuard | undefined, rawValue: unkn
     case 'bigint': {
       if (!/^-?\d+$/.test(value.trim())) return 'Must be an integer';
       const n = BigInt(value.trim());
+      if (guard.zeroIsUnlimited && n === BigInt(0)) return null;
       if (guard.min !== undefined && n < BigInt(guard.min)) return `Must be >= ${guard.min}`;
       if (guard.max !== undefined && n > BigInt(guard.max)) return `Must be <= ${guard.max}`;
       return null;
