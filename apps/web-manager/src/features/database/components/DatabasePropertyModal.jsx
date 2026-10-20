@@ -279,12 +279,23 @@ export default function DatabasePropertyModal() {
           const lines = response?.conflist?.[0]?.confdata || [];
           let currentSection = '';
           const newParams = {};
+          // Deliberately NOT merged: engine inheritance between [common]
+          // and [@dbname] is real (unlike broker.conf's [broker]), but
+          // showing a [common] value as if it were explicitly present in
+          // this db's own section is still a UI fiction here - it made a
+          // hidden commonOnly field (e.g. cubrid_port_id, filtered out of
+          // the individual-properties view entirely) carry a non-blank
+          // value anyway, which validateEffectiveParams then correctly
+          // flagged as "set in the wrong section" even though nothing was
+          // ever actually written there. [common] and [@dbname] are
+          // edited as fully separate targets, same as
+          // BrokerPropertyModal's identical [broker]/[%name] split.
+          const target = selectedDatabase ? `@${selectedDatabase.toLowerCase()}` : 'common';
           for (const line of lines) {
             const trimmed = line.trim();
             if (!trimmed || trimmed.startsWith('#')) continue;
             if (trimmed.startsWith('[') && trimmed.endsWith(']')) { currentSection = trimmed.slice(1, -1).toLowerCase(); continue; }
-            const target = selectedDatabase ? `@${selectedDatabase.toLowerCase()}` : 'common';
-            if (currentSection === 'common' || (selectedDatabase && currentSection === target)) {
+            if (currentSection === target) {
               const [key, ...valueParts] = trimmed.split('=');
               const k = key?.trim();
               const v = valueParts.join('=').trim();
