@@ -144,7 +144,7 @@ function BufferChoiceGroup({ group, mode, unit, pagesValue, sizeValue, onModeCha
             value="pages"
             checked={mode === 'pages'}
             onChange={() => onModeChange('pages')}
-            label={<span className="text-12 font-mono w-[140px] shrink-0 inline-block">{group.pagesKey}</span>}
+            label={<span className="text-12 font-mono w-[220px] shrink-0 inline-block truncate" title={group.pagesKey}>{group.pagesKey}</span>}
           />
           <div className="flex-1 max-w-[200px]" title={mode === 'pages' ? pagesError : undefined}>
             <Input
@@ -165,7 +165,7 @@ function BufferChoiceGroup({ group, mode, unit, pagesValue, sizeValue, onModeCha
             value="size"
             checked={mode === 'size'}
             onChange={() => onModeChange('size')}
-            label={<span className="text-12 font-mono w-[140px] shrink-0 inline-block">{group.sizeKey}</span>}
+            label={<span className="text-12 font-mono w-[220px] shrink-0 inline-block truncate" title={group.sizeKey}>{group.sizeKey}</span>}
           />
           <Input
             size="sm"
