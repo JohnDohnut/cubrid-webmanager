@@ -20,27 +20,35 @@ export interface ValidateEffectiveParamsOptions {
  * backend methods) that had to be kept in sync by hand — this is that
  * consolidation.
  *
- * `effectiveParams` must be the FULL current value for every key that
- * matters, not a partial diff — i.e. schema defaults already merged in
- * for anything not explicitly set (`{...defaults, ...actualValues}`).
- * That's what makes `required` (a key genuinely absent is
- * indistinguishable from "its default happens to be blank") and
- * `crossField` (needs both sides' real values) actually checkable here.
+ * `params` must be each key's RAW, actually-present value for this
+ * section — NOT pre-merged with schema defaults. That distinction is the
+ * whole point: a key genuinely absent here (never set) and a key
+ * deliberately holding its default value are different states, and
+ * conflating them (by having the caller spread `{...defaults, ...actual}`
+ * before calling this) silently reintroduces a key that was never really
+ * set here at all — which previously made a commonOnly/instanceOnly key
+ * with a non-blank default (e.g. database-param-schema.ts's
+ * `cubrid_port_id`, default `'1523'`) register as "set in the wrong
+ * section" purely because its default leaked back in, even though
+ * nothing ever actually wrote it there. Defaults are applied internally,
+ * only where they're actually needed (`crossField`, where an untouched
+ * key's real engine-effective value still has to be known).
  *
  * Checks run per key, in order, first failure wins for that key:
  * 1. Section placement (`commonOnly` in a non-common section /
  *    `instanceOnly` in the common section) — checked FIRST and only as a
- *    violation when the key actually HAS a value here; a commonOnly key
- *    sitting blank in an instance section (or vice versa) is the normal,
- *    expected case (it simply doesn't live here), not an error, and must
- *    be recognized before the required check below even looks at it —
- *    otherwise a commonOnly `required` key (e.g. broker.conf's
- *    MASTER_SHM_ID) would wrongly be flagged "missing" in every instance
- *    section it was never supposed to be in to begin with.
- * 2. `required` + blank, for a key that DOES belong in this section — no
- *    safe engine fallback at all.
- * 3. `guard` (via `validateParamValue`).
- * Then `crossField` relationships are checked across the whole set,
+ *    violation when the key actually HAS a (raw, non-blank) value here;
+ *    a commonOnly key absent from an instance section (or vice versa) is
+ *    the normal, expected case (it simply doesn't live here), not an
+ *    error, and must be recognized before the required check below even
+ *    looks at it — otherwise a commonOnly `required` key (e.g.
+ *    broker.conf's MASTER_SHM_ID) would wrongly be flagged "missing" in
+ *    every instance section it was never supposed to be in to begin with.
+ * 2. `required` + blank (raw), for a key that DOES belong in this section
+ *    — no safe engine fallback at all.
+ * 3. `guard` (via `validateParamValue`), on the raw value.
+ * Then `crossField` relationships are checked across a separately-built
+ * defaulted view (raw value, or `entry.default` when raw is blank),
  * filling in only keys that don't already have an error from 1-3.
  *
  * Unknown keys (not in `schema` at all) are silently ignored — this
@@ -51,15 +59,16 @@ export interface ValidateEffectiveParamsOptions {
  */
 export function validateEffectiveParams(
   schema: ParamSchemaEntry[],
-  effectiveParams: Record<string, unknown>,
+  params: Record<string, unknown>,
   options: ValidateEffectiveParamsOptions
 ): Record<string, string> {
   const { isCommonSection, commonSectionLabel } = options;
   const errors: Record<string, string> = {};
+  const isValueBlank = (value: unknown) => value === undefined || value === null || String(value).trim() === '';
 
   for (const entry of schema) {
-    const raw = effectiveParams[entry.key];
-    const isBlank = raw === undefined || raw === null || String(raw).trim() === '';
+    const raw = params[entry.key];
+    const isBlank = isValueBlank(raw);
     const belongsHere = !(entry.commonOnly && !isCommonSection) && !(entry.instanceOnly && isCommonSection);
 
     if (!belongsHere) {
@@ -84,7 +93,14 @@ export function validateEffectiveParams(
     if (reason) errors[entry.key] = reason;
   }
 
-  for (const [key, reason] of Object.entries(validateCrossFieldParams(schema, effectiveParams))) {
+  // Defaulted view, built fresh here (not by the caller) — only
+  // crossField needs a concrete value for a key nobody actually touched.
+  const defaultedParams: Record<string, unknown> = {};
+  for (const entry of schema) {
+    const raw = params[entry.key];
+    defaultedParams[entry.key] = isValueBlank(raw) ? entry.default : raw;
+  }
+  for (const [key, reason] of Object.entries(validateCrossFieldParams(schema, defaultedParams))) {
     if (!errors[key]) errors[key] = reason;
   }
 

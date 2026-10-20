@@ -440,19 +440,23 @@ export default function DatabasePropertyModal() {
   // — see validateEffectiveParams's own doc comment — run against the
   // schema this host's own engine version resolved, using the exact
   // pages/size-reconciled values that actually get written to cubrid.conf
-  // on Apply, merged with schema defaults for anything untouched (so a
-  // cross-field or required check has every key's real effective value,
-  // not just whatever's been typed this session).
-  const effectiveParams = useMemo(
-    () => ({ ...schemaDefaults, ...getEffectiveParams(params, bufferMode, bufferUnit, bufferGroups) }),
-    [schemaDefaults, params, bufferMode, bufferUnit, bufferGroups]
+  // on Apply. Deliberately NOT merged with schemaDefaults here — the
+  // function does its own internal defaulting only where it's actually
+  // needed (crossField); pre-merging at the call site would make a
+  // commonOnly/instanceOnly key with a non-blank default (e.g.
+  // cubrid_port_id, default '1523') register as "set in the wrong
+  // section" purely because its default leaked back in, with nothing
+  // ever actually written there.
+  const reconciledParams = useMemo(
+    () => getEffectiveParams(params, bufferMode, bufferUnit, bufferGroups),
+    [params, bufferMode, bufferUnit, bufferGroups]
   );
   const guardErrors = useMemo(
-    () => validateEffectiveParams(databaseParamSchema, effectiveParams, {
+    () => validateEffectiveParams(databaseParamSchema, reconciledParams, {
       isCommonSection: !selectedDatabase,
       commonSectionLabel: 'common',
     }),
-    [databaseParamSchema, effectiveParams, selectedDatabase]
+    [databaseParamSchema, reconciledParams, selectedDatabase]
   );
   const guardErrorCount = Object.keys(guardErrors).length;
 

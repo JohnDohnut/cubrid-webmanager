@@ -142,7 +142,20 @@ export const DATABASE_PARAM_SCHEMA: VersionedParamSchemaEntry[] = [
   { key: 'data_buffer_size', category: 'buffer', guard: { kind: 'size' }, default: '512', bufferGroup: { pairKey: 'data', role: 'size' } },
   { key: 'sort_buffer_pages', category: 'buffer', guard: { kind: 'int', min: 1 }, default: '16', bufferGroup: { pairKey: 'sort', role: 'pages' } },
   { key: 'sort_buffer_size', category: 'buffer', guard: { kind: 'size' }, default: '2', bufferGroup: { pairKey: 'sort', role: 'size' } },
-  { key: 'log_buffer_pages', category: 'buffer', guard: { kind: 'int', min: 128 }, default: '50', bufferGroup: { pairKey: 'log', role: 'pages' } }, // LOGPB_BUFFER_NPAGES_LOWER
+  // Real engine default is `16 * ONE_K` = 16384 pages (system_parameter.c:1378,
+  // comment: "16k pages => 64M / 128M / 256M based on log page size") — the
+  // previous '50' default violated this entry's own min:128 guard outright,
+  // always failing validation the moment this key's effective value (loaded
+  // or defaulted) was checked, regardless of which buffer pair side the UI
+  // had selected.
+  { key: 'log_buffer_pages', category: 'buffer', guard: { kind: 'int', min: 128 }, default: '16384', bufferGroup: { pairKey: 'log', role: 'pages' } }, // LOGPB_BUFFER_NPAGES_LOWER
+  // Byte-equivalent default intentionally NOT kept in exact lockstep with
+  // log_buffer_pages' default — the real conversion is log-page-size
+  // dependent (same source comment above), not a fixed ratio; '4' (MB) is
+  // a placeholder in the same spirit as the other buffer pairs' size
+  // defaults, not a value anyone should treat as exactly matching 16384
+  // pages. No guard bounds here, so unlike the pages side this can't
+  // itself fail validation regardless of its exact value.
   { key: 'log_buffer_size', category: 'buffer', guard: { kind: 'size' }, default: '4', bufferGroup: { pairKey: 'log', role: 'size' } },
   // index_scan_oid_buffer_{pages,size} share one underlying PRM (same
   // dynamic_flag in system_parameter.c) exactly like the other three

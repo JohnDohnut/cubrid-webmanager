@@ -39,16 +39,18 @@ function parseConfSections(text) {
 function validateConfText(text, brokerParamSchema) {
   if (!brokerParamSchema?.length) return [];
   const schemaByKey = new Map(brokerParamSchema.map(e => [e.key.toLowerCase(), e]));
-  const schemaDefaults = Object.fromEntries(brokerParamSchema.map(e => [e.key, e.default]));
   const problems = [];
   for (const section of parseConfSections(text)) {
     const isCommonSection = section.name === null || section.name === 'broker';
     // Schema-canonical-key -> {value, lineNo}, so validateEffectiveParams
     // (the one shared rule engine — required/guard/section-placement/
-    // cross-field, same as every other call site) sees this section's
-    // actual values, falling back to schemaDefaults for anything not
-    // present (which is also how a required key's line being deleted
-    // entirely gets caught, with no separate presence-check needed).
+    // cross-field, same as every other call site) sees exactly this
+    // section's actual values — raw, NOT merged with schema defaults (the
+    // function does its own internal defaulting only where it's actually
+    // needed; pre-merging here would make a key nobody wrote register as
+    // "present" purely because its default happened to be non-blank). A
+    // required key's line being deleted entirely is still caught, since
+    // it's simply absent from sectionValues here.
     const sectionValues = {};
     const sectionLineNos = {};
     for (const { key, value, lineNo } of section.entries) {
@@ -57,7 +59,7 @@ function validateConfText(text, brokerParamSchema) {
       sectionValues[entry.key] = value;
       sectionLineNos[entry.key] = lineNo;
     }
-    const sectionErrors = validateEffectiveParams(brokerParamSchema, { ...schemaDefaults, ...sectionValues }, {
+    const sectionErrors = validateEffectiveParams(brokerParamSchema, sectionValues, {
       isCommonSection,
       commonSectionLabel: 'broker',
     });

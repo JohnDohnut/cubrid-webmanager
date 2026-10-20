@@ -42,15 +42,16 @@ function parseConfSections(text) {
 function validateConfText(confname, text, databaseParamSchema) {
   if (confname !== 'cubridconf' || !databaseParamSchema?.length) return [];
   const schemaByKey = new Map(databaseParamSchema.map(e => [e.key.toLowerCase(), e]));
-  const schemaDefaults = Object.fromEntries(databaseParamSchema.map(e => [e.key, e.default]));
   const problems = [];
   for (const section of parseConfSections(text)) {
     const isCommonSection = section.name === null || section.name === 'common';
     // Schema-canonical-key -> {value, lineNo}, so validateEffectiveParams
     // (the one shared rule engine — required/guard/section-placement/
-    // cross-field, same as every other call site) sees this section's
-    // actual values, falling back to schemaDefaults for anything not
-    // present.
+    // cross-field, same as every other call site) sees exactly this
+    // section's actual values — raw, NOT merged with schema defaults (the
+    // function does its own internal defaulting only where it's actually
+    // needed; pre-merging here would make a key nobody wrote register as
+    // "present" purely because its default happened to be non-blank).
     const sectionValues = {};
     const sectionLineNos = {};
     for (const { key, value, lineNo } of section.entries) {
@@ -59,7 +60,7 @@ function validateConfText(confname, text, databaseParamSchema) {
       sectionValues[entry.key] = value;
       sectionLineNos[entry.key] = lineNo;
     }
-    const sectionErrors = validateEffectiveParams(databaseParamSchema, { ...schemaDefaults, ...sectionValues }, {
+    const sectionErrors = validateEffectiveParams(databaseParamSchema, sectionValues, {
       isCommonSection,
       commonSectionLabel: 'common',
     });

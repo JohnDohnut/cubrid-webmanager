@@ -242,15 +242,17 @@ export default function BrokerPropertyModal() {
   const handleClose = () => dispatch(closeBrokerPropertyModal());
   const modifiedCount = Object.keys(localParams).filter(isKeyModified).length;
   // One shared rule engine (required/guard/section-placement/cross-field)
-  // — see validateEffectiveParams's own doc comment. Needs the FULL
-  // effective value for every key (schema defaults merged in), not just
-  // whatever's been typed this session, since e.g. a cross-field check
-  // needs both sides' real values even if only one was ever touched.
-  const effectiveParams = useMemo(() => ({ ...brokerDefaults, ...localParams }), [brokerDefaults, localParams]);
-  const guardErrors = useMemo(() => validateEffectiveParams(brokerParamSchema, effectiveParams, {
+  // — see validateEffectiveParams's own doc comment. Deliberately NOT
+  // merged with brokerDefaults here — the function does its own internal
+  // defaulting only where it's actually needed (crossField); pre-merging
+  // at the call site would make a commonOnly/instanceOnly key with a
+  // non-blank default register as "set in the wrong section" purely
+  // because its default leaked back in, with nothing ever actually
+  // written there.
+  const guardErrors = useMemo(() => validateEffectiveParams(brokerParamSchema, localParams, {
     isCommonSection: isCommonMode,
     commonSectionLabel: 'broker',
-  }), [brokerParamSchema, effectiveParams, isCommonMode]);
+  }), [brokerParamSchema, localParams, isCommonMode]);
   const guardErrorCount = Object.keys(guardErrors).length;
   const tabs = [
     { id: 'common',   label: CM.common,   icon: 'settings' },

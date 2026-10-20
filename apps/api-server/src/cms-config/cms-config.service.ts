@@ -555,7 +555,6 @@ export class CmsConfigService extends BaseService {
    */
   private assertValidConfText(schema: ParamSchemaEntry[], lines: string[], commonSectionNames: string[]): void {
     const schemaByKey = new Map(schema.map((entry) => [entry.key.toLowerCase(), entry]));
-    const schemaDefaults = Object.fromEntries(schema.map((entry) => [entry.key, entry.default ?? '']));
     const problems: string[] = [];
     for (const section of this.parseConfTextSections(lines)) {
       const isCommonSection = section.name === null || commonSectionNames.includes(section.name);
@@ -567,9 +566,13 @@ export class CmsConfigService extends BaseService {
         sectionValues[entry.key] = value;
         sectionLineNos[entry.key] = lineNo;
       }
+      // Raw section values only — NOT merged with schema defaults here;
+      // validateEffectiveParams does its own internal defaulting only
+      // where it's actually needed (crossField). See that function's
+      // own doc comment for why pre-merging would be wrong.
       const sectionErrors = validateEffectiveParams(
         schema,
-        { ...schemaDefaults, ...sectionValues },
+        sectionValues,
         { isCommonSection, commonSectionLabel: commonSectionNames[0] }
       );
       for (const [key, reason] of Object.entries(sectionErrors)) {
@@ -592,26 +595,29 @@ export class CmsConfigService extends BaseService {
    * Finds `targetSectionName` (already in `parseConfTextSections`' own
    * lowercased, `@`/`%`-stripped-or-kept convention — e.g. `'common'`,
    * `'@dbname'`, `'broker'`, or a bare broker name) among `lines` and
-   * returns its effective key -> value map, merged with `schema`'s own
-   * defaults for anything the section doesn't mention at all. Returns
-   * pure defaults if the section doesn't exist yet (e.g. a brand new
-   * `[@dbname]` about to be created by this same save).
+   * returns its RAW key -> value map — only keys this section's text
+   * actually has a line for, nothing merged in from `schema`'s defaults.
+   * `validateEffectiveParams` does its own internal defaulting only
+   * where it's needed (crossField); returning defaults here instead
+   * would make a key nobody wrote register as "present" purely because
+   * its default happened to be non-blank — see that function's own doc
+   * comment. Returns `{}` if the section doesn't exist yet (e.g. a brand
+   * new `[@dbname]` about to be created by this same save).
    */
   private extractEffectiveSectionParams(
     lines: string[],
     targetSectionName: string,
     schema: ParamSchemaEntry[]
   ): Record<string, string> {
-    const schemaDefaults = Object.fromEntries(schema.map((entry) => [entry.key, entry.default ?? '']));
     const schemaByKey = new Map(schema.map((entry) => [entry.key.toLowerCase(), entry]));
     const section = this.parseConfTextSections(lines).find((s) => s.name === targetSectionName);
-    if (!section) return schemaDefaults;
+    if (!section) return {};
     const values: Record<string, string> = {};
     for (const { key, value } of section.entries) {
       const entry = schemaByKey.get(key.toLowerCase());
       if (entry) values[entry.key] = value;
     }
-    return { ...schemaDefaults, ...values };
+    return values;
   }
 
   /**
