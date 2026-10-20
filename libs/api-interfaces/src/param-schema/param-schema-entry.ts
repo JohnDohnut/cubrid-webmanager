@@ -85,6 +85,19 @@ export interface ParamSchemaEntry {
    * leaving that one key unsafe.
    */
   required?: boolean;
+  /**
+   * A hard constraint between this key's value and another key's, enforced
+   * everywhere `validateCrossFieldParams` is called (table UI inline
+   * errors, raw-editor section checks, and the typed save endpoints after
+   * merge) — unlike `advisory`, violating this is a real engine failure,
+   * not just an inert setting. Source-confirmed per entry (e.g.
+   * broker.conf's MAX_NUM_APPL_SERVER < MIN_NUM_APPL_SERVER hard-fails the
+   * whole config load with `PARAM_BAD_MAX_APPL_SERVER`,
+   * broker_config.c:716-719) — not a general "these look related" guess.
+   * The error is attached to THIS key (the one with the constraint), not
+   * `comparedToKey`.
+   */
+  crossField?: { comparedToKey: string; rule: 'gte' | 'lte' };
 }
 
 /**

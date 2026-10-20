@@ -9,3 +9,5 @@ export * from './param-guard';
 export * from './param-schema-entry';
 export * from './validate-param-value';
 export * from './validate-params';
+export * from './validate-cross-field-params';
+export * from './validate-effective-params';

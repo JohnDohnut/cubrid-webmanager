@@ -16,7 +16,7 @@ import { Select } from '../../../components/ds/forms/Select';
 import { Typography } from '../../../components/ds/foundation/Typography';
 import { SectionHeader } from '../../../components/ds/foundation/SectionHeader';
 import { ModalStatusError } from '../../../components/ds/feedback/ActionStatus';
-import { validateParams } from '@api-interfaces';
+import { validateEffectiveParams } from '@api-interfaces';
 
 // The param list (which keys exist, their category/guard/default) no
 // longer lives here — it comes from the connected host's `getEnv`
@@ -25,17 +25,29 @@ import { validateParams } from '@api-interfaces';
 // libs/api-interfaces/src/param-schema/broker-param-schema.ts for the
 // master, version-aware rule table and its source citations.
 
-function ParamRow({ param, value, isModified, onChange, error }) {
+function ParamRow({ param, value, isModified, onChange, error, isImplicit }) {
+  const CM = useCM();
   const options = param.guard.kind === 'enum' ? param.guard.options : null;
   const isNumeric = param.guard.kind === 'int' || param.guard.kind === 'float';
 
   return (
     <div className={`flex items-center h-10 px-4 border-b border-slate-100 dark:border-white/4 last:border-0 group transition-colors ${isModified ? 'bg-amber-500/[0.03]' : 'hover:bg-slate-50 dark:hover:bg-white/2'}`}>
-      <div className="w-[280px] shrink-0 flex items-center gap-2">
+      <div className="w-[280px] shrink-0 flex items-center gap-2 min-w-0">
         {isModified && <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />}
         <span className={`text-12 font-mono truncate ${isModified ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-500 dark:text-slate-400'}`}>
           {param.key}
         </span>
+        {/* Not in [broker]/[%name] at all — the value shown is purely
+            param.default, not anything anyone set. Hidden the moment the
+            field holds a real value (typed or loaded). */}
+        {isImplicit && (
+          <span
+            title={CM.usingDefaultHint(param.default)}
+            className="shrink-0 text-10 font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border border-slate-200 dark:border-white/10 text-slate-400 dark:text-slate-500"
+          >
+            {CM.usingDefaultBadge}
+          </span>
+        )}
       </div>
       <span className="text-10 font-bold text-slate-400 dark:text-slate-600 font-mono opacity-60 w-[90px] shrink-0 truncate">
         {param.guard.kind}
@@ -228,7 +240,16 @@ export default function BrokerPropertyModal() {
 
   const handleClose = () => dispatch(closeBrokerPropertyModal());
   const modifiedCount = Object.keys(localParams).filter(isKeyModified).length;
-  const guardErrors = useMemo(() => validateParams(brokerParamSchema, localParams).errors, [brokerParamSchema, localParams]);
+  // One shared rule engine (required/guard/section-placement/cross-field)
+  // — see validateEffectiveParams's own doc comment. Needs the FULL
+  // effective value for every key (schema defaults merged in), not just
+  // whatever's been typed this session, since e.g. a cross-field check
+  // needs both sides' real values even if only one was ever touched.
+  const effectiveParams = useMemo(() => ({ ...brokerDefaults, ...localParams }), [brokerDefaults, localParams]);
+  const guardErrors = useMemo(() => validateEffectiveParams(brokerParamSchema, effectiveParams, {
+    isCommonSection: isCommonMode,
+    commonSectionLabel: 'broker',
+  }), [brokerParamSchema, effectiveParams, isCommonMode]);
   const guardErrorCount = Object.keys(guardErrors).length;
   const tabs = [
     { id: 'common',   label: CM.common,   icon: 'settings' },
@@ -263,7 +284,7 @@ export default function BrokerPropertyModal() {
       isOpen={isOpen}
       onClose={handleClose}
       title={brokerName ? `${brokerName} · ${CM.brokerProperties}` : CM.brokerCommonProperties}
-      subtitle={CM.runtimeConfiguration}
+      subtitle={brokerName ? CM.instancePropertiesScopeDescBroker(brokerName) : CM.commonPropertiesScopeDescBroker}
       icon="hub"
       maxWidth="max-w-[620px]"
       testId="broker-properties"
@@ -326,6 +347,7 @@ export default function BrokerPropertyModal() {
                       isModified={isKeyModified(p.key)}
                       onChange={handleParamChange}
                       error={guardErrors[p.key]}
+                      isImplicit={initialParams[p.key] === undefined && (localParams[p.key] === undefined || localParams[p.key] === '')}
                     />
                   ))}
                 </div>

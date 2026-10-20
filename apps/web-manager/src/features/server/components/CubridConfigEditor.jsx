@@ -8,7 +8,7 @@ import { StatusBadge } from '../../../components/ds/foundation/StatusBadge';
 import { PageToolbar } from '../../../components/ds/layout/PageToolbar';
 import { useCM } from '../../../constants/useCM';
 import { createSingleFlight } from '../../../infrastructure/utils/singleFlight';
-import { validateParamValue } from '@api-interfaces';
+import { validateEffectiveParams } from '@api-interfaces';
 
 // This editor is also used for cmconf, which has no schema in this app at
 // all (no table-form UI ever consumed it, so one was never built) — only
@@ -42,42 +42,30 @@ function parseConfSections(text) {
 function validateConfText(confname, text, databaseParamSchema) {
   if (confname !== 'cubridconf' || !databaseParamSchema?.length) return [];
   const schemaByKey = new Map(databaseParamSchema.map(e => [e.key.toLowerCase(), e]));
-  // No DATABASE_PARAM_SCHEMA entry is `required` today (every one has a
-  // real engine fallback when absent — confirmed against
-  // sysprm_load_and_init_internal's default-apply loop), but the check is
-  // kept here anyway so a future entry that IS required gets enforced
-  // automatically instead of silently slipping through. See broker.conf's
-  // equivalent in BrokerConfigEditor.jsx for a schema where this matters.
-  const commonRequiredKeys = databaseParamSchema.filter(e => e.required && e.commonOnly).map(e => e.key);
-  const instanceRequiredKeys = databaseParamSchema.filter(e => e.required && e.instanceOnly).map(e => e.key);
+  const schemaDefaults = Object.fromEntries(databaseParamSchema.map(e => [e.key, e.default]));
   const problems = [];
   for (const section of parseConfSections(text)) {
     const isCommonSection = section.name === null || section.name === 'common';
-    const seenKeys = new Set();
+    // Schema-canonical-key -> {value, lineNo}, so validateEffectiveParams
+    // (the one shared rule engine — required/guard/section-placement/
+    // cross-field, same as every other call site) sees this section's
+    // actual values, falling back to schemaDefaults for anything not
+    // present.
+    const sectionValues = {};
+    const sectionLineNos = {};
     for (const { key, value, lineNo } of section.entries) {
-      seenKeys.add(key.toLowerCase());
       const entry = schemaByKey.get(key.toLowerCase());
       if (!entry) continue;
-      if (entry.commonOnly && !isCommonSection) {
-        problems.push(`Line ${lineNo}: ${key} can only be set in [common], not [${section.name}]`);
-        continue;
-      }
-      if (entry.instanceOnly && isCommonSection) {
-        problems.push(`Line ${lineNo}: ${key} cannot be set in [${section.name ?? 'common'}], only per-database`);
-        continue;
-      }
-      if (entry.required && value.trim() === '') {
-        problems.push(`Line ${lineNo}: ${key} is required and cannot be left blank`);
-        continue;
-      }
-      const reason = validateParamValue(entry.guard, value);
-      if (reason) problems.push(`Line ${lineNo}: ${key} = "${value}" — ${reason}`);
+      sectionValues[entry.key] = value;
+      sectionLineNos[entry.key] = lineNo;
     }
-    const missingKeys = (isCommonSection ? commonRequiredKeys : instanceRequiredKeys).filter(
-      key => !seenKeys.has(key.toLowerCase())
-    );
-    if (missingKeys.length > 0) {
-      problems.push(`Section [${section.name ?? 'common'}] is missing required parameter(s): ${missingKeys.join(', ')}`);
+    const sectionErrors = validateEffectiveParams(databaseParamSchema, { ...schemaDefaults, ...sectionValues }, {
+      isCommonSection,
+      commonSectionLabel: 'common',
+    });
+    for (const [key, reason] of Object.entries(sectionErrors)) {
+      const lineNo = sectionLineNos[key];
+      problems.push(lineNo ? `Line ${lineNo}: ${key} — ${reason}` : `Section [${section.name ?? 'common'}]: ${key} — ${reason}`);
     }
   }
   return problems;

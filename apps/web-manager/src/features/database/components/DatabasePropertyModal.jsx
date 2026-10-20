@@ -19,7 +19,7 @@ import { InfoBanner } from '../../../components/ds/foundation/InfoBanner';
 import { useActionState } from '../../../infrastructure/hooks/useActionState';
 import { useToast } from '../../../infrastructure/hooks/useToast';
 import { getModifiedKeys } from '../databasePropertyUtils';
-import { validateParams } from '@api-interfaces';
+import { validateEffectiveParams } from '@api-interfaces';
 import {
   ModalStatusLoading,
   ModalStatusError
@@ -89,13 +89,24 @@ function getEffectiveParams(params, bufferMode, bufferUnit, bufferGroups) {
 }
 
 /* ─── ParamNameCell — shared "modified" dot + mono key label ─── */
-function ParamNameCell({ label, isModified }) {
+function ParamNameCell({ label, isModified, isImplicit, implicitHint, implicitBadge }) {
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1.5 min-w-0">
       {isModified && <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />}
       <span className={`text-13 font-mono truncate ${isModified ? 'text-amber-500 font-bold' : 'text-slate-600 dark:text-slate-400'}`}>
         {label}
       </span>
+      {/* Not in the conf file at all — the value shown is purely the
+          engine's own built-in default, not something anyone set. Hidden
+          the moment the field holds a real value (typed or loaded). */}
+      {isImplicit && (
+        <span
+          title={implicitHint}
+          className="shrink-0 text-10 font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border border-slate-200 dark:border-white/10 text-slate-400 dark:text-slate-500"
+        >
+          {implicitBadge}
+        </span>
+      )}
     </div>
   );
 }
@@ -425,13 +436,23 @@ export default function DatabasePropertyModal() {
   const modifiedKeySet = useMemo(() => new Set(modifiedKeys), [modifiedKeys]);
   const modifiedCount = modifiedKeys.length;
 
-  // Guard validation runs against the schema this host's own engine
-  // version resolved (see `databaseParamSchema` above), using the exact
+  // One shared rule engine (required/guard/section-placement/cross-field)
+  // — see validateEffectiveParams's own doc comment — run against the
+  // schema this host's own engine version resolved, using the exact
   // pages/size-reconciled values that actually get written to cubrid.conf
-  // on Apply — same `validateParams` the server re-runs before writing.
+  // on Apply, merged with schema defaults for anything untouched (so a
+  // cross-field or required check has every key's real effective value,
+  // not just whatever's been typed this session).
+  const effectiveParams = useMemo(
+    () => ({ ...schemaDefaults, ...getEffectiveParams(params, bufferMode, bufferUnit, bufferGroups) }),
+    [schemaDefaults, params, bufferMode, bufferUnit, bufferGroups]
+  );
   const guardErrors = useMemo(
-    () => validateParams(databaseParamSchema, getEffectiveParams(params, bufferMode, bufferUnit, bufferGroups)).errors,
-    [databaseParamSchema, params, bufferMode, bufferUnit, bufferGroups]
+    () => validateEffectiveParams(databaseParamSchema, effectiveParams, {
+      isCommonSection: !selectedDatabase,
+      commonSectionLabel: 'common',
+    }),
+    [databaseParamSchema, effectiveParams, selectedDatabase]
   );
   const guardErrorCount = Object.keys(guardErrors).length;
 
@@ -459,8 +480,12 @@ export default function DatabasePropertyModal() {
       value: params[e.key],
       isModified: modifiedKeySet.has(e.key),
       error: guardErrors[e.key],
+      // Never in the conf file (initialParams[e.key] undefined) and
+      // nothing real typed this session either — the value shown is
+      // purely e.default, not anything anyone actually set.
+      isImplicit: initialParams[e.key] === undefined && (params[e.key] === undefined || params[e.key] === ''),
     }))
-  , [databaseParamSchema, params, modifiedKeySet, guardErrors, selectedDatabase]);
+  , [databaseParamSchema, params, initialParams, modifiedKeySet, guardErrors, selectedDatabase]);
 
   const advancedRows = useMemo(() => databaseParamSchema
     // See generalRows' comment — commonOnly keys (ha_mode/ha_node_list/
@@ -486,9 +511,10 @@ export default function DatabasePropertyModal() {
         isModified: modifiedKeySet.has(e.key),
         error: guardErrors[e.key],
         inactiveHint: isInactive ? CM.paramInactiveWhileHint(dep.dependsOnKey) : null,
+        isImplicit: initialParams[e.key] === undefined && (params[e.key] === undefined || params[e.key] === ''),
       };
     })
-  , [databaseParamSchema, params, modifiedKeySet, guardErrors, schemaDefaults, CM, selectedDatabase]);
+  , [databaseParamSchema, params, initialParams, modifiedKeySet, guardErrors, schemaDefaults, CM, selectedDatabase]);
 
   const SERVER_TABS = [
     { id: 'General', label: CM.generalParamsTab, icon: 'tune' },
@@ -526,7 +552,7 @@ export default function DatabasePropertyModal() {
   // Advanced table (and CA itself): the value cell shows the current value,
   // falling back to the default as a placeholder.
   const generalColumns = [
-    { header: CM.parameter, accessor: 'key', width: '45%', render: (_, row) => <ParamNameCell label={row.key} isModified={row.isModified} /> },
+    { header: CM.parameter, accessor: 'key', width: '45%', render: (_, row) => <ParamNameCell label={row.key} isModified={row.isModified} isImplicit={row.isImplicit} implicitBadge={CM.usingDefaultBadge} implicitHint={CM.usingDefaultHint(row.default)} /> },
     {
       header: CM.value, accessor: 'value', width: '55%', cellClassName: 'w-[55%]', sortable: false,
       render: (_, row) => {
@@ -552,7 +578,7 @@ export default function DatabasePropertyModal() {
   // Parameter Value. CA has no separate "Default" column — the value cell
   // itself shows the current value, falling back to the default.
   const advancedColumns = [
-    { header: CM.parameter, accessor: 'key', width: '30%', render: (_, row) => <ParamNameCell label={row.key} isModified={row.isModified} /> },
+    { header: CM.parameter, accessor: 'key', width: '30%', render: (_, row) => <ParamNameCell label={row.key} isModified={row.isModified} isImplicit={row.isImplicit} implicitBadge={CM.usingDefaultBadge} implicitHint={CM.usingDefaultHint(row.default)} /> },
     {
       header: CM.parameterTypeLabel, accessor: 'scope', width: '16%',
       render: (val) => {
@@ -607,7 +633,7 @@ export default function DatabasePropertyModal() {
       isOpen={isDatabasePropertyModalOpen}
       onClose={handleClose}
       title={selectedDatabase ? CM.registrySubtitle(selectedDatabase) : CM.kernelParamsTitle}
-      subtitle={CM.deepSystemConfigDesc}
+      subtitle={selectedDatabase ? CM.instancePropertiesScopeDescDb(selectedDatabase) : CM.commonPropertiesScopeDescDb}
       icon="tune"
       maxWidth="1200px"
       testId="database-property"

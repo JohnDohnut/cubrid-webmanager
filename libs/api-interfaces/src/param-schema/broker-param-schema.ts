@@ -30,8 +30,11 @@ export const BROKER_PARAM_SCHEMA: VersionedParamSchemaEntry[] = [
   // just this key.
   { key: 'BROKER_PORT', category: 'common', guard: { kind: 'int', min: 1, max: 65535 }, default: '', instanceOnly: true, required: true },
   { key: 'MIN_NUM_APPL_SERVER', category: 'common', guard: { kind: 'int', min: 1 }, default: '5' },
-  // Must also be >= MIN_NUM_APPL_SERVER — a cross-field rule, not a single-entry guard.
-  { key: 'MAX_NUM_APPL_SERVER', category: 'common', guard: { kind: 'int', min: 1, max: 4096 }, default: '40' }, // APPL_SERVER_NUM_LIMIT
+  // Must also be >= MIN_NUM_APPL_SERVER — source-confirmed, not a guess:
+  // broker_config.c:716-719 hard-fails the whole config load with
+  // PARAM_BAD_MAX_APPL_SERVER when max < min. Enforced via `crossField`
+  // (validateCrossFieldParams), not expressible as a single-entry guard.
+  { key: 'MAX_NUM_APPL_SERVER', category: 'common', guard: { kind: 'int', min: 1, max: 4096 }, default: '40', crossField: { comparedToKey: 'MIN_NUM_APPL_SERVER', rule: 'gte' } }, // APPL_SERVER_NUM_LIMIT
   // instanceOnly: broker_config.c enforces this value is nonzero and
   // unique among this conf's brokers *and* MASTER_SHM_ID (lines ~1296-1312)
   // — same collision reasoning as BROKER_PORT above. required: same

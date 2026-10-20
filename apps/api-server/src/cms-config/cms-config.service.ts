@@ -29,7 +29,7 @@ import { BaseCmsResponse } from '@type/cms-response/base-cms-response';
 import { BaseService, HandleCmsErrors } from '@common';
 import { DatabaseUserService } from '@database/user/database-user.service';
 import { resolveHostParamSchemas } from './param-schema.util';
-import { ParamSchemaEntry, validateParams, validateParamValue } from '@api-interfaces';
+import { ParamSchemaEntry, validateParams, validateEffectiveParams } from '@api-interfaces';
 
 /**
  * Service for managing CMS environment configuration operations.
@@ -360,46 +360,28 @@ export class CmsConfigService extends BaseService {
     params: Record<string, string | number>
   ): Promise<SetSysParamClientResponse> {
     const { database: schema } = (await this.getEnv(userId, hostUid)).paramSchemas;
-    this.assertValidParams(schema, params);
-
-    // Some keys (ha_node_list, ha_port_id, cubrid_port_id,
-    // auto_restart_server on 11.4+) are marked commonOnly in the schema —
-    // writing them into a per-database [@dbname] section is
-    // source-confirmed to either get silently clobbered by a later,
-    // db-agnostic cubrid_ha.conf reload, or be read by a host-wide
-    // singleton process (cub_master) that never looks at [@dbname] at
-    // all. Reject the request outright rather than let the UI write
-    // something that looks saved but is either a no-op or an active
-    // hazard. Symmetrically, no current database key is `instanceOnly`
-    // (none found meaningless in [common] — see database-param-schema.ts),
-    // but the check is still here so a future one is enforced the moment
-    // it's flagged, not silently unenforced.
-    const schemaByKey = new Map(schema.map((entry) => [entry.key, entry]));
-    if (dbname) {
-      const commonOnlyKeys = Object.keys(params).filter((key) => schemaByKey.get(key)?.commonOnly);
-      if (commonOnlyKeys.length > 0) {
-        throw ValidationError.InvalidFieldFormat('params', undefined, {
-          message: `These parameters can only be set in [common], not per-database: ${commonOnlyKeys.join(', ')}`,
-        });
-      }
-    } else {
-      const instanceOnlyKeys = Object.keys(params).filter((key) => schemaByKey.get(key)?.instanceOnly);
-      if (instanceOnlyKeys.length > 0) {
-        throw ValidationError.InvalidFieldFormat('params', undefined, {
-          message: `These parameters can only be set per-database, not in [common]: ${instanceOnlyKeys.join(', ')}`,
-        });
-      }
-    }
+    this.assertKnownParams(schema, params);
 
     const current = await this.getAllSystemParam(userId, hostUid, 'cubridconf');
     const lines = current.conflist?.[0]?.confdata ?? [];
-    const sectionName = dbname ? `[@${dbname.toLowerCase()}]` : '[common]';
+    const targetSectionName = dbname ? `@${dbname.toLowerCase()}` : 'common';
     const nextLines = this.mergeNamedSection(
       lines,
-      (line) => line.trim().toLowerCase() === sectionName.toLowerCase(),
-      sectionName,
+      (line) => line.trim().toLowerCase() === `[${targetSectionName}]`,
+      `[${targetSectionName}]`,
       params
     );
+    // Checked on the MERGED result, not the raw diff — required/
+    // commonOnly/instanceOnly/crossField all need the section's full
+    // effective state (e.g. a cross-field check needs both sides' real
+    // values even if only one was touched by this request), which a
+    // partial diff alone can't provide. See validateEffectiveParams's own
+    // doc comment — this is the same rule engine every other save path
+    // (table UI, raw editor, raw editor's server-side re-check) uses.
+    this.assertValidSection(schema, nextLines, targetSectionName, {
+      isCommonSection: !dbname,
+      commonSectionLabel: 'common',
+    });
     return this.setSystemParam(userId, hostUid, 'cubridconf', nextLines);
   }
 
@@ -430,24 +412,7 @@ export class CmsConfigService extends BaseService {
     params: Record<string, string | number>
   ): Promise<SetSysParamClientResponse> {
     const { broker: schema } = (await this.getEnv(userId, hostUid)).paramSchemas;
-    this.assertValidParams(schema, params);
-
-    const schemaByKey = new Map(schema.map((entry) => [entry.key, entry]));
-    if (brokerName) {
-      const commonOnlyKeys = Object.keys(params).filter((key) => schemaByKey.get(key)?.commonOnly);
-      if (commonOnlyKeys.length > 0) {
-        throw ValidationError.InvalidFieldFormat('params', undefined, {
-          message: `These parameters can only be set in [broker], not per-broker: ${commonOnlyKeys.join(', ')}`,
-        });
-      }
-    } else {
-      const instanceOnlyKeys = Object.keys(params).filter((key) => schemaByKey.get(key)?.instanceOnly);
-      if (instanceOnlyKeys.length > 0) {
-        throw ValidationError.InvalidFieldFormat('params', undefined, {
-          message: `These parameters can only be set per-broker, not in [broker]: ${instanceOnlyKeys.join(', ')}`,
-        });
-      }
-    }
+    this.assertKnownParams(schema, params);
 
     const current = await this.getAddBrokerInfo(userId, hostUid, 'brokerconf');
     const lines = current.conflist?.[0]?.confdata ?? [];
@@ -464,6 +429,13 @@ export class CmsConfigService extends BaseService {
       sectionName,
       params
     );
+    // See setDatabaseConfigParams's equivalent comment — checked on the
+    // merged result so required/section-placement/crossField all see the
+    // section's full effective state, not just this request's own diff.
+    this.assertValidSection(schema, nextLines, brokerName ? brokerName.toLowerCase() : 'broker', {
+      isCommonSection: !brokerName,
+      commonSectionLabel: 'broker',
+    });
     return this.setBrokerParam(userId, hostUid, nextLines);
   }
 
@@ -476,8 +448,16 @@ export class CmsConfigService extends BaseService {
    * on this host's engine version). This is the only validation these two
    * endpoints get; there's no per-field class-validator DTO to fall back
    * on, by design — see `setDatabaseConfigParams`'s class-level comment.
+   *
+   * Deliberately narrow: only rejects a malformed body or a key this
+   * host's schema doesn't recognize at all. Everything else (guard
+   * values, required/commonOnly/instanceOnly/crossField) is checked by
+   * `assertValidSection` AFTER the merge, against the section's full
+   * effective state — a per-key check here on the raw diff alone can't
+   * see that (e.g. a cross-field rule needs both sides' real values, and
+   * omitting a key from `params` must stay a no-op, not read as "blank").
    */
-  private assertValidParams(schema: ParamSchemaEntry[], params: Record<string, string | number>): void {
+  private assertKnownParams(schema: ParamSchemaEntry[], params: Record<string, string | number>): void {
     // A malformed body (e.g. `params` missing or not an object) must fail
     // with a clear, specific message here — not reach Object.entries
     // inside validateParams and crash as an opaque, unhelpful 500.
@@ -486,12 +466,8 @@ export class CmsConfigService extends BaseService {
         message: '"params" must be an object of paramKey -> value.',
       });
     }
-    const { errors, unknownKeys } = validateParams(schema, params);
-    const problems = [
-      ...unknownKeys.map((key) => `${key}: not supported on this host's engine version`),
-      ...Object.entries(errors).map(([key, reason]) => `${key}: ${reason}`),
-    ];
-    if (problems.length > 0) {
+    const { unknownKeys } = validateParams(schema, params);
+    if (unknownKeys.length > 0) {
       // A plain NestJS HttpException here would get swallowed by
       // @HandleCmsErrors() — it only passes through this codebase's own
       // AppError subclasses unchanged, wrapping anything else into an
@@ -502,7 +478,30 @@ export class CmsConfigService extends BaseService {
       // per-code copy) — without it the specific key/reason list here
       // would be silently replaced by "The field format is invalid."
       throw ValidationError.InvalidFieldFormat('params', undefined, {
-        message: `Invalid parameter value(s): ${problems.join('; ')}`,
+        message: `Invalid parameter(s): ${unknownKeys.map((key) => `${key}: not supported on this host's engine version`).join('; ')}`,
+      });
+    }
+  }
+
+  /**
+   * Post-merge check shared by both typed save endpoints: extracts
+   * `targetSectionName`'s effective key -> value map out of `mergedLines`
+   * (defaults filled in for anything the section doesn't mention) and
+   * runs it through the same rule engine every other validation surface
+   * uses (`validateEffectiveParams` — required/guard/section-placement/
+   * cross-field). Throws naming every problem key if any fail.
+   */
+  private assertValidSection(
+    schema: ParamSchemaEntry[],
+    mergedLines: string[],
+    targetSectionName: string,
+    options: { isCommonSection: boolean; commonSectionLabel: string }
+  ): void {
+    const effectiveParams = this.extractEffectiveSectionParams(mergedLines, targetSectionName, schema);
+    const errors = validateEffectiveParams(schema, effectiveParams, options);
+    if (Object.keys(errors).length > 0) {
+      throw ValidationError.InvalidFieldFormat('params', undefined, {
+        message: `Invalid parameter value(s): ${Object.entries(errors).map(([key, reason]) => `${key}: ${reason}`).join('; ')}`,
       });
     }
   }
@@ -542,58 +541,44 @@ export class CmsConfigService extends BaseService {
 
   /**
    * Guard-checks raw, hand-edited conf text (the free-text editor's save
-   * path) against `schema` — the one validation surface `assertValidParams`
-   * doesn't cover, since that only ever sees a pre-merged, already-targeted
-   * `params` object for one known section. Here the section is whatever
-   * the user actually typed, so each recognized key is checked both for
-   * its value (same `validateParamValue` every other path uses) and for
-   * `commonOnly`/`instanceOnly` scope against whichever section it's
-   * actually sitting in. `commonSectionNames` is `['common']` for
-   * cubrid.conf or `['broker']` for broker.conf — the one section name
-   * that counts as "shared," everything else is a per-instance section.
-   * An unrecognized key is left alone (not every key has schema coverage;
-   * see `setSystemParamFromRawEdit`'s cmconf case for the extreme of that).
+   * path) against `schema` — the one validation surface the typed
+   * endpoints' post-merge check doesn't cover, since that only ever sees
+   * one known target section. Here the text can touch any number of
+   * sections at once, so each one is checked independently through the
+   * same shared rule engine (`validateEffectiveParams` — required/guard/
+   * section-placement/cross-field, identical to every other call site).
+   * `commonSectionNames` is `['common']` for cubrid.conf or `['broker']`
+   * for broker.conf — the one section name that counts as "shared,"
+   * everything else is a per-instance section. An unrecognized key is
+   * left alone (not every key has schema coverage; see
+   * `setSystemParamFromRawEdit`'s cmconf case for the extreme of that).
    */
   private assertValidConfText(schema: ParamSchemaEntry[], lines: string[], commonSectionNames: string[]): void {
     const schemaByKey = new Map(schema.map((entry) => [entry.key.toLowerCase(), entry]));
-    const commonRequiredKeys = schema.filter((e) => e.required && e.commonOnly).map((e) => e.key);
-    const instanceRequiredKeys = schema.filter((e) => e.required && e.instanceOnly).map((e) => e.key);
+    const schemaDefaults = Object.fromEntries(schema.map((entry) => [entry.key, entry.default ?? '']));
     const problems: string[] = [];
     for (const section of this.parseConfTextSections(lines)) {
       const isCommonSection = section.name === null || commonSectionNames.includes(section.name);
-      const seenKeys = new Set<string>();
+      const sectionValues: Record<string, string> = {};
+      const sectionLineNos: Record<string, number> = {};
       for (const { key, value, lineNo } of section.entries) {
-        seenKeys.add(key.toLowerCase());
         const entry = schemaByKey.get(key.toLowerCase());
         if (!entry) continue;
-        if (entry.commonOnly && !isCommonSection) {
-          problems.push(`Line ${lineNo}: ${key} can only be set in [${commonSectionNames[0]}], not [${section.name}]`);
-          continue;
-        }
-        if (entry.instanceOnly && isCommonSection) {
-          problems.push(`Line ${lineNo}: ${key} cannot be set in [${section.name ?? commonSectionNames[0]}], only per-instance`);
-          continue;
-        }
-        // Blank-but-present is already a validateParamValue gap for most
-        // keys (empty means "fall back to the engine default" — valid),
-        // but not for a `required` one, which has no safe fallback.
-        if (entry.required && value.trim() === '') {
-          problems.push(`Line ${lineNo}: ${key} is required and cannot be left blank`);
-          continue;
-        }
-        const reason = validateParamValue(entry.guard, value);
-        if (reason) problems.push(`Line ${lineNo}: ${key} = "${value}" — ${reason}`);
+        sectionValues[entry.key] = value;
+        sectionLineNos[entry.key] = lineNo;
       }
-      // A required key can also be missing its line ENTIRELY — invisible
-      // to the loop above, which only ever sees keys that exist in the
-      // text. Checked per section, so a deleted BROKER_PORT line in one
-      // broker's [%name] section is caught even if every other section
-      // in the file is fine.
-      const missingKeys = (isCommonSection ? commonRequiredKeys : instanceRequiredKeys).filter(
-        (key) => !seenKeys.has(key.toLowerCase())
+      const sectionErrors = validateEffectiveParams(
+        schema,
+        { ...schemaDefaults, ...sectionValues },
+        { isCommonSection, commonSectionLabel: commonSectionNames[0] }
       );
-      if (missingKeys.length > 0) {
-        problems.push(`Section [${section.name ?? commonSectionNames[0]}] is missing required parameter(s): ${missingKeys.join(', ')}`);
+      for (const [key, reason] of Object.entries(sectionErrors)) {
+        const lineNo = sectionLineNos[key];
+        problems.push(
+          lineNo
+            ? `Line ${lineNo}: ${key} — ${reason}`
+            : `Section [${section.name ?? commonSectionNames[0]}]: ${key} — ${reason}`
+        );
       }
     }
     if (problems.length > 0) {
@@ -601,6 +586,32 @@ export class CmsConfigService extends BaseService {
         message: `Invalid configuration value(s): ${problems.join('; ')}`,
       });
     }
+  }
+
+  /**
+   * Finds `targetSectionName` (already in `parseConfTextSections`' own
+   * lowercased, `@`/`%`-stripped-or-kept convention — e.g. `'common'`,
+   * `'@dbname'`, `'broker'`, or a bare broker name) among `lines` and
+   * returns its effective key -> value map, merged with `schema`'s own
+   * defaults for anything the section doesn't mention at all. Returns
+   * pure defaults if the section doesn't exist yet (e.g. a brand new
+   * `[@dbname]` about to be created by this same save).
+   */
+  private extractEffectiveSectionParams(
+    lines: string[],
+    targetSectionName: string,
+    schema: ParamSchemaEntry[]
+  ): Record<string, string> {
+    const schemaDefaults = Object.fromEntries(schema.map((entry) => [entry.key, entry.default ?? '']));
+    const schemaByKey = new Map(schema.map((entry) => [entry.key.toLowerCase(), entry]));
+    const section = this.parseConfTextSections(lines).find((s) => s.name === targetSectionName);
+    if (!section) return schemaDefaults;
+    const values: Record<string, string> = {};
+    for (const { key, value } of section.entries) {
+      const entry = schemaByKey.get(key.toLowerCase());
+      if (entry) values[entry.key] = value;
+    }
+    return { ...schemaDefaults, ...values };
   }
 
   /**
