@@ -31,6 +31,17 @@ export function validateParams(
       unknownKeys.push(key);
       continue;
     }
+    // `validateParamValue` treats an empty value as "unset, fall back to
+    // the engine default" — true for nearly every param, but not for one
+    // flagged `required`: there, blank isn't a safe fallback, it's a
+    // config-load failure (see ParamSchemaEntry.required's doc comment).
+    // Checked ahead of the guard since an empty string would otherwise
+    // pass guard-wise (every guard kind treats '' as valid) and never
+    // reach a kind-specific check at all.
+    if (entry.required && (value === undefined || value === null || String(value).trim() === '')) {
+      errors[key] = 'This parameter is required and cannot be left blank.';
+      continue;
+    }
     const reason = validateParamValue(entry.guard, value);
     if (reason) errors[key] = reason;
   }

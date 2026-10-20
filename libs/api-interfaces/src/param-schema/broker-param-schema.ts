@@ -24,15 +24,20 @@ export const BROKER_PARAM_SCHEMA: VersionedParamSchemaEntry[] = [
   // broker_config.c's check_port_number rejects two brokers sharing a
   // port — a single shared value would collide by construction, and
   // [broker] has no inheritance into [%name] anyway (ini_parser.c does
-  // exact "section:key" lookups, no section fallback).
-  { key: 'BROKER_PORT', category: 'common', guard: { kind: 'int', min: 1, max: 65535 }, default: '', instanceOnly: true },
+  // exact "section:key" lookups, no section fallback). required: read via
+  // `ini_getint(..., "BROKER_PORT", 0, ...)` then `if (port == 0) { ...;
+  // goto conf_error; }` — absence/0 fails the WHOLE broker.conf load, not
+  // just this key.
+  { key: 'BROKER_PORT', category: 'common', guard: { kind: 'int', min: 1, max: 65535 }, default: '', instanceOnly: true, required: true },
   { key: 'MIN_NUM_APPL_SERVER', category: 'common', guard: { kind: 'int', min: 1 }, default: '5' },
   // Must also be >= MIN_NUM_APPL_SERVER — a cross-field rule, not a single-entry guard.
   { key: 'MAX_NUM_APPL_SERVER', category: 'common', guard: { kind: 'int', min: 1, max: 4096 }, default: '40' }, // APPL_SERVER_NUM_LIMIT
   // instanceOnly: broker_config.c enforces this value is nonzero and
   // unique among this conf's brokers *and* MASTER_SHM_ID (lines ~1296-1312)
-  // — same collision reasoning as BROKER_PORT above.
-  { key: 'APPL_SERVER_SHM_ID', category: 'common', guard: { kind: 'int', min: 1 }, default: '', instanceOnly: true },
+  // — same collision reasoning as BROKER_PORT above. required: same
+  // `ini_gethex(..., 0, ...)` + `if (== 0) goto conf_error` pattern as
+  // BROKER_PORT/MASTER_SHM_ID.
+  { key: 'APPL_SERVER_SHM_ID', category: 'common', guard: { kind: 'int', min: 1 }, default: '', instanceOnly: true, required: true },
   { key: 'LOG_DIR', category: 'common', guard: { kind: 'string' }, default: 'log/broker/sql_log' },
   { key: 'ERROR_LOG_DIR', category: 'common', guard: { kind: 'string' }, default: 'log/broker/error_log' },
   { key: 'SQL_LOG', category: 'common', guard: { kind: 'enum', options: ['ON', 'OFF', 'ERROR', 'NOTICE', 'TIMEOUT'] }, default: 'ON' },
@@ -68,7 +73,10 @@ export const BROKER_PARAM_SCHEMA: VersionedParamSchemaEntry[] = [
 
   // ── [broker] section only (commonOnly) — broker_config.c:560-607 reads
   // these via SECTION_NAME ("broker") exclusively, never per-broker. ──
-  { key: 'MASTER_SHM_ID', category: 'common', guard: { kind: 'int', min: 1 }, default: '', commonOnly: true }, // ini_gethex, no documented range
+  // required: `ini_gethex(..., "MASTER_SHM_ID", 0, ...)` then
+  // `if (master_shm_id == 0) { PRINTERROR(...); goto conf_error; }` —
+  // fails the entire broker.conf load, not just this key.
+  { key: 'MASTER_SHM_ID', category: 'common', guard: { kind: 'int', min: 1 }, default: '', commonOnly: true, required: true }, // ini_gethex, no documented range
   { key: 'ADMIN_LOG_FILE', category: 'common', guard: { kind: 'string' }, default: 'log/broker/cubrid_broker.log', commonOnly: true },
   { key: 'ACCESS_CONTROL', category: 'common', guard: { kind: 'enum', options: ['ON', 'OFF'] }, default: 'OFF', commonOnly: true },
   { key: 'ACCESS_CONTROL_FILE', category: 'common', guard: { kind: 'string' }, default: '', commonOnly: true },

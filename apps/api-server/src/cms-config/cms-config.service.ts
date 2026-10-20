@@ -556,10 +556,14 @@ export class CmsConfigService extends BaseService {
    */
   private assertValidConfText(schema: ParamSchemaEntry[], lines: string[], commonSectionNames: string[]): void {
     const schemaByKey = new Map(schema.map((entry) => [entry.key.toLowerCase(), entry]));
+    const commonRequiredKeys = schema.filter((e) => e.required && e.commonOnly).map((e) => e.key);
+    const instanceRequiredKeys = schema.filter((e) => e.required && e.instanceOnly).map((e) => e.key);
     const problems: string[] = [];
     for (const section of this.parseConfTextSections(lines)) {
       const isCommonSection = section.name === null || commonSectionNames.includes(section.name);
+      const seenKeys = new Set<string>();
       for (const { key, value, lineNo } of section.entries) {
+        seenKeys.add(key.toLowerCase());
         const entry = schemaByKey.get(key.toLowerCase());
         if (!entry) continue;
         if (entry.commonOnly && !isCommonSection) {
@@ -570,8 +574,26 @@ export class CmsConfigService extends BaseService {
           problems.push(`Line ${lineNo}: ${key} cannot be set in [${section.name ?? commonSectionNames[0]}], only per-instance`);
           continue;
         }
+        // Blank-but-present is already a validateParamValue gap for most
+        // keys (empty means "fall back to the engine default" — valid),
+        // but not for a `required` one, which has no safe fallback.
+        if (entry.required && value.trim() === '') {
+          problems.push(`Line ${lineNo}: ${key} is required and cannot be left blank`);
+          continue;
+        }
         const reason = validateParamValue(entry.guard, value);
         if (reason) problems.push(`Line ${lineNo}: ${key} = "${value}" — ${reason}`);
+      }
+      // A required key can also be missing its line ENTIRELY — invisible
+      // to the loop above, which only ever sees keys that exist in the
+      // text. Checked per section, so a deleted BROKER_PORT line in one
+      // broker's [%name] section is caught even if every other section
+      // in the file is fine.
+      const missingKeys = (isCommonSection ? commonRequiredKeys : instanceRequiredKeys).filter(
+        (key) => !seenKeys.has(key.toLowerCase())
+      );
+      if (missingKeys.length > 0) {
+        problems.push(`Section [${section.name ?? commonSectionNames[0]}] is missing required parameter(s): ${missingKeys.join(', ')}`);
       }
     }
     if (problems.length > 0) {

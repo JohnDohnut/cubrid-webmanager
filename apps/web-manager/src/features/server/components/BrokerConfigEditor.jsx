@@ -39,10 +39,19 @@ function parseConfSections(text) {
 function validateConfText(text, brokerParamSchema) {
   if (!brokerParamSchema?.length) return [];
   const schemaByKey = new Map(brokerParamSchema.map(e => [e.key.toLowerCase(), e]));
+  // MASTER_SHM_ID/BROKER_PORT/APPL_SERVER_SHM_ID: no safe engine fallback
+  // when absent (broker_config.c fails the whole config load) — see
+  // ParamSchemaEntry.required's doc comment. Checked per section below so
+  // a deleted line is caught even though it's invisible to the per-entry
+  // loop (which only ever sees keys that still exist in the text).
+  const commonRequiredKeys = brokerParamSchema.filter(e => e.required && e.commonOnly).map(e => e.key);
+  const instanceRequiredKeys = brokerParamSchema.filter(e => e.required && e.instanceOnly).map(e => e.key);
   const problems = [];
   for (const section of parseConfSections(text)) {
     const isCommonSection = section.name === null || section.name === 'broker';
+    const seenKeys = new Set();
     for (const { key, value, lineNo } of section.entries) {
+      seenKeys.add(key.toLowerCase());
       const entry = schemaByKey.get(key.toLowerCase());
       if (!entry) continue;
       if (entry.commonOnly && !isCommonSection) {
@@ -53,8 +62,18 @@ function validateConfText(text, brokerParamSchema) {
         problems.push(`Line ${lineNo}: ${key} cannot be set in [${section.name ?? 'broker'}], only per-broker`);
         continue;
       }
+      if (entry.required && value.trim() === '') {
+        problems.push(`Line ${lineNo}: ${key} is required and cannot be left blank`);
+        continue;
+      }
       const reason = validateParamValue(entry.guard, value);
       if (reason) problems.push(`Line ${lineNo}: ${key} = "${value}" — ${reason}`);
+    }
+    const missingKeys = (isCommonSection ? commonRequiredKeys : instanceRequiredKeys).filter(
+      key => !seenKeys.has(key.toLowerCase())
+    );
+    if (missingKeys.length > 0) {
+      problems.push(`Section [${section.name ?? 'broker'}] is missing required parameter(s): ${missingKeys.join(', ')}`);
     }
   }
   return problems;

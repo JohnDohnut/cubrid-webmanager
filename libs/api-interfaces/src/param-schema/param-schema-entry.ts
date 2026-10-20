@@ -66,6 +66,25 @@ export interface ParamSchemaEntry {
    * "section:key" lookups only, no fallback).
    */
   instanceOnly?: boolean;
+  /**
+   * `true` means this key has NO safe engine fallback — leaving it absent
+   * from the conf file doesn't just mean "use a sane default," it makes
+   * config load (or database boot) actively fail. Different axis from
+   * `commonOnly`/`instanceOnly` (which section it belongs in) and from
+   * `default` (a UI placeholder, which for most keys IS the real value
+   * the engine substitutes when absent — but for a `required` key there
+   * is no such literal, `default` is just whatever placeholder text makes
+   * sense to show, not a value that would actually work if used as-is).
+   * Source-confirmed per entry, not inferred from an empty-looking
+   * `default: ''` (blank is itself a legitimate, safe value for plenty of
+   * keys, e.g. "no access list configured"). For broker entries: the
+   * three keys (`MASTER_SHM_ID`, `BROKER_PORT`, `APPL_SERVER_SHM_ID`) read
+   * via `ini_gethex`/`ini_getint` with a literal fallback of `0`,
+   * immediately followed by an `if (value == 0) { ...; goto conf_error; }`
+   * that fails the ENTIRE broker.conf load (broker_config.c) — not merely
+   * leaving that one key unsafe.
+   */
+  required?: boolean;
 }
 
 /**
