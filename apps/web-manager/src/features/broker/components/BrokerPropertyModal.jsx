@@ -25,7 +25,7 @@ import { validateEffectiveParams } from '@api-interfaces';
 // libs/api-interfaces/src/param-schema/broker-param-schema.ts for the
 // master, version-aware rule table and its source citations.
 
-function ParamRow({ param, value, isModified, onChange, error, isImplicit }) {
+function ParamRow({ param, value, isModified, onChange, error, isDefaultValue, isImplicit }) {
   const CM = useCM();
   const options = param.guard.kind === 'enum' ? param.guard.options : null;
   const isNumeric = param.guard.kind === 'int' || param.guard.kind === 'float';
@@ -37,15 +37,26 @@ function ParamRow({ param, value, isModified, onChange, error, isImplicit }) {
         <span className={`text-12 font-mono truncate ${isModified ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-500 dark:text-slate-400'}`}>
           {param.key}
         </span>
-        {/* Not in [broker]/[%name] at all — the value shown is purely
-            param.default, not anything anyone set. Hidden the moment the
-            field holds a real value (typed or loaded). */}
-        {isImplicit && (
+        {/* The effective value (explicit or not) matches the schema's own
+            default — see DatabasePropertyModal's ParamNameCell comment for
+            why this is a separate signal from isImplicit below. */}
+        {isDefaultValue && (
           <span
             title={CM.usingDefaultHint(param.default)}
             className="shrink-0 text-10 font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border border-slate-200 dark:border-white/10 text-slate-400 dark:text-slate-500"
           >
             {CM.usingDefaultBadge}
+          </span>
+        )}
+        {/* Not in [broker]/[%name] at all — the value shown is purely
+            param.default, not anything anyone set. Hidden the moment the
+            field holds a real value (typed or loaded). */}
+        {isImplicit && (
+          <span
+            title={CM.implicitValueHint(param.default)}
+            className="shrink-0 text-10 font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border border-dashed border-slate-200 dark:border-white/10 text-slate-400 dark:text-slate-500"
+          >
+            {CM.implicitValueBadge}
           </span>
         )}
       </div>
@@ -354,6 +365,7 @@ export default function BrokerPropertyModal() {
                       isModified={isKeyModified(p.key)}
                       onChange={handleParamChange}
                       error={guardErrors[p.key]}
+                      isDefaultValue={String((localParams[p.key] !== undefined && localParams[p.key] !== '') ? localParams[p.key] : p.default) === String(p.default ?? '')}
                       isImplicit={initialParams[p.key] === undefined && (localParams[p.key] === undefined || localParams[p.key] === '')}
                     />
                   ))}

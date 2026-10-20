@@ -89,21 +89,49 @@ function getEffectiveParams(params, bufferMode, bufferUnit, bufferGroups) {
   return effectiveParams;
 }
 
+// A blank field falls back to the schema default as its displayed value, so
+// it's trivially "the default" — same string compare either way, explicit or
+// not. Whether it's actually written anywhere is a separate question (see
+// `isImplicit` at each call site).
+function isEffectivelyDefault(value, defaultValue) {
+  const effective = (value !== undefined && value !== '') ? value : defaultValue;
+  return String(effective ?? '') === String(defaultValue ?? '');
+}
+
 /* ─── ParamNameCell — shared "modified" dot + mono key label ─── */
-function ParamNameCell({ label, isModified, isImplicit, implicitHint, implicitBadge }) {
+// Two independent, non-exclusive badges — conflating them used to make one
+// badge mean both "this value happens to equal the default" and "nothing is
+// actually written here", which are different facts that can disagree (an
+// explicit conf line can coincidentally match the default; an implicit field
+// is always shown as the default, but not every default-valued field is
+// implicit).
+function ParamNameCell({ label, isModified, isDefaultValue, defaultValueHint, defaultValueBadge, isImplicit, implicitHint, implicitBadge }) {
   return (
     <div className="flex items-center gap-1.5 min-w-0">
       {isModified && <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />}
       <span className={`text-13 font-mono font-medium truncate ${isModified ? 'text-amber-500' : 'text-slate-600 dark:text-slate-400'}`}>
         {label}
       </span>
+      {/* The effective value (explicit or not) matches the schema's own
+          default — purely informational, says nothing about whether it's
+          actually written in the conf file. */}
+      {isDefaultValue && (
+        <span
+          title={defaultValueHint}
+          className="shrink-0 text-10 font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border border-slate-200 dark:border-white/10 text-slate-400 dark:text-slate-500"
+        >
+          {defaultValueBadge}
+        </span>
+      )}
       {/* Not in the conf file at all — the value shown is purely the
           engine's own built-in default, not something anyone set. Hidden
-          the moment the field holds a real value (typed or loaded). */}
+          the moment the field holds a real value (typed or loaded). Dashed
+          border signals "not actually there", distinct from the solid
+          Default badge above. */}
       {isImplicit && (
         <span
           title={implicitHint}
-          className="shrink-0 text-10 font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border border-slate-200 dark:border-white/10 text-slate-400 dark:text-slate-500"
+          className="shrink-0 text-10 font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border border-dashed border-slate-200 dark:border-white/10 text-slate-400 dark:text-slate-500"
         >
           {implicitBadge}
         </span>
@@ -521,6 +549,7 @@ export default function DatabasePropertyModal() {
       value: params[e.key],
       isModified: modifiedKeySet.has(e.key),
       error: guardErrors[e.key],
+      isDefaultValue: isEffectivelyDefault(params[e.key], e.default),
       // Never in the conf file (initialParams[e.key] undefined) and
       // nothing real typed this session either — the value shown is
       // purely e.default, not anything anyone actually set.
@@ -552,6 +581,7 @@ export default function DatabasePropertyModal() {
         isModified: modifiedKeySet.has(e.key),
         error: guardErrors[e.key],
         inactiveHint: isInactive ? CM.paramInactiveWhileHint(dep.dependsOnKey) : null,
+        isDefaultValue: isEffectivelyDefault(params[e.key], e.default),
         isImplicit: initialParams[e.key] === undefined && (params[e.key] === undefined || params[e.key] === ''),
       };
     })
@@ -600,7 +630,7 @@ export default function DatabasePropertyModal() {
   // Advanced table (and CA itself): the value cell shows the current value,
   // falling back to the default as a placeholder.
   const generalColumns = [
-    { header: CM.parameter, accessor: 'key', width: '45%', render: (_, row) => <ParamNameCell label={row.key} isModified={row.isModified} isImplicit={row.isImplicit} implicitBadge={CM.usingDefaultBadge} implicitHint={CM.usingDefaultHint(row.default)} /> },
+    { header: CM.parameter, accessor: 'key', width: '45%', render: (_, row) => <ParamNameCell label={row.key} isModified={row.isModified} isDefaultValue={row.isDefaultValue} defaultValueBadge={CM.usingDefaultBadge} defaultValueHint={CM.usingDefaultHint(row.default)} isImplicit={row.isImplicit} implicitBadge={CM.implicitValueBadge} implicitHint={CM.implicitValueHint(row.default)} /> },
     {
       header: CM.value, accessor: 'value', width: '55%', cellClassName: 'w-[55%]', sortable: false,
       render: (_, row) => {
@@ -630,7 +660,7 @@ export default function DatabasePropertyModal() {
       header: CM.parameter, accessor: 'key', width: '30%',
       className: '!sticky left-0 z-20 bg-slate-100 dark:bg-slate-900',
       cellClassName: 'sticky left-0 z-[1] bg-white dark:bg-slate-900',
-      render: (_, row) => <ParamNameCell label={row.key} isModified={row.isModified} isImplicit={row.isImplicit} implicitBadge={CM.usingDefaultBadge} implicitHint={CM.usingDefaultHint(row.default)} />,
+      render: (_, row) => <ParamNameCell label={row.key} isModified={row.isModified} isDefaultValue={row.isDefaultValue} defaultValueBadge={CM.usingDefaultBadge} defaultValueHint={CM.usingDefaultHint(row.default)} isImplicit={row.isImplicit} implicitBadge={CM.implicitValueBadge} implicitHint={CM.implicitValueHint(row.default)} />,
     },
     {
       header: CM.parameterTypeLabel, accessor: 'scope', width: '16%',
