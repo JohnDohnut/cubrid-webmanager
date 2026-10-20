@@ -264,29 +264,30 @@ export class CmsConfigController {
   }
 
   /**
-   * Set a subset of broker.conf parameters for one broker. `params` is
+   * Set a subset of broker.conf parameters for one broker, or for the
+   * shared [broker] section when `brokerName` is omitted. `params` is
    * validated against this host's own version-resolved schema (see
    * `CmsConfigService.setBrokerConfigParams`) — unlike `broker-set-param`,
    * which accepts arbitrary raw conf text with no validation at all.
    *
-   * @route POST /:hostUid/cms-config/broker-params/:brokerName
+   * @route POST /:hostUid/cms-config/broker-params
    * @example
-   * // POST /host-uid/cms-config/broker-params/query_editor
-   * // Body: { "params": { "BROKER_PORT": 30000 } }
+   * // POST /host-uid/cms-config/broker-params
+   * // Body: { "brokerName": "query_editor", "params": { "BROKER_PORT": 30000 } }
    */
-  @Post('broker-params/:brokerName')
+  @Post('broker-params')
   async setBrokerConfigParams(
     @Request() req,
     @Param('hostUid') hostUid: string,
-    @Param('brokerName') brokerName: string,
-    @Body() body: { params: Record<string, string | number> }
+    @Body() body: { brokerName?: string; params: Record<string, string | number> }
   ): Promise<SetSysParamClientResponse> {
     const userId = req.user.sub;
+    const { brokerName, params } = body;
 
     this.logger.log(
-      `Setting broker config params for host: ${hostUid}, broker: ${brokerName}`,
+      `Setting broker config params for host: ${hostUid}, broker: ${brokerName ?? '[broker]'}`,
       'CmsConfigController'
     );
-    return await this.cmsConfigService.setBrokerConfigParams(userId, hostUid, brokerName, body.params);
+    return await this.cmsConfigService.setBrokerConfigParams(userId, hostUid, brokerName, params);
   }
 }

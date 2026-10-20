@@ -520,6 +520,7 @@ export const CM = {
 
   // Broker UI
   brokerProperties: 'Broker Properties',
+  brokerCommonProperties: 'Broker Common Properties',
   common: 'Common',
   advanced: 'Advanced',
   reset: 'Reset',
@@ -1916,7 +1917,7 @@ export const CM = {
 
   // BrokerPropertyModal
   pendingCountLabel: (n) => `${n} Pending`,
-  brokerSettingsAppliedMsg: (name) => `Broker settings for ${name} have been applied successfully.`,
+  brokerSettingsAppliedMsg: (name) => name ? `Broker settings for ${name} have been applied successfully.` : 'Broker common settings have been applied successfully.',
 
   // BrokerStatus
   noAppServersActiveMsg: 'No application servers currently active.',

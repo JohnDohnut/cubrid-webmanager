@@ -36,20 +36,36 @@ export interface ParamSchemaEntry {
    */
   advisory?: { dependsOnKey: string; inactiveWhen: string[] };
   /**
-   * Database entries only. `true` means this key must only ever be
-   * written to the [common] section — never a per-database [@dbname]
-   * section. Unlike `advisory`, this is enforced server-side (a write
-   * attempt is rejected, not just hinted at in the UI): source-confirmed
-   * (not a guess) that the engine's own per-db conf merge
-   * (`prm_read_and_parse_ini_file`, system_parameter.c) either silently
-   * clobbers a [@dbname] override for these HA keys with a later,
-   * db-agnostic cubrid_ha.conf reload, or — for ha_mode specifically —
-   * makes the database refuse to boot at all
-   * (ER_PRM_CONFLICT_EXISTS_ON_MULTIPLE_SECTIONS, boot_sr.c) when
-   * [common] and [@dbname] disagree. HA clustering is a per-host concept,
-   * not a per-database one, by engine design.
+   * `true` means this key must only ever be written to the shared section
+   * — [common] for database entries, [broker] for broker entries — never
+   * a per-instance [@dbname]/[%brokerName] section. Enforced server-side
+   * (a write attempt against the wrong section is rejected, not just
+   * hinted at in the UI). For database entries this is source-confirmed
+   * against actual engine behavior (e.g. ha_node_list/ha_port_id/
+   * cubrid_port_id/auto_restart_server are each read by a host-wide
+   * singleton process — master_heartbeat.c or cub_master itself — before
+   * or outside any per-database context; see each entry's own comment in
+   * database-param-schema.ts). For broker entries, it's the 5 keys
+   * broker_config.c reads via the literal `SECTION_NAME` ("broker"),
+   * never a per-broker `[%name]` section at all (ACCESS_CONTROL*,
+   * MASTER_SHM_ID, ADMIN_LOG_FILE).
    */
   commonOnly?: boolean;
+  /**
+   * `true` means this key must only ever be written to a per-instance
+   * section ([@dbname] / [%brokerName]) — never the shared [common]/
+   * [broker] section. Enforced server-side like `commonOnly`, just the
+   * opposite direction. Reserved for keys the engine itself enforces must
+   * be unique per instance (e.g. broker.conf's BROKER_PORT/
+   * APPL_SERVER_SHM_ID — broker_config.c rejects two brokers, or a broker
+   * and MASTER_SHM_ID, sharing the same value) — writing such a key to
+   * the shared section would be meaningless (every instance would then
+   * collide on the same value) or simply never read there at all, since
+   * broker.conf's `[broker]` section has no inheritance into `[%name]`
+   * sections at the engine level (ini_parser.c does exact
+   * "section:key" lookups only, no fallback).
+   */
+  instanceOnly?: boolean;
 }
 
 /**

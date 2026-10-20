@@ -115,9 +115,26 @@ export const DATABASE_PARAM_SCHEMA: VersionedParamSchemaEntry[] = [
   // TRAN_REP_CLASS_COMMIT_INSTANCE == TRAN_READ_COMMITTED, the engine's own
   // literal default (system_parameter.c, isolation_level's prm_Def entry).
   { key: 'isolation_level', category: 'general', guard: { kind: 'enum', options: ['TRAN_SERIALIZABLE', 'TRAN_REP_CLASS_REP_INSTANCE', 'TRAN_REP_CLASS_COMMIT_INSTANCE'] }, default: 'TRAN_REP_CLASS_COMMIT_INSTANCE' },
-  { key: 'cubrid_port_id', category: 'general', guard: { kind: 'int', min: 1, max: 65535 }, default: '1523' },
+  // [common] only — read exactly once at cub_master startup
+  // (executables/master.c's master_util_config_startup/css_master_init)
+  // to bind the host's single listening TCP port before any database is
+  // loaded; per-db processes only use it to locate that one master
+  // (network_sr.c:1156, network_cl.c:3625), never to bind their own.
+  { key: 'cubrid_port_id', category: 'general', guard: { kind: 'int', min: 1, max: 65535 }, default: '1523', commonOnly: true },
   { key: 'max_clients', category: 'general', guard: { kind: 'int', min: 10, max: 4000 }, default: '100' }, // upper = CSS_MAX_CLIENT_COUNT
-  { key: 'auto_restart_server', category: 'general', guard: { kind: 'enum', options: ['yes', 'no'] }, default: 'no' },
+  // Version-split, NOT a single commonOnly rule — the engine's own
+  // consumer of this PRM relocated at the 11.3/11.4 boundary:
+  //  - 11.0–11.3: read inside cub_server's OWN crash_handler
+  //    (executables/server.c:222, confirmed identical on release/11.0
+  //    through release/11.3) — genuinely per-database (`both`), each db's
+  //    own server process decides whether to resurrect itself.
+  //  - 11.4+: that server.c read is GONE; it's now read exactly once at
+  //    cub_master startup (executables/master.c, line 1311 on 11.4 /
+  //    1347 on develop) to decide whether to construct the single
+  //    host-wide server_monitor that watches/restarts every crashed
+  //    cub_server process — `commonOnly` from here on.
+  { key: 'auto_restart_server', category: 'general', guard: { kind: 'enum', options: ['yes', 'no'] }, default: 'no', maxVersion: '11.3.999' },
+  { key: 'auto_restart_server', category: 'general', guard: { kind: 'enum', options: ['yes', 'no'] }, default: 'no', commonOnly: true, minVersion: '11.4' },
 
   // ── buffer (pages/size pairs — only one side of each pair is ever sent,
   // per the UI's radio choice) ──

@@ -1753,6 +1753,15 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
               });
             }}
           />
+          <MenuDivider />
+          <MenuItem
+            icon="tune"
+            label={CM.properties}
+            onClick={() => {
+              setBrokerRootContextMenu(null);
+              dispatch(openBrokerPropertyModal({ hostUid: selectedHostUid, brokerName: null }));
+            }}
+          />
         </ContextMenuWrapper>
       )}
 

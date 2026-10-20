@@ -506,6 +506,7 @@ export const CM_KO = {
   minChars3: '3자 이상',
 
   brokerProperties: '브로커 속성',
+  brokerCommonProperties: '브로커 공통 속성',
   common: '일반',
   advanced: '고급',
   reset: '초기화',
@@ -1902,7 +1903,7 @@ export const CM_KO = {
 
   // BrokerPropertyModal
   pendingCountLabel: (n) => `${n}개 대기 중`,
-  brokerSettingsAppliedMsg: (name) => `${name} 브로커 설정이 성공적으로 적용되었습니다.`,
+  brokerSettingsAppliedMsg: (name) => name ? `${name} 브로커 설정이 성공적으로 적용되었습니다.` : '브로커 공통 설정이 성공적으로 적용되었습니다.',
 
   // BrokerStatus
   noAppServersActiveMsg: '현재 활성화된 응용프로그램 서버가 없습니다.',

@@ -321,20 +321,31 @@ export class CmsConfigService extends BaseService {
     const { database: schema } = (await this.getEnv(userId, hostUid)).paramSchemas;
     this.assertValidParams(schema, params);
 
-    // Some keys (ha_mode, ha_node_list, ha_port_id) are marked
-    // commonOnly in the schema — writing them into a per-database
-    // [@dbname] section is source-confirmed to either get silently
-    // clobbered by a later, db-agnostic cubrid_ha.conf reload, or (for
-    // ha_mode specifically) make the database refuse to boot at all
-    // (ER_PRM_CONFLICT_EXISTS_ON_MULTIPLE_SECTIONS). Reject the request
-    // outright rather than let the UI write something that looks saved
-    // but is either a no-op or an active hazard.
+    // Some keys (ha_node_list, ha_port_id, cubrid_port_id,
+    // auto_restart_server on 11.4+) are marked commonOnly in the schema —
+    // writing them into a per-database [@dbname] section is
+    // source-confirmed to either get silently clobbered by a later,
+    // db-agnostic cubrid_ha.conf reload, or be read by a host-wide
+    // singleton process (cub_master) that never looks at [@dbname] at
+    // all. Reject the request outright rather than let the UI write
+    // something that looks saved but is either a no-op or an active
+    // hazard. Symmetrically, no current database key is `instanceOnly`
+    // (none found meaningless in [common] — see database-param-schema.ts),
+    // but the check is still here so a future one is enforced the moment
+    // it's flagged, not silently unenforced.
+    const schemaByKey = new Map(schema.map((entry) => [entry.key, entry]));
     if (dbname) {
-      const schemaByKey = new Map(schema.map((entry) => [entry.key, entry]));
       const commonOnlyKeys = Object.keys(params).filter((key) => schemaByKey.get(key)?.commonOnly);
       if (commonOnlyKeys.length > 0) {
         throw ValidationError.InvalidFieldFormat('params', undefined, {
           message: `These parameters can only be set in [common], not per-database: ${commonOnlyKeys.join(', ')}`,
+        });
+      }
+    } else {
+      const instanceOnlyKeys = Object.keys(params).filter((key) => schemaByKey.get(key)?.instanceOnly);
+      if (instanceOnlyKeys.length > 0) {
+        throw ValidationError.InvalidFieldFormat('params', undefined, {
+          message: `These parameters can only be set per-database, not in [common]: ${instanceOnlyKeys.join(', ')}`,
         });
       }
     }
@@ -352,14 +363,21 @@ export class CmsConfigService extends BaseService {
   }
 
   /**
-   * Set a subset of broker.conf parameters for one broker. Same
-   * fetch-merge-write shape as `setDatabaseConfigParams`, but the target
-   * section is `[%brokerName]` (or the bare, no-% form some conf files
-   * use) among potentially many broker sections in the file.
+   * Set a subset of broker.conf parameters for one broker, or for the
+   * shared `[broker]` section when `brokerName` is omitted. Same
+   * fetch-merge-write shape as `setDatabaseConfigParams`, but — unlike
+   * cubrid.conf's `[common]`/`[@dbname]` — the engine itself does NOT
+   * inherit `[broker]` into `[%name]` sections at all (ini_parser.c does
+   * exact "section:key" lookups, no section fallback; broker_config.c
+   * reads the 5 commonOnly keys via the literal section name "broker"
+   * and everything else via each broker's own `[%name]` section only).
+   * So `[broker]` only has any real effect for keys flagged `commonOnly`
+   * in BROKER_PARAM_SCHEMA — enforced below, same as `instanceOnly` keys
+   * (BROKER_PORT, APPL_SERVER_SHM_ID) being rejected from `[broker]`.
    *
    * @param userId - User ID from JWT
    * @param hostUid - Host unique identifier
-   * @param brokerName - Target broker's section name
+   * @param brokerName - Target broker's section name, or undefined for [broker]
    * @param params - Only the keys that changed; values are stringified as-is
    * @returns SetSysParamClientResponse Empty object on success
    */
@@ -367,22 +385,42 @@ export class CmsConfigService extends BaseService {
   async setBrokerConfigParams(
     userId: string,
     hostUid: string,
-    brokerName: string,
+    brokerName: string | undefined,
     params: Record<string, string | number>
   ): Promise<SetSysParamClientResponse> {
     const { broker: schema } = (await this.getEnv(userId, hostUid)).paramSchemas;
     this.assertValidParams(schema, params);
 
+    const schemaByKey = new Map(schema.map((entry) => [entry.key, entry]));
+    if (brokerName) {
+      const commonOnlyKeys = Object.keys(params).filter((key) => schemaByKey.get(key)?.commonOnly);
+      if (commonOnlyKeys.length > 0) {
+        throw ValidationError.InvalidFieldFormat('params', undefined, {
+          message: `These parameters can only be set in [broker], not per-broker: ${commonOnlyKeys.join(', ')}`,
+        });
+      }
+    } else {
+      const instanceOnlyKeys = Object.keys(params).filter((key) => schemaByKey.get(key)?.instanceOnly);
+      if (instanceOnlyKeys.length > 0) {
+        throw ValidationError.InvalidFieldFormat('params', undefined, {
+          message: `These parameters can only be set per-broker, not in [broker]: ${instanceOnlyKeys.join(', ')}`,
+        });
+      }
+    }
+
     const current = await this.getAddBrokerInfo(userId, hostUid, 'brokerconf');
     const lines = current.conflist?.[0]?.confdata ?? [];
-    const target = brokerName.toLowerCase();
+    const sectionName = brokerName ? `[%${brokerName}]` : '[broker]';
     const nextLines = this.mergeNamedSection(
       lines,
       (line) => {
+        if (!brokerName) {
+          return line.trim().toLowerCase() === '[broker]';
+        }
         const match = line.trim().match(/^\[%?(.+)\]$/);
-        return !!match && match[1].toLowerCase() === target;
+        return !!match && match[1].toLowerCase() === brokerName.toLowerCase();
       },
-      `[%${brokerName}]`,
+      sectionName,
       params
     );
     return this.setBrokerParam(userId, hostUid, nextLines);

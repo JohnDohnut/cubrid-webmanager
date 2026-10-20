@@ -447,8 +447,22 @@ export default function DatabasePropertyModal() {
 
   const generalRows = useMemo(() => databaseParamSchema
     .filter(e => e.category === 'general')
-    .map(e => ({ ...e, value: params[e.key], isModified: modifiedKeySet.has(e.key), error: guardErrors[e.key] }))
-  , [databaseParamSchema, params, modifiedKeySet, guardErrors]);
+    .map(e => {
+      // Same commonOnly enforcement as advancedRows below (cubrid_port_id,
+      // auto_restart_server on 11.4+) — these two happen to be 'general'
+      // category, not 'advanced', but the server-side rejection applies
+      // identically regardless of which UI tab a key is grouped under.
+      const isCommonOnlyBlocked = e.commonOnly && !!selectedDatabase;
+      return {
+        ...e,
+        value: params[e.key],
+        isModified: modifiedKeySet.has(e.key),
+        error: guardErrors[e.key],
+        disabled: isCommonOnlyBlocked,
+        disabledHint: isCommonOnlyBlocked ? CM.paramCommonOnlyHint : null,
+      };
+    })
+  , [databaseParamSchema, params, modifiedKeySet, guardErrors, selectedDatabase, CM]);
 
   const advancedRows = useMemo(() => databaseParamSchema
     .filter(e => e.category === 'advanced')
@@ -523,17 +537,20 @@ export default function DatabasePropertyModal() {
     { header: CM.parameter, accessor: 'key', width: '45%', render: (_, row) => <ParamNameCell label={row.key} isModified={row.isModified} /> },
     {
       header: CM.value, accessor: 'value', width: '55%', cellClassName: 'w-[55%]', sortable: false,
-      render: (_, row) => (
-        <ParamValueCell
-          guard={row.guard}
-          value={row.key === 'auto_restart_server' && isHaEnabled ? 'no' : row.value}
-          defaultValue={row.default}
-          onChange={(val) => setParams({ ...params, [row.key]: val })}
-          disabled={row.key === 'auto_restart_server' && isHaEnabled}
-          disabledHint={CM.autoRestartHaDisabledHint}
-          error={row.error}
-        />
-      ),
+      render: (_, row) => {
+        const isHaForcedOff = row.key === 'auto_restart_server' && isHaEnabled;
+        return (
+          <ParamValueCell
+            guard={row.guard}
+            value={isHaForcedOff ? 'no' : row.value}
+            defaultValue={row.default}
+            onChange={(val) => setParams({ ...params, [row.key]: val })}
+            disabled={row.disabled || isHaForcedOff}
+            disabledHint={row.disabled ? row.disabledHint : CM.autoRestartHaDisabledHint}
+            error={row.error}
+          />
+        );
+      },
     },
   ];
 

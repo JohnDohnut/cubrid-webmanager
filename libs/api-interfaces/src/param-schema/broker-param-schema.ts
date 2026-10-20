@@ -7,21 +7,32 @@ import { VersionedParamSchemaEntry } from './param-schema-entry';
  * citations live in CUBRID-BROKER-PROPERTY-PARAM-AUDIT.md and
  * CUBRID-BROKER-CONF-PARAM-VERSION-MATRIX.md.
  *
- * The 5 global ([broker]-section-only) keys (ACCESS_CONTROL*,
- * MASTER_SHM_ID, ADMIN_LOG_FILE) are deliberately absent — this editor's
- * save path only ever writes into a per-broker `[%name]` section, and
- * giving a global key a per-broker override here hasn't been verified
- * against broker_config_read's actual section-merge rules.
+ * The 5 true shared ([broker]-section-only) keys (ACCESS_CONTROL*,
+ * MASTER_SHM_ID, ADMIN_LOG_FILE) ARE included below, flagged
+ * `commonOnly: true` — broker_config.c reads them via the literal
+ * `SECTION_NAME` ("broker"), never any per-broker `[%name]` section, so
+ * they only ever make sense in the shared common-properties editor.
+ *
+ * NOTE: `category` here (`'common'`/`'advance'`) is a pre-existing,
+ * unrelated UI grouping (simple vs. advanced fields) — it has nothing to
+ * do with `commonOnly`/`instanceOnly`, which are about which *conf
+ * section* a key may be written to.
  */
 export const BROKER_PARAM_SCHEMA: VersionedParamSchemaEntry[] = [
   { key: 'SERVICE', category: 'common', guard: { kind: 'enum', options: ['ON', 'OFF'] }, default: 'ON' },
-  // Real range is 1~65535 (PORT_NUM_LIMIT=USHRT_MAX).
-  { key: 'BROKER_PORT', category: 'common', guard: { kind: 'int', min: 1, max: 65535 }, default: '' },
+  // Real range is 1~65535 (PORT_NUM_LIMIT=USHRT_MAX). instanceOnly:
+  // broker_config.c's check_port_number rejects two brokers sharing a
+  // port — a single shared value would collide by construction, and
+  // [broker] has no inheritance into [%name] anyway (ini_parser.c does
+  // exact "section:key" lookups, no section fallback).
+  { key: 'BROKER_PORT', category: 'common', guard: { kind: 'int', min: 1, max: 65535 }, default: '', instanceOnly: true },
   { key: 'MIN_NUM_APPL_SERVER', category: 'common', guard: { kind: 'int', min: 1 }, default: '5' },
   // Must also be >= MIN_NUM_APPL_SERVER — a cross-field rule, not a single-entry guard.
   { key: 'MAX_NUM_APPL_SERVER', category: 'common', guard: { kind: 'int', min: 1, max: 4096 }, default: '40' }, // APPL_SERVER_NUM_LIMIT
-  // Real constraint is "nonzero + unique among this conf's brokers/MASTER_SHM_ID" — not independently enforceable as a single-field guard.
-  { key: 'APPL_SERVER_SHM_ID', category: 'common', guard: { kind: 'int', min: 1 }, default: '' },
+  // instanceOnly: broker_config.c enforces this value is nonzero and
+  // unique among this conf's brokers *and* MASTER_SHM_ID (lines ~1296-1312)
+  // — same collision reasoning as BROKER_PORT above.
+  { key: 'APPL_SERVER_SHM_ID', category: 'common', guard: { kind: 'int', min: 1 }, default: '', instanceOnly: true },
   { key: 'LOG_DIR', category: 'common', guard: { kind: 'string' }, default: 'log/broker/sql_log' },
   { key: 'ERROR_LOG_DIR', category: 'common', guard: { kind: 'string' }, default: 'log/broker/error_log' },
   { key: 'SQL_LOG', category: 'common', guard: { kind: 'enum', options: ['ON', 'OFF', 'ERROR', 'NOTICE', 'TIMEOUT'] }, default: 'ON' },
@@ -54,4 +65,15 @@ export const BROKER_PARAM_SCHEMA: VersionedParamSchemaEntry[] = [
   { key: 'RECONNECT_TIME', category: 'advance', guard: { kind: 'int', min: 0 }, default: '600' },
   { key: 'SLOW_LOG', category: 'advance', guard: { kind: 'enum', options: ['ON', 'OFF'] }, default: 'ON' },
   { key: 'SLOW_LOG_DIR', category: 'advance', guard: { kind: 'string' }, default: '' },
+
+  // ── [broker] section only (commonOnly) — broker_config.c:560-607 reads
+  // these via SECTION_NAME ("broker") exclusively, never per-broker. ──
+  { key: 'MASTER_SHM_ID', category: 'common', guard: { kind: 'int', min: 1 }, default: '', commonOnly: true }, // ini_gethex, no documented range
+  { key: 'ADMIN_LOG_FILE', category: 'common', guard: { kind: 'string' }, default: 'log/broker/cubrid_broker.log', commonOnly: true },
+  { key: 'ACCESS_CONTROL', category: 'common', guard: { kind: 'enum', options: ['ON', 'OFF'] }, default: 'OFF', commonOnly: true },
+  { key: 'ACCESS_CONTROL_FILE', category: 'common', guard: { kind: 'string' }, default: '', commonOnly: true },
+  // minVersion: ACCESS_CONTROL_DEFAULT_POLICY doesn't exist on
+  // release/11.0 through release/11.3 (grep-confirmed absent on all 4);
+  // first appears on release/11.4.
+  { key: 'ACCESS_CONTROL_DEFAULT_POLICY', category: 'common', guard: { kind: 'enum', options: ['ALLOW', 'DENY'] }, default: 'DENY', commonOnly: true, minVersion: '11.4' },
 ];

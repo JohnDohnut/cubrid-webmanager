@@ -79,6 +79,11 @@ export default function BrokerPropertyModal() {
   const dispatch = useDispatch();
   const { propertyModal, brokerConfig } = useSelector((state) => state.broker, shallowEqual);
   const { isOpen, brokerName, hostUid } = propertyModal;
+  // No brokerName = editing the shared [broker] section rather than one
+  // broker's own [%name] section — see CmsConfigService.setBrokerConfigParams's
+  // class comment for why these two targets can never overlap at the
+  // engine level (broker.conf has no [broker]→[%name] inheritance at all).
+  const isCommonMode = !brokerName;
   // Resolved per this host's actual engine version by the server (see
   // CmsConfigService.getEnv) — normally already cached by host
   // activation/login; the effect below covers the case where it isn't yet.
@@ -137,9 +142,17 @@ export default function BrokerPropertyModal() {
       }
     });
 
+    // Deliberately NOT merged: broker.conf has no [broker]->[%name]
+    // inheritance at the engine level (ini_parser.c does exact
+    // "section:key" lookups only), so showing [broker]'s value as a
+    // per-broker field's "inherited default" would be a UI fiction — the
+    // real fallback when a per-broker key is absent is each schema
+    // entry's own hardcoded `default` (already what ParamRow falls back
+    // to via `localParams[p.key] ?? p.default`), not whatever's in
+    // [broker]. The two sections are edited as fully separate targets.
     const targetBroker = brokerName?.toLowerCase();
-    const combined = { ...(sections['broker'] || {}), ...(sections[targetBroker] || {}) };
-    const specKeys = new Set(Object.keys(sections[targetBroker] || {}));
+    const combined = isCommonMode ? { ...(sections['broker'] || {}) } : { ...(sections[targetBroker] || {}) };
+    const specKeys = new Set(Object.keys(combined));
     setLocalParams(combined);
     setInitialParams(combined);
     setSpecificParams(specKeys);
@@ -213,6 +226,12 @@ export default function BrokerPropertyModal() {
     { id: 'common',   label: CM.common,   icon: 'settings' },
     { id: 'advance',  label: CM.advanced,  icon: 'tune' },
   ];
+  // commonOnly keys (ACCESS_CONTROL*, MASTER_SHM_ID, ADMIN_LOG_FILE) only
+  // ever make sense in [broker] — hide them in per-broker mode, and show
+  // ONLY them (no tab split needed, there are just 5) in common mode.
+  const visibleSchema = isCommonMode
+    ? brokerParamSchema.filter(p => p.commonOnly)
+    : brokerParamSchema.filter(p => !p.commonOnly && p.category === activeTab);
 
   if (!isOpen) return null;
 
@@ -235,7 +254,7 @@ export default function BrokerPropertyModal() {
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title={brokerName ? `${brokerName} · ${CM.brokerProperties}` : CM.brokerProperties}
+      title={brokerName ? `${brokerName} · ${CM.brokerProperties}` : CM.brokerCommonProperties}
       subtitle={CM.runtimeConfiguration}
       icon="hub"
       maxWidth="max-w-[620px]"
@@ -257,7 +276,11 @@ export default function BrokerPropertyModal() {
       {viewStatus === ViewStatus.FORM && (
         <div className="flex flex-col h-[520px] -m-5">
           <div className="px-5 py-3 border-b border-slate-100 dark:border-white/5 flex items-center justify-between gap-3 bg-slate-50/50 dark:bg-white/[0.01]">
-            <TabGroup tabs={tabs} active={activeTab} onChange={setActiveTab} />
+            {isCommonMode ? (
+              <SectionHeader title={CM.brokerCommonProperties} icon="hub" className="!m-0" />
+            ) : (
+              <TabGroup tabs={tabs} active={activeTab} onChange={setActiveTab} />
+            )}
             <div className="flex items-center gap-2 shrink-0">
               {guardErrorCount > 0 && (
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-rose-500/10 border border-rose-500/20">
@@ -287,7 +310,7 @@ export default function BrokerPropertyModal() {
                   <SectionHeader title={CM.value} icon="settings" className="flex-1 !m-0" />
                 </div>
                 <div className="divide-y divide-slate-100 dark:divide-white/4">
-                  {brokerParamSchema.filter(p => p.category === activeTab).map(p => (
+                  {visibleSchema.map(p => (
                     <ParamRow
                       key={p.key}
                       param={p}
