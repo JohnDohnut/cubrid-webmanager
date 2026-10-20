@@ -18,6 +18,34 @@ export const CM = {
   started: 'Started',
   finished: 'Finished',
   result: 'Result',
+  maintenanceDetails: 'Processing details',
+  maintenancePreview: 'Operation summary',
+  maintenanceOperation: 'Operation',
+  maintenanceScope: 'Requested scope',
+  maintenanceAllClasses: 'All classes',
+  maintenanceSelectedClass: 'Selected class',
+  maintenanceEntireDatabase: 'Entire database',
+  maintenanceStatisticsUpdate: 'Query optimizer statistics update',
+  maintenanceConsistencyCheck: 'Database consistency check',
+  maintenanceScanMethod: 'Statistics collection',
+  maintenanceScanUnknown: 'Full scan or sampling: not reported by server',
+  maintenanceSampling: 'Sampling',
+  maintenanceFullscan: 'Full scan',
+  maintenanceNotReported: 'Not reported by server',
+  maintenanceRepairMode: 'Repair mode',
+  maintenanceCheckOnly: 'Check only',
+  maintenanceRepairEnabled: 'Check with repair enabled',
+  maintenanceDuration: 'Execution duration',
+  maintenanceDurationSeconds: (seconds) => `${seconds} seconds`,
+  maintenanceCommandSucceeded: 'Command completed successfully',
+  maintenanceCommandFailed: 'Command failed',
+  jobOutcomeUnknown: 'Result unconfirmed',
+  jobOutcomeUnknownMessage: 'The job status could not be retrieved. The operation may still be running or may have completed. Reload the page to check its status before running it again.',
+  maintenanceFindings: 'Detailed findings',
+  maintenanceOutput: 'Utility output',
+  maintenanceCopyOutput: 'Copy output',
+  maintenanceOutputCopied: 'Output copied',
+  maintenanceCopyFailed: 'Could not copy output. Select the text to copy it manually.',
 
   loginDatabase: 'Login Database',
   loginDatabaseMsg: 'Log into the selected database.',
@@ -238,7 +266,6 @@ export const CM = {
   confirmDisconnectHostTitle: 'Disconnect Host',
   confirmDisconnectHostDesc: (alias) => `Disconnect from "${alias}"? All its open tabs will be closed, and any database login on it will need to be re-established.`,
   openDashboard: 'Open Dashboard',
-  tryAgain: 'Try Again',
   add: 'Add',
   edit: 'Edit',
   remove: 'Remove',
@@ -333,7 +360,7 @@ export const CM = {
   spaceTab: (db) => `Space: ${db}`,
   volumeTab: (path) => `Volume: ${path}`,
   volumesTab: (cat) => `Volumes: ${cat.replace(/_/g, ' ')}`,
-  brokerConfig: 'Broker Config',
+
   serviceDashboard: 'Service Dashboard',
 
   // Header / menus
@@ -341,7 +368,7 @@ export const CM = {
   view: 'View',
   service: 'Service',
   database: 'Database',
-  broker: 'Broker',
+
   addHost: 'Add Host',
   exportHost: 'Export Host',
   importHost: 'Import Host',
@@ -369,8 +396,8 @@ export const CM = {
   addYourFirstHost: 'Add your first host',
   connectToCubridServer: 'Connect to a CUBRID server',
   hostLogin: 'Host login',
-  establishingSession: 'Establishing secure session...',
-  connectionFailed: 'Connection failed',
+
+
   connectionLost: 'Connection Lost',
   reconnect: 'Reconnect',
   reconnectPrompt: 'Your session was disconnected, possibly because the token expired or another user logged into this host. Click Reconnect to try again.',
@@ -384,7 +411,7 @@ export const CM = {
   serverColon: (s) => `Host: ${s}`,
   databaseColon: (db) => `Database: ${db}`,
   allDatabases: 'All Databases',
-  allBrokers: 'All Brokers',
+
   brokerColon: (b) => `Broker: ${b}`,
   startDatabase: 'Start Database',
   stopDatabase: 'Stop Database',
@@ -417,7 +444,7 @@ export const CM = {
   manager: 'Manager',
   accessLog: 'Access log',
   errorLog: 'Error log',
-  serverLogs: 'Server logs',
+
   sqlLog: 'SQL Log',
   noHostSelectedTitle: 'No Host Selected',
   selectServerFromList: 'Select a host from the list above to view details.',
@@ -429,7 +456,12 @@ export const CM = {
   closeTab: 'Close Tab',
   closeOtherTabs: 'Close Other Tabs',
   closeAllTabs: 'Close All Tabs',
+  confirmCloseOtherTabsDesc: (count) => `Close the other ${count} open tab${count === 1 ? '' : 's'}?`,
+  confirmCloseAllTabsDesc: (count) => `Close all ${count} open tab${count === 1 ? '' : 's'}?`,
   reloadTab: 'Reload Tab',
+  previousTabs: 'Previous tabs',
+  nextTabs: 'Next tabs',
+  showAllTabs: 'Show all open tabs',
   connectedTo: (host) => `Connected to ${host}`,
   noHostSelected: 'No host selected',
   version: 'Version',
@@ -505,7 +537,7 @@ export const CM = {
   saveChanges: 'Save changes',
   testConnectionAndSave: 'Connect & Save',
   reloadConfig: 'Reload config',
-  modified: 'Modified',
+
   sourceEditor: 'Source Editor',
   configPlaceholder: '# Configuration content...',
   tableEditor: 'Table Editor',
@@ -542,11 +574,11 @@ export const CM = {
   monitoring: 'Monitoring',
   copyVisibleEntries: 'Copy visible entries to clipboard',
   connected: 'Connected',
-  jobQueue: 'Job Queue',
+
   autoAddAS: 'Auto Add AS',
   sqlLogMode: 'SQL Log Mode',
   longTranLabel: 'Long Trans',
-  longQueryLabel: 'Long Query',
+
   rawLog: 'Raw Log',
   parsedSQL: 'Parsed SQL',
   topSQL: 'Top SQL',
@@ -632,7 +664,7 @@ export const CM = {
   noHeldObjectLocks: 'No held object locks.',
   failedToGetLockInfo: 'Failed to get lock information.',
   leaveBlankNoPassword: 'Leave blank for no password',
-  repeatPassword: 'Repeat password',
+
   addVolume: 'Add Volume',
   clickAddVolumeHint: 'Click "Add Volume" to add extra storage volumes.',
   identifier: 'Identifier',
@@ -756,6 +788,9 @@ export const CM = {
   updatingConfigTitle: 'Updating Configuration',
   updatingConfigSubtitle: 'Updating cubrid.conf on the server.',
   loadingLabel: 'Loading',
+  navigation: 'Navigation',
+  context: 'Target Database',
+
   queryingHostRegistry: 'Loading configuration…',
   lockingSection: 'Locking',
   transactionSection: 'Transaction',
@@ -765,6 +800,18 @@ export const CM = {
   physicalSizeLabel: 'Physical Size',
   configPatchRejectedMsg: 'Failed to save the configuration changes.',
   serverNavLabel: 'Server',
+  connectionNavLabel: 'Connection',
+  brokerConnection: 'Broker Connection',
+  brokerIp: 'Broker IP',
+  publicAddress: 'Public address',
+  servicePort: 'Service Port',
+  activeBroker: 'Active broker',
+  textEncoding: 'Text Encoding',
+  charset: 'Charset',
+  synchronizationNotice: 'Notice',
+  brokerParamsNotice: 'Broker parameters define how Next CUBRID Admin connects to the CUBRID Broker. These changes only affect Next CUBRID Admin\'s connection to this host.',
+  brokerCharsetConfigDesc: 'Broker and charset configuration for this database',
+  webManagerConnectionDesc: (db) => `Configure how Next CUBRID Admin connects to ${db}. These parameters define how the Next CUBRID Admin communicates with the CUBRID Broker.`,
   autoRestartHaDisabledHint: 'CUBRID always disables auto_restart_server when HA is enabled — an abnormally terminated server should fail over via HA, not restart in place.',
   paramInactiveWhileHint: (dependsOnKey) => `Has no effect while ${dependsOnKey} is off`,
   usingDefaultBadge: 'Default',
@@ -941,7 +988,7 @@ export const CM = {
   paramsFetchErrorMsg: (db) => `Could not get parameters for ${db}.`,
   extractionProfileDesc: 'Shows the parameter values currently active on the database.',
   loadingBrokerStatus: 'Loading broker status…',
-  basicInformation: 'Basic Information',
+
   lastAccess: 'Last Access',
   clientIp: 'Client IP',
   jobId: 'Job ID',
@@ -959,7 +1006,7 @@ export const CM = {
   retryBackup: 'Retry Backup',
   backupCompleted: 'Backup Completed',
   backupFailed: 'Backup Failed',
-  targetDatabase: 'Target Database',
+
   executeRestore: 'Execute Restore',
   retryRecovery: 'Retry Recovery',
   restoreSuccessful: 'Restore Successful',
@@ -1041,7 +1088,7 @@ export const CM = {
   connectHostForMonitoring: 'Connect to a host server from the navigator to activate global resource monitoring.',
   permanentTemp: 'Permanent Temp',
   tempTemp: 'Temporary Temp',
-  userLabel: 'User',
+
   haMaster: 'Master',
   haSlave: 'Slave',
   haReplica: 'Replica',
@@ -1096,7 +1143,7 @@ export const CM = {
   fileDistribution: 'File Distribution',
   logicalPartitioning: 'Logical Partitioning',
   filesLabel: 'Files',
-  usedLabel: 'Used',
+
   fileTable: 'File Table',
   reservedLabel: 'Reserved',
   totalLabel: 'Total',
@@ -1361,7 +1408,7 @@ export const CM = {
   // User modals
   moveToGroups: 'Move to Groups',
   removeFromAssigned: 'Remove from assigned',
-  departmentLabel: 'Department',
+
   currentPasswordLabel: 'Current Password',
   confirmNewPassword: 'Confirm New Password',
   dropDatabaseUser: 'Drop Database User',
@@ -1417,15 +1464,15 @@ export const CM = {
   // Config editors
   undoAllChanges: 'Undo all changes',
   brokerConfigPlaceholder: '# Enter broker configuration here...',
-  initializingEditor: 'Initializing Editor...',
+
   brokerConfigFile: 'Configuration: cubrid_broker.conf',
   brokerConfigFetchError: 'Could not retrieve broker configuration.',
-  brokerConfigSaveSuccess: 'Broker configuration updated successfully.',
-  brokerConfigSaveError: 'An error occurred while saving broker configuration.',
+
+
 
   // EditCMSUserModal
-  savingChanges: 'Saving Changes',
-  creatingUser: 'Creating User',
+
+
   accountInformation: 'Account Information',
   allowDatabaseCreation: 'Allow Database Creation',
   allowDbCreationDesc: 'User can create and drop databases on this host',
@@ -1463,14 +1510,14 @@ export const CM = {
   // VolumeCategoryMonitor
   volumeCategoryMonitor: 'Volume Category Monitor',
   capacity: 'Capacity',
-  usageLabel: 'Usage',
-  overallUtilization: 'Overall Utilization',
+
+
   volumesLabel: 'Volumes',
   pagesLabel: 'Pages',
-  freeLabel: 'Free',
+
 
   // Auto log modals / CASLogModal
-  timeLabel: 'Time',
+
   outcomeLabel: 'Outcome',
   executionTime: 'Execution Time',
   globalAutomationHistory: 'Global Volume Auto Expansion History',

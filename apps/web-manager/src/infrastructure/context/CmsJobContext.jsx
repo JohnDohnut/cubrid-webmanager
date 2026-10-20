@@ -1,7 +1,5 @@
 import React, {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -12,9 +10,9 @@ import { databaseJobApi } from '../../features/database/databaseJobApi';
 import { runCmsJobInBackground, isCmsJobPolling, cancelAllCmsJobPolls } from '../services/cmsJobRunner';
 import { JobResultModal } from '../cmsJob/JobResultModal';
 import { isTerminalCmsJobStatus } from '../cmsJob/cmsJobLabels';
-import { normalizeTrackedJob } from '../cmsJob/cmsJobUtils';
+import { enqueueUniqueJobResult, getCmsJobErrorResult, normalizeTrackedJob } from '../cmsJob/cmsJobUtils';
 
-export const CmsJobContext = createContext(null);
+import { CmsJobContext } from './cmsJobContextValue';
 
 const MAX_TRACKED = 50;
 const MAX_DISMISSED = 200;
@@ -39,10 +37,6 @@ function persistDismissedJobIds(ids) {
   }
 }
 
-export function enqueueUniqueJobResult(results, result) {
-  if (results.some((existing) => existing.jobId === result.jobId)) return results;
-  return [...results, result];
-}
 
 function sortJobs(a, b) {
   const ta = a.createdAt || '';
@@ -80,14 +74,19 @@ export function CmsJobProvider({ children }) {
   const notifyTerminal = useCallback(
     (job, { notify, successMessage, errorMessage }, session) => {
       if (notify === false) return;
-      if (job.jobStatus !== 'succeeded' && job.jobStatus !== 'failed') return;
+      if (job.jobStatus !== 'succeeded' && job.jobStatus !== 'failed' && !job.outcomeUnknown) return;
       if (session !== sessionRef.current) return;
       const result = {
         jobId: job.jobId,
         type: job.type,
         dbname: job.dbname,
         status: job.jobStatus,
+        outcomeUnknown: job.outcomeUnknown,
         error: job.error,
+        maintenanceSummary: job.maintenanceSummary,
+        result: job.result,
+        startedAt: job.startedAt,
+        finishedAt: job.finishedAt,
         successMessage,
         errorMessage,
       };
@@ -151,7 +150,7 @@ export function CmsJobProvider({ children }) {
       };
 
       if (initialJob) {
-        onUpdate(initialJob);
+        onUpdate({ ...initialJob, jobId });
       } else {
         try {
           const snapshot = await databaseJobApi.getJob(jobId);
@@ -176,12 +175,12 @@ export function CmsJobProvider({ children }) {
         }
         setJobs((prev) => {
           const cur = prev.find((j) => j.jobId === jobId);
-          const failed = normalizeTrackedJob(
-            { ...(cur || {}), jobId, jobStatus: 'failed', error: { message: err?.message } },
+          const interrupted = normalizeTrackedJob(
+            getCmsJobErrorResult(err, { ...cur, jobId }),
             cur || {}
           );
-          notifyTerminal(failed, { notify, successMessage, errorMessage }, session);
-          return prev.map((j) => (j.jobId === jobId ? { ...j, ...failed } : j));
+          notifyTerminal(interrupted, { notify, successMessage, errorMessage }, session);
+          return prev.map((j) => (j.jobId === jobId ? { ...j, ...interrupted } : j));
         });
         throw err;
       } finally {
@@ -281,7 +280,7 @@ export function CmsJobProvider({ children }) {
   const activeCount = useMemo(
     () =>
       visibleJobs.filter(
-        (j) => j.jobStatus === 'queued' || j.jobStatus === 'running'
+        (j) => !j.outcomeUnknown && (j.jobStatus === 'queued' || j.jobStatus === 'running')
       ).length,
     [visibleJobs]
   );
@@ -329,12 +328,4 @@ export function CmsJobProvider({ children }) {
       )}
     </CmsJobContext.Provider>
   );
-}
-
-export function useCmsJobs() {
-  const ctx = useContext(CmsJobContext);
-  if (!ctx) {
-    throw new Error('useCmsJobs must be used within CmsJobProvider');
-  }
-  return ctx;
 }

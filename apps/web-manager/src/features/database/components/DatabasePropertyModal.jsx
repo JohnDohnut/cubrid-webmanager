@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { closeDatabasePropertyModal } from '../databaseSlice';
 import { hostApi } from '../../host/hostApi';
+import { brokerApi } from '../../broker/brokerApi';
 import { fetchHostEnv } from '../../host/hostSlice';
 import { useCM } from '../../../constants/useCM';
 
@@ -93,7 +94,7 @@ function ParamNameCell({ label, isModified, isImplicit, implicitHint, implicitBa
   return (
     <div className="flex items-center gap-1.5 min-w-0">
       {isModified && <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />}
-      <span className={`text-13 font-mono truncate ${isModified ? 'text-amber-500 font-bold' : 'text-slate-600 dark:text-slate-400'}`}>
+      <span className={`text-13 font-mono font-medium truncate ${isModified ? 'text-amber-500' : 'text-slate-600 dark:text-slate-400'}`}>
         {label}
       </span>
       {/* Not in the conf file at all — the value shown is purely the
@@ -233,6 +234,7 @@ export default function DatabasePropertyModal() {
   } = useActionState();
 
   const [activeTab, setActiveTab] = useState('General');
+  const [activeSidebar, setActiveSidebar] = useState('Server Parameter');
   const [fetching, setFetching] = useState(false);
   const [initialParams, setInitialParams] = useState({});
   const [params, setParams] = useState({});
@@ -240,6 +242,8 @@ export default function DatabasePropertyModal() {
   const [bufferMode, setBufferMode] = useState(DEFAULT_BUFFER_MODE);
   const [initialBufferUnit, setInitialBufferUnit] = useState(DEFAULT_BUFFER_UNIT);
   const [bufferUnit, setBufferUnit] = useState(DEFAULT_BUFFER_UNIT);
+  const [brokers, setBrokers] = useState([]);
+  const [connectionInfo, setConnectionInfo] = useState({ brokerIp: 'localhost', brokerPort: '', charset: 'UTF-8' });
   // Tracks which (host, database) the Server Parameter config has already
   // been fetched for, so switching tabs and back doesn't re-fetch and
   // clobber unsaved edits — see the fetch effect below.
@@ -254,6 +258,7 @@ export default function DatabasePropertyModal() {
       setBufferMode(DEFAULT_BUFFER_MODE);
       setInitialBufferUnit(DEFAULT_BUFFER_UNIT);
       setBufferUnit(DEFAULT_BUFFER_UNIT);
+      setActiveSidebar('Server Parameter');
       fetchedConfigKeyRef.current = null;
     }
   }, [isDatabasePropertyModalOpen, selectedDatabase, resetAction]);
@@ -265,9 +270,27 @@ export default function DatabasePropertyModal() {
   }, [isDatabasePropertyModalOpen, selectedHostUid, isAuthorized, hostEnv, dispatch]);
 
   useEffect(() => {
+    if (isDatabasePropertyModalOpen && selectedHostUid && isAuthorized) {
+      const fetchBrokers = async () => {
+        try {
+          const response = await brokerApi.getBrokerList(selectedHostUid);
+          const brokerList = response.result || (Array.isArray(response) ? response[0]?.broker : []);
+          if (brokerList && Array.isArray(brokerList)) {
+            const list = brokerList.map(b => ({ label: `${b.name} [${b.port}/${b.status || b.state}]`, port: b.port }));
+            setBrokers(list);
+            setConnectionInfo(prev => (!prev.brokerPort && list.length > 0) ? { ...prev, brokerPort: list[0].label } : prev);
+          }
+        } catch (err) { console.error('Failed to fetch brokers:', err); }
+      };
+      fetchBrokers();
+    }
+  }, [isDatabasePropertyModalOpen, selectedHostUid, isAuthorized]);
+
+  useEffect(() => {
     const configKey = `${selectedHostUid}:${selectedDatabase || ''}`;
     if (
       isDatabasePropertyModalOpen && selectedHostUid && isAuthorized &&
+      activeSidebar !== 'Connection Information' &&
       databaseParamSchema.length > 0 &&
       fetchedConfigKeyRef.current !== configKey
     ) {
@@ -350,9 +373,12 @@ export default function DatabasePropertyModal() {
       };
       fetchParams();
     }
-  }, [isDatabasePropertyModalOpen, selectedDatabase, selectedHostUid, isAuthorized, databaseParamSchema, bufferGroups]);
+  }, [isDatabasePropertyModalOpen, selectedDatabase, selectedHostUid, activeSidebar, isAuthorized, databaseParamSchema, bufferGroups]);
 
   const handleApply = async () => {
+    // Connection Information is local-only (how this web manager instance
+    // reaches the broker), nothing to persist — Apply just closes.
+    if (activeSidebar === 'Connection Information') { dispatch(closeDatabasePropertyModal()); return; }
     // Defense-in-depth: the Apply button is already disabled while
     // guardErrorCount > 0, but never write a known-invalid value even if
     // this somehow gets called some other way.
@@ -531,6 +557,13 @@ export default function DatabasePropertyModal() {
     })
   , [databaseParamSchema, params, initialParams, modifiedKeySet, guardErrors, schemaDefaults, CM, selectedDatabase]);
 
+  // Connection Information configures how this web manager instance itself
+  // reaches the broker for a specific database — meaningless while editing
+  // [common], so only offered once a specific database is selected.
+  const navItems = selectedDatabase
+    ? [{ id: 'Server Parameter', icon: 'tune', label: CM.serverNavLabel }, { id: 'Connection Information', icon: 'cable', label: CM.connectionNavLabel }]
+    : [{ id: 'Server Parameter', icon: 'tune', label: CM.serverNavLabel }];
+
   const SERVER_TABS = [
     { id: 'General', label: CM.generalParamsTab, icon: 'tune' },
     { id: 'Advanced', label: CM.advancedParamsTab, icon: 'settings_applications' },
@@ -593,7 +626,12 @@ export default function DatabasePropertyModal() {
   // Parameter Value. CA has no separate "Default" column — the value cell
   // itself shows the current value, falling back to the default.
   const advancedColumns = [
-    { header: CM.parameter, accessor: 'key', width: '30%', render: (_, row) => <ParamNameCell label={row.key} isModified={row.isModified} isImplicit={row.isImplicit} implicitBadge={CM.usingDefaultBadge} implicitHint={CM.usingDefaultHint(row.default)} /> },
+    {
+      header: CM.parameter, accessor: 'key', width: '30%',
+      className: '!sticky left-0 z-20 bg-slate-100 dark:bg-slate-900',
+      cellClassName: 'sticky left-0 z-[1] bg-white dark:bg-slate-900',
+      render: (_, row) => <ParamNameCell label={row.key} isModified={row.isModified} isImplicit={row.isImplicit} implicitBadge={CM.usingDefaultBadge} implicitHint={CM.usingDefaultHint(row.default)} />,
+    },
     {
       header: CM.parameterTypeLabel, accessor: 'scope', width: '16%',
       render: (val) => {
@@ -602,7 +640,7 @@ export default function DatabasePropertyModal() {
           CLIENT: 'text-violet-500 bg-violet-500/8 border-violet-500/20',
           BOTH: 'text-emerald-500 bg-emerald-500/8 border-emerald-500/20',
         };
-        return <span className={`text-11 font-black uppercase tracking-widest px-1.5 py-0.5 rounded border ${scopeColors[val]}`}>{val}</span>;
+        return <span className={`text-11 font-medium uppercase tracking-widest px-1.5 py-0.5 rounded border ${scopeColors[val]}`}>{val}</span>;
       },
     },
     { header: CM.valueTypeLabel, accessor: 'guard', width: '18%', render: (guard) => <span className="text-12 font-mono text-slate-400 dark:text-slate-500">{guard.kind}</span> },
@@ -647,15 +685,19 @@ export default function DatabasePropertyModal() {
     <Modal
       isOpen={isDatabasePropertyModalOpen}
       onClose={handleClose}
-      title={selectedDatabase ? CM.registrySubtitle(selectedDatabase) : CM.kernelParamsTitle}
-      subtitle={selectedDatabase ? CM.instancePropertiesScopeDescDb(selectedDatabase) : CM.commonPropertiesScopeDescDb}
-      icon="tune"
+      title={activeSidebar === 'Connection Information'
+        ? `${selectedDatabase} · Connection`
+        : (selectedDatabase ? CM.registrySubtitle(selectedDatabase) : CM.kernelParamsTitle)}
+      subtitle={activeSidebar === 'Connection Information'
+        ? CM.brokerCharsetConfigDesc
+        : (selectedDatabase ? CM.instancePropertiesScopeDescDb(selectedDatabase) : CM.commonPropertiesScopeDescDb)}
+      icon={activeSidebar === 'Connection Information' ? 'cable' : 'tune'}
       maxWidth="1200px"
       testId="database-property"
       footer={
         <div className="flex justify-between items-center w-full">
           <div>
-            {modifiedCount > 0 && (
+            {activeSidebar === 'Server Parameter' && modifiedCount > 0 && (
               <Button
                 data-testid="database-property-reset-btn"
                 variant="ghost"
@@ -675,7 +717,7 @@ export default function DatabasePropertyModal() {
               onClick={handleApply}
               icon="save"
               className="min-w-[140px]"
-              disabled={modifiedCount === 0 || guardErrorCount > 0}
+              disabled={activeSidebar === 'Server Parameter' && (modifiedCount === 0 || guardErrorCount > 0)}
             >
               {CM.applyChanges}
             </Button>
@@ -683,43 +725,153 @@ export default function DatabasePropertyModal() {
         </div>
       }
     >
-      <div className="flex flex-col h-[min(720px,calc(90vh-146px))] min-h-[360px] -m-5 overflow-hidden bg-white dark:bg-transparent">
+      <div className="flex h-[min(720px,calc(90vh-146px))] min-h-[360px] -m-5 overflow-hidden">
 
-        {/* Tab bar */}
-        <div className="p-4 border-b border-slate-100 dark:border-white/6 flex items-center justify-between">
-          <TabGroup
-            tabs={SERVER_TABS}
-            active={activeTab}
-            onChange={setActiveTab}
-            fullWidth={false}
-          />
-          {/* Modified / guard-error indicators */}
-          <div className="flex items-center gap-2">
-            {guardErrorCount > 0 && (
-              <div data-testid="database-property-guard-error-count">
-                <StatusBadge label={`${guardErrorCount} invalid`} variant="rose" className="rounded-full" />
-              </div>
-            )}
-            {modifiedCount > 0 && (
-              <div data-testid="database-property-modified-count">
-                <StatusBadge label={`${modifiedCount} modified`} variant="amber" pulse={true} className="rounded-full" />
-              </div>
-            )}
+        {/* ─── Sidebar ─── */}
+        {/* Deliberately dark in both themes (nav items below use light-on-dark
+            text/hover colors with no `dark:` variants of their own). Must be
+            opaque in light mode — a translucent bg-slate-900/60 blends toward
+            a medium gray against this panel's white background, landing
+            close enough to the inactive label's text-slate-500 to be
+            unreadable until hover. dark:bg-black/40 stays translucent since
+            it only ever blends with the panel's own dark background. */}
+        <div className="w-[180px] bg-slate-900 dark:bg-black/40 border-r border-white/6 flex flex-col shrink-0">
+          <div className="px-4 py-4 border-b border-white/5">
+            <p className="text-11 font-black uppercase tracking-[0.2em] text-slate-500">{CM.navigation}</p>
           </div>
+          <div className="py-2 flex-1">
+            {navItems.map(({ id, icon, label }) => (
+              <button
+                key={id}
+                onClick={() => setActiveSidebar(id)}
+                className={`relative w-full flex items-center gap-3 px-4 py-3.5 text-left group ${
+                  activeSidebar === id
+                    ? 'bg-amber-500/10 text-amber-500'
+                    : 'text-slate-500 hover:text-slate-300 hover:bg-white/4'
+                }`}
+              >
+                {activeSidebar === id && (
+                  <div className="absolute left-0 top-2 bottom-2 w-[3px] bg-amber-500 rounded-r-full shadow-[2px_0_8px_rgba(212,163,0,0.4)]" />
+                )}
+                <Icon
+                  name={icon}
+                  size="16px"
+                  weight={activeSidebar === id ? 500 : 300}
+                  className={activeSidebar === id ? 'text-amber-500' : 'text-slate-600 group-hover:text-slate-400'}
+                />
+                <span className="text-12 font-black uppercase tracking-widest">{label}</span>
+              </button>
+            ))}
+          </div>
+          {/* Bottom context info */}
+          {selectedDatabase && (
+            <div className="px-4 py-3 border-t border-white/5">
+              <p className="text-10 uppercase tracking-widest text-slate-600 font-bold mb-1">{CM.context}</p>
+              <p className="text-12 font-mono font-black text-amber-500/80 truncate">{selectedDatabase}</p>
+            </div>
+          )}
         </div>
 
-        {/* Content area */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
-          {fetching ? (
-            <div className="h-full flex flex-col items-center justify-center gap-5">
-              <div className="w-10 h-10 border-2 border-amber-500/10 border-t-amber-500 rounded-full animate-spin" />
-              <div className="text-center">
-                <p className="text-11 uppercase tracking-[0.2em] text-slate-400 font-black mb-1">{CM.loadingLabel}</p>
-                <p className="text-12 text-slate-400 dark:text-slate-500 italic font-medium">{CM.queryingHostRegistry}</p>
+        {/* ─── Main Content ─── */}
+        <div className="flex-1 flex flex-col min-w-0 min-h-0 bg-white dark:bg-transparent overflow-hidden">
+
+          {/* Tab bar — only for Server Parameter */}
+          {activeSidebar === 'Server Parameter' && (
+            <div className="shrink-0 p-4 border-b border-slate-100 dark:border-white/6 flex items-center justify-between">
+              <TabGroup
+                tabs={SERVER_TABS}
+                active={activeTab}
+                onChange={setActiveTab}
+                fullWidth={false}
+              />
+              {/* Modified / guard-error indicators */}
+              <div className="flex items-center gap-2">
+                {guardErrorCount > 0 && (
+                  <div data-testid="database-property-guard-error-count">
+                    <StatusBadge label={`${guardErrorCount} invalid`} variant="rose" className="rounded-full" />
+                  </div>
+                )}
+                {modifiedCount > 0 && (
+                  <div data-testid="database-property-modified-count">
+                    <StatusBadge label={`${modifiedCount} modified`} variant="amber" pulse={true} className="rounded-full" />
+                  </div>
+                )}
               </div>
             </div>
+          )}
 
-          ) : activeTab === 'General' ? (
+          {/* Content area */}
+          <div className={`flex-1 min-h-0 custom-scrollbar ${activeSidebar === 'Server Parameter' && activeTab === 'Advanced' ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden'}`}>
+            {fetching ? (
+              <div className="h-full flex flex-col items-center justify-center gap-5">
+                <div className="w-10 h-10 border-2 border-amber-500/10 border-t-amber-500 rounded-full animate-spin" />
+                <div className="text-center">
+                  <p className="text-11 uppercase tracking-[0.2em] text-slate-400 font-black mb-1">{CM.loadingLabel}</p>
+                  <p className="text-12 text-slate-400 dark:text-slate-500 italic font-medium">{CM.queryingHostRegistry}</p>
+                </div>
+              </div>
+
+            ) : activeSidebar === 'Connection Information' ? (
+              /* ─── CONNECTION INFO ─── */
+              <div className="p-6 space-y-5">
+                {/* Header Banner */}
+                <InfoBanner title={CM.brokerConnection}>
+                  {CM.webManagerConnectionDesc(selectedDatabase)}
+                </InfoBanner>
+
+                <div className="space-y-3 p-5 bg-slate-50 dark:bg-white/2 border border-slate-100 dark:border-white/6 rounded-xl">
+                  <div className="flex items-center gap-4">
+                    <div className="w-[140px] shrink-0">
+                      <p className="text-11 uppercase tracking-widest text-slate-400 font-black mb-0.5">{CM.brokerIp}</p>
+                      <p className="text-10 font-mono text-slate-400 dark:text-slate-600">{CM.publicAddress}</p>
+                    </div>
+                    <div className="flex-1">
+                      <Input
+                        value={connectionInfo.brokerIp}
+                        onChange={e => setConnectionInfo({ ...connectionInfo, brokerIp: e.target.value })}
+                        size="sm"
+                        icon="dns"
+                      />
+                    </div>
+                  </div>
+                  <div className="h-px bg-slate-100 dark:bg-white/5" />
+                  <div className="flex items-center gap-4">
+                    <div className="w-[140px] shrink-0">
+                      <p className="text-11 uppercase tracking-widest text-slate-400 font-black mb-0.5">{CM.servicePort}</p>
+                      <p className="text-10 font-mono text-slate-400 dark:text-slate-600">{CM.activeBroker}</p>
+                    </div>
+                    <div className="flex-1">
+                      <Select
+                        value={connectionInfo.brokerPort}
+                        options={brokers.map(b => ({ value: b.label, label: b.label }))}
+                        onChange={e => setConnectionInfo({ ...connectionInfo, brokerPort: e.target.value })}
+                        size="sm"
+                      />
+                    </div>
+                  </div>
+                  <div className="h-px bg-slate-100 dark:bg-white/5" />
+                  <div className="flex items-center gap-4">
+                    <div className="w-[140px] shrink-0">
+                      <p className="text-11 uppercase tracking-widest text-slate-400 font-black mb-0.5">{CM.textEncoding}</p>
+                      <p className="text-10 font-mono text-slate-400 dark:text-slate-600">{CM.charset}</p>
+                    </div>
+                    <div className="flex-1">
+                      <Select
+                        value={connectionInfo.charset}
+                        options={['UTF-8', 'EUC-KR', 'ISO-8859-1', 'UHC'].map(o => ({ value: o, label: o }))}
+                        onChange={e => setConnectionInfo({ ...connectionInfo, charset: e.target.value })}
+                        size="sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <InfoBanner title={CM.synchronizationNotice}>
+                  {CM.brokerParamsNotice}
+                </InfoBanner>
+              </div>
+
+            ) : activeTab === 'General' ? (
               /* ─── GENERAL PARAMETERS ─── */
               <div className="p-6 space-y-6">
                 <div className="flex flex-col gap-3">
@@ -745,14 +897,14 @@ export default function DatabasePropertyModal() {
                   <InfoBanner variant="info">
                     {CM.usingDefaultExplainerBanner}
                   </InfoBanner>
-                  <Table columns={generalColumns} data={generalRows} zebra bordered showEmptyStateAsRow />
+                  <Table columns={generalColumns} data={generalRows} zebra bordered showEmptyStateAsRow className="[&_th]:font-medium" />
                 </div>
               </div>
 
             ) : (
               /* ─── ADVANCED PARAMETERS TABLE ─── */
-              <div>
-                <div className="px-6 py-6 space-y-3">
+              <div className="h-full min-h-0 flex flex-col">
+                <div className="shrink-0 px-6 py-6 space-y-3">
                   <InfoBanner variant="info">
                     {CM.usingDefaultExplainerBanner}
                   </InfoBanner>
@@ -760,13 +912,22 @@ export default function DatabasePropertyModal() {
                     {CM.advancedParamsWarning}
                   </InfoBanner>
                 </div>
-                <div className="px-6 pb-6">
-                  <Table columns={advancedColumns} data={advancedRows} zebra bordered showEmptyStateAsRow />
+                <div className="flex-1 min-h-0 px-6 pb-6">
+                  {/* One bounded scroll container keeps both scrollbars in view. */}
+                  <Table
+                    columns={advancedColumns}
+                    data={advancedRows}
+                    bordered
+                    showEmptyStateAsRow
+                    stickyHeader
+                    className="h-full overflow-y-auto custom-scrollbar [&_table]:border-separate [&_table]:border-spacing-0 [&_td]:border-b [&_td]:border-b-slate-100 dark:[&_td]:border-b-white/[0.04] [&_th]:font-medium [&_thead]:bg-slate-100 dark:[&_thead]:bg-bk-side"
+                  />
                 </div>
               </div>
             )}
           </div>
         </div>
+      </div>
     </Modal>
   );
 }
