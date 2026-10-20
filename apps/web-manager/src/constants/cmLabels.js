@@ -784,6 +784,7 @@ export const CM = {
   logBufferAllocLabel: 'Log Buffer Allocation',
   indexScanOidBufferAllocLabel: 'Index Scan OID Buffer Allocation',
   advancedParamsWarning: 'Advanced parameters — changes may affect server stability and performance. Be careful when changing these values.',
+  usingDefaultExplainerBanner: 'A parameter marked "Default" is not written in the conf file at all — it shows the engine\'s own built-in default. It only becomes an explicit setting once you enter a value here.',
   databaseProperties: 'Database Properties',
   initializingSchedule: 'Initializing',
   committingAutomation: 'Saving',

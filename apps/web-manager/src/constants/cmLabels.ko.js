@@ -769,6 +769,7 @@ export const CM_KO = {
   logBufferAllocLabel: '로그 버퍼 할당',
   indexScanOidBufferAllocLabel: '인덱스 스캔 OID 버퍼 할당',
   advancedParamsWarning: '고급 매개변수 — 변경하면 서버 안정성과 성능에 영향을 줄 수 있습니다. 값을 바꿀 때 주의하세요.',
+  usingDefaultExplainerBanner: '"기본값" 표시가 붙은 파라미터는 conf 파일에 전혀 적혀 있지 않은 상태로, 엔진에 내장된 기본값을 그대로 보여주는 것입니다. 여기에 값을 직접 입력해야만 비로소 명시적인 설정이 됩니다.',
   databaseProperties: '데이터베이스 속성',
   initializingSchedule: '초기화 중',
   committingAutomation: '저장 중',
