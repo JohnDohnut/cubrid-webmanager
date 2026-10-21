@@ -1596,6 +1596,10 @@ export const CM = {
   brokerConfigRetrieveError: 'Could not retrieve broker configuration.',
   configSaved: 'Config saved',
   brokerConfigSaveSuccess: 'Broker configuration updated successfully.',
+  // ts2_set_broker_conf (CMS) only rewrites broker.conf on disk — it never
+  // notifies the running broker, so every change saved through this editor
+  // needs a broker restart before it actually takes effect.
+  brokerConfigRestartRequiredNotice: 'The broker must be restarted for this change to take effect.',
   saveFailed: 'Save failed',
   brokerConfigSaveError: 'An error occurred while saving broker configuration.',
   invalidConfigValues: 'Invalid parameter value(s)',

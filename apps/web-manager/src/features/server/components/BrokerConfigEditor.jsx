@@ -36,6 +36,10 @@ function parseConfSections(text) {
   return sections;
 }
 
+// Returns `{ message, lineNo }` per problem (lineNo undefined when the key
+// has no line of its own, e.g. a missing required key) instead of a plain
+// string, so the caller can jump the editor to the first offending line
+// instead of only describing it in a status modal.
 function validateConfText(text, brokerParamSchema) {
   if (!brokerParamSchema?.length) return [];
   const schemaByKey = new Map(brokerParamSchema.map(e => [e.key.toLowerCase(), e]));
@@ -65,7 +69,8 @@ function validateConfText(text, brokerParamSchema) {
     });
     for (const [key, reason] of Object.entries(sectionErrors)) {
       const lineNo = sectionLineNos[key];
-      problems.push(lineNo ? `Line ${lineNo}: ${key} — ${reason}` : `Section [${section.name ?? 'broker'}]: ${key} — ${reason}`);
+      const message = lineNo ? `Line ${lineNo}: ${key} — ${reason}` : `Section [${section.name ?? 'broker'}]: ${key} — ${reason}`;
+      problems.push({ message, lineNo });
     }
   }
   return problems;
@@ -89,6 +94,11 @@ export default function BrokerConfigEditor({ hostUid }) {
   const lastRefreshCounterRef = useRef(refreshCounter);
   const [rawContent, setRawContent] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
+  // { line, token } — token makes two consecutive failed saves on the SAME
+  // line still re-trigger ConfigSourceEditor's scroll-to-it effect (a plain
+  // line number wouldn't change, so React would skip the effect the second
+  // time).
+  const [errorJump, setErrorJump] = useState(null);
 
   const fetchConfig = useCallback(async () => {
     setLoading(true);
@@ -141,11 +151,15 @@ export default function BrokerConfigEditor({ hostUid }) {
   const handleSave = async () => {
     const problems = validateConfText(rawContent, brokerParamSchema);
     if (problems.length > 0) {
+      // Jump to the first problem that actually has a line (a missing
+      // required key can fail with no line of its own to jump to).
+      const firstLineNo = problems.find((p) => p.lineNo)?.lineNo;
+      if (firstLineNo) setErrorJump({ line: firstLineNo, token: Date.now() });
       dispatch(showStatusModal({
         type: 'error',
         title: CM.invalidConfigValues,
         message: CM.invalidConfigValuesMsg,
-        guidance: problems,
+        guidance: problems.map((p) => p.message),
       }));
       return;
     }
@@ -161,7 +175,11 @@ export default function BrokerConfigEditor({ hostUid }) {
       dispatch(showStatusModal({
         type: 'success',
         title: CM.configSaved,
-        message: CM.brokerConfigSaveSuccess
+        message: CM.brokerConfigSaveSuccess,
+        // broker-set-param only rewrites broker.conf on disk (CMS's
+        // ts2_set_broker_conf never notifies the running broker process) —
+        // nothing saved here is actually live until the broker restarts.
+        guidance: [CM.brokerConfigRestartRequiredNotice],
       }));
     } catch (err) {
       if (isAmbiguousFailure(err)) fetchConfig();
@@ -191,9 +209,10 @@ export default function BrokerConfigEditor({ hostUid }) {
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-hidden flex flex-col relative bg-slate-100 dark:bg-black/20">
-        <ConfigSourceEditor 
+        <ConfigSourceEditor
           rawContent={rawContent}
           handleSourceChange={handleSourceChange}
+          errorJump={errorJump}
         />
         {loading && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-white/80 dark:bg-bk-side/80 backdrop-blur-xs">

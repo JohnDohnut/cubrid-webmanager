@@ -390,6 +390,13 @@ export default function BrokerPropertyModal() {
           </div>
           <Typography variant="h4">{CM.updateSynchronized}</Typography>
           <Typography variant="p" className="text-slate-500">{CM.brokerSettingsAppliedMsg(brokerName)}</Typography>
+          {/* setBrokerConfigParams only rewrites broker.conf on disk (CMS's
+              ts2_set_broker_conf never notifies the running broker) — none
+              of these values are actually in effect until the broker
+              restarts. */}
+          <InfoBanner variant="warning" className="max-w-sm">
+            {CM.brokerConfigRestartRequiredNotice}
+          </InfoBanner>
         </div>
       )}
     </Modal>

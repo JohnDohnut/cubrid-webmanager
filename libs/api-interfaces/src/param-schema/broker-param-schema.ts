@@ -58,7 +58,13 @@ export const BROKER_PARAM_SCHEMA: VersionedParamSchemaEntry[] = [
   { key: 'LOG_BACKUP', category: 'advance', guard: { kind: 'enum', options: ['ON', 'OFF'] }, default: 'OFF' },
   { key: 'SOURCE_ENV', category: 'advance', guard: { kind: 'string' }, default: 'cubrid.env' },
   { key: 'MAX_STRING_LENGTH', category: 'advance', guard: { kind: 'int' }, default: '-1' }, // no range in source; -1 = unlimited convention
-  { key: 'ACCESS_LOG', category: 'advance', guard: { kind: 'enum', options: ['ON', 'OFF'] }, default: 'ON' },
+  // default: broker_config.c:933 — INI_GETSTR_CHK(..., "ACCESS_LOG", "OFF", ...)
+  // — the engine's real built-in default is OFF, not ON (source-confirmed
+  // against release/develop's broker_config.c; was previously wrong here,
+  // which made an implicit/unset ACCESS_LOG display as ON in both
+  // BrokerPropertyModal and the raw conf editor while the broker was
+  // actually running with it OFF).
+  { key: 'ACCESS_LOG', category: 'advance', guard: { kind: 'enum', options: ['ON', 'OFF'] }, default: 'OFF' },
   { key: 'ACCESS_LIST', category: 'advance', guard: { kind: 'string' }, default: '' },
   { key: 'CCI_PCONNECT', category: 'advance', guard: { kind: 'enum', options: ['ON', 'OFF'] }, default: 'OFF' },
   { key: 'ACCESS_MODE', category: 'advance', guard: { kind: 'enum', options: ['RW', 'RO', 'SO'] }, default: 'RW' },

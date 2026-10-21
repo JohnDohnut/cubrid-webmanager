@@ -1,9 +1,9 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Icon } from '../../../../components/ds/foundation/Icon';
 import { StatusBadge } from '../../../../components/ds/foundation/StatusBadge';
 import { useCM } from '../../../../constants/useCM';
 
-export default function ConfigSourceEditor({ rawContent, handleSourceChange }) {
+export default function ConfigSourceEditor({ rawContent, handleSourceChange, errorJump }) {
   const CM = useCM();
   const textareaRef = useRef(null);
   const preRef      = useRef(null);
@@ -14,6 +14,33 @@ export default function ConfigSourceEditor({ rawContent, handleSourceChange }) {
       preRef.current.scrollLeft = e.target.scrollLeft;
     }
   };
+
+  // Jump the editor to a failed save's first offending line (1-based) —
+  // selects the whole line so it's visually obvious, not just scrolled into
+  // view. `errorJump.token` (not just `.line`) is the effect's dependency so
+  // two consecutive failures on the same line still re-trigger this.
+  useEffect(() => {
+    if (!errorJump?.line) return;
+    const el = textareaRef.current;
+    if (!el) return;
+    const lines = rawContent.split('\n');
+    const lineIdx = errorJump.line - 1;
+    let charIndex = 0;
+    for (let i = 0; i < lineIdx && i < lines.length; i++) {
+      charIndex += lines[i].length + 1; // +1 for the '\n' split away
+    }
+    const lineLength = lines[lineIdx]?.length ?? 0;
+
+    const lineHeight = parseFloat(window.getComputedStyle(el).lineHeight) || 21;
+    el.scrollTop = Math.max(0, lineIdx * lineHeight - el.clientHeight / 2);
+    el.focus();
+    el.setSelectionRange(charIndex, charIndex + lineLength);
+    if (preRef.current) {
+      preRef.current.scrollTop = el.scrollTop;
+      preRef.current.scrollLeft = el.scrollLeft;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [errorJump?.token]);
 
   const renderHighlighted = () =>
     rawContent.split('\n').map((line, i) => {
