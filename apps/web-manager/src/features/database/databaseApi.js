@@ -1,7 +1,8 @@
 import apiClient from '../../api/apiClient';
-import { createSingleFlight } from '../../infrastructure/utils/singleFlight';
+import { createSharedReads, createSingleFlight } from '../../infrastructure/utils/singleFlight';
 
 const volumeReads = createSingleFlight();
+const startInfoReads = createSharedReads();
 
 // Start/Stop All and service start/stop answer only when every database is
 // done, and HA databases go one at a time (about 10 s each), so the default
@@ -12,6 +13,14 @@ const BULK_DATABASE_ACTION_TIMEOUT_MS = 30 * 60 * 1000;
 export const databaseApi = {
   getStartInfo: (hostUid) => {
     return apiClient.get(`/${hostUid}/database/start-info`);
+  },
+  // Shares the request with other start-info reads of the host; resolves to
+  // `{ ok, value|error, seq }` (see createSharedReads).
+  readStartInfo: (hostUid, { fresh = false } = {}) => {
+    const url = `/${hostUid}/database/start-info`;
+    // Do not share a response across login sessions.
+    const key = JSON.stringify([apiClient.defaults.headers.common.Authorization, url]);
+    return startInfoReads(key, () => apiClient.get(url), { fresh });
   },
   startDatabase: (hostUid, dbname) => {
     return apiClient.post(`/${hostUid}/database/start/${encodeURIComponent(dbname)}`, {});
