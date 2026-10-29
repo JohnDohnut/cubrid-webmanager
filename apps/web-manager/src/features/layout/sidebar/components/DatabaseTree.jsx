@@ -16,6 +16,7 @@ import { openTab } from '../../layoutSlice';
 import { dbKey } from '../../../database/dbKey';
 import { getHaDbServerModes, HA_DB_STATE_CONFIG } from '../../../host/haPeerUtils';
 import { TreeNode } from '../../../../components/domain/tree/TreeNode';
+import { useTreeMultiSelect } from '../../../../components/domain/tree/useTreeMultiSelect';
 import { Skeleton } from '../../../../components/ds/layout/Skeleton';
 import { Icon } from '../../../../components/ds/foundation/Icon';
 import { Typography } from '../../../../components/ds/foundation/Typography';
@@ -61,7 +62,9 @@ export default function DatabaseTree({
   onQueryPlanContextMenu,
   onQueryItemContextMenu,
   onJobAutomationContextMenu,
-  onBackupItemContextMenu
+  onBackupItemContextMenu,
+  selectedDbNames,
+  onSelectedDbNamesChange,
 }) {
   const CM = useCM();
   const dispatch = useDispatch();
@@ -141,6 +144,12 @@ export default function DatabaseTree({
   // already-logged-in database. It never attempts a login — that's a separate,
   // deliberate action (double-click) so browsing the tree structure never
   // silently triggers a connection attempt.
+  // Ctrl/Shift multi-selection (useTreeMultiSelect); a multi-selection
+  // click neither selects the database nor toggles its node.
+  const handleMultiSelect = useTreeMultiSelect(
+    databases.map((db) => db.dbname), selectedDbNames, onSelectedDbNamesChange
+  );
+
   const handleDbToggle = useCallback((db, isActive, isLoggedIn) => {
     if (!isActive || !isLoggedIn) return;
 
@@ -283,11 +292,16 @@ export default function DatabaseTree({
             icon="database"
             level={1}
             isActive={isDbSelected}
+            isMultiSelected={selectedDbNames?.has(db.dbname) ?? false}
             hasChildren={true}
             isLoading={loggingInDatabases[key]}
             status={isActive ? 'on' : 'off'}
             onToggle={() => handleDbToggle(db, isActive, isLoggedIn)}
-            onSelect={() => {
+            onSelect={(e) => {
+              if (handleMultiSelect(e, db.dbname)) {
+                e.preventDefault();
+                return;
+              }
               dispatch(setSelectedDatabase(db.dbname));
               dispatch(setSelectedDatabaseSubItem(null));
             }}
