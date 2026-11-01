@@ -56,6 +56,7 @@ import {
 } from '@type/cms-response';
 import { GetAllSysParamCmsResponse } from '@type/cms-response/get-all-sys-param-cms-response';
 import { parseConfigParams, withHostConfigMutex } from '@util';
+import { forgetDbInCubridConf } from '@database/management/rename-in-cubrid-conf';
 import { CMS_CONFNAME_CUBRID } from '@database/database.constants';
 
 /**
@@ -417,6 +418,24 @@ export class DatabaseConfigService extends BaseService {
     await this.databaseUserService.ensureDbLogin(userId, hostUid, request.dbname);
     // Same per-host cubrid.conf queue as ensureDbHaModeOff and rename.
     return withHostConfigMutex(hostUid, () => this.removeAutoStartUnlocked(userId, hostUid, request));
+  }
+
+  /**
+   * After a database is deleted: takes it out of the `[service]` autostart
+   * list and drops its `[@dbname]` section (forgetDbInCubridConf). No login
+   * gate — the deleted database can't log in any more, and the delete itself
+   * went through the gate.
+   */
+  async forgetDatabaseAfterDelete(userId: string, hostUid: string, dbname: string): Promise<void> {
+    await withHostConfigMutex(hostUid, async () => {
+      const conf = await this.cmsConfigService.getAllSystemParam(userId, hostUid, CMS_CONFNAME_CUBRID);
+      const confdata = conf.conflist?.[0]?.confdata;
+      if (!confdata || confdata.length === 0) return;
+      const updated = forgetDbInCubridConf(confdata, dbname);
+      if (updated) {
+        await this.cmsConfigService.setSystemParam(userId, hostUid, CMS_CONFNAME_CUBRID, updated);
+      }
+    });
   }
 
   private async removeAutoStartUnlocked(

@@ -1809,6 +1809,7 @@ export const CM = {
   importNoValidHostsMsg: 'No valid hosts selected for import.',
   importSummaryMsg: (addedCount, groupSummary, skippedCount) =>
     `Imported ${addedCount} host(s) into ${groupSummary}. ${skippedCount} item(s) were skipped.`,
+  copyVolumeOntoItselfMsg: (path) => `The target of ${path} is the same file. Change its new name or directory.`,
   importRolledBackMsg: 'Import was rolled back. No hosts were added.',
   importRollbackIncompleteMsg: (groupCount, hostNames) => [
     groupCount > 0 ? `${groupCount} imported group(s) could not be removed.` : '',

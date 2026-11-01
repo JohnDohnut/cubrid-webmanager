@@ -1349,10 +1349,10 @@ export class DatabaseLifecycleService extends BaseService {
 
     // Remove dbname from server parameter in cubridconf if it exists
     try {
-      await this.databaseConfigService.removeAutoStart(userId, hostUid, {
-        confname: CMS_CONFNAME_CUBRID,
-        dbname: dbname,
-      });
+      // Not removeAutoStart: its login gate would fail here, since the
+      // stored login of this database was just cleared above. Also drops
+      // its [@dbname] section.
+      await this.databaseConfigService.forgetDatabaseAfterDelete(userId, hostUid, dbname);
       this.logger.debug(
         `Successfully removed database name ${dbname} from server parameter in cubridconf`
       );
