@@ -408,15 +408,10 @@ ${data.map(d => { const numCell = (v) => v === '-' ? `<Cell><Data ss:Type="Strin
         </ContextMenuWrapper>
       )}
 
-      {!isTop && logState?.error && (
+      {error && (
         <div role="alert" className="px-4 py-3 text-sm text-rose-600 bg-rose-50 dark:bg-rose-950/20">
-          {logState.error}
-        </div>
-      )}
-      {topError && (
-        <div role="alert" className="px-4 py-3 text-sm text-rose-500">
-          {topError === 'LOG_CHANGED' ? CM.topSQLLogChanged
-            : topError === 'LOG_INCOMPLETE' ? CM.topSQLReadFailed : topError}
+          {isTop && topError === 'LOG_CHANGED' ? CM.topSQLLogChanged
+            : isTop && topError === 'LOG_INCOMPLETE' ? CM.topSQLReadFailed : error}
         </div>
       )}
 
