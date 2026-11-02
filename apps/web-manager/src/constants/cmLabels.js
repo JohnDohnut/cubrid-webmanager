@@ -355,6 +355,7 @@ export const CM = {
   jobTypeCopy: 'Copy',
   jobTypeAddVol: 'Add volume',
   jobTypeRename: 'Rename',
+  jobTypeDelete: 'Delete',
   jobTypeBackupDb: 'Backup',
   jobTypeRestore: 'Restore',
   databaseAction: 'Database Action',
