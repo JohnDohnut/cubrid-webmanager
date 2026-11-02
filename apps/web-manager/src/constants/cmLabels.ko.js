@@ -739,6 +739,8 @@ export const CM_KO = {
   lblDescLogPathName: '로그 볼륨 경로:',
   lblVolumePathName: '확장 볼륨 경로:',
   btnCopyVolume: '개별 볼륨 복사 설정',
+  copyDestinationSameAsSource: 'Destination database name must be different from the source.',
+  copyVolumeMappingInvalid: 'Individual-volume copy requires complete volume information and a valid name and absolute directory for every destination. Reopen this dialog to reload volume information.',
   tblColumnCurrentVolName: '기존 볼륨 이름',
   tblColumnCopyNewVolName: '새 볼륨 이름',
   tblColumnCopyNewDirPath: '새 경로',
@@ -1769,7 +1771,6 @@ export const CM_KO = {
   importNoValidHostsMsg: '가져올 유효한 호스트가 선택되지 않았습니다.',
   importSummaryMsg: (addedCount, groupSummary, skippedCount) =>
     `${groupSummary}에 호스트 ${addedCount}개를 가져왔습니다. ${skippedCount}개 항목은 건너뛰었습니다.`,
-  copyVolumeOntoItselfMsg: (path) => `${path}의 대상이 원본과 같은 파일입니다. 새 이름이나 경로를 바꾸세요.`,
   importRolledBackMsg: '가져오기가 롤백되었습니다. 호스트가 추가되지 않았습니다.',
   importRollbackIncompleteMsg: (groupCount, hostNames) => [
     groupCount > 0 ? `가져온 그룹 ${groupCount}개를 지우지 못했습니다.` : '',

@@ -782,6 +782,8 @@ export const CM = {
   lblDescLogPathName: 'Log file path:',
   lblVolumePathName: 'Extend volume path:',
   btnCopyVolume: 'Copy individual volumes',
+  copyDestinationSameAsSource: 'Destination database name must be different from the source.',
+  copyVolumeMappingInvalid: 'Individual-volume copy requires complete volume information and a valid name and absolute directory for every destination. Reopen this dialog to reload volume information.',
   tblColumnCurrentVolName: 'Current volume name',
   tblColumnCopyNewVolName: 'New volume name',
   tblColumnCopyNewDirPath: 'New directory path',
@@ -1813,7 +1815,6 @@ export const CM = {
   importNoValidHostsMsg: 'No valid hosts selected for import.',
   importSummaryMsg: (addedCount, groupSummary, skippedCount) =>
     `Imported ${addedCount} host(s) into ${groupSummary}. ${skippedCount} item(s) were skipped.`,
-  copyVolumeOntoItselfMsg: (path) => `The target of ${path} is the same file. Change its new name or directory.`,
   importRolledBackMsg: 'Import was rolled back. No hosts were added.',
   importRollbackIncompleteMsg: (groupCount, hostNames) => [
     groupCount > 0 ? `${groupCount} imported group(s) could not be removed.` : '',
