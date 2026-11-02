@@ -190,8 +190,8 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
   const [selectDatabasesModal, setSelectDatabasesModal] = useState(null);
 
   const { hosts, hostGroups, selectedHostUid, selectedGroupUid, loading: hostsLoading, authorizedHosts, isLoggingIntoHost, hostAuthErrors, haInfo } = useSelector((state) => state.host, shallowEqual);
-  const { databasesByHost, activeDatabasesByHost, loggedInDatabases, haDbNamesByHost } = useSelector((state) => state.database, shallowEqual);
-  const { brokersByHost } = useSelector((state) => state.broker, shallowEqual);
+  const { databasesByHost, activeDatabasesByHost, loggedInDatabases, haDbNamesByHost, navigatorDatabasesByHost, navigatorActiveDatabasesByHost } = useSelector((state) => state.database, shallowEqual);
+  const { brokersByHost, navigatorBrokersByHost } = useSelector((state) => state.broker, shallowEqual);
   // The lists the trees show; a multi-selection is kept within them.
   const navigatorDbNames = useSelector(
     (state) => (state.database.navigatorDatabasesByHost?.[state.host.selectedHostUid] || []).map((db) => db.dbname).join('\n')
@@ -1467,7 +1467,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
                 const dbname = dbContextMenu.db;
                 setDbContextMenu(null);
                 const row = databaseSelectionRows(
-                  { database: { databasesByHost, activeDatabasesByHost, haDbNamesByHost, loggedInDatabases } },
+                  { database: { navigatorDatabasesByHost, navigatorActiveDatabasesByHost, haDbNamesByHost, loggedInDatabases } },
                   selectedHostUid
                 ).find((r) => r.dbname === dbname);
                 if (row) handleMultiDatabaseAction('restart', [row]);
@@ -1708,7 +1708,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
 
       {dbMultiContextMenu && (() => {
         const rows = databaseSelectionRows(
-          { database: { databasesByHost, activeDatabasesByHost, haDbNamesByHost, loggedInDatabases } },
+          { database: { navigatorDatabasesByHost, navigatorActiveDatabasesByHost, haDbNamesByHost, loggedInDatabases } },
           selectedHostUid
         ).filter((row) => selectedDbNames.has(row.dbname));
         const close = () => setDbMultiContextMenu(null);
@@ -1755,7 +1755,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
       })()}
 
       {brokerMultiContextMenu && (() => {
-        const selectedBrokers = (brokersByHost[selectedHostUid] || [])
+        const selectedBrokers = (navigatorBrokersByHost?.[selectedHostUid] || [])
           .filter((broker) => selectedBrokerNames.has(broker.name))
           .map((broker) => ({ name: broker.name, state: broker.state }));
         const close = () => setBrokerMultiContextMenu(null);
@@ -1890,7 +1890,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           />
           {(() => {
             const allRows = databaseSelectionRows(
-              { database: { databasesByHost, activeDatabasesByHost, haDbNamesByHost, loggedInDatabases } },
+              { database: { navigatorDatabasesByHost, navigatorActiveDatabasesByHost, haDbNamesByHost, loggedInDatabases } },
               selectedHostUid
             );
             const loginTargets = splitByAction('login', allRows).targets;
