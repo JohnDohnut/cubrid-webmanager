@@ -289,7 +289,7 @@ const Component = function ServerContent({ hostUid }) {
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
         <HostReadErrorBanner hostUid={hostUid} startInfoError={startInfoError} statusReadActive={isHA || isSystemStatusExpanded} />
         <HaClusterStatusSection hostUid={hostUid} />
-        <DatabaseVolumes hostUid={hostUid} activeDatabases={activeDatabases} dbListStatus={dbListStatus} refreshKey={volumesRefreshKey} />
+        <DatabaseVolumes hostUid={hostUid} activeDatabases={activeDatabases} dbListStatus={dbListStatus} refreshKey={volumesRefreshKey} isShown={activeMainTab === `host:${hostUid}`} />
         <Brokers hostUid={hostUid} isSection={true} />
         <SystemStatusSection hostUid={hostUid} isTabActive={isTabActive} onExpandedChange={handleSystemStatusExpanded} />
         <DatabaseListSection dbListDisplay={dbListDisplay} dbListStatus={dbListStatus} />
