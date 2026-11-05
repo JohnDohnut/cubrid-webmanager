@@ -323,6 +323,9 @@ const initialState = {
   // file path, of the same name.
   detailedStatus: {}, // { [hostKey(hostUid, brokerName)]: { data: {}, loading: false, error: null } }
   logsByBroker: {}, // { [hostKey(hostUid, brokerName)]: [logs] }
+  // Brokers being restarted, by hostKey(hostUid, brokerName): they show as ON
+  // until the restart ends (brokerRestartState.js).
+  restartingBrokers: {},
   viewingLogs: {}, // { [hostKey(hostUid, path)]: { data: {}, loading: false, error: null } }
   adminLogsByHost: {}, // { hostUid: [logs] }
   loadingByHost: {}, // { hostUid: boolean } — fetchBrokerList's own loading, kept
@@ -384,6 +387,14 @@ const brokerSlice = createSlice({
     // (and their own in-flight fetches) are untouched. selectedBroker and
     // friends are always cleared since they always belonged to whichever
     // host this reducer is firing for.
+    markBrokersRestarting: (state, action) => {
+      const { hostUid, names, restarting } = action.payload;
+      names.forEach((name) => {
+        const key = hostKey(hostUid, name);
+        if (restarting) state.restartingBrokers[key] = true;
+        else delete state.restartingBrokers[key];
+      });
+    },
     resetBrokerState: (state, action) => {
       const hostUid = action.payload;
       if (hostUid) {
@@ -397,6 +408,7 @@ const brokerSlice = createSlice({
       state.selectedBrokerSubItem = null;
       state.detailedStatus = {};
       state.logsByBroker = {};
+      state.restartingBrokers = {};
       state.dbLogsByDb = {};
       state.dbLogsLoadingByDb = {};
       state.dbLogsFailedByDb = {};
@@ -688,6 +700,7 @@ const brokerSlice = createSlice({
           delete state.cmsLogsByHost[hostUid];
           deleteHostKeys(state.detailedStatus, hostUid);
           deleteHostKeys(state.logsByBroker, hostUid);
+          deleteHostKeys(state.restartingBrokers, hostUid);
           deleteHostKeys(state.viewingLogs, hostUid);
           delete state.brokerConfig[hostUid];
           delete state.brokersByHost[hostUid];
@@ -711,6 +724,7 @@ const brokerSlice = createSlice({
 });
 
 export const { 
+  markBrokersRestarting,
   setSelectedBroker, 
   setSelectedBrokerSubItem, 
   openBrokerPropertyModal, 
