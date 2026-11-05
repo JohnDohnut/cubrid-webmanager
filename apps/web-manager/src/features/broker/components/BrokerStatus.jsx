@@ -362,6 +362,7 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
             sortable
             zebra
             maxRows={15}
+            paginate
             emptyMessage={CM.noAppServersActiveMsg}
           />
         </Card>
@@ -384,6 +385,7 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
             sortable
             zebra
             maxRows={15}
+            paginate
             emptyMessage={CM.jobQueueEmptyMsg}
           />
         </Card>
