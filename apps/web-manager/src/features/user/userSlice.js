@@ -212,6 +212,9 @@ const userSlice = createSlice({
           state.preferences,
           action.payload ?? {}
         );
+        // Server error messages are worded by the stored locale (apiClient
+        // has no store): keep it the same as the screens' language.
+        setStoredLocale(state.preferences.uiLocale);
       })
       .addCase(fetchPreferences.rejected, (state, action) => {
         state.preferencesLoading = false;
@@ -226,6 +229,9 @@ const userSlice = createSlice({
           state.preferences,
           action.payload ?? {}
         );
+        // Server error messages are worded by the stored locale (apiClient
+        // has no store): keep it the same as the screens' language.
+        setStoredLocale(state.preferences.uiLocale);
       })
       .addCase(updatePreferences.rejected, (state, action) => {
         state.preferencesLoading = false;
