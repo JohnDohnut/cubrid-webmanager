@@ -543,6 +543,9 @@ export const CM_KO = {
   dbStatus: 'DB 상태',
   saveChanges: '변경 저장',
   testConnectionAndSave: '연결 및 저장',
+  testConnection: '연결 테스트',
+  connectionTestSucceededMsg: '연결되었습니다. 저장하지는 않았습니다.',
+  connectionTestFailedMsg: (reason) => `연결하지 못했습니다: ${reason}`,
   reloadConfig: '설정 다시 불러오기',
 
   sourceEditor: '소스 편집기',

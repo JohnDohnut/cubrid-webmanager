@@ -515,6 +515,9 @@ export const CM = {
   dbStatus: 'DB STATUS',
   saveChanges: 'Save changes',
   testConnectionAndSave: 'Connect & Save',
+  testConnection: 'Test Connection',
+  connectionTestSucceededMsg: 'Connected. Nothing was saved.',
+  connectionTestFailedMsg: (reason) => `Could not connect: ${reason}`,
   reloadConfig: 'Reload config',
 
   sourceEditor: 'Source Editor',
