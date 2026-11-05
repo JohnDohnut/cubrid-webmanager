@@ -552,6 +552,12 @@ export const CM_KO = {
   cpu: 'CPU',
   tps: 'TPS',
   qps: 'QPS',
+  lqs: 'LQS',
+  asRequestsCol: '요청 수',
+  asCpuTimeCol: 'CPU 시간',
+  asDbHostCol: 'DB 호스트',
+  asLastConnectCol: '마지막 연결',
+  asCurrentSqlCol: '현재 SQL',
   accessPoint: '접속 주소',
   authUser: '인증 사용자',
   operatingSystem: '운영 체제',
@@ -812,7 +818,6 @@ export const CM_KO = {
   consolidatingBlocks: '공간 정리 중',
   retryOptimization: '최적화 재시도',
   verboseMonitoring: '상세 모니터링',
-  applyChanges: '변경 적용',
   updateSuccessful: '수정 완료',
   loadingLabel: '불러오는 중',
   navigation: '탐색',
@@ -1540,6 +1545,10 @@ export const CM_KO = {
   brokerConfigRetrieveError: '브로커 설정을 가져올 수 없습니다.',
   configSaved: '설정 저장됨',
   brokerConfigSaveSuccess: '브로커 설정을 저장했습니다.',
+  saveConfigConfirmTitle: '설정 저장',
+  brokerConfigSaveConfirmDesc: '이 변경 사항을 적용하려면 브로커를 재시작해야 합니다. 저장하시겠습니까?',
+  cubridConfSaveConfirmDesc: '이 변경 사항을 적용하려면 데이터베이스 서버를 재시작해야 합니다. 클라이언트 파라미터는 브로커 등 클라이언트를 다시 시작할 때 적용됩니다. 저장하시겠습니까?',
+  cmConfSaveConfirmDesc: '이 변경 사항을 적용하려면 CMS(cub_manager)를 재시작해야 합니다. 저장하시겠습니까?',
   brokerConfigRestartRequiredNotice: '이 변경 사항을 적용하려면 브로커를 재시작해야 합니다.',
   saveFailed: '저장 실패',
   brokerConfigSaveError: '브로커 구성을 저장하는 동안 오류가 발생했습니다.',
@@ -1848,7 +1857,9 @@ export const CM_KO = {
     'cms/request_failed': 'CMS 작업이 실패했습니다.',
     'cms/request_failed:NO_TOKEN': 'CMS 로그인 응답에 인증 토큰이 없습니다. 다시 연결하세요.',
     'cms/request_failed:ASYNC_JOB_TIMEOUT': (d) => `CMS 작업(${d.cmsTask})이 ${Math.round(d.timeoutMs / 1000)}초 안에 끝나지 않았습니다.`,
-    'cms/request_failed:RESPONSE_TOO_LARGE': 'CMS 응답이 분석할 수 있는 크기를 넘었습니다. 더 작은 보관 로그를 고르세요.',
+    'cms/request_failed:RESPONSE_TOO_LARGE': (d) => (d.maxBytes
+      ? `CMS 응답이 분석할 수 있는 크기(${Math.round(d.maxBytes / 1048576)} MiB)를 넘었습니다. 더 작은 보관 로그를 고르세요.`
+      : 'CMS 응답이 분석할 수 있는 크기를 넘었습니다. 더 작은 보관 로그를 고르세요.'),
     'cms/unknown': 'CMS 작업이 실패했습니다.',
     'validation/invalid_request_body': (d) => (d.invalidFields?.length
       ? `입력 값이 올바르지 않습니다: ${fieldProblems(d.invalidFields)}`
@@ -1970,7 +1981,9 @@ export const CM_KO = {
     'internal/internal_error': '서버 내부 오류가 났습니다.',
     'job/job_interrupted': 'API 서버가 다시 시작되어 작업이 중단되었습니다.',
     'http/job_not_found': '작업을 찾을 수 없습니다.',
-    'http/log_too_large': '로그가 분석 한도(100,000줄 또는 16 MiB)를 넘었습니다. 더 작은 보관 로그를 고르세요.',
+    'http/log_too_large': (d) => (d.maxLines && d.maxBytes
+      ? `로그가 분석 한도(${Number(d.maxLines).toLocaleString('ko-KR')}줄 또는 ${Math.round(d.maxBytes / 1048576)} MiB)를 넘었습니다. 더 작은 보관 로그를 고르세요.`
+      : '로그가 분석 한도를 넘었습니다. 더 작은 보관 로그를 고르세요.'),
     'http/log_capture_incomplete': '로그 전체를 가져오지 못했습니다. 새로 고친 뒤 다시 시도하세요.',
   },
   // Job warnings by their code in warningDetails (see warningText).
@@ -2113,12 +2126,6 @@ export const CM_KO = {
   cubridLogoAlt: 'CUBRID 로고',
   aboutTagline: 'CUBRID를 위한 웹 기반 관리 도구입니다.',
   copyrightNotice: '© 2026 CUBRID Corporation',
-
-  // Unsaved changes confirmation (English fallback pending translation)
-  discardChangesTitle: '변경 사항을 버릴까요?',
-  discardChangesDesc: '저장하지 않은 변경 사항이 있습니다. 닫으면 사라집니다.',
-  discardChangesBtn: '변경 사항 버리기',
-  keepEditingBtn: '계속 편집',
 
   // Breadcrumb
   unsavedChangesTitle: '저장하지 않은 변경 사항',

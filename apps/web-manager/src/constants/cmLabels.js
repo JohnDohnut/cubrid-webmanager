@@ -527,6 +527,13 @@ export const CM = {
   cpu: 'CPU',
   tps: 'TPS',
   qps: 'QPS',
+  // Long queries per second (cubrid broker status's LQS column); kept in English.
+  lqs: 'LQS',
+  asRequestsCol: 'Requests',
+  asCpuTimeCol: 'CPU Time',
+  asDbHostCol: 'DB Host',
+  asLastConnectCol: 'Last Connect',
+  asCurrentSqlCol: 'Current SQL',
   accessPoint: 'Access Point',
   authUser: 'Auth User',
   operatingSystem: 'Operating System',
@@ -756,7 +763,6 @@ export const CM = {
   consolidatingBlocks: 'Compacting Database',
   retryOptimization: 'Retry Optimization',
   verboseMonitoring: 'Verbose Monitoring',
-  applyChanges: 'Apply Changes',
   updateSuccessful: 'Update Successful',
   loadingLabel: 'Loading',
   navigation: 'Navigation',
@@ -1487,6 +1493,10 @@ export const CM = {
   brokerConfigRetrieveError: 'Could not retrieve broker configuration.',
   configSaved: 'Config saved',
   brokerConfigSaveSuccess: 'Broker configuration updated successfully.',
+  saveConfigConfirmTitle: 'Save Configuration',
+  brokerConfigSaveConfirmDesc: 'The broker must be restarted for this change to take effect. Save it?',
+  cubridConfSaveConfirmDesc: 'The database server must be restarted for this change to take effect; client parameters take effect when clients such as brokers are started again. Save it?',
+  cmConfSaveConfirmDesc: 'CMS (cub_manager) must be restarted for this change to take effect. Save it?',
   brokerConfigRestartRequiredNotice: 'The broker must be restarted for this change to take effect.',
   saveFailed: 'Save failed',
   brokerConfigSaveError: 'An error occurred while saving broker configuration.',
@@ -1867,12 +1877,6 @@ export const CM = {
   cubridLogoAlt: 'CUBRID logo',
   aboutTagline: 'A web-based administration tool for CUBRID.',
   copyrightNotice: '© 2026 CUBRID Corporation',
-
-  // Unsaved changes confirmation
-  discardChangesTitle: 'Discard changes?',
-  discardChangesDesc: 'You have unsaved changes. Closing will discard them.',
-  discardChangesBtn: 'Discard changes',
-  keepEditingBtn: 'Keep editing',
 
   // Breadcrumb
   unsavedChangesTitle: 'Unsaved Changes',
