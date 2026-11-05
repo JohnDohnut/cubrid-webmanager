@@ -219,3 +219,15 @@ describe('a copy that deletes its source', () => {
     expect(container.textContent).toContain('Copy completed: clone');
   });
 });
+
+it('refuses a new name that createdb would reject (18 characters and more, a digit first)', async () => {
+  await render();
+  await typeNewName('a'.repeat(18));
+  expect(execute().disabled).toBe(true);
+  expect(container.textContent).toContain('At most 17 characters');
+  await typeNewName('2copy');
+  expect(execute().disabled).toBe(true);
+  expect(container.textContent).toContain('Must start with a letter');
+  await typeNewName('a'.repeat(17));
+  expect(execute().disabled).toBe(false);
+});
