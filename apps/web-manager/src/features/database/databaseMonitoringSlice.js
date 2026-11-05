@@ -5,6 +5,8 @@ import { createRateTracker } from '../broker/rateTracker';
 import { dbKey as dashboardKey } from './dbKey';
 import { isDbLoginGone, dbOfLoginGone } from './dbLoginGone';
 import { computeStatdumpRates } from './statdumpRates';
+import { requestErrorText } from '../../infrastructure/errors/serverErrorText';
+import { getCM, getStoredLocale } from '../../constants/useCM';
 
 // Module-level so the previous-sample baseline survives across polls.
 const casRateTracker = createRateTracker();
@@ -33,10 +35,10 @@ export const fetchDatabaseVolumes = createAsyncThunk(
       const responses = await Promise.all(allRequest).then(list => list.filter(res => res !== null));
       // Every database's request failed: report a failure rather than an
       // empty list, which would read as "no volumes".
-      if (responses.length === 0) return rejectWithValue('Failed to fetch volume info');
+      if (responses.length === 0) return rejectWithValue(getCM(getStoredLocale()).volumeInfoFetchFailedMsg);
       return responses;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to fetch volume info');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -48,7 +50,7 @@ export const fetchDatabaseSpaceInfo = createAsyncThunk(
       const response = await databaseApi.getVolumeInfo(hostUid, dbname);
       return { hostUid, dbname, data: response };
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || `Failed to fetch space info for ${dbname}`);
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -66,7 +68,7 @@ export const fetchDashboardVolumes = createAsyncThunk(
         logpagesize: response.logpagesize
       };
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to fetch volumes');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -79,7 +81,7 @@ export const fetchDashboardLocks = createAsyncThunk(
       const summary = response?.summary ?? response?.data?.summary;
       return { hostUid, dbname, locks: summary?.rows ?? [] };
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to fetch locks');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -95,7 +97,7 @@ export const fetchDashboardPerformance = createAsyncThunk(
       const { sample, rates } = computeStatdumpRates(prevSample, response, Date.now());
       return { hostUid, dbname, performance: { ...response, calculatedRates: rates }, perfSample: sample };
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to fetch performance stats');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -146,7 +148,7 @@ export const fetchDashboardCAS = createAsyncThunk(
       });
       return { hostUid, dbname, brokersCAS };
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to fetch CAS stats');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -167,7 +169,7 @@ export const fetchDashboardData = createAsyncThunk(
     const [volR, lockR, , , spaceR] = settled;
 
     if (volR.status === 'rejected' && spaceR.status === 'rejected') {
-      return rejectWithValue(volR.reason || `Failed to fetch dashboard data for ${dbname}`);
+      return rejectWithValue(volR.reason || getCM(getStoredLocale()).dashboardFetchFailedMsg(dbname));
     }
 
     if (lockR.status === 'rejected') {

@@ -5,7 +5,7 @@ import { getPortableAppRoot } from '../config/portable-root';
 import { getMainWindow } from '../window/window-registry';
 import { applyZoom, type ZoomAction } from '../window/zoom';
 
-const PRODUCT_NAME = 'Next CUBRID Admin';
+const PRODUCT_NAME = 'CUBRID Admin';
 
 export type MenuLanguage = 'en' | 'ko';
 
@@ -71,7 +71,7 @@ export const MENU_LABELS = {
     help: 'Help',
     reportBug: 'Report Bug',
     cubridOnlineForum: 'CUBRID Online Forum',
-    cubridToolsDevelopment: 'CUBRID tools developments',
+    cubridToolsDevelopment: 'CUBRID Admin on GitHub',
     checkForUpdates: 'Check for Updates',
     serverVersion: 'Host Engine Version',
     aboutCubridAdmin: 'About CUBRID Admin',
@@ -113,7 +113,7 @@ export const MENU_LABELS = {
     help: '도움말',
     reportBug: '버그 보고',
     cubridOnlineForum: 'CUBRID 온라인 포럼',
-    cubridToolsDevelopment: 'CUBRID 도구 개발',
+    cubridToolsDevelopment: 'GitHub의 CUBRID Admin',
     checkForUpdates: '업데이트 확인',
     serverVersion: '호스트 엔진 버전',
     aboutCubridAdmin: 'CUBRID Admin 정보',
@@ -300,7 +300,7 @@ export function buildApplicationMenuTemplate(
         },
         {
           label: L.cubridToolsDevelopment,
-          click: () => shell.openExternal('https://github.com/CUBRID/cubrid-manager'),
+          click: () => shell.openExternal('https://github.com/CUBRID/cubrid-admin'),
         },
         { type: 'separator' },
         action('check-for-updates', L.checkForUpdates),
@@ -327,6 +327,9 @@ function rebuild(): void {
  * renderer reports its language on every startup and preference load, so an
  * unchanged language does not rebuild.
  */
+/** The UI language the renderer last reported, for the app's own dialogs. */
+export const getMenuLanguage = (): MenuLanguage => currentLanguage;
+
 export function installApplicationMenu(language: unknown = currentLanguage): void {
   const next = normalizeMenuLanguage(language);
   if (installed && next === currentLanguage) return;

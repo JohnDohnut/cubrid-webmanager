@@ -86,7 +86,7 @@ export const fetchHosts = createAsyncThunk(
       const response = await hostApi.getHosts();
       return response.host_groups || {};
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to fetch hosts');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -99,7 +99,7 @@ export const addHost = createAsyncThunk(
       const response = await hostApi.addHost(payload);
       return response.host_groups || {};
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || err.response?.data?.error || 'Failed to add host');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -112,7 +112,7 @@ export const deleteHost = createAsyncThunk(
       const response = await hostApi.deleteHost(hostUid);
       return { hostUid, hostGroups: response.host_groups || {} };
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || err.response?.data?.error || 'Failed to delete host');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -125,7 +125,7 @@ export const editHost = createAsyncThunk(
       const response = await hostApi.editHost(hostUid, payload);
       return response.host_groups || {};
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || err.response?.data?.error || 'Failed to edit host');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -137,7 +137,7 @@ export const moveHost = createAsyncThunk(
       const response = await hostApi.moveHost(hostUid, targetGroupId);
       return response.host_groups || {};
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || err.response?.data?.error || 'Failed to move host');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -151,7 +151,7 @@ export const mergeHaPeers = createAsyncThunk(
       }
       return { mergedCount: peers.length, targetGroupId };
     } catch (err) {
-      return rejectWithValue(typeof err === 'string' ? err : err?.message || 'Failed to merge HA peers');
+      return rejectWithValue(typeof err === 'string' ? err : err?.message || getCM(getStoredLocale()).mergeHaPeersFailedMsg);
     }
   }
 );
@@ -163,7 +163,7 @@ export const markGroupHa = createAsyncThunk(
       const response = await hostApi.markGroupHa(hostUid, groupName);
       return response.host_groups || {};
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to mark HA group');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -175,7 +175,7 @@ export const createHostGroup = createAsyncThunk(
       const response = await hostApi.createGroup({ name });
       return response.host_groups || {};
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || err.response?.data?.error || 'Failed to create group');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -187,7 +187,7 @@ export const updateHostGroup = createAsyncThunk(
       const response = await hostApi.updateGroup(groupId, payload);
       return response.host_groups || {};
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || err.response?.data?.error || 'Failed to update group');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -201,7 +201,7 @@ export const deleteHostGroup = createAsyncThunk(
       const response = await hostApi.deleteGroup(groupId);
       return { groupId, hostGroups: response.host_groups || {}, removedHostUids };
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || err.response?.data?.error || 'Failed to delete group');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -213,13 +213,17 @@ export const setHostPassword = createAsyncThunk(
       await hostApi.setHostPassword(hostUid, payload);
       return hostUid;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || err.response?.data?.error || 'Failed to set password');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
 
-export const formatServiceFailures = (actionLabel, failures) => (
-  `Failed to ${actionLabel} for: ${failures.map(({ name, error }) => `${name} (${error})`).join(', ')}`
+// One line naming each service step ('start' or 'stop') that failed and why.
+const serviceStepName = (name, CM) => (
+  { brokers: CM.serviceStepBrokers, databases: CM.serviceStepDatabases, [HA_NODE_STEP]: CM.haNodeStepName }[name] ?? name
+);
+export const formatServiceFailures = (action, failures, CM = getCM(getStoredLocale())) => (
+  CM.serviceFailuresMsg(action, failures.map((failure) => `${serviceStepName(failure.name, CM)} (${failureText(failure, CM)})`))
 );
 
 // Async thunk to start CUBRID service (Brokers + Auto-start Databases, and
@@ -229,22 +233,22 @@ export const startService = createAsyncThunk(
   'host/startService',
   async (hostUid, { dispatch, rejectWithValue }) => {
     try {
-      dispatch(hostSlice.actions.setServiceProgressMessage('Starting service...'));
+      dispatch(hostSlice.actions.setServiceProgressMessage(getCM(getStoredLocale()).serviceStartingProgress));
       const { failed = [], skipped = [] } = await databaseApi.startWholeService(hostUid);
 
-      dispatch(hostSlice.actions.setServiceProgressMessage('Refreshing status...'));
+      dispatch(hostSlice.actions.setServiceProgressMessage(getCM(getStoredLocale()).refreshingStatusProgress));
       dispatch(fetchDatabaseStartInfo(hostUid));
       dispatch(fetchBrokerList(hostUid));
       dispatch(refreshHaInfo(hostUid));
       // Partial results come back as they are, so the caller can show the
       // failed and the skipped (not logged in) databases together.
       return {
-        problem: failed.length > 0 ? formatServiceFailures('start service', failed) : '',
+        problem: failed.length > 0 ? formatServiceFailures('start', failed) : '',
         skipped,
         haNodeFailed: failed.some((f) => f.name === HA_NODE_STEP),
       };
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to start service');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -256,18 +260,18 @@ export const stopService = createAsyncThunk(
   'host/stopService',
   async (hostUid, { dispatch, rejectWithValue }) => {
     try {
-      dispatch(hostSlice.actions.setServiceProgressMessage('Stopping service...'));
+      dispatch(hostSlice.actions.setServiceProgressMessage(getCM(getStoredLocale()).serviceStoppingProgress));
       const { failed = [], skipped = [] } = await databaseApi.stopWholeService(hostUid);
 
-      dispatch(hostSlice.actions.setServiceProgressMessage('Refreshing status...'));
+      dispatch(hostSlice.actions.setServiceProgressMessage(getCM(getStoredLocale()).refreshingStatusProgress));
       dispatch(fetchDatabaseStartInfo(hostUid));
       dispatch(fetchBrokerList(hostUid));
       dispatch(refreshHaInfo(hostUid));
       // Partial results come back as they are, so the caller can show the
       // failed and the skipped (not logged in) databases together.
-      return { problem: failed.length > 0 ? formatServiceFailures('stop service', failed) : '', skipped };
+      return { problem: failed.length > 0 ? formatServiceFailures('stop', failed) : '', skipped };
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to stop service');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -327,7 +331,7 @@ export const refreshHaInfo = createAsyncThunk(
       const response = await hostApi.getHaInfo(hostUid);
       return { hostUid, ...response };
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || `Failed to refresh HA info for ${hostUid}`);
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -376,7 +380,7 @@ export const fetchHostEnv = createAsyncThunk(
       const response = await hostApi.getHostEnv(hostUid);
       return { hostUid, env: response };
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || `Failed to fetch environment for ${hostUid}`);
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -390,7 +394,7 @@ export const fetchCmsUsers = createAsyncThunk(
       const userlist = (response.userlist || []).flatMap(item => item.user || item);
       return { hostUid, userlist };
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to fetch CMS users');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -403,7 +407,7 @@ export const addCmsUser = createAsyncThunk(
       const userlist = (response.userlist || []).flatMap(item => item.user || item);
       return { hostUid, userlist };
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to add CMS user');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -416,7 +420,7 @@ export const updateCmsUser = createAsyncThunk(
       const userlist = (response.userlist || []).flatMap(item => item.user || item);
       return { hostUid, userlist };
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to update CMS user');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -429,7 +433,7 @@ export const deleteCmsUser = createAsyncThunk(
       const userlist = (response.userlist || []).flatMap(item => item.user || item);
       return { hostUid, userlist };
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to delete CMS user');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -486,6 +490,9 @@ const initialState = {
   cmsUsers: {}, // { [hostUid]: [] }
   cmsUsersLoading: {}, // { [hostUid]: boolean }
   isCmsUserManagementModalOpen: false,
+  // The host whose CMS users the modal manages (the one right-clicked), not
+  // necessarily the selected one.
+  cmsUserManagementHostUid: null,
   isEditCmsUserModalOpen: false,
   cmsUserToEdit: null, // { hostUid, user }
   error: null,
@@ -670,11 +677,13 @@ const hostSlice = createSlice({
     clearHostError: (state) => {
       state.error = null;
     },
-    openCmsUserManagementModal: (state) => {
+    openCmsUserManagementModal: (state, action) => {
       state.isCmsUserManagementModalOpen = true;
+      state.cmsUserManagementHostUid = action.payload ?? state.selectedHostUid;
     },
     closeCmsUserManagementModal: (state) => {
       state.isCmsUserManagementModalOpen = false;
+      state.cmsUserManagementHostUid = null;
     },
     openEditCmsUserModal: (state, action) => {
       state.isEditCmsUserModalOpen = true;
@@ -1155,7 +1164,7 @@ export const processHaLoginSideEffects = createAsyncThunk(
           show('clusterLink', hostSlice.actions.setHaClusterLinkNotice({
             anchorHostUid: hostUid,
             targetGroupId,
-            targetGroupName: hostGroups[targetGroupId]?.name || 'Group',
+            targetGroupName: hostGroups[targetGroupId]?.name || getCM(getStoredLocale()).groupLabel,
             peers: sameGroupPeers,
           }));
           try {
@@ -1290,6 +1299,7 @@ export const loginHostsBatch = createAsyncThunk(
 );
 
 import { registerLoginToHost } from '../../api/apiClient';
+import { failureText, requestErrorText } from '../../infrastructure/errors/serverErrorText';
 
 registerLoginToHost((hostUid) => {
   return import('../../app/store').then(({ store }) => {

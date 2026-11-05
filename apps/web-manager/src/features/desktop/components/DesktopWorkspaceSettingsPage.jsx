@@ -5,6 +5,7 @@ import { Icon } from '../../../components/ds/foundation/Icon';
 import { InfoBanner } from '../../../components/ds/foundation/InfoBanner';
 import { Input } from '../../../components/ds/forms/Input';
 import { useCM } from '../../../constants/useCM';
+import { desktopErrorText } from '../desktopErrorText';
 
 function SettingsShell({ children }) {
   return (
@@ -49,7 +50,7 @@ export default function DesktopWorkspaceSettingsPage() {
       // The configured workspace failed at launch: say why (a WORKSPACE_* code).
       if (startupError) setError(startupError);
     } catch (err) {
-      setError(err?.message || CM.workspaceSettingsLoadFailedMsg);
+      setError(desktopErrorText(err, CM, CM.workspaceSettingsLoadFailedMsg));
     } finally {
       setLoading(false);
     }
@@ -77,7 +78,7 @@ export default function DesktopWorkspaceSettingsPage() {
       await bridge.finishWorkspaceSetup(workspaceRoot);
       setMessage(CM.applyingWorkspaceMsg);
     } catch (err) {
-      setError(err?.message || CM.workspaceSaveFailedMsg);
+      setError(desktopErrorText(err, CM, CM.workspaceSaveFailedMsg));
       setSaving(false);
     }
   };
@@ -96,7 +97,7 @@ export default function DesktopWorkspaceSettingsPage() {
       await bridge.setWorkspaceRoot(workspaceRoot);
       afterWorkspaceApplied();
     } catch (err) {
-      setError(err?.message || CM.workspaceSaveFailedMsg);
+      setError(desktopErrorText(err, CM, CM.workspaceSaveFailedMsg));
       setSaving(false);
     }
   };
@@ -112,7 +113,7 @@ export default function DesktopWorkspaceSettingsPage() {
       await loadInfo();
       afterWorkspaceApplied();
     } catch (err) {
-      setError(err?.message || CM.workspaceResetFailedMsg);
+      setError(desktopErrorText(err, CM, CM.workspaceResetFailedMsg));
       setSaving(false);
     }
   };

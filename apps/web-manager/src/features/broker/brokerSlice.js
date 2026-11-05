@@ -7,6 +7,7 @@ import apiClient from '../../api/apiClient';
 import { createSharedReads } from '../../infrastructure/utils/singleFlight';
 import { dbKey } from '../database/dbKey';
 import { isDbLoginGone, dbOfLoginGone } from '../database/dbLoginGone';
+import { requestErrorText } from '../../infrastructure/errors/serverErrorText';
 
 // Module-level so the previous-sample baseline survives across polls and
 // across every host/broker tab, keyed by hostUid+brokerName below.
@@ -123,7 +124,7 @@ export const fetchBrokerList = createAsyncThunk(
       { fresh: !arg?.isBackground }
     );
     if (!result.ok) {
-      return rejectWithValue(result.error.response?.data?.message || 'Failed to fetch broker list', { seq: result.seq });
+      return rejectWithValue(requestErrorText(result.error), { seq: result.seq });
     }
     return fulfillWithValue(result.value.brokers, { seq: result.seq });
   }
@@ -136,7 +137,7 @@ export const fetchDetailedBrokerStatus = createAsyncThunk(
       const response = await brokerApi.getBrokerStatus(hostUid, brokerName);
       return { brokerName, data: response };
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || `Failed to fetch status for broker ${brokerName}`);
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -151,7 +152,7 @@ export const startBroker = createAsyncThunk(
       return { brokerName, success: true };
     } catch (err) {
       if (isAmbiguousFailure(err)) dispatch(fetchBrokerList(hostUid));
-      return rejectWithValue(err.response?.data?.message || 'Failed to start broker');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -164,7 +165,7 @@ export const stopBroker = createAsyncThunk(
       return { brokerName, success: true };
     } catch (err) {
       if (isAmbiguousFailure(err)) dispatch(fetchBrokerList(hostUid));
-      return rejectWithValue(err.response?.data?.message || 'Failed to stop broker');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -177,7 +178,7 @@ export const startAllBrokers = createAsyncThunk(
       return { success: true };
     } catch (err) {
       if (isAmbiguousFailure(err)) dispatch(fetchBrokerList(hostUid));
-      return rejectWithValue(err.response?.data?.message || 'Failed to start all brokers');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -190,7 +191,7 @@ export const stopAllBrokers = createAsyncThunk(
       return { success: true };
     } catch (err) {
       if (isAmbiguousFailure(err)) dispatch(fetchBrokerList(hostUid));
-      return rejectWithValue(err.response?.data?.message || 'Failed to stop all brokers');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -203,7 +204,7 @@ export const fetchBrokerLogs = createAsyncThunk(
       const logs = response.logfileinfo?.[0]?.logfile || [];
       return { brokerName, logs };
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to fetch broker logs');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -215,7 +216,7 @@ export const fetchLogContent = createAsyncThunk(
       const response = await brokerApi.viewLog(hostUid, { path, start, end });
       return { path, data: response };
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to fetch log content');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -227,7 +228,7 @@ export const fetchAdminLogs = createAsyncThunk(
       const response = await brokerApi.getAdminLogs(hostUid);
       return { hostUid, logs: response.adminloginfo || [] };
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to fetch admin logs');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -239,7 +240,7 @@ export const fetchCMSLogs = createAsyncThunk(
       const response = await brokerApi.getCMSLogs(hostUid);
       return { hostUid, logs: response };
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to fetch CMS logs');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -251,7 +252,7 @@ export const fetchDatabaseLogs = createAsyncThunk(
       const response = await brokerApi.getDatabaseLogs(hostUid, dbname);
       return { dbname, logs: response.loginfo?.[0]?.log || [] };
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || `Failed to fetch logs for database ${dbname}`);
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -263,7 +264,7 @@ export const fetchBrokerConfig = createAsyncThunk(
       const response = await brokerApi.getBrokerConfig(hostUid);
       return { hostUid, data: response };
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to fetch broker configuration');
+      return rejectWithValue(requestErrorText(err));
     }
   }
 );
@@ -450,16 +451,22 @@ const brokerSlice = createSlice({
         }
       })
       .addCase(fetchDetailedBrokerStatus.pending, (state, action) => {
-        const { brokerName } = action.meta.arg;
+        const { brokerName, isBackground } = action.meta.arg;
         if (!state.detailedStatus[brokerName]) {
           state.detailedStatus[brokerName] = { data: {}, loading: true, error: null };
+          return;
         }
+        // A background poll keeps what is shown, the data or the last error,
+        // until it answers. Showing the loading view meanwhile made a stopped
+        // broker's status flash between loading and error on every poll.
+        if (isBackground) return;
         state.detailedStatus[brokerName].loading = true;
         state.detailedStatus[brokerName].error = null;
       })
       .addCase(fetchDetailedBrokerStatus.fulfilled, (state, action) => {
         const { brokerName, data } = action.payload;
         state.detailedStatus[brokerName].loading = false;
+        state.detailedStatus[brokerName].error = null;
         state.detailedStatus[brokerName].data = data;
       })
       .addCase(fetchDetailedBrokerStatus.rejected, (state, action) => {

@@ -42,7 +42,7 @@ afterEach(async () => {
   delete globalThis.IS_REACT_ACT_ENVIRONMENT;
 });
 
-const render = () => {
+const render = ({ error = null, uiLocale = 'en' } = {}) => {
   const state = {
     host: {
       isEditHostModalOpen: true,
@@ -50,10 +50,10 @@ const render = () => {
       hosts: [{ uid: 'h1', id: 'admin', address: '10.0.0.1', port: 8001, alias: 'Prod' }],
       hostGroups: {},
       loading: false,
-      error: null,
+      error,
     },
     layout: { statusModal: { isOpen: false } },
-    user: { preferences: { uiLocale: 'en' } },
+    user: { preferences: { uiLocale } },
   };
   const store = configureStore({ reducer: () => state });
   return act(async () => root.render(<Provider store={store}><EditHostModal /></Provider>));
@@ -93,4 +93,20 @@ it('saves nothing and stays open when that login fails', async () => {
   expect(editHost).not.toHaveBeenCalled();
   expect(fetchHosts).not.toHaveBeenCalled();
   expect(closeEditHostModal).not.toHaveBeenCalled();
+});
+
+const passwordInvalid = () => document.querySelector('input[name="password"]').getAttribute('aria-invalid') === 'true';
+
+it.each([
+  ['en', 'Incorrect password'],
+  ['ko', 'CMS 작업이 실패했습니다. (비밀번호가 올바르지 않습니다)'],
+])('shows a wrong-password failure under the password field (%s)', async (uiLocale, error) => {
+  await render({ uiLocale, error });
+  expect(passwordInvalid()).toBe(true);
+});
+
+it('shows any other failure above the form', async () => {
+  await render({ uiLocale: 'ko', error: 'CMS 작업이 실패했습니다. (CMS 계정을 찾을 수 없습니다)' });
+  expect(passwordInvalid()).toBe(false);
+  expect(document.body.textContent).toContain('CMS 계정을 찾을 수 없습니다');
 });

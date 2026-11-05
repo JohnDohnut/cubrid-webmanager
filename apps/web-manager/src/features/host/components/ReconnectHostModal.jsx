@@ -93,7 +93,7 @@ export default function ReconnectHostModal() {
       })
       .catch((err) => {
         setIsReconnecting(false);
-        setLocalError(typeof err === 'string' ? err : err?.message || 'Failed to reconnect. Please try again.');
+        setLocalError(typeof err === 'string' ? err : err?.message || CM.reconnectFailedMsg);
       });
   };
 
@@ -153,7 +153,7 @@ export default function ReconnectHostModal() {
     <Modal
       isOpen={isReconnectModalOpen}
       onClose={handleDisconnect}
-      title={needsPassword ? CM.reconnectNewPasswordTitle : (CM.connectionLost || 'Connection Lost')}
+      title={needsPassword ? CM.reconnectNewPasswordTitle : CM.connectionLost}
       icon="warning"
       iconVariant="warning"
       loading={isReconnecting}
@@ -169,7 +169,7 @@ export default function ReconnectHostModal() {
             onClick={handleDisconnect}
             disabled={isReconnecting}
           >
-            {CM.disconnect || 'Disconnect'}
+            {CM.disconnect}
           </Button>
           <Button
             data-testid="reconnect-host-reconnect-btn"
@@ -180,7 +180,7 @@ export default function ReconnectHostModal() {
             icon="sync"
             className="min-w-[120px]"
           >
-            {CM.reconnect || 'Reconnect'}
+            {CM.reconnect}
           </Button>
         </>
       }
@@ -199,9 +199,9 @@ export default function ReconnectHostModal() {
             <Icon name="dns" size="md" className="text-amber-500" />
           </div>
           <div className="flex-1 min-w-0">
-            <Typography variant="caption" className="font-bold text-amber-600/70 dark:text-amber-400/60 uppercase tracking-widest block mb-0.5">{CM.targetHost || 'Target Host'}</Typography>
-            <Typography title={currentHost?.alias || currentHost?.id || 'N/A'} variant="span" className="text-sm font-black text-slate-900 dark:text-white truncate block tracking-tight font-mono">
-              {currentHost?.alias || currentHost?.id || 'N/A'}
+            <Typography variant="caption" className="font-bold text-amber-600/70 dark:text-amber-400/60 uppercase tracking-widest block mb-0.5">{CM.targetHost}</Typography>
+            <Typography title={currentHost?.alias || currentHost?.id || CM.notApplicableFallback} variant="span" className="text-sm font-black text-slate-900 dark:text-white truncate block tracking-tight font-mono">
+              {currentHost?.alias || currentHost?.id || CM.notApplicableFallback}
             </Typography>
           </div>
         </div>
@@ -209,7 +209,7 @@ export default function ReconnectHostModal() {
         <div className="flex items-start gap-3 p-3.5 bg-slate-50 dark:bg-white/2 border border-slate-200 dark:border-white/8 rounded-xl">
           <Icon name="info" size="sm" className="text-sky-500 shrink-0 mt-0.5" weight={300} />
           <Typography variant="caption" className="text-slate-500 font-medium leading-relaxed">
-            {needsPassword ? CM.reconnectNewPasswordPrompt : (CM.reconnectPrompt || 'Your session was disconnected, possibly because another user logged into this host. Click Reconnect to attempt to re-establish the connection.')}
+            {needsPassword ? CM.reconnectNewPasswordPrompt : CM.reconnectPrompt}
           </Typography>
         </div>
 

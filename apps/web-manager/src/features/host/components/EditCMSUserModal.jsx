@@ -120,13 +120,13 @@ export default function EditCMSUserModal() {
       if (isEditMode) {
         if (changePassword) {
           await dispatch(setHostPassword({
-            hostUid: selectedHostUid,
+            hostUid,
             payload: { targetid: formData.targetid, newpassword: formData.password }
           })).unwrap();
         }
         if (!isAdmin) {
           await dispatch(updateCmsUser({
-            hostUid: selectedHostUid,
+            hostUid,
             payload: {
               targetid: formData.targetid,
               casauth: formData.casauth,
@@ -142,7 +142,7 @@ export default function EditCMSUserModal() {
         endSuccess(CM.userUpdatedSuccessMsg(formData.targetid));
       } else {
         await dispatch(addCmsUser({
-          hostUid: selectedHostUid,
+          hostUid,
           payload: {
             targetid: formData.targetid,
             password: formData.password,
@@ -153,7 +153,7 @@ export default function EditCMSUserModal() {
         })).unwrap();
         endSuccess(CM.userCreatedSuccessMsg(formData.targetid));
       }
-      dispatch(fetchCmsUsers(selectedHostUid));
+      dispatch(fetchCmsUsers(hostUid));
     } catch (err) {
       endError(err?.message || CM.synchronizationFailed);
     }
@@ -227,22 +227,14 @@ export default function EditCMSUserModal() {
               icon="badge"
               required
             />
-            {isEditMode && (
-              <Toggle
-                testId="edit-cms-user-change-password-toggle"
-                label={CM.changePassword}
-                checked={changePassword}
-                onChange={setChangePassword}
-              />
-            )}
             <div className="grid grid-cols-2 gap-4">
               <Input
                 data-testid="edit-cms-user-password-input"
-                label={CM.password}
+                label={isEditMode ? CM.newPassword : CM.password}
                 type="password"
                 value={formData.password}
                 onChange={(e) => setFormData(p => ({ ...p, password: e.target.value }))}
-                placeholder={isEditMode ? CM.passwordConfirm : CM.password}
+                placeholder={isEditMode ? CM.newPassword : CM.password}
                 icon="lock"
                 required={settingPassword}
                 disabled={!settingPassword}
@@ -251,7 +243,7 @@ export default function EditCMSUserModal() {
               />
               <Input
                 data-testid="edit-cms-user-confirm-password-input"
-                label={CM.passwordConfirm}
+                label={isEditMode ? CM.confirmNewPassword : CM.passwordConfirm}
                 type="password"
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData(p => ({ ...p, confirmPassword: e.target.value }))}
@@ -262,6 +254,16 @@ export default function EditCMSUserModal() {
                 error={passwordMismatch && formData.confirmPassword ? CM.passwordsDoNotMatch : null}
               />
             </div>
+            {isEditMode && (
+              <div>
+                <Toggle
+                  testId="edit-cms-user-change-password-toggle"
+                  label={CM.changePassword}
+                  checked={changePassword}
+                  onChange={setChangePassword}
+                />
+              </div>
+            )}
           </div>
         </section>
 

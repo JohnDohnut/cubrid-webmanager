@@ -78,6 +78,14 @@ it('shows the loaded values as read-only text — no inputs or selects in the Se
   expect(container.querySelector('[role="combobox"]')).toBeNull();
 });
 
+it('draws the navigation sidebar light in light mode and dark only in dark mode', async () => {
+  const sidebar = [...document.querySelectorAll('div')].find((el) => el.className.includes?.('w-[180px]'));
+  const classes = sidebar.className.split(/\s+/);
+  expect(classes).toContain('bg-slate-50');
+  expect(classes).toContain('dark:bg-black/40');
+  expect(classes).not.toContain('bg-slate-900');
+});
+
 it('shows a notice directing edits to the text editor instead of an Apply button', async () => {
   expect(control('open-editor-inline-btn')).not.toBeNull();
   expect(control('apply-btn')).toBeNull();
@@ -230,4 +238,108 @@ it('compares time values in ms, so 360000 (ms) counts as the 6min default', asyn
   const row = Array.from(container.querySelectorAll('tr')).find(r => r.textContent.includes('checkpoint_interval'));
   expect(row.textContent).toContain('360000');
   expect(row.textContent).toContain('Default');
+});
+
+// A database runs with [common] and its own [@db] over it, so its view shows
+// both (test DB #20/#27: some values in the view were not the ones in effect).
+const renderConf = async (confdata, schema = DATABASE_PARAM_SCHEMA, selectedDatabase = 'demodb') => {
+  await act(async () => root.unmount());
+  root = createRoot(container);
+  hostApi.getHostConfig.mockResolvedValue({ conflist: [{ confdata }] });
+  const state = {
+    databaseUI: { isDatabasePropertyModalOpen: true },
+    database: { selectedDatabase },
+    host: { selectedHostUid: 'host', authorizedHosts: ['host'], hostEnvs: { host: { paramSchemas: { database: schema } } } },
+    user: { preferences: { uiLocale: 'en' } },
+  };
+  await act(async () => root.render(
+    <Provider store={configureStore({ reducer: () => state })}><ToastProvider><DatabasePropertyModal /></ToastProvider></Provider>
+  ));
+};
+const rowOf = (key) => [...container.querySelectorAll('tbody tr')].find((tr) => tr.textContent.includes(key));
+
+it('shows a [common] value the database does not set, marked as from [common]', async () => {
+  await renderConf(['[common]', 'max_clients=200', 'checkpoint_interval=10min', '[@demodb]', 'max_clients=123']);
+  expect(rowOf('checkpoint_interval').textContent).toContain('10min');
+  expect(rowOf('checkpoint_interval').querySelector('[data-testid="param-from-common-badge"]').textContent).toBe('[common]');
+});
+
+it('shows the database\'s own value over [common], unmarked', async () => {
+  await renderConf(['[common]', 'max_clients=200', '[@demodb]', 'max_clients=123']);
+  expect(rowOf('max_clients').textContent).toContain('123');
+  expect(rowOf('max_clients').textContent).not.toContain('200');
+  expect(rowOf('max_clients').querySelector('[data-testid="param-from-common-badge"]')).toBeNull();
+});
+
+it('does not flag a [common]-only key as set in the wrong section when it comes from [common]', async () => {
+  const schema = [...DATABASE_PARAM_SCHEMA, { key: 'cubrid_port_id', category: 'general', commonOnly: true, guard: { kind: 'int', min: 1 }, default: '1523' }];
+  await renderConf(['[common]', 'cubrid_port_id=1523', '[@demodb]', 'max_clients=123'], schema);
+  expect(container.textContent).not.toMatch(/\d+ invalid/);
+});
+
+it('leaves the [common] view as it was: no badge', async () => {
+  await renderConf(['[common]', 'max_clients=200', 'checkpoint_interval=10min'], DATABASE_PARAM_SCHEMA, null);
+  expect(rowOf('checkpoint_interval').textContent).toContain('10min');
+  expect(container.querySelector('[data-testid="param-from-common-badge"]')).toBeNull();
+});
+
+it('takes a buffer pair from [@db] whole when it sets either key, as the engine reads it', async () => {
+  await renderConf(['[common]', 'data_buffer_pages=40000', '[@demodb]', 'data_buffer_size=1G']);
+  expect(container.textContent).toContain('1G');
+  expect(container.textContent).not.toContain('40000');
+  expect(container.textContent).not.toContain('data_buffer_pages');
+});
+
+it('still checks the [@db] side of a buffer pair when [common] sets the other key', async () => {
+  await renderConf(['[common]', 'data_buffer_pages=40000', '[@demodb]', 'data_buffer_size=abc']);
+  expect(container.textContent).toMatch(/1 invalid/);
+});
+
+it('keeps the newer database\'s values when an earlier database\'s config answers late', async () => {
+  await act(async () => root.unmount());
+  root = createRoot(container);
+  let answerFirst;
+  hostApi.getHostConfig
+    .mockReturnValueOnce(new Promise((resolve) => { answerFirst = resolve; }))
+    .mockResolvedValueOnce({ conflist: [{ confdata: ['[@otherdb]', 'max_clients=456'] }] });
+  const base = {
+    databaseUI: { isDatabasePropertyModalOpen: true },
+    database: { selectedDatabase: 'demodb' },
+    host: { selectedHostUid: 'host', authorizedHosts: ['host'], hostEnvs: { host: { paramSchemas: { database: DATABASE_PARAM_SCHEMA } } } },
+    user: { preferences: { uiLocale: 'en' } },
+  };
+  const store = configureStore({ reducer: (state = base, action) => (action.type === 'test/select' ? { ...state, database: { selectedDatabase: action.payload } } : state) });
+  await act(async () => root.render(
+    <Provider store={store}><ToastProvider><DatabasePropertyModal /></ToastProvider></Provider>
+  ));
+  await act(async () => store.dispatch({ type: 'test/select', payload: 'otherdb' }));
+  expect(rowOf('max_clients').textContent).toContain('456');
+
+  await act(async () => answerFirst({ conflist: [{ confdata: ['[@demodb]', 'max_clients=123'] }] }));
+  expect(rowOf('max_clients').textContent).toContain('456');
+  expect(rowOf('max_clients').textContent).not.toContain('123');
+});
+
+it('takes a deprecated key and its replacement from [@db] whole when it sets either', async () => {
+  const schema = [...DATABASE_PARAM_SCHEMA, { key: 'lock_timeout', category: 'general', guard: { kind: 'time' }, default: '-1' }];
+  await renderConf(['[common]', 'lock_timeout_in_secs=10', '[@demodb]', 'lock_timeout=5s'], schema);
+  expect(rowOf('lock_timeout').textContent).toContain('5s');
+  expect(container.textContent).not.toContain('lock_timeout_in_secs');
+});
+
+it('stops showing the loading view when the config read fails', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  await act(async () => root.unmount());
+  root = createRoot(container);
+  hostApi.getHostConfig.mockRejectedValue(new Error('connect ECONNREFUSED'));
+  const state = {
+    databaseUI: { isDatabasePropertyModalOpen: true },
+    database: { selectedDatabase: 'demodb' },
+    host: { selectedHostUid: 'host', authorizedHosts: ['host'], hostEnvs: { host: { paramSchemas: { database: DATABASE_PARAM_SCHEMA } } } },
+    user: { preferences: { uiLocale: 'en' } },
+  };
+  await act(async () => root.render(
+    <Provider store={configureStore({ reducer: () => state })}><ToastProvider><DatabasePropertyModal /></ToastProvider></Provider>
+  ));
+  expect(container.querySelector('.animate-spin')).toBeNull();
 });
