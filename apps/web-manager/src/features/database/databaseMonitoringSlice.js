@@ -166,6 +166,9 @@ export const fetchDashboardData = createAsyncThunk(
 );
 
 const initialState = {
+  // Bumped per host when a database's volumes changed (a volume was added),
+  // so the host dashboard's volume table re-reads (DatabaseVolumes).
+  volumesChangedSeq: {},
   dashboardData: {},
   dashboardLoading: {},
   dashboardError: {},
@@ -177,6 +180,10 @@ const databaseMonitoringSlice = createSlice({
   name: 'databaseMonitoring',
   initialState,
   reducers: {
+    volumesChanged: (state, action) => {
+      const hostUid = action.payload;
+      state.volumesChangedSeq[hostUid] = (state.volumesChangedSeq[hostUid] || 0) + 1;
+    },
     clearMonitoringError: (state, action) => {
       const key = action.payload;
       if (key) delete state.dashboardError[key];
@@ -307,5 +314,5 @@ const databaseMonitoringSlice = createSlice({
   }
 });
 
-export const { clearMonitoringError } = databaseMonitoringSlice.actions;
+export const { clearMonitoringError, volumesChanged } = databaseMonitoringSlice.actions;
 export default databaseMonitoringSlice.reducer;
