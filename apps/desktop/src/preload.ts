@@ -10,6 +10,7 @@ function resolveApiBaseUrl(): string {
 
 const desktopBridge: DesktopBridge = {
   isWorkspaceSetupRequired: () => ipcRenderer.invoke('desktop:is-workspace-setup-required'),
+  getWorkspaceStartupError: () => ipcRenderer.invoke('desktop:get-workspace-startup-error'),
   getWorkspaceInfo: () => ipcRenderer.invoke('desktop:get-workspace-info'),
   pickWorkspaceDirectory: () => ipcRenderer.invoke('desktop:pick-workspace-directory'),
   setWorkspaceRoot: (workspaceRoot) => ipcRenderer.invoke('desktop:set-workspace-root', workspaceRoot),
@@ -24,6 +25,13 @@ const desktopBridge: DesktopBridge = {
     ipcRenderer.on('desktop:menu-action', subscription);
     return () => {
       ipcRenderer.removeListener('desktop:menu-action', subscription);
+    };
+  },
+  onRefreshView: (callback) => {
+    const subscription = () => callback();
+    ipcRenderer.on('desktop:refresh-view', subscription);
+    return () => {
+      ipcRenderer.removeListener('desktop:refresh-view', subscription);
     };
   },
   onCloseActiveTab: (callback) => {

@@ -15,6 +15,8 @@ export type WorkspaceInfo = {
 
 export type DesktopBridge = {
   isWorkspaceSetupRequired: () => Promise<boolean>;
+  /** Why the server could not start on the configured workspace at launch (a WORKSPACE_* code), or null. */
+  getWorkspaceStartupError: () => Promise<string | null>;
   getWorkspaceInfo: () => Promise<WorkspaceInfo>;
   pickWorkspaceDirectory: () => Promise<string | null>;
   setWorkspaceRoot: (workspaceRoot: string) => Promise<{ ok: true }>;
@@ -24,6 +26,8 @@ export type DesktopBridge = {
   setMenuLanguage: (language: 'en' | 'ko') => Promise<{ ok: true }>;
   setMenuState: (state: Record<string, boolean>) => Promise<{ ok: true }>;
   onMenuAction: (callback: (actionId: string) => void) => () => void;
+  /** View > Reload (CmdOrCtrl+R on macOS): re-read the active tab and the host list. */
+  onRefreshView: (callback: () => void) => () => void;
   onCloseActiveTab: (callback: () => void) => () => void;
   closeWindow: () => Promise<void>;
   getAppVersion: () => Promise<string>;
