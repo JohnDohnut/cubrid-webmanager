@@ -17,6 +17,7 @@ import { ValidationError } from '@error/validation/validation-error';
 import { DatabaseErrorCode } from '@error/database/database-error-code';
 import { HostError } from '@error/index';
 import { CmsError } from '@error/cms/cms-error';
+import { CMS_CONFNAME_HACONF } from '@database/database.constants';
 import { CreateDatabaseClientResponse, DeleteDatabaseRequest } from '@api-interfaces';
 import { DeleteDatabaseCmsResponse } from '@type/cms-response';
 
@@ -897,13 +898,13 @@ describe('DatabaseLifecycleService', () => {
       );
     });
 
-    it('reports a stopAllDatabases failure as its own entry instead of throwing, keeping any broker failure', async () => {
+    it('reports a database step failure as its own entry instead of throwing, keeping any broker failure', async () => {
       const mockBrokerService = (service as any).brokerService;
       mockBrokerService.stopAllBrokers.mockRejectedValue(new Error('broker stop: fail'));
       jest.spyOn(databaseInfoService, 'startInfo').mockResolvedValue({
         dblist: { dbs: [{ dbname: 'db1' }] },
       } as any);
-      jest.spyOn(service, 'stopAllDatabases').mockRejectedValue(new Error('ha db list unavailable'));
+      jest.spyOn(databaseInfoService, 'getHaNodeState').mockRejectedValue(new Error('ha db list unavailable'));
 
       const result = await service.stopWholeService(mockUserId, mockHostUid);
 
@@ -917,6 +918,8 @@ describe('DatabaseLifecycleService', () => {
   describe('whole-service start, stop and restart on an HA node', () => {
     let running: Set<string>;
     let conf: string[];
+    // cubrid_ha.conf's ha_db_list, or the error reading it.
+    let haDbList: string | Error;
     // What the node-wide ha_start brings up (the engine decides).
     let haStartBringsUp: string[];
     const calls = () => cmsClient.postAuthenticated.mock.calls.map(([, body]) => body as { task: string; dbname?: string });
@@ -924,13 +927,17 @@ describe('DatabaseLifecycleService', () => {
     beforeEach(() => {
       running = new Set(['db1']);
       conf = ['[common]', 'ha_mode=on', '[service]', 'service=server,broker', 'server=db1'];
+      haDbList = 'hadb1,hadb2';
       haStartBringsUp = ['hadb1', 'hadb2'];
       jest.spyOn(databaseInfoService, 'startInfo').mockImplementation(async () => ({
         dblist: { dbs: ['hadb1', 'hadb2', 'db1'].map((dbname) => ({ dbname })) },
         activelist: { active: [...running].map((dbname) => ({ dbname })) },
       }) as any);
-      jest.spyOn(databaseInfoService as any, 'getHaDbNames').mockResolvedValue(new Set(['hadb1', 'hadb2']));
-      cmsConfigService.getAllSystemParam.mockImplementation(async () => ({ conflist: [{ confdata: conf }] }) as any);
+      cmsConfigService.getAllSystemParam.mockImplementation(async (_u: string, _h: string, confname: string) => {
+        if (confname !== CMS_CONFNAME_HACONF) return { conflist: [{ confdata: conf }] } as any;
+        if (haDbList instanceof Error) throw haDbList;
+        return { conflist: [{ confdata: ['[common]', `ha_db_list=${haDbList}`] }] } as any;
+      });
       databaseUserService.ensureDbLogin.mockImplementation(async (_u: string, _h: string, dbname: string) => {
         if (dbname.startsWith('hadb')) throw new Error('no login');
       });
@@ -1000,12 +1007,116 @@ describe('DatabaseLifecycleService', () => {
       expect(calls().filter((c) => c.task === 'startdb').map((c) => c.dbname)).toEqual(['hadb1']);
     });
 
+    const notChecked = (action: 'start' | 'stop', reason: string, why: string) => ({
+      name: HA_NODE_STEP,
+      code: `HA_${action.toUpperCase()}_NOT_CHECKED`,
+      type: `/errors/database/ha_${action}_not_checked`,
+      reason,
+      error: `Could not check the HA ${action}, since ${why}`,
+    });
+
+    it('sends the node-wide ha_stop and ha_start even when ha_db_list is empty, and says the outcome was not checked', async () => {
+      haDbList = '';
+      running = new Set(['db1', 'hadb1']);
+      databaseUserService.ensureDbLogin.mockResolvedValue(undefined as any);
+
+      const stopped = await service.stopWholeService(mockUserId, mockHostUid);
+      const started = await service.startWholeService(mockUserId, mockHostUid);
+
+      expect(haTasks().map((c) => c.task)).toEqual(['ha_stop', 'ha_start']);
+      haTasks().forEach((c) => expect(c).not.toHaveProperty('dbname'));
+      expect(stopped.failed).toEqual([notChecked('stop', 'HA_DB_LIST_EMPTY', 'ha_db_list in cubrid_ha.conf is empty')]);
+      expect(started.failed).toEqual([notChecked('start', 'HA_DB_LIST_EMPTY', 'ha_db_list in cubrid_ha.conf is empty')]);
+    });
+
+    it('sends the node-wide ha_start when cubrid_ha.conf cannot be read, still starts the autostart list, and says why it was not checked', async () => {
+      haDbList = CmsError.RequestFailed({ message: 'cannot open cubrid_ha.conf' });
+      running = new Set();
+
+      const result = await service.startWholeService(mockUserId, mockHostUid);
+
+      expect(haTasks().map((c) => c.task)).toEqual(['ha_start']);
+      expect(haTasks()[0]).not.toHaveProperty('dbname');
+      expect(calls().filter((c) => c.task === 'startdb').map((c) => c.dbname)).toEqual(['db1']);
+      expect(result.failed).toEqual([{
+        ...notChecked('start', 'HA_DB_LIST_UNREADABLE', 'cubrid_ha.conf could not be read: cannot open cubrid_ha.conf'),
+        haConfFailure: { code: 'REQUEST_FAILED', type: '/errors/cms/request_failed', error: 'cannot open cubrid_ha.conf' },
+      }]);
+    });
+
+    it('carries the failed request with the not-checked code when an empty ha_db_list makes heartbeat fail', async () => {
+      haDbList = '';
+      running = new Set();
+      const base = cmsClient.postAuthenticated.getMockImplementation()!;
+      cmsClient.postAuthenticated.mockImplementation(async (url, body) =>
+        (body as { task: string }).task === 'ha_start'
+          ? ({ status: 'failure', task: 'ha_start', note: 'heartbeat start: fail' } as any)
+          : base(url, body)
+      );
+
+      const result = await service.startWholeService(mockUserId, mockHostUid);
+
+      expect(haTasks().map((c) => c.task)).toEqual(['ha_start']);
+      expect(result.failed).toEqual([{
+        ...notChecked('start', 'HA_DB_LIST_EMPTY', 'ha_db_list in cubrid_ha.conf is empty'),
+        error: expect.stringMatching(/^Could not check the HA start, since ha_db_list in cubrid_ha\.conf is empty \(.+\)$/),
+        sendFailure: expect.objectContaining({ cmsTask: 'ha_start', cmsNote: 'heartbeat start: fail' }),
+      }]);
+    });
+
+    it('reports a stop without the ha_db_list names as done only when nothing is running afterwards', async () => {
+      haDbList = '';
+      running = new Set(['hadb1']);
+      databaseUserService.ensureDbLogin.mockResolvedValue(undefined as any);
+
+      const result = await service.stopWholeService(mockUserId, mockHostUid);
+
+      expect(haTasks().map((c) => c.task)).toEqual(['ha_stop']);
+      expect(result.failed).toEqual([]);
+    });
+
+    it('splits ha_db_list and server= on spaces, commas and colons, as the engine does', async () => {
+      haDbList = 'hadb1 hadb2';
+      conf = ['[common]', 'ha_mode=on', '[service]', 'service=server broker', 'server=db1:db2'];
+      running = new Set();
+      databaseUserService.ensureDbLogin.mockResolvedValue(undefined as any);
+
+      const result = await service.startWholeService(mockUserId, mockHostUid);
+
+      expect(haTasks().map((c) => c.task)).toEqual(['ha_start']);
+      expect(calls().filter((c) => c.task === 'startdb').map((c) => c.dbname).sort()).toEqual(['db1', 'db2']);
+      expect(result.failed).toEqual([]);
+    });
+
+    it('treats an ha_db_list database as a plain one when ha_mode is off: one database, Start All and the selected ones', async () => {
+      conf = ['[common]', 'ha_mode=off', '[service]', 'service=server,broker', 'server=db1'];
+      running = new Set();
+      databaseUserService.ensureDbLogin.mockResolvedValue(undefined as any);
+
+      await service.startDatabase(mockUserId, mockHostUid, 'hadb1');
+      await service.stopAllDatabases(mockUserId, mockHostUid, ['hadb1']);
+      await service.runSelectedDatabasesAction(mockUserId, mockHostUid, 'start', ['hadb2']);
+
+      expect(haTasks()).toEqual([]);
+      expect(calls().filter((c) => c.task === 'startdb' || c.task === 'stopdb').map((c) => `${c.task} ${c.dbname}`)).toEqual([
+        'startdb hadb1',
+        'stopdb hadb1',
+        'startdb hadb2',
+      ]);
+    });
+
     it('reports a start as failed, naming the HA databases still off, even when CMS answered success', async () => {
       haStartBringsUp = ['hadb1'];
 
       const result = await service.startWholeService(mockUserId, mockHostUid);
 
-      expect(result.failed).toEqual([{ name: HA_NODE_STEP, error: 'Not running after the HA start: hadb2' }]);
+      expect(result.failed).toEqual([{
+        name: HA_NODE_STEP,
+        error: 'Not running after the HA start: hadb2',
+        code: 'HA_NOT_RUNNING_AFTER_START',
+        type: '/errors/database/ha_not_running_after_start',
+        dbnames: ['hadb2'],
+      }]);
     });
 
     it('reports a stop as done when no HA database is running afterwards, even if CMS failed (no cub_master left)', async () => {
@@ -1032,7 +1143,13 @@ describe('DatabaseLifecycleService', () => {
 
       const result = await service.stopWholeService(mockUserId, mockHostUid);
 
-      expect(result.failed).toEqual([{ name: HA_NODE_STEP, error: 'Still running after the HA stop: hadb2' }]);
+      expect(result.failed).toEqual([{
+        name: HA_NODE_STEP,
+        error: 'Still running after the HA stop: hadb2',
+        code: 'HA_STILL_RUNNING_AFTER_STOP',
+        type: '/errors/database/ha_still_running_after_stop',
+        dbnames: ['hadb2'],
+      }]);
     });
 
     it('reports a start as not confirmed when the running list cannot be read afterwards', async () => {
@@ -1044,7 +1161,13 @@ describe('DatabaseLifecycleService', () => {
 
       const result = await service.startWholeService(mockUserId, mockHostUid);
 
-      expect(result.failed).toEqual([{ name: HA_NODE_STEP, error: 'Could not check whether the HA databases started: status unavailable' }]);
+      expect(result.failed).toEqual([{
+        name: HA_NODE_STEP,
+        error: 'Could not check whether the HA databases started: status unavailable',
+        code: 'HA_START_NOT_CHECKED',
+        type: '/errors/database/ha_start_not_checked',
+        readFailure: { error: 'status unavailable' },
+      }]);
     });
 
     it('does not fail a stop that CMS accepted when the running list cannot be read afterwards', async () => {
@@ -1792,8 +1915,10 @@ describe('DatabaseLifecycleService', () => {
       expect(result.updateUser).toEqual({
         success: false,
         error: {
-          message: DatabaseErrorCode.UNKNOWN,
+          // The API's message for the error, not its bare code.
+          message: 'A database operation failed.',
           code: DatabaseErrorCode.UNKNOWN,
+          type: '/errors/database/unknown',
           details: undefined,
         },
       });
@@ -1829,8 +1954,10 @@ describe('DatabaseLifecycleService', () => {
       expect(result.setAutoAddVol).toEqual({
         success: false,
         error: {
-          message: DatabaseErrorCode.UNKNOWN,
+          // The API's message for the error, not its bare code.
+          message: 'A database operation failed.',
           code: DatabaseErrorCode.UNKNOWN,
+          type: '/errors/database/unknown',
           details: undefined,
         },
       });
@@ -1856,8 +1983,10 @@ describe('DatabaseLifecycleService', () => {
       expect(result.setAutoStart).toEqual({
         success: false,
         error: {
-          message: DatabaseErrorCode.UNKNOWN,
+          // The API's message for the error, not its bare code.
+          message: 'A database operation failed.',
           code: DatabaseErrorCode.UNKNOWN,
+          type: '/errors/database/unknown',
           details: undefined,
         },
       });

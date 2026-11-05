@@ -109,12 +109,20 @@ export class CmsHttpsClientService {
   @HandleCmsErrors()
   public async postPublic<T extends Omit<BaseCmsRequest, 'token'>, P>(
     url: string,
-    data: T
+    data: T,
+    options?: { notAfter?: number }
   ): Promise<P> {
     return this.withHostQueue(url, async () => {
+      // The caller gives up at `notAfter`: a request still waiting in the host
+      // queue by then is not sent, and one sent gets only the time left.
+      const timeLeft = options?.notAfter === undefined ? undefined : options.notAfter - Date.now();
+      if (timeLeft !== undefined && timeLeft <= 0) {
+        throw CmsError.NoResponse({ task: this.extractTask(data), reason: 'DEADLINE_PASSED_IN_QUEUE' });
+      }
       const config = {
         headers: { 'Content-Type': 'application/json' },
         httpsAgent: this.getHttpsAgent(),
+        ...(timeLeft !== undefined ? { timeout: timeLeft } : {}),
       };
       const startedAt = Date.now();
       this.logCmsRequest('public', url, data);
@@ -157,6 +165,8 @@ export class CmsHttpsClientService {
         const response = await firstValueFrom(this.httpService.post<P>(url, data, config)).catch(error => {
           if (options?.maxResponseBytes !== undefined && /maxContentLength/i.test(error?.message ?? '')) {
             throw CmsError.RequestFailed({
+              reason: 'RESPONSE_TOO_LARGE',
+              maxBytes: options.maxResponseBytes,
               message: `CMS response exceeds the analysis size limit (${options.maxResponseBytes} bytes). Select a smaller archived log.`,
             }, error);
           }
