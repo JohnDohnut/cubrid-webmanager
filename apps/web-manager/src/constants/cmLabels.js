@@ -170,6 +170,8 @@ export const CM = {
   hostSelectRequiredHint: 'Select a host first.',
   dbStopRequiredHint: 'Stop the database first.',
   dbStartRequiredHint: 'Start the database first.',
+  charsetCollationSetHint: "cubrid.conf sets intl_collation, so the database's own character set can't be shown.",
+  charsetUnreadHint: "Could not read the database's character set.",
   taskInProgressHint: 'Another task is in progress.',
   hostLoginInProgressHint: 'A host login is in progress.',
   groupHostsAlreadyConnectedHint: 'All hosts in this group are already connected.',
@@ -397,6 +399,8 @@ export const CM = {
   importHostsXml: 'Import Hosts XML',
   tools: 'Tools',
   hostServiceManagement: 'Host Service Management',
+  // The one menu the header folds File, Host Service Management and Help into when narrow.
+  headerMenu: 'Menu',
   help: 'Help',
   aboutCubridAdmin: 'About CUBRID Admin',
   cubridWebManager: 'CUBRID Admin',
@@ -529,11 +533,11 @@ export const CM = {
   qps: 'QPS',
   // Long queries per second (cubrid broker status's LQS column); kept in English.
   lqs: 'LQS',
-  asRequestsCol: 'Requests',
-  asCpuTimeCol: 'CPU Time',
   asDbHostCol: 'DB Host',
   asLastConnectCol: 'Last Connect',
   asCurrentSqlCol: 'Current SQL',
+  // The button and list that show or hide a table's columns (CA: "Column Selection").
+  columnSelection: 'Column Selection',
   accessPoint: 'Access Point',
   authUser: 'Auth User',
   operatingSystem: 'Operating System',

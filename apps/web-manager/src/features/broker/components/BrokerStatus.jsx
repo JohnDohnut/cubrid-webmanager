@@ -13,6 +13,7 @@ import { InfoBanner } from '../../../components/ds/foundation/InfoBanner';
 import { StatusBadge } from '../../../components/ds/foundation/StatusBadge';
 import { useCM } from '../../../constants/useCM';
 import { jobElapsedSeconds, formatElapsed } from '../jobElapsed';
+import { ColumnPicker } from '../../../components/common/ColumnPicker';
 
 // Stable fallback reference — `status.data?.asinfo || []` would otherwise
 // hand the asInfo-rate-tracking effect below a brand-new array on every
@@ -20,6 +21,20 @@ import { jobElapsedSeconds, formatElapsed } from '../jobElapsed';
 // effect's dependency settle (it keeps seeing a "changed" array) and spins
 // the component in a render/effect loop until real data arrives.
 const EMPTY_LIST = [];
+
+// Application server columns hidden until turned on, as in CA
+// (BrokerStatusAsColumn value -1). The choice is kept per browser.
+const AS_HIDDEN_KEY = 'brokerStatusAsHiddenColumns';
+const AS_HIDDEN_DEFAULT = ['as_dbhost', 'as_lat', 'as_lct', 'as_client_ip', 'as_cur'];
+// ID and PID are always shown (CA disables their check boxes).
+const AS_LOCKED = ['as_id', 'as_pid'];
+const readAsHidden = () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(AS_HIDDEN_KEY));
+    if (Array.isArray(saved)) return saved;
+  } catch { /* storage unavailable or not JSON: use the default */ }
+  return AS_HIDDEN_DEFAULT;
+};
 
 const Component = function BrokerStatus({ hostUid, brokerName }) {
   const CM = useCM();
@@ -93,11 +108,16 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
   // hooks called from one render to the next).
   const rateTrackerRef = useRef(createRateTracker());
   const [asInfoWithRates, setAsInfoWithRates] = useState([]);
+  const [asHidden, setAsHidden] = useState(readAsHidden);
+  const toggleAsColumn = (key) => setAsHidden((prev) => {
+    const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key];
+    try { localStorage.setItem(AS_HIDDEN_KEY, JSON.stringify(next)); } catch { /* not kept; still applies now */ }
+    return next;
+  });
   useEffect(() => {
     setAsInfoWithRates(asInfo.map((as) => ({
       ...as,
       qps: rateTrackerRef.current(`${as.as_id}:qps`, as.as_num_query),
-      tps: rateTrackerRef.current(`${as.as_id}:tps`, as.as_num_tran),
       // Long queries per second, as `cubrid broker status` works out LQS:
       // the rise in the long query count over the interval (broker_monitor.c).
       lqs: rateTrackerRef.current(`${as.as_id}:lqs`, as.as_long_query),
@@ -155,8 +175,10 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
   };
 
   /* Table Columns Definitions */
-  // The columns of `cubrid broker status -f` and CA's application server
-  // table, from what CMS getbrokerstatus sends for each AS. Kept narrow so
+  // CA's application server table, its columns in its order
+  // (BrokerStatusAsColumn: ID, PID, QPS, LQS, PORT, PSIZE, STATUS, DB, HOST,
+  // LAST ACCESS TIME, LAST CONNECT TIME, CLIENT IP, SQL), from what CMS
+  // getbrokerstatus sends for each AS. Kept narrow so
   // the table fits the page at usual widths: tight padding, headers of two
   // words may wrap, long text is cut with the full value on hover, and a
   // time on the broker's current date shows only the time of day.
@@ -181,10 +203,8 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
   const asColumns = [
     { header: CM.idLabel, accessor: 'as_id', className: tight, cellClassName: tight, render: (v) => <span className="font-mono text-amber-600 dark:text-amber-400">{v}</span> },
     { header: CM.pid, accessor: 'as_pid', className: wrapHeader, cellClassName: tight, render: mono },
-    { header: CM.asRequestsCol, accessor: 'as_c', className: wrapHeader, cellClassName: tight, render: mono },
     { header: CM.qps, accessor: 'qps', className: tight, cellClassName: tight, render: rate },
     { header: CM.lqs, accessor: 'lqs', className: tight, cellClassName: tight, render: rate },
-    { header: CM.tps, accessor: 'tps', className: tight, cellClassName: tight, render: rate },
     ...(hasAsPort ? [{ header: CM.port, accessor: 'as_port', className: tight, cellClassName: tight, render: mono }] : []),
     // as_psize is kilobytes (broker_process_size.c getsize: VmRSS + VmSwap); -1 when it could not be read.
     { header: CM.memory, accessor: 'as_psize', className: tight, cellClassName: tight, render: (v) => mono(Number(v) >= 0 ? `${(Number(v) / 1024).toFixed(1)} MiB` : null) },
@@ -198,8 +218,6 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
         return <span className="whitespace-nowrap"><StatusBadge label={v || 'IDLE'} variant={isActive ? 'emerald' : 'slate'} pulse={isActive} /></span>;
       }
     },
-    { header: CM.cpu, accessor: 'as_cpu', className: tight, cellClassName: tight, render: (v) => mono(v != null && v !== '' ? `${v}%` : null) },
-    { header: CM.asCpuTimeCol, accessor: 'as_ctime', className: wrapHeader, cellClassName: tight, render: (v) => mono(v || null) },
     { header: CM.database, accessor: 'as_dbname', className: wrapHeader, cellClassName: tight, render: cut('max-w-[96px]', 'text-amber-600/80 dark:text-amber-500/70') },
     { header: CM.asDbHostCol, accessor: 'as_dbhost', className: wrapHeader, cellClassName: tight, render: cut('max-w-[96px]') },
     { header: CM.lastAccess, accessor: 'as_lat', className: wrapHeader, cellClassName: tight, render: when },
@@ -208,6 +226,8 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
     // Takes the width that is left; max-w-0 keeps a long statement from widening the table.
     { header: CM.asCurrentSqlCol, accessor: 'as_cur', width: '100%', className: wrapHeader, cellClassName: `${tight} max-w-0`, render: cut('w-full', 'text-13 text-slate-500') },
   ];
+  const shownAsColumns = asColumns.filter((col) => AS_LOCKED.includes(col.accessor) || !asHidden.includes(col.accessor));
+  const asColumnChoices = asColumns.map((col) => ({ key: col.accessor, label: col.header, locked: AS_LOCKED.includes(col.accessor) }));
 
   const jobColumns = [
     { header: CM.jobId, accessor: 'job_id', width: '100px', render: (v) => <span className="font-mono">{v}</span> },
@@ -394,7 +414,20 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
               <span className="text-14 font-bold">{CM.applicationServers}</span>
             </div>
           }
-          rightContent={(isCollapsed) => (status.error ? statusStaleBadge : isCollapsed && asActiveBadge)}
+          rightContent={(isCollapsed) => (
+            <>
+              {status.error ? statusStaleBadge : isCollapsed && asActiveBadge}
+              {!isCollapsed && (
+                <ColumnPicker
+                  testId="as-column-picker"
+                  label={CM.columnSelection}
+                  columns={asColumnChoices}
+                  shown={shownAsColumns.map((col) => col.accessor)}
+                  onToggle={toggleAsColumn}
+                />
+              )}
+            </>
+          )}
           bodyClassName="p-0"
           collapsible
         >
@@ -402,7 +435,7 @@ const Component = function BrokerStatus({ hostUid, brokerName }) {
               keeps this wide table out of that, so it scrolls on its own. */}
           <div className="w-0 min-w-full">
             <Table
-              columns={asColumns}
+              columns={shownAsColumns}
               data={asInfoWithRates}
               sortable
               zebra
