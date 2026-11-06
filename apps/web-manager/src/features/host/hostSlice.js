@@ -7,6 +7,7 @@ import { flattenHostsFromGroups, findGroupIdForHost } from './hostGroupUtils';
 import { HA_NODE_STEP } from './haNodeStep';
 import { hostLoginErrorMessage } from './hostLoginError';
 import { getCM, getStoredLocale } from '../../constants/useCM';
+
 import { findHaPeersNeedingMerge,
   findRegisteredHaPeersInSameGroup,
   findUndiscoveredHaPeers,
@@ -208,7 +209,7 @@ export const deleteHostGroup = createAsyncThunk(
 
 export const setHostPassword = createAsyncThunk(
   'host/setHostPassword',
-  async ({ hostUid, payload }, { rejectWithValue, getState }) => {
+  async ({ hostUid, payload }, { rejectWithValue }) => {
     try {
       await hostApi.setHostPassword(hostUid, payload);
       return hostUid;
@@ -402,7 +403,7 @@ export const fetchCmsUsers = createAsyncThunk(
 // The user's language, for an error the server reports by code.
 export const addCmsUser = createAsyncThunk(
   'host/addCmsUser',
-  async ({ hostUid, payload }, { rejectWithValue, getState }) => {
+  async ({ hostUid, payload }, { rejectWithValue }) => {
     try {
       const response = await hostApi.addCmsUser(hostUid, payload);
       const userlist = (response.userlist || []).flatMap(item => item.user || item);
@@ -415,7 +416,7 @@ export const addCmsUser = createAsyncThunk(
 
 export const updateCmsUser = createAsyncThunk(
   'host/updateCmsUser',
-  async ({ hostUid, payload }, { rejectWithValue, getState }) => {
+  async ({ hostUid, payload }, { rejectWithValue }) => {
     try {
       const response = await hostApi.updateCmsUser(hostUid, payload);
       const userlist = (response.userlist || []).flatMap(item => item.user || item);
@@ -428,7 +429,7 @@ export const updateCmsUser = createAsyncThunk(
 
 export const deleteCmsUser = createAsyncThunk(
   'host/deleteCmsUser',
-  async ({ hostUid, targetid }, { rejectWithValue, getState }) => {
+  async ({ hostUid, targetid }, { rejectWithValue }) => {
     try {
       const response = await hostApi.deleteCmsUser(hostUid, targetid);
       const userlist = (response.userlist || []).flatMap(item => item.user || item);
