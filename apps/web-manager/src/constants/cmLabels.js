@@ -166,6 +166,7 @@ export const CM = {
   },
   manageDatabaseHaDisabledHint: 'Not available for an HA-configured database.',
   hostConnectRequiredHint: 'Connect to the host first.',
+  cmsAdminRequiredHint: 'Only a host connected with the CMS admin account can manage CMS users.',
   dbLoginRequiredHint: 'Log in to the database first.',
   hostSelectRequiredHint: 'Select a host first.',
   dbStopRequiredHint: 'Stop the database first.',
@@ -515,9 +516,9 @@ export const CM = {
   monitorOnly: 'monitor',
   fullControl: 'admin',
   permissions: 'Permissions',
-  monitoringPermission: 'Status monitor authority:',
-  dbCreatePermission: 'DB creation authority:',
-  brokerPermission: 'Broker authority:',
+  monitoringPermission: 'Status monitor authority',
+  dbCreatePermission: 'DB creation authority',
+  brokerPermission: 'Broker authority',
 
   // Server dashboard
   serverDashboard: 'Host Dashboard',
@@ -1412,7 +1413,7 @@ export const CM = {
 
   // CMSUserManagementModal
   systemAdministrator: 'System administrator',
-  managementUsers: 'Management users',
+  managementUsers: 'Users',
 
   // Monitor refresh buttons
   refreshVolumeData: 'Refresh volume data',
@@ -1803,7 +1804,7 @@ export const CM = {
   importedPlaceholder: 'Imported',
 
   // CMSUserManagementModal add-user CTA
-  addManagementUserBtn: 'Add a management user',
+  addManagementUserBtn: 'Add User Account',
 
   // DatabaseSpaceMonitor inline labels
   freeBadge: 'free',
