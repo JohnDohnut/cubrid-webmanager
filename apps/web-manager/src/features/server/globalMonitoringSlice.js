@@ -16,6 +16,9 @@ export const fetchHostSummary = createAsyncThunk(
   'globalMonitoring/fetchHostSummary',
   async (arg, { getState, rejectWithValue }) => {
     const hostUid = typeof arg === 'string' ? arg : arg.hostUid;
+    // `withVolumes: false` keeps the volume usage of the last read (the
+    // service dashboard reads it on its own, longer interval).
+    const withVolumes = typeof arg === 'string' || arg.withVolumes !== false;
     try {
       // 1. Fetch concurrent data
       const [hostStat, brokersResponse, dbInfo, envInfo] = await Promise.all([
@@ -33,9 +36,9 @@ export const fetchHostSummary = createAsyncThunk(
       // request, and the server refuses it for a db with no DB login.
       const active = dbInfo?.activelist?.active;
       const activeList = Array.isArray(active) ? active : active ? [active] : [];
-      const dbnames = activeList
-        .filter((a) => a?.isLoggedIn === true && a.dbname)
-        .map((a) => a.dbname);
+      const dbnames = withVolumes
+        ? activeList.filter((a) => a?.isLoggedIn === true && a.dbname).map((a) => a.dbname)
+        : [];
       const volumesData = await Promise.all(
         dbnames.map(dbname => databaseApi.getVolumeInfo(hostUid, dbname).catch(() => null))
       );
@@ -118,7 +121,6 @@ export const fetchHostSummary = createAsyncThunk(
           readAt: Date.now(),
           memory: memTotal > 0 ? (memUsed / memTotal) * 100 : 0,
           disk: hostStat.disk_usage || '0/0',
-          freespaceOnStorage,
           tps: brokerRates.tps,
           qps: brokerRates.qps,
           errorQ: totalErrorQ,
@@ -126,10 +128,16 @@ export const fetchHostSummary = createAsyncThunk(
           dbOff: [...knownNames].filter((dbname) => !runningNames.has(dbname)).length,
           version: envInfo?.os_info || envInfo?.os || getCM(getStoredLocale()).unknownFallback,
           brokerPorts: brokerPorts.join(', '),
-          // Percent of each volume group in use (-1 = the host has none).
-          permUsed: usedPct(totalPagePerm, freePagePerm),
-          permTempUsed: usedPct(totalPagePermTemp, freePagePermTemp),
-          tempTempUsed: usedPct(totalPageTempTemp, freePageTempTemp),
+          ...(withVolumes
+            ? {
+              freespaceOnStorage,
+              // Percent of each volume group in use (-1 = the host has none).
+              permUsed: usedPct(totalPagePerm, freePagePerm),
+              permTempUsed: usedPct(totalPagePermTemp, freePagePermTemp),
+              tempTempUsed: usedPct(totalPageTempTemp, freePageTempTemp),
+              volumesReadAt: Date.now(),
+            }
+            : volumesOf(getState().globalMonitoring.summaries[hostUid])),
         }
       };
     } catch (err) {
@@ -137,6 +145,15 @@ export const fetchHostSummary = createAsyncThunk(
     }
   }
 );
+
+// The volume usage of a summary, kept when a read skips the volumes.
+const volumesOf = (summary) => ({
+  freespaceOnStorage: summary?.freespaceOnStorage ?? 0,
+  permUsed: summary?.permUsed ?? -1,
+  permTempUsed: summary?.permTempUsed ?? -1,
+  tempTempUsed: summary?.tempTempUsed ?? -1,
+  volumesReadAt: summary?.volumesReadAt ?? null,
+});
 
 const globalMonitoringSlice = createSlice({
   name: 'globalMonitoring',

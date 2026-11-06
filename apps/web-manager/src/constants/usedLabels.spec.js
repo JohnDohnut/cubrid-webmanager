@@ -1,12 +1,13 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import process from 'node:process';
 import { expect, it } from 'vitest';
 import { CM } from './cmLabels';
 
 // Every CM.<key> the screens use has an English label: a missing one shows
 // as an empty title or "undefined". These tables are Korean-only, read with
 // a fallback to the server's English text.
-const KOREAN_ONLY = new Set(['serverErrors', 'cmsNotes', 'cmsNotePatterns', 'jobWarnings', 'paramIssues', 'confProblems', 'confPendingCmsNote', 'codeMirrorPhrases']);
+const KOREAN_ONLY = new Set(['serverErrors', 'cmsNotes', 'cmsNotePatterns', 'jobWarnings', 'paramIssues', 'confProblems', 'confPendingCmsNote', 'compactLogMessages', 'loadLogMessages', 'loadLogPatterns', 'codeMirrorPhrases']);
 
 // Run from apps/web-manager (vite.config.mts), as every web test is.
 const SRC = join(process.cwd(), 'src') + '/';
