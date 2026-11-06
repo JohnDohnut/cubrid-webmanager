@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch , shallowEqual } from 'react-redux';
 import { fetchBrokerList } from '../../broker/brokerSlice';
 import { useShownBrokers } from '../../broker/brokerRestartState';
+import { brokerStateOf, isBrokerOn } from '../../broker/brokerState';
 import { openTab } from '../../layout/layoutSlice';
 import MonitoringSettingsPopover from '../../user/components/MonitoringSettingsPopover';
 import { Card } from '../../../components/ds/layout/Card';
@@ -85,11 +86,11 @@ const Component = function Brokers({ hostUid, isSection = false }) {
     {
       header: CM.status,
       accessor: 'state',
-      render: (val) => (
-        <StatusBadge 
-          label={val} 
-          variant={val === 'ON' ? 'emerald' : 'rose'} 
-          pulse={val === 'ON'} 
+      render: (_, row) => (
+        <StatusBadge
+          label={brokerStateOf(row)}
+          variant={isBrokerOn(row) ? 'emerald' : 'rose'}
+          pulse={isBrokerOn(row)}
         />
       )
     },
@@ -111,9 +112,10 @@ const Component = function Brokers({ hostUid, isSection = false }) {
     { header: CM.errQuery, accessor: 'error_query', render: (val) => <span className={`font-mono text-14 font-bold ${parseInt(val) > 0 ? 'text-rose-500' : 'text-slate-400'}`}>{val}</span> },
   ], [CM]);
 
-  // A broker being restarted shows ON until the restart ends.
+  // A broker being restarted shows ON until the restart ends; one listed
+  // without a state (broker service off) counts as OFF.
   const shownBrokers = useShownBrokers(hostUid, brokers);
-  const activeCount = shownBrokers.filter(b => b.state === 'ON').length;
+  const activeCount = shownBrokers.filter(isBrokerOn).length;
 
   const activeBadge = (
     <StatusBadge label={CM.activeCount(activeCount)} variant="emerald" pulse={true} className="rounded-full" />
