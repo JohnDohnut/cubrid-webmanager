@@ -208,7 +208,7 @@ export const deleteHostGroup = createAsyncThunk(
 
 export const setHostPassword = createAsyncThunk(
   'host/setHostPassword',
-  async ({ hostUid, payload }, { rejectWithValue }) => {
+  async ({ hostUid, payload }, { rejectWithValue, getState }) => {
     try {
       await hostApi.setHostPassword(hostUid, payload);
       return hostUid;
@@ -399,9 +399,10 @@ export const fetchCmsUsers = createAsyncThunk(
   }
 );
 
+// The user's language, for an error the server reports by code.
 export const addCmsUser = createAsyncThunk(
   'host/addCmsUser',
-  async ({ hostUid, payload }, { rejectWithValue }) => {
+  async ({ hostUid, payload }, { rejectWithValue, getState }) => {
     try {
       const response = await hostApi.addCmsUser(hostUid, payload);
       const userlist = (response.userlist || []).flatMap(item => item.user || item);
@@ -414,7 +415,7 @@ export const addCmsUser = createAsyncThunk(
 
 export const updateCmsUser = createAsyncThunk(
   'host/updateCmsUser',
-  async ({ hostUid, payload }, { rejectWithValue }) => {
+  async ({ hostUid, payload }, { rejectWithValue, getState }) => {
     try {
       const response = await hostApi.updateCmsUser(hostUid, payload);
       const userlist = (response.userlist || []).flatMap(item => item.user || item);
@@ -427,7 +428,7 @@ export const updateCmsUser = createAsyncThunk(
 
 export const deleteCmsUser = createAsyncThunk(
   'host/deleteCmsUser',
-  async ({ hostUid, targetid }, { rejectWithValue }) => {
+  async ({ hostUid, targetid }, { rejectWithValue, getState }) => {
     try {
       const response = await hostApi.deleteCmsUser(hostUid, targetid);
       const userlist = (response.userlist || []).flatMap(item => item.user || item);
@@ -501,6 +502,9 @@ const initialState = {
   // Hosts in reconnectQueue whose saved password no longer works, so the
   // reconnect window asks for the new one (askHostPassword).
   reconnectPasswordHosts: [],
+  // Why a host is in reconnectQueue when it is not a lost session:
+  // 'unreachable' (its CMS could not be reached, see hostUnreachable).
+  reconnectReasons: {}, // { [hostUid]: 'unreachable' }
 };
 
 const hostSlice = createSlice({
@@ -538,6 +542,7 @@ const hostSlice = createSlice({
       // Reset specific host data
       delete state.hostEnvs[hostUid];
       if (state.hostAuthErrors[hostUid]) delete state.hostAuthErrors[hostUid];
+      if (state.reconnectReasons?.[hostUid]) delete state.reconnectReasons[hostUid];
       // Reset general error if it was likely related to this host
       state.error = null;
     },
@@ -702,6 +707,7 @@ const hostSlice = createSlice({
     closeReconnectModal: (state) => {
       const hostUid = state.reconnectQueue.shift();
       state.reconnectPasswordHosts = (state.reconnectPasswordHosts ?? []).filter((uid) => uid !== hostUid);
+      if (hostUid && state.reconnectReasons?.[hostUid]) delete state.reconnectReasons[hostUid];
     },
     // The CMS account this host logs in with got a new password (Edit CMS
     // User): ask for it instead of logging in again with the saved one.
@@ -710,6 +716,16 @@ const hostSlice = createSlice({
       if (!hostUid) return;
       if (!state.reconnectQueue.includes(hostUid)) state.reconnectQueue.push(hostUid);
       state.reconnectPasswordHosts = [...new Set([...(state.reconnectPasswordHosts ?? []), hostUid])];
+    },
+    // The host's CMS could not be reached (stopped, its port changed, the
+    // host down): the reconnect window, saying that. The host stays in
+    // authorizedHosts so Reconnect keeps every screen; its polling pauses
+    // while it is in the queue.
+    hostUnreachable: (state, action) => {
+      const hostUid = action.payload;
+      if (!hostUid) return;
+      if (!state.reconnectQueue.includes(hostUid)) state.reconnectQueue.push(hostUid);
+      state.reconnectReasons = { ...(state.reconnectReasons ?? {}), [hostUid]: 'unreachable' };
     },
   },
   extraReducers: (builder) => {
@@ -1083,6 +1099,7 @@ export const {
   closeEditCmsUserModal,
   openReconnectModal,
   closeReconnectModal,
+  hostUnreachable,
   askHostPassword,
 } = hostSlice.actions;
 
