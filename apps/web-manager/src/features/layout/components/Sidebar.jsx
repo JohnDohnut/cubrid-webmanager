@@ -26,7 +26,7 @@ import { bulkResultStatusModal, runAllDatabasesAction, serviceSkippedTable } fro
 import { autoStartServers, haModeOn, loginSkipsOf, planLoginCheckedAction, readStartInfoDatabases, restartLoginSkips, runningDbNames, serviceDatabases, serviceStartTargets, serviceStopTargets, stoppedDbNames } from '../../database/loginSkips';
 import { hostApi } from '../../host/hostApi';
 import { MULTI_BROKER_ACTIONS, runMultiBrokerAction, splitBrokersByAction } from '../../broker/brokerMultiActions';
-import { brokerStateOf, isBrokerOn } from '../../broker/brokerState';
+import { brokerStateOf, isBrokerRunning } from '../../broker/brokerState';
 import { restartHostService } from '../../host/hostServiceRestart';
 import {
   MULTI_DB_ACTIONS,
@@ -2268,7 +2268,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
             <Typography variant="caption" title={brokerContextMenu.broker} className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-11 block truncate min-w-0">{CM.broker}: <span className="normal-case">{brokerContextMenu.broker}</span></Typography>
             <Icon name="hub" size="xs" className="opacity-30" weight={300} />
           </div>
-          {isBrokerOn(brokerContextMenu) ? (
+          {isBrokerRunning(brokerContextMenu) ? (
             <MenuItem
               icon="stop"
               label={CM.stopBroker}
@@ -2294,7 +2294,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
               }}
             />
           ) : null}
-          {isBrokerOn(brokerContextMenu) && (
+          {isBrokerRunning(brokerContextMenu) && (
             <MenuItem
               icon="restart_alt"
               label={CM.restartBroker}
@@ -2305,7 +2305,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
               }}
             />
           )}
-          {!isBrokerOn(brokerContextMenu) && (
+          {!isBrokerRunning(brokerContextMenu) && (
             <MenuItem
               icon="play_arrow"
               label={CM.startBroker}
