@@ -388,6 +388,8 @@ export const CM = {
 
   // Header / menus
   file: 'File',
+  switchWorkspace: 'Switch Workspace…',
+  quit: 'Quit',
   view: 'View',
   service: 'Service',
   database: 'Database',

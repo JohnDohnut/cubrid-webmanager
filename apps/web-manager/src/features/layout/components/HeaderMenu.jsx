@@ -1,13 +1,16 @@
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { DropdownMenu, SubMenu, MenuItem, MenuDivider } from '../../../components/common/DropdownMenu';
 import { MENU_ACTIONS, getMenuActionEnabled, runMenuAction } from '../menuActions';
 import { menuOffReason } from '../menuOffReason';
 import { isCmsAdminHost } from '../../host/cmsAdmin';
 import { useCM } from '../../../constants/useCM';
+import { isDesktopApp } from '../../desktop/isDesktopApp';
 
 export default function HeaderMenu({ folded = false }) {
   const CM = useCM();
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { selectedHostUid, authorizedHosts, hosts } = useSelector((state) => state.host, shallowEqual);
 
   const enabled = getMenuActionEnabled({ selectedHostUid, authorizedHosts, hosts });
@@ -21,7 +24,7 @@ export default function HeaderMenu({ folded = false }) {
       hostConnected: (authorizedHosts ?? []).includes(selectedHostUid),
       cmsAdmin: id !== MENU_ACTIONS.cmsAccountManagement || isCmsAdminHost(hosts, selectedHostUid),
     }),
-    onClick: () => runMenuAction(id, { dispatch, CM, selectedHostUid }),
+    onClick: () => runMenuAction(id, { dispatch, CM, selectedHostUid, navigate }),
   });
 
   const MenuLabel = ({ children }) => (
@@ -54,6 +57,22 @@ export default function HeaderMenu({ folded = false }) {
         label={CM.importHost}
         {...action(MENU_ACTIONS.importHosts)}
       />
+      {isDesktopApp() && (
+        <>
+          <MenuDivider />
+          <MenuItem
+            icon="folder_open"
+            label={CM.switchWorkspace}
+            {...action(MENU_ACTIONS.switchWorkspace)}
+          />
+          <MenuDivider />
+          <MenuItem
+            icon="logout"
+            label={CM.quit}
+            onClick={() => void window.desktopBridge?.quitApp?.()}
+          />
+        </>
+      )}
     </>
   );
   const configItems = (
