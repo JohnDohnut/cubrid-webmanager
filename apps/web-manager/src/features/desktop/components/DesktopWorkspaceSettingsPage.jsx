@@ -256,7 +256,7 @@ export default function DesktopWorkspaceSettingsPage() {
       )}
       <ConfirmDialog
         isOpen={askIgnoreUnknownJobs}
-        title={CM.switchWorkspace}
+        title={CM.workspaceTitle}
         description={CM.workspaceJobsUnknownDesc}
         confirmLabel={CM.switchWorkspaceConfirmBtn}
         variant="danger"
