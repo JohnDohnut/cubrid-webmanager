@@ -6,12 +6,16 @@ import { menuOffReason } from '../menuOffReason';
 import { isCmsAdminHost } from '../../host/cmsAdmin';
 import { useCM } from '../../../constants/useCM';
 import { isDesktopApp } from '../../desktop/isDesktopApp';
+import { isAnyModalOpen } from '../../../infrastructure/hooks/useAnyModalOpen';
+
+const NO_TABS = [];
 
 export default function HeaderMenu({ folded = false }) {
   const CM = useCM();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { selectedHostUid, authorizedHosts, hosts } = useSelector((state) => state.host, shallowEqual);
+  const dirtyTabs = useSelector((state) => state.layout?.dirtyTabs ?? NO_TABS, shallowEqual);
 
   const enabled = getMenuActionEnabled({ selectedHostUid, authorizedHosts, hosts });
   // Only Edit Host, CMS Account Management and Host Engine Version are ever
@@ -24,7 +28,7 @@ export default function HeaderMenu({ folded = false }) {
       hostConnected: (authorizedHosts ?? []).includes(selectedHostUid),
       cmsAdmin: id !== MENU_ACTIONS.cmsAccountManagement || isCmsAdminHost(hosts, selectedHostUid),
     }),
-    onClick: () => runMenuAction(id, { dispatch, CM, selectedHostUid, navigate }),
+    onClick: () => runMenuAction(id, { dispatch, CM, selectedHostUid, navigate, dirtyTabs, anyModalOpen: isAnyModalOpen() }),
   });
 
   const MenuLabel = ({ children }) => (
