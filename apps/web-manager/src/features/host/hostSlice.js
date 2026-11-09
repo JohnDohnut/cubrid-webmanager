@@ -453,6 +453,9 @@ const initialState = {
   hostToDeleteUid: null,
   hostToDeleteAlias: null,
   hostToEditUid: null,
+  // Edit Host opened because the host turned down its saved password: the
+  // password field starts open instead of behind "change".
+  editHostPasswordRejected: false,
   isServerVersionModalOpen: false,
   serverVersionHostUid: null,
   hosts: [],
@@ -540,8 +543,11 @@ const hostSlice = createSlice({
     revokeHostLogin: (state, action) => {
       const hostUid = action.payload;
       state.authorizedHosts = state.authorizedHosts.filter(uid => uid !== hostUid);
-      // Reset specific host data
+      // Reset specific host data. Its HA role is only known while connected;
+      // the next login reads it again.
       delete state.hostEnvs[hostUid];
+      delete state.haInfo[hostUid];
+      syncHaInfoStorage(state);
       if (state.hostAuthErrors[hostUid]) delete state.hostAuthErrors[hostUid];
       if (state.reconnectReasons?.[hostUid]) delete state.reconnectReasons[hostUid];
       // Reset general error if it was likely related to this host
@@ -557,13 +563,20 @@ const hostSlice = createSlice({
       state.hostToDeleteUid = null;
       state.hostToDeleteAlias = null;
     },
+    // Payload: the hostUid, or { hostUid, passwordRejected } when a login
+    // with the saved password was just turned down.
     openEditHostModal: (state, action) => {
+      const { hostUid, passwordRejected = false } = typeof action.payload === 'object' && action.payload !== null
+        ? action.payload
+        : { hostUid: action.payload };
       state.isEditHostModalOpen = true;
-      state.hostToEditUid = action.payload; // Just need the hostUid, we can look up the rest
+      state.hostToEditUid = hostUid; // Just need the hostUid, we can look up the rest
+      state.editHostPasswordRejected = Boolean(passwordRejected);
     },
     closeEditHostModal: (state) => {
       state.isEditHostModalOpen = false;
       state.hostToEditUid = null;
+      state.editHostPasswordRejected = false;
     },
     openCreateGroupModal: (state) => {
       state.isCreateGroupModalOpen = true;
@@ -753,6 +766,12 @@ const hostSlice = createSlice({
             }
           }
           state.authorizedHostsHydrated = true;
+          // HA roles saved by an earlier session, for hosts that did not come
+          // back connected, are out of date.
+          for (const uid of Object.keys(state.haInfo)) {
+            if (!state.authorizedHosts.includes(uid)) delete state.haInfo[uid];
+          }
+          syncHaInfoStorage(state);
         }
       })
       .addCase(fetchHosts.rejected, (state, action) => {
@@ -827,6 +846,12 @@ const hostSlice = createSlice({
         }
         const hostUid = loginHostUid(action.meta.arg);
         state.hostAuthErrors[hostUid] = action.payload;
+        // A host still connected (a failed Reconnect keeps its screens) keeps
+        // its HA role; one that is not has none to show.
+        if (!state.authorizedHosts.includes(hostUid) && state.haInfo[hostUid]) {
+          delete state.haInfo[hostUid];
+          syncHaInfoStorage(state);
+        }
         if (!state.isBatchHostLogin) {
           state.error = action.payload;
           state.loginErrorHostUid = hostUid;

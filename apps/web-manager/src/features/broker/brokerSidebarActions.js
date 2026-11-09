@@ -7,6 +7,7 @@ import {
   stopAllBrokers,
 } from './brokerSlice';
 import { triggerRefreshActiveTab } from '../layout/layoutSlice';
+import { isBrokerRunning } from './brokerState';
 
 /** True for the broker dashboard (`brokers_status:`) and per-broker status
  * (`broker_status:`) tabs of this host. */
@@ -62,7 +63,7 @@ export const stopAllBrokersAndRefresh = (hostUid) => async (dispatch) => {
 export const restartAllBrokersAndRefresh = (hostUid) => async (dispatch, getState) => {
   // The running ones keep showing ON until the restart ends.
   const running = (getState().broker.navigatorBrokersByHost?.[hostUid] || [])
-    .filter((broker) => broker.state === 'ON')
+    .filter(isBrokerRunning)
     .map((broker) => broker.name);
   dispatch(markBrokersRestarting({ hostUid, names: running, restarting: true }));
   let stopped = false;

@@ -67,7 +67,8 @@ export function getMenuActionEnabled({ selectedHostUid, authorizedHosts = [], ho
     [MENU_ACTIONS.editBrokerConfig]: true,
     [MENU_ACTIONS.editCmConfig]: true,
     [MENU_ACTIONS.checkForUpdates]: true,
-    [MENU_ACTIONS.serverVersion]: Boolean(selectedHostUid),
+    // Read from the host's CMS, so only for a connected host.
+    [MENU_ACTIONS.serverVersion]: Boolean(selectedHostUid) && authorizedHosts.includes(selectedHostUid),
     [MENU_ACTIONS.about]: true,
   };
 }
