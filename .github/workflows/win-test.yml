@@ -9,9 +9,16 @@
 #     while it runs, uninstalls it, and runs the zip from a folder
 #     (tools/win-test/server-test.ps1).
 # Screenshots, app and service logs and results.json are uploaded as artifacts.
+#
+# A push to the test branch runs the target in tools/win-test/target.json
+# (a workflow that is only on a branch cannot be dispatched before it has
+# run once); workflow_dispatch takes the same values as inputs.
 name: Windows package test
 
 on:
+  push:
+    branches: ['test/win-desktop']
+    paths: ['.github/workflows/win-test.yml', 'tools/win-test/**']
   workflow_dispatch:
     inputs:
       ref:
@@ -35,16 +42,46 @@ env:
   NX_DAEMON: 'false'
 
 jobs:
+  plan:
+    name: Target
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      ref: ${{ steps.plan.outputs.ref }}
+      reuse_run_id: ${{ steps.plan.outputs.reuse_run_id }}
+      arm64: ${{ steps.plan.outputs.arm64 }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: plan
+        shell: bash
+        env:
+          INPUT_REF: ${{ inputs.ref }}
+          INPUT_REUSE: ${{ inputs.reuse_run_id }}
+          INPUT_ARM64: ${{ inputs.arm64 }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            ref="$INPUT_REF"; reuse="$INPUT_REUSE"; arm64="$INPUT_ARM64"
+          else
+            ref="$(jq -r '.ref' tools/win-test/target.json)"
+            reuse="$(jq -r '.reuse_run_id // ""' tools/win-test/target.json)"
+            arm64="$(jq -r '.arm64' tools/win-test/target.json)"
+          fi
+          echo "ref=$ref reuse_run_id=$reuse arm64=$arm64"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "reuse_run_id=$reuse" >> "$GITHUB_OUTPUT"
+          echo "arm64=$arm64" >> "$GITHUB_OUTPUT"
+
   build-desktop:
     name: Build desktop packages
-    if: inputs.reuse_run_id == ''
+    needs: [plan]
+    if: needs.plan.outputs.reuse_run_id == ''
     runs-on: windows-latest
     timeout-minutes: 120
     steps:
-      - name: Checkout ${{ inputs.ref }}
+      - name: Checkout ${{ needs.plan.outputs.ref }}
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ needs.plan.outputs.ref }}
           # commit_num in the version counts commits: needs the full history.
           fetch-depth: 0
 
@@ -69,7 +106,7 @@ jobs:
         id: nxpkg
         continue-on-error: true
         shell: bash
-        run: npx nx run desktop:package -- --win --x64 ${{ inputs.arm64 && '--arm64' || '' }}
+        run: npx nx run desktop:package -- --win --x64 ${{ needs.plan.outputs.arm64 == 'true' && '--arm64' || '' }}
 
       - name: Package desktop (electron-builder directly, the nx target failed on this host)
         if: steps.nxpkg.outcome == 'failure'
@@ -80,7 +117,7 @@ jobs:
           npx nx run desktop:prepare-app
           npx nx run api-server:build
           npx nx run web-manager:build-electron
-          npx electron-builder --config apps/desktop/electron-builder.config.cjs --publish never --win --x64 ${{ inputs.arm64 && '--arm64' || '' }}
+          npx electron-builder --config apps/desktop/electron-builder.config.cjs --publish never --win --x64 ${{ needs.plan.outputs.arm64 == 'true' && '--arm64' || '' }}
 
       - name: List packages
         shell: bash
@@ -99,7 +136,7 @@ jobs:
           retention-days: 5
 
       - name: Upload arm64 packages
-        if: inputs.arm64
+        if: needs.plan.outputs.arm64 == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: desktop-windows-arm64
@@ -113,14 +150,15 @@ jobs:
 
   build-server:
     name: Build server packages
-    if: inputs.reuse_run_id == ''
+    needs: [plan]
+    if: needs.plan.outputs.reuse_run_id == ''
     runs-on: windows-latest
     timeout-minutes: 90
     steps:
-      - name: Checkout ${{ inputs.ref }}
+      - name: Checkout ${{ needs.plan.outputs.ref }}
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ needs.plan.outputs.ref }}
           fetch-depth: 0
 
       - name: Setup Node.js
@@ -173,8 +211,8 @@ jobs:
 
   test-desktop-x64:
     name: Test desktop (windows x64)
-    needs: [build-desktop]
-    if: always() && (needs.build-desktop.result == 'success' || inputs.reuse_run_id != '')
+    needs: [plan, build-desktop]
+    if: always() && needs.plan.result == 'success' && (needs.build-desktop.result == 'success' || needs.plan.outputs.reuse_run_id != '')
     runs-on: windows-latest
     timeout-minutes: 60
     steps:
@@ -191,7 +229,7 @@ jobs:
         with:
           name: desktop-windows-x64
           path: packages
-          run-id: ${{ inputs.reuse_run_id || github.run_id }}
+          run-id: ${{ needs.plan.outputs.reuse_run_id || github.run_id }}
           github-token: ${{ github.token }}
 
       - name: Install Playwright
@@ -212,8 +250,8 @@ jobs:
 
   test-desktop-arm64:
     name: Test desktop (windows arm64)
-    needs: [build-desktop]
-    if: always() && inputs.arm64 && (needs.build-desktop.result == 'success' || inputs.reuse_run_id != '')
+    needs: [plan, build-desktop]
+    if: always() && needs.plan.result == 'success' && needs.plan.outputs.arm64 == 'true' && (needs.build-desktop.result == 'success' || needs.plan.outputs.reuse_run_id != '')
     runs-on: windows-11-arm
     timeout-minutes: 60
     continue-on-error: true
@@ -231,7 +269,7 @@ jobs:
         with:
           name: desktop-windows-arm64
           path: packages
-          run-id: ${{ inputs.reuse_run_id || github.run_id }}
+          run-id: ${{ needs.plan.outputs.reuse_run_id || github.run_id }}
           github-token: ${{ github.token }}
 
       - name: Install Playwright
@@ -252,8 +290,8 @@ jobs:
 
   test-server:
     name: Test server (windows x64)
-    needs: [build-server]
-    if: always() && (needs.build-server.result == 'success' || inputs.reuse_run_id != '')
+    needs: [plan, build-server]
+    if: always() && needs.plan.result == 'success' && (needs.build-server.result == 'success' || needs.plan.outputs.reuse_run_id != '')
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
@@ -265,7 +303,7 @@ jobs:
         with:
           name: server-windows-x64
           path: packages
-          run-id: ${{ inputs.reuse_run_id || github.run_id }}
+          run-id: ${{ needs.plan.outputs.reuse_run_id || github.run_id }}
           github-token: ${{ github.token }}
 
       - name: Test the packages
