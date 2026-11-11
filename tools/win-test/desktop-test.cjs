@@ -241,6 +241,16 @@ async function clickText(page, labels) {
   throw new Error(`none of ${labels.join(' / ')} is visible`);
 }
 
+/** Closes the About modal with its footer button (the X carries the same text, so the last one), else Escape. */
+async function closeAbout(page) {
+  const version = page.locator(t('about-app-version'));
+  const dialog = page.locator('[role="dialog"]').filter({ has: version });
+  const button = dialog.getByRole('button', { name: /^(Close|닫기)$/ }).last();
+  if (await button.isVisible().catch(() => false)) await button.click();
+  else await page.keyboard.press('Escape');
+  await version.waitFor({ state: 'detached' });
+}
+
 async function closeUpdateNotice(page, build) {
   const notice = page.locator('[data-testid^="update-check-"]').first();
   if (await notice.isVisible().catch(() => false)) {
@@ -360,10 +370,7 @@ async function runDesktopChecks({ build, exe, env, dataRoot, expectedVersion }) 
       await screenshot(page, build, 'about');
       const fromBridge = await bridge(page, 'getAppVersion');
       const exeVersion = versionInfo(exe).ProductVersion;
-      // Close with the footer button (the X carries the same text, so the last one).
-      const dialog = page.locator('[role="dialog"]').filter({ has: page.locator(t('about-app-version')) });
-      await dialog.getByRole('button', { name: /^(Close|닫기)$/ }).last().click();
-      await page.locator(t('about-app-version')).waitFor({ state: 'detached' });
+      await closeAbout(page);
       const detail = `About "${shown}", getAppVersion "${fromBridge}", exe ProductVersion "${exeVersion}", package name "${expectedVersion}"`;
       assert(shown === `v${expectedVersion}` || shown === `v${fromBridge}`, detail);
       assert(String(fromBridge) === expectedVersion, detail);
@@ -679,9 +686,7 @@ async function testPortableStub(expectedVersion) {
       await clickText(page, ABOUT_LABELS);
       const shown = (await page.locator(t('about-app-version')).textContent()).trim();
       await screenshot(page, build, 'about');
-      const dialog = page.locator('[role="dialog"]').filter({ has: page.locator(t('about-app-version')) });
-      await dialog.getByRole('button', { name: /^(Close|닫기)$/ }).last().click();
-      await page.locator(t('about-app-version')).waitFor({ state: 'detached' });
+      await closeAbout(page);
       assert(shown === `v${expectedVersion}`, `About "${shown}", package name "${expectedVersion}"`);
       return shown;
     });

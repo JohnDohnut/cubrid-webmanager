@@ -103,6 +103,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # nx is called by its entry file: `npx nx` and `npm run` (cmd.exe) find
+      # the repository's nx.bat wrapper first, which wants .nx/installation.
       # The nx target's command starts with CSC_IDENTITY_AUTO_DISCOVERY=false
       # (a POSIX env prefix): it may not run on a Windows host. Try it, and
       # fall back to electron-builder itself with the same settings.
@@ -110,7 +112,7 @@ jobs:
         id: nxpkg
         continue-on-error: true
         shell: bash
-        run: npx nx run desktop:package -- --win --x64 ${{ needs.plan.outputs.arm64 == 'true' && '--arm64' || '' }}
+        run: node node_modules/nx/bin/nx.js run desktop:package -- --win --x64 ${{ needs.plan.outputs.arm64 == 'true' && '--arm64' || '' }}
 
       - name: Package desktop (electron-builder directly, the nx target failed on this host)
         if: steps.nxpkg.outcome == 'failure'
@@ -118,9 +120,9 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: |
-          npx nx run desktop:prepare-app
-          npx nx run api-server:build
-          npx nx run web-manager:build-electron
+          node node_modules/nx/bin/nx.js run desktop:prepare-app
+          node node_modules/nx/bin/nx.js run api-server:build
+          node node_modules/nx/bin/nx.js run web-manager:build-electron
           npx electron-builder --config apps/desktop/electron-builder.config.cjs --publish never --win --x64 ${{ needs.plan.outputs.arm64 == 'true' && '--arm64' || '' }}
 
       - name: List packages
@@ -174,10 +176,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # package.json's package:server:win, with nx called by its entry file
+      # (`npm run` goes through cmd.exe, which finds the repository's nx.bat
+      # wrapper first).
       - name: Build the server executable and installer
         shell: bash
         run: |
-          npm run package:server:win
+          node node_modules/nx/bin/nx.js build web-manager
+          node node_modules/nx/bin/nx.js run api-server:build:exe:windows
+          node scripts/assemble-package.mjs win
           node scripts/package-server-installers.mjs
 
       # scripts/archive-packages.mjs needs `zip` on PATH; without it the zip is
@@ -188,7 +195,7 @@ jobs:
           version="$(node scripts/product-version.cjs)"
           mkdir -p dist/release
           if command -v zip >/dev/null 2>&1; then
-            npm run package:archive
+            node scripts/archive-packages.mjs
           else
             echo "::warning::zip is not on PATH: the server zip is packed by this workflow with the release layout, not by scripts/archive-packages.mjs"
             name="CUBRID-Admin-server-$version-windows-x64"
