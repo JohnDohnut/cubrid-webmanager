@@ -432,9 +432,19 @@ if (-not $Setup) {
       do { Start-Sleep -Seconds 5; $null = (& sc.exe query $ServiceId 2>&1); $gone = ($LASTEXITCODE -eq 1060) } while (-not $gone -and (Get-Date) -lt $deadline)
       Start-Sleep -Seconds 10
       Record 'before the reinstall' 'info' (Get-InstallRecord)
+      $started = Get-Date
       $p = Start-Process -FilePath $Setup.FullName -ArgumentList '/S' -Wait -PassThru
+      $took = [int] ((Get-Date) - $started).TotalMilliseconds
+      $programFiles = if (Test-Path $InstallDir) { "present: $((Get-ChildItem $InstallDir -Force -ErrorAction SilentlyContinue | ForEach-Object { "$($_.Name) ($($_.Length) B)" }) -join ', ')" } else { 'absent' }
       $facts = Get-DataFolderFacts
-      Record 'data folder after the reinstall' 'info' ("installer exit code $($p.ExitCode); program folder $(if (Test-Path $InstallDir) { 'present' } else { 'absent' }); service $(Get-ServiceState); $facts")
+      Record 'data folder after the reinstall' 'info' ("installer exit code $($p.ExitCode) after $took ms; program folder $programFiles; service $(Get-ServiceState); $facts")
+      if ($p.ExitCode -ne 0) {
+        # Once more after a minute: a timing problem would pass now.
+        Start-Sleep -Seconds 60
+        $p2 = Start-Process -FilePath $Setup.FullName -ArgumentList '/S' -Wait -PassThru
+        Record 'second silent reinstall attempt after 60 s' 'info' ("exit code $($p2.ExitCode); service $(Get-ServiceState); program folder $(if (Test-Path (Join-Path $InstallDir 'Uninstall.exe')) { 'installed' } else { 'not installed' })")
+        if ($p2.ExitCode -eq 0) { $p = $p2 }
+      }
       Assert ($p.ExitCode -eq 0) "installer exit code $($p.ExitCode) (2 = aborted by the setup script); $facts"
       $moved = Get-PreexistingFolders
       Assert ($moved.Count -eq 0) "the data folder was moved aside: $($moved -join ', '); $facts"
@@ -454,9 +464,10 @@ if (-not $Setup) {
 
     # When the silent reinstall stopped: which of the setup's commands fails, run
     # by hand from the copied program files, and what the setup says on screen.
-    if (-not (Test-Path (Join-Path $InstallDir 'Uninstall.exe')) -and (Test-Path (Join-Path $InstallDir 'cubrid-admin-service.exe'))) {
+    if (-not (Test-Path (Join-Path $InstallDir 'Uninstall.exe'))) {
       Step 'reinstall diagnostics: the setup commands by hand' {
         $svc = Join-Path $InstallDir 'cubrid-admin-service.exe'
+        Assert (Test-Path $svc) "no program files to run by hand ($InstallDir holds: $((Get-ChildItem $InstallDir -Force -ErrorAction SilentlyContinue | ForEach-Object Name) -join ', '))"
         $notes = @()
         $out = (& $svc install 2>&1) | Out-String
         $notes += "WinSW install exit $LASTEXITCODE: $(($out -replace '\s+', ' ').Trim())"
