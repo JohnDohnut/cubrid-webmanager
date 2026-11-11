@@ -495,9 +495,12 @@ async function runDesktopChecks({ build, exe, env, dataRoot, expectedVersion }) 
 function uninstallEntry() {
   const command =
     "$keys = @('HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall', 'HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall', 'HKLM:\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'); " +
-    '$found = foreach ($k in $keys) { if (Test-Path $k) { Get-ChildItem $k | ForEach-Object { $p = Get-ItemProperty $_.PSPath; if ($p.DisplayName -eq ' +
-    q(PRODUCT) +
-    ") { [pscustomobject]@{ Hive = $k; Key = $_.PSChildName; DisplayVersion = $p.DisplayVersion; InstallLocation = $p.InstallLocation; UninstallString = $p.UninstallString; Publisher = $p.Publisher } } } } }; " +
+    // electron-builder names the entry "<productName> <version>" (uninstallDisplayName); the server's entry is "CUBRID Admin Server".
+    '$found = foreach ($k in $keys) { if (Test-Path $k) { Get-ChildItem $k | ForEach-Object { $p = Get-ItemProperty $_.PSPath; if ($p.DisplayName -like ' +
+    q(`${PRODUCT}*`) +
+    ' -and $p.DisplayName -notlike ' +
+    q(`${PRODUCT} Server*`) +
+    ") { [pscustomobject]@{ Hive = $k; Key = $_.PSChildName; DisplayName = $p.DisplayName; DisplayVersion = $p.DisplayVersion; InstallLocation = $p.InstallLocation; UninstallString = $p.UninstallString; Publisher = $p.Publisher } } } } }; " +
     '@($found) | ConvertTo-Json -Compress';
   const parsed = jsonOf(command);
   return Array.isArray(parsed) ? parsed : parsed ? [parsed] : [];
@@ -539,7 +542,7 @@ async function testInstaller(expectedVersion) {
     assert(fs.existsSync(path.join(entry.InstallLocation, EXE_NAME)), `${EXE_NAME} is not in ${entry.InstallLocation}`);
     const mode = entry.Hive.startsWith('HKCU') ? 'per user' : 'per machine';
     const links = shortcuts();
-    return `${mode}, ${entry.InstallLocation}, DisplayVersion ${entry.DisplayVersion}, registered after ${waited} s, shortcuts: ${links.join('; ') || 'none'}`;
+    return `${mode}, ${entry.InstallLocation}, "${entry.DisplayName}" DisplayVersion ${entry.DisplayVersion}, registered after ${waited} s, shortcuts: ${links.join('; ') || 'none'}`;
   });
   if (!installed) return;
 
