@@ -1,0 +1,281 @@
+# Windows package test, started by hand (workflow_dispatch) on the fork.
+# Builds the Windows packages of `ref` on a Windows runner, or takes the
+# packages of an earlier run, then on clean runners:
+#   - desktop: installs the setup.exe silently and drives the installed app,
+#     runs the unpacked app as a portable one and the real portable.exe
+#     (tools/win-test/desktop-test.cjs);
+#   - server: installs the server setup.exe silently, checks the service, its
+#     account and the data folder's ACL, starts it on a free port, upgrades it
+#     while it runs, uninstalls it, and runs the zip from a folder
+#     (tools/win-test/server-test.ps1).
+# Screenshots, app and service logs and results.json are uploaded as artifacts.
+name: Windows package test
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Commit or branch to build and test'
+        required: true
+        default: 'chore/deps-node-upgrade'
+      reuse_run_id:
+        description: 'Run id of this workflow whose packages to test again (skips the build)'
+        required: false
+        default: ''
+      arm64:
+        description: 'Also build the arm64 desktop packages and test them on windows-11-arm'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  NX_DAEMON: 'false'
+
+jobs:
+  build-desktop:
+    name: Build desktop packages
+    if: inputs.reuse_run_id == ''
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout ${{ inputs.ref }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          # commit_num in the version counts commits: needs the full history.
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Version
+        shell: bash
+        run: |
+          echo "Version $(node scripts/product-version.cjs) at $(git rev-parse HEAD)"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The nx target's command starts with CSC_IDENTITY_AUTO_DISCOVERY=false
+      # (a POSIX env prefix): it may not run on a Windows host. Try it, and
+      # fall back to electron-builder itself with the same settings.
+      - name: Package desktop (nx target)
+        id: nxpkg
+        continue-on-error: true
+        shell: bash
+        run: npx nx run desktop:package -- --win --x64 ${{ inputs.arm64 && '--arm64' || '' }}
+
+      - name: Package desktop (electron-builder directly, the nx target failed on this host)
+        if: steps.nxpkg.outcome == 'failure'
+        shell: bash
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          npx nx run desktop:prepare-app
+          npx nx run api-server:build
+          npx nx run web-manager:build-electron
+          npx electron-builder --config apps/desktop/electron-builder.config.cjs --publish never --win --x64 ${{ inputs.arm64 && '--arm64' || '' }}
+
+      - name: List packages
+        shell: bash
+        run: ls -l dist/portable
+
+      - name: Upload x64 packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-windows-x64
+          path: |
+            dist/portable/*-windows-x64-setup.exe
+            dist/portable/*-windows-x64-portable.exe
+            dist/portable/win-unpacked/**
+          if-no-files-found: error
+          compression-level: 1
+          retention-days: 5
+
+      - name: Upload arm64 packages
+        if: inputs.arm64
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-windows-arm64
+          path: |
+            dist/portable/*-windows-arm64-setup.exe
+            dist/portable/*-windows-arm64-portable.exe
+            dist/portable/win-arm64-unpacked/**
+          if-no-files-found: error
+          compression-level: 1
+          retention-days: 5
+
+  build-server:
+    name: Build server packages
+    if: inputs.reuse_run_id == ''
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout ${{ inputs.ref }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build the server executable and installer
+        shell: bash
+        run: |
+          npm run package:server:win
+          node scripts/package-server-installers.mjs
+
+      # scripts/archive-packages.mjs needs `zip` on PATH; without it the zip is
+      # packed here with the same layout (<name>/cubrid-admin.exe, <name>/conf/...).
+      - name: Pack the server zip
+        shell: bash
+        run: |
+          version="$(node scripts/product-version.cjs)"
+          mkdir -p dist/release
+          if command -v zip >/dev/null 2>&1; then
+            npm run package:archive
+          else
+            echo "::warning::zip is not on PATH: the server zip is packed by this workflow with the release layout, not by scripts/archive-packages.mjs"
+            name="CUBRID-Admin-server-$version-windows-x64"
+            rm -rf "dist/release/$name"
+            mkdir -p "dist/release/$name/conf"
+            cp dist/executables/cubrid-admin.exe "dist/release/$name/"
+            cp dist/executables/conf/cwm.conf.sample dist/executables/conf/cwm.conf.reference.md "dist/release/$name/conf/"
+            (cd dist/release && 7z a -tzip -r "$name.zip" "$name" >/dev/null)
+            rm -rf "dist/release/$name"
+            cp dist/server-installers/*-windows-x64-setup.exe dist/release/
+          fi
+          ls -l dist/release
+
+      - name: Upload server packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-windows-x64
+          path: |
+            dist/release/*-windows-x64.zip
+            dist/release/*-windows-x64-setup.exe
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 5
+
+  test-desktop-x64:
+    name: Test desktop (windows x64)
+    needs: [build-desktop]
+    if: always() && (needs.build-desktop.result == 'success' || inputs.reuse_run_id != '')
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout the test tools
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Download the packages
+        uses: actions/download-artifact@v4
+        with:
+          name: desktop-windows-x64
+          path: packages
+          run-id: ${{ inputs.reuse_run_id || github.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Install Playwright
+        working-directory: tools/win-test
+        run: npm install --no-audit --no-fund
+
+      - name: Test the packages
+        shell: pwsh
+        run: node tools/win-test/desktop-test.cjs --packages "${{ github.workspace }}\packages" --arch x64 --out "${{ github.workspace }}\out"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-x64-results
+          path: out/**
+          if-no-files-found: warn
+
+  test-desktop-arm64:
+    name: Test desktop (windows arm64)
+    needs: [build-desktop]
+    if: always() && inputs.arm64 && (needs.build-desktop.result == 'success' || inputs.reuse_run_id != '')
+    runs-on: windows-11-arm
+    timeout-minutes: 60
+    continue-on-error: true
+    steps:
+      - name: Checkout the test tools
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Download the packages
+        uses: actions/download-artifact@v4
+        with:
+          name: desktop-windows-arm64
+          path: packages
+          run-id: ${{ inputs.reuse_run_id || github.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Install Playwright
+        working-directory: tools/win-test
+        run: npm install --no-audit --no-fund
+
+      - name: Test the packages
+        shell: pwsh
+        run: node tools/win-test/desktop-test.cjs --packages "${{ github.workspace }}\packages" --arch arm64 --out "${{ github.workspace }}\out"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-arm64-results
+          path: out/**
+          if-no-files-found: warn
+
+  test-server:
+    name: Test server (windows x64)
+    needs: [build-server]
+    if: always() && (needs.build-server.result == 'success' || inputs.reuse_run_id != '')
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout the test tools
+        uses: actions/checkout@v4
+
+      - name: Download the packages
+        uses: actions/download-artifact@v4
+        with:
+          name: server-windows-x64
+          path: packages
+          run-id: ${{ inputs.reuse_run_id || github.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Test the packages
+        shell: pwsh
+        run: tools/win-test/server-test.ps1 -Packages "${{ github.workspace }}\packages" -Out "${{ github.workspace }}\out"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-results
+          path: out/**
+          if-no-files-found: warn
