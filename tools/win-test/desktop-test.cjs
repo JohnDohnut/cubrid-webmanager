@@ -500,10 +500,16 @@ function uninstallEntry() {
     q(`${PRODUCT}*`) +
     ' -and $p.DisplayName -notlike ' +
     q(`${PRODUCT} Server*`) +
-    ") { [pscustomobject]@{ Hive = $k; Key = $_.PSChildName; DisplayName = $p.DisplayName; DisplayVersion = $p.DisplayVersion; InstallLocation = $p.InstallLocation; UninstallString = $p.UninstallString; Publisher = $p.Publisher } } } } }; " +
+    ") { [pscustomobject]@{ Hive = $k; Key = $_.PSChildName; DisplayName = $p.DisplayName; DisplayVersion = $p.DisplayVersion; InstallLocation = $p.InstallLocation; UninstallString = $p.UninstallString; DisplayIcon = $p.DisplayIcon; Publisher = $p.Publisher } } } } }; " +
     '@($found) | ConvertTo-Json -Compress';
   const parsed = jsonOf(command);
-  return Array.isArray(parsed) ? parsed : parsed ? [parsed] : [];
+  const entries = Array.isArray(parsed) ? parsed : parsed ? [parsed] : [];
+  // The install folder: InstallLocation when written, else the folder of the uninstaller or the icon.
+  for (const entry of entries) {
+    const quoted = (value) => (value ? String(value).replace(/^"/, '').replace(/"(\s.*)?$/, '').trim() : '');
+    entry.InstallLocation = entry.InstallLocation || [entry.UninstallString, entry.DisplayIcon].map(quoted).filter((f) => f && /\.exe$/i.test(f)).map((f) => path.dirname(f))[0] || null;
+  }
+  return entries;
 }
 
 function shortcuts() {
@@ -539,7 +545,8 @@ async function testInstaller(expectedVersion) {
     const setupProcesses = pwsh(`(Get-Process | Where-Object { $_.Path -eq ${q(setup)} } | Measure-Object).Count`);
     assert(entries.length === 1, `${entries.length} uninstall entries for "${PRODUCT}" after ${waited} s (${setupProcesses} installer process(es) still running): ${JSON.stringify(entries)}`);
     [entry] = entries;
-    assert(fs.existsSync(path.join(entry.InstallLocation, EXE_NAME)), `${EXE_NAME} is not in ${entry.InstallLocation}`);
+    assert(entry.InstallLocation, `no install folder in the uninstall entry: ${JSON.stringify(entry)}`);
+    assert(fs.existsSync(path.join(entry.InstallLocation, EXE_NAME)), `${EXE_NAME} is not in ${entry.InstallLocation} (entry ${JSON.stringify(entry)})`);
     const mode = entry.Hive.startsWith('HKCU') ? 'per user' : 'per machine';
     const links = shortcuts();
     return `${mode}, ${entry.InstallLocation}, "${entry.DisplayName}" DisplayVersion ${entry.DisplayVersion}, registered after ${waited} s, shortcuts: ${links.join('; ') || 'none'}`;
