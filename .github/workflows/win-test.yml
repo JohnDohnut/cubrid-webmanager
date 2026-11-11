@@ -72,7 +72,7 @@ jobs:
             ref="$(jq -r '.ref' tools/win-test/target.json)"
             reuse="$(jq -r '.reuse_run_id // ""' tools/win-test/target.json)"
             arm64="$(jq -r '.arm64' tools/win-test/target.json)"
-            desktop="$(jq -r '.desktop // true' tools/win-test/target.json)"
+            desktop="$(jq -r 'if .desktop == null then true else .desktop end' tools/win-test/target.json)"
           fi
           echo "desktop=$desktop" >> "$GITHUB_OUTPUT"
           # actions/checkout takes a branch, a tag or a full commit hash, not a short one:
