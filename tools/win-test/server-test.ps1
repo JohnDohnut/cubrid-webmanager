@@ -150,6 +150,26 @@ function Get-SecretsInfo {
   "sha256 $((Get-FileSha256 $file).Substring(0, 12))…, $($item.Length) bytes, keys [$keys], created $($item.CreationTimeUtc.ToString('HH:mm:ss.fff')), written $($item.LastWriteTimeUtc.ToString('HH:mm:ss.fff')), acl [$((Get-AclLines $file) -join '; ')], cwm-vault holds $((Get-ChildItem $vault -Force | ForEach-Object Name) -join ', ')"
 }
 
+# The data folder as the installer's upgrade sees it: its owner SID (both PowerShells),
+# the creation times of its folders, and its siblings in ProgramData (a moved-aside copy).
+function Get-DataFolderFacts {
+  $owner = try { (Get-Acl -LiteralPath $DataDir).GetOwner([System.Security.Principal.SecurityIdentifier]).Value } catch { "error: $($_.Exception.Message)" }
+  $ownerName = try { (Get-Acl -LiteralPath $DataDir).Owner } catch { '?' }
+  $ps51 = try {
+    $raw = & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -Command "[Console]::Write((Get-Acl -LiteralPath '$DataDir').GetOwner([System.Security.Principal.SecurityIdentifier]).Value)" 2>&1 | Out-String
+    "'" + $raw + "' (exit $LASTEXITCODE, $($raw.Length) chars)"
+  } catch { "error: $($_.Exception.Message)" }
+  $times = @('conf', 'logs', 'ssl', 'cwm-vault', 'storage') | ForEach-Object {
+    $d = Join-Path $DataDir $_
+    if (Test-Path $d) { "{0} created {1}" -f $_, (Get-Item $d).CreationTimeUtc.ToString('HH:mm:ss.fff') } else { "$_ missing" }
+  }
+  $siblings = Get-ChildItem $env:ProgramData -Directory -Filter 'CUBRID Admin Server*' -ErrorAction SilentlyContinue | ForEach-Object {
+    "{0} (created {1}: {2})" -f $_.Name, $_.CreationTimeUtc.ToString('HH:mm:ss.fff'), ((Get-ChildItem $_.FullName -ErrorAction SilentlyContinue | ForEach-Object Name) -join ',')
+  }
+  $port = try { (Get-Content (Join-Path $DataDir 'conf\cwm.conf') -Raw | ConvertFrom-Json).PORT } catch { '?' }
+  "owner $owner ($ownerName); powershell 5.1 prints $ps51; folder created $((Get-Item $DataDir).CreationTimeUtc.ToString('HH:mm:ss.fff')); $($times -join ', '); conf PORT $port; ProgramData entries: $($siblings -join ' | ')"
+}
+
 function Get-VaultLogLines {
   $log = Join-Path $DataDir 'logs\service\cubrid-admin-service.out.log'
   if (-not (Test-Path $log)) { return '(no service out log)' }
@@ -269,6 +289,7 @@ if (-not $Setup) {
       } | Out-Null
 
       Record 'secrets.json after the first start' 'info' ("$(Get-SecretsInfo); service log: $(Get-VaultLogLines)")
+      Record 'data folder before the upgrade' 'info' (Get-DataFolderFacts)
 
       # A plain restart, before the upgrade: does the server keep its secrets.json on its own?
       Step 'service restart alone keeps secrets.json' {
@@ -330,8 +351,11 @@ if (-not $Setup) {
         Assert ((Get-FileSha256 $reference) -eq $referenceHash) 'cwm.conf.reference.md was not written again by the upgrade'
         $info = Get-SecretsInfo
         $logLines = Get-VaultLogLines
+        $facts = Get-DataFolderFacts
+        Record 'data folder after the upgrade' 'info' $facts
         $recreated = if ((Get-Item $secrets -ErrorAction SilentlyContinue).CreationTimeUtc -ne $createdBefore) { 'a new file (CreationTime changed)' } else { 'the same file' }
-        Assert ((Get-FileSha256 $secrets) -eq $hashBefore) "cwm-vault\secrets.json changed: $recreated; now $info; service log after the restart: $logLines"
+        $answers8080 = try { (Invoke-WebRequest -Uri 'https://127.0.0.1:8080/' -SkipCertificateCheck -SkipHttpErrorCheck -TimeoutSec 5 -UseBasicParsing).StatusCode } catch { 'no' }
+        Assert ((Get-FileSha256 $secrets) -eq $hashBefore) "cwm-vault\secrets.json changed: $recreated; now $info; service log after the restart: $logLines; port 8080 answers: $answers8080; $facts"
         $conf = Get-Content $ConfPath -Raw | ConvertFrom-Json
         Assert ($conf.PORT -eq "$Port") "cwm.conf PORT is $($conf.PORT) after the upgrade"
         $body = Wait-ApiVersion $Port 120
