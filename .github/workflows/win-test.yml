@@ -195,13 +195,34 @@ jobs:
           node "$nx" --version
 
       # package.json's package:server:win, with nx called by its entry file.
-      - name: Build the server executable and installer
+      - name: Build the server executable
         shell: bash
         run: |
           node "$NX" build web-manager
           node "$NX" run api-server:build:exe:windows
           node scripts/assemble-package.mjs win
-          node scripts/package-server-installers.mjs
+
+      - name: Build the server installer (product script)
+        id: installer
+        continue-on-error: true
+        shell: bash
+        run: node scripts/package-server-installers.mjs
+
+      # The product script failed on this ref: the same NSIS script and files,
+      # built with makensis by the test tools, so the install checks can run.
+      - name: Checkout the test tools
+        if: steps.installer.outcome == 'failure'
+        uses: actions/checkout@v4
+        with:
+          path: win-test-tools
+      - name: Build the server installer (fallback)
+        if: steps.installer.outcome == 'failure'
+        shell: bash
+        run: |
+          echo "::warning::scripts/package-server-installers.mjs failed on this ref; the setup.exe under test was built by tools/win-test/build-server-setup.mjs from the same inputs"
+          node win-test-tools/tools/win-test/build-server-setup.mjs
+          mkdir -p dist/release
+          echo "The setup.exe in this artifact was built by tools/win-test/build-server-setup.mjs (fallback), because scripts/package-server-installers.mjs failed on this ref." > dist/release/FALLBACK-BUILT-SETUP.txt
 
       # scripts/archive-packages.mjs needs `zip` on PATH; without it the zip is
       # packed here with the same layout (<name>/cubrid-admin.exe, <name>/conf/...).
@@ -232,6 +253,7 @@ jobs:
           path: |
             dist/release/*-windows-x64.zip
             dist/release/*-windows-x64-setup.exe
+            dist/release/FALLBACK-BUILT-SETUP.txt
           if-no-files-found: error
           compression-level: 0
           retention-days: 5

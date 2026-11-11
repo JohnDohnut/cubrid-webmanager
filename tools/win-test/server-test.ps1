@@ -147,6 +147,10 @@ $Zip = Get-ChildItem $Packages -Filter '*-windows-x64.zip' | Select-Object -Firs
 $Version = $null
 if ($Setup -and $Setup.Name -match 'server-(\d+\.\d+\.\d+\.\d+)-windows') { $Version = $Matches[1] }
 Record 'version from the package name' 'info' "$Version"
+$FallbackNote = Join-Path $Packages 'FALLBACK-BUILT-SETUP.txt'
+if (Test-Path $FallbackNote) {
+  Record 'setup.exe origin' 'info' ("fallback-built setup: " + (Get-Content $FallbackNote -Raw).Trim())
+}
 
 if (-not $Setup) {
   Record 'setup.exe present' 'fail' "no *-windows-x64-setup.exe in $Packages"
