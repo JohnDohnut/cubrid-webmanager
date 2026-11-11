@@ -140,6 +140,24 @@ function Get-FileSha256([string] $Path) {
   (Get-FileHash -Path $Path -Algorithm SHA256).Hash
 }
 
+# What can be said about secrets.json without showing it: hash, size, times, ACL, and the vault folder's entries.
+function Get-SecretsInfo {
+  $vault = Join-Path $DataDir 'cwm-vault'
+  $file = Join-Path $vault 'secrets.json'
+  if (-not (Test-Path $file)) { return "secrets.json missing; cwm-vault holds $((Get-ChildItem $vault -Force -ErrorAction SilentlyContinue | ForEach-Object Name) -join ', ')" }
+  $item = Get-Item $file
+  $keys = try { ((Get-Content $file -Raw | ConvertFrom-Json).PSObject.Properties.Name) -join ',' } catch { 'unreadable' }
+  "sha256 $((Get-FileSha256 $file).Substring(0, 12))…, $($item.Length) bytes, keys [$keys], created $($item.CreationTimeUtc.ToString('HH:mm:ss.fff')), written $($item.LastWriteTimeUtc.ToString('HH:mm:ss.fff')), acl [$((Get-AclLines $file) -join '; ')], cwm-vault holds $((Get-ChildItem $vault -Force | ForEach-Object Name) -join ', ')"
+}
+
+function Get-VaultLogLines {
+  $log = Join-Path $DataDir 'logs\service\cubrid-admin-service.out.log'
+  if (-not (Test-Path $log)) { return '(no service out log)' }
+  $lines = @(Get-Content $log | Where-Object { $_ -match 'cwm-vault|secrets' })
+  if ($lines.Count -eq 0) { return '(no cwm-vault lines in the service out log)' }
+  ($lines | ForEach-Object { $_.Trim() }) -join ' | '
+}
+
 # ── packages ──────────────────────────────────────────────────────────────────
 
 $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
@@ -250,10 +268,27 @@ if (-not $Setup) {
         "owner '$owner', pid $($process.ProcessId), $DataDir holds $((Get-ChildItem $DataDir | ForEach-Object Name) -join ', ')"
       } | Out-Null
 
+      Record 'secrets.json after the first start' 'info' ("$(Get-SecretsInfo); service log: $(Get-VaultLogLines)")
+
+      # A plain restart, before the upgrade: does the server keep its secrets.json on its own?
+      Step 'service restart alone keeps secrets.json' {
+        $secrets = Join-Path $DataDir 'cwm-vault\secrets.json'
+        $hashBefore = Get-FileSha256 $secrets
+        Restart-Service -Name $ServiceId
+        Wait-ServiceState 'Running' 60
+        $body = Wait-ApiVersion $Port 120
+        $hashAfter = Get-FileSha256 $secrets
+        $info = Get-SecretsInfo
+        $logLines = Get-VaultLogLines
+        Assert ($hashAfter -eq $hashBefore) "secrets.json changed on a plain restart: $info; service log: $logLines"
+        "unchanged; $info; service log: $logLines; $body"
+      } | Out-Null
+
       # ── upgrade while the service runs ────────────────────────────────────
       Step 'upgrade (same setup /S while the service runs): stopped, replaced, started again, secrets.json unchanged' {
         $secrets = Join-Path $DataDir 'cwm-vault\secrets.json'
         $hashBefore = Get-FileSha256 $secrets
+        $createdBefore = (Get-Item $secrets).CreationTimeUtc
         $pidBefore = (Get-ServerProcess | Select-Object -First 1).ProcessId
         # Files the installer must write again (the running exe cannot be touched from here).
         $sample = Join-Path $InstallDir 'cwm.conf.sample'
@@ -269,7 +304,10 @@ if (-not $Setup) {
         Assert ($pidAfter -ne $pidBefore) "the server process was not restarted (pid $pidBefore)"
         Assert ((Get-FileSha256 $sample) -eq $sampleHash) 'cwm.conf.sample was not written again by the upgrade'
         Assert ((Get-FileSha256 $reference) -eq $referenceHash) 'cwm.conf.reference.md was not written again by the upgrade'
-        Assert ((Get-FileSha256 $secrets) -eq $hashBefore) 'cwm-vault\secrets.json changed'
+        $info = Get-SecretsInfo
+        $logLines = Get-VaultLogLines
+        $recreated = if ((Get-Item $secrets -ErrorAction SilentlyContinue).CreationTimeUtc -ne $createdBefore) { 'a new file (CreationTime changed)' } else { 'the same file' }
+        Assert ((Get-FileSha256 $secrets) -eq $hashBefore) "cwm-vault\secrets.json changed: $recreated; now $info; service log after the restart: $logLines"
         $conf = Get-Content $ConfPath -Raw | ConvertFrom-Json
         Assert ($conf.PORT -eq "$Port") "cwm.conf PORT is $($conf.PORT) after the upgrade"
         $body = Wait-ApiVersion $Port 120

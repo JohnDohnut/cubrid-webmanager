@@ -249,17 +249,31 @@ async function clickText(page, labels) {
   throw new Error(`none of ${labels.join(' / ')} is visible`);
 }
 
-/** Opens Help > About (or the folded Menu > About on a narrow window) and returns the version shown. */
-async function openAbout(page) {
+/**
+ * Opens Help > About (or the folded Menu > About on a narrow window) and
+ * returns the version shown. The header menus open on hover and their button
+ * toggles, so a click right after the hover would close them again: hover,
+ * and click only when the items did not appear.
+ */
+async function openAbout(page, build) {
   const folded = page.locator(t('header-menu-folded'));
-  if (await folded.count()) {
-    const trigger = folded.locator('button, [role="button"]').first();
-    if (await trigger.isVisible().catch(() => false)) await trigger.click();
-    else await clickText(folded, FOLDED_MENU_LABELS);
-  } else {
-    await clickText(page, HELP_LABELS);
+  const trigger = (await folded.count())
+    ? folded.locator('button[aria-haspopup="menu"]').first()
+    : page.locator('button[aria-haspopup="menu"]').filter({ hasText: /^(Help|도움말)$/ }).first();
+  const about = page.getByText(ABOUT_LABELS[0], { exact: true }).or(page.getByText(ABOUT_LABELS[1], { exact: true })).first();
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await trigger.hover();
+    if (await about.waitFor({ state: 'visible', timeout: 3000 }).then(() => true, () => false)) break;
+    await trigger.click();
+    if (await about.waitFor({ state: 'visible', timeout: 3000 }).then(() => true, () => false)) break;
+    await page.mouse.move(5, 5);
+    await sleep(500);
   }
-  await clickText(page, ABOUT_LABELS);
+  if (!(await about.isVisible().catch(() => false))) {
+    await screenshot(page, build, 'about-menu-not-open');
+    throw new Error('the About item did not appear after hovering and clicking the menu');
+  }
+  await about.click();
   const version = page.locator(t('about-app-version'));
   await version.waitFor({ state: 'visible' });
   return (await version.textContent()).trim();
@@ -388,7 +402,7 @@ async function runDesktopChecks({ build, exe, env, dataRoot, expectedVersion }) 
     });
 
     await step(build, 'About shows the version', async () => {
-      const shown = await openAbout(page);
+      const shown = await openAbout(page, build);
       await screenshot(page, build, 'about');
       const fromBridge = await bridge(page, 'getAppVersion');
       const exeVersion = versionInfo(exe).ProductVersion;
@@ -724,7 +738,7 @@ async function testPortableStub(expectedVersion) {
     await closeUpdateNotice(page, build);
 
     await step(build, 'About shows the version', async () => {
-      const shown = await openAbout(page);
+      const shown = await openAbout(page, build);
       await screenshot(page, build, 'about');
       await closeAbout(page);
       assert(shown === `v${expectedVersion}`, `About "${shown}", package name "${expectedVersion}"`);
