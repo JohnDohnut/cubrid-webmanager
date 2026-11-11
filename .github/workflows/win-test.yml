@@ -55,6 +55,7 @@ jobs:
       - id: plan
         shell: bash
         env:
+          GH_TOKEN: ${{ github.token }}
           INPUT_REF: ${{ inputs.ref }}
           INPUT_REUSE: ${{ inputs.reuse_run_id }}
           INPUT_ARM64: ${{ inputs.arm64 }}
@@ -66,8 +67,11 @@ jobs:
             reuse="$(jq -r '.reuse_run_id // ""' tools/win-test/target.json)"
             arm64="$(jq -r '.arm64' tools/win-test/target.json)"
           fi
-          echo "ref=$ref reuse_run_id=$reuse arm64=$arm64"
-          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          # actions/checkout takes a branch, a tag or a full commit hash, not a short one:
+          # resolve the ref to the commit, which also pins a branch to its head of now.
+          sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/$ref" -q .sha)"
+          echo "ref=$ref -> $sha, reuse_run_id=$reuse, arm64=$arm64"
+          echo "ref=$sha" >> "$GITHUB_OUTPUT"
           echo "reuse_run_id=$reuse" >> "$GITHUB_OUTPUT"
           echo "arm64=$arm64" >> "$GITHUB_OUTPUT"
 
