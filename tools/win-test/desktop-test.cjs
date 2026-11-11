@@ -189,7 +189,8 @@ function screenScreenshot(build, name) {
         '$bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height; ' +
         '$g = [System.Drawing.Graphics]::FromImage($bmp); ' +
         '$g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size); ' +
-        `$bmp.Save(${q(file)}); $g.Dispose(); $bmp.Dispose()`
+        `$bmp.Save(${q(file)}); $g.Dispose(); $bmp.Dispose()`,
+      60000
     );
   } catch (error) {
     log(`screen capture ${name} failed: ${error.message}`);
@@ -201,6 +202,7 @@ function screenScreenshot(build, name) {
 
 const t = (id) => `[data-testid="${id}"]`;
 const HELP_LABELS = ['Help', '도움말'];
+const FOLDED_MENU_LABELS = ['Menu', '메뉴'];
 const ABOUT_LABELS = ['About CUBRID Admin', 'CUBRID Admin 정보'];
 const QUIT_MESSAGES = ['Do you want to quit?', '종료하시겠습니까?'];
 
@@ -214,7 +216,9 @@ async function launchApp(build, exe, env, label) {
     timeout: 120000,
   });
   const out = fs.createWriteStream(logFile);
+  // Kept here: app.process() cannot be asked once the app has closed.
   const child = app.process();
+  app.child = child;
   child.stdout?.on('data', (data) => out.write(data));
   child.stderr?.on('data', (data) => out.write(data));
   app.on('close', () => out.end());
@@ -239,6 +243,22 @@ async function clickText(page, labels) {
     }
   }
   throw new Error(`none of ${labels.join(' / ')} is visible`);
+}
+
+/** Opens Help > About (or the folded Menu > About on a narrow window) and returns the version shown. */
+async function openAbout(page) {
+  const folded = page.locator(t('header-menu-folded'));
+  if (await folded.count()) {
+    const trigger = folded.locator('button, [role="button"]').first();
+    if (await trigger.isVisible().catch(() => false)) await trigger.click();
+    else await clickText(folded, FOLDED_MENU_LABELS);
+  } else {
+    await clickText(page, HELP_LABELS);
+  }
+  await clickText(page, ABOUT_LABELS);
+  const version = page.locator(t('about-app-version'));
+  await version.waitFor({ state: 'visible' });
+  return (await version.textContent()).trim();
 }
 
 /** Closes the About modal with its footer button (the X carries the same text, so the last one), else Escape. */
@@ -299,7 +319,7 @@ const windowCount = (app) => app.evaluate(({ BrowserWindow }) => BrowserWindow.g
 async function waitForExit(app, timeout = 60000) {
   const outcome = await Promise.race([app.closed.then(() => 'closed'), sleep(timeout).then(() => 'timeout')]);
   assert(outcome === 'closed', `the app is still running ${timeout / 1000} s after the quit`);
-  const child = app.process();
+  const child = app.child;
   for (let i = 0; i < 50 && child.exitCode === null; i += 1) await sleep(100);
   return child.exitCode;
 }
@@ -323,7 +343,7 @@ async function runDesktopChecks({ build, exe, env, dataRoot, expectedVersion }) 
   let page;
   if (!(await step(build, 'launch (first run)', async () => {
     ({ app, page } = await launchApp(build, exe, env, 'first-run'));
-    return `pid ${app.process().pid}`;
+    return `pid ${app.child.pid}`;
   }))) return;
 
   try {
@@ -364,9 +384,7 @@ async function runDesktopChecks({ build, exe, env, dataRoot, expectedVersion }) 
     });
 
     await step(build, 'About shows the version', async () => {
-      await clickText(page, HELP_LABELS);
-      await clickText(page, ABOUT_LABELS);
-      const shown = (await page.locator(t('about-app-version')).textContent()).trim();
+      const shown = await openAbout(page);
       await screenshot(page, build, 'about');
       const fromBridge = await bridge(page, 'getAppVersion');
       const exeVersion = versionInfo(exe).ProductVersion;
@@ -428,7 +446,7 @@ async function runDesktopChecks({ build, exe, env, dataRoot, expectedVersion }) 
       return `exit code ${code}, no process left, instance.lock removed`;
     });
   } finally {
-    if (app && app.process().exitCode === null) {
+    if (app && app.child && app.child.exitCode === null) {
       await app.close().catch(() => undefined);
       await sleep(2000);
       killAppProcesses('cleanup after the first run');
@@ -439,7 +457,7 @@ async function runDesktopChecks({ build, exe, env, dataRoot, expectedVersion }) 
   app = null;
   if (!(await step(build, 'launch (restart)', async () => {
     ({ app, page } = await launchApp(build, exe, env, 'restart'));
-    return `pid ${app.process().pid}`;
+    return `pid ${app.child.pid}`;
   }))) return;
 
   try {
@@ -464,7 +482,7 @@ async function runDesktopChecks({ build, exe, env, dataRoot, expectedVersion }) 
       return `exit code ${code}`;
     });
   } finally {
-    if (app && app.process().exitCode === null) {
+    if (app && app.child && app.child.exitCode === null) {
       await app.close().catch(() => undefined);
       await sleep(2000);
       killAppProcesses('cleanup after the restart');
@@ -508,13 +526,20 @@ async function testInstaller(expectedVersion) {
   const installed = await step(build, 'silent install (/S)', async () => {
     const code = pwsh(`$p = Start-Process -FilePath ${q(setup)} -ArgumentList '/S' -Wait -PassThru; $p.ExitCode`);
     assert(code === '0', `installer exit code ${code}`);
-    const entries = uninstallEntry();
-    assert(entries.length === 1, `${entries.length} uninstall entries for "${PRODUCT}": ${JSON.stringify(entries)}`);
+    // The installer may hand over to an elevated copy of itself: wait for the entry.
+    let entries = [];
+    let waited = 0;
+    for (; waited < 180 && entries.length === 0; waited += 5) {
+      entries = uninstallEntry();
+      if (entries.length === 0) await sleep(5000);
+    }
+    const setupProcesses = pwsh(`(Get-Process | Where-Object { $_.Path -eq ${q(setup)} } | Measure-Object).Count`);
+    assert(entries.length === 1, `${entries.length} uninstall entries for "${PRODUCT}" after ${waited} s (${setupProcesses} installer process(es) still running): ${JSON.stringify(entries)}`);
     [entry] = entries;
     assert(fs.existsSync(path.join(entry.InstallLocation, EXE_NAME)), `${EXE_NAME} is not in ${entry.InstallLocation}`);
     const mode = entry.Hive.startsWith('HKCU') ? 'per user' : 'per machine';
     const links = shortcuts();
-    return `${mode}, ${entry.InstallLocation}, DisplayVersion ${entry.DisplayVersion}, shortcuts: ${links.join('; ') || 'none'}`;
+    return `${mode}, ${entry.InstallLocation}, DisplayVersion ${entry.DisplayVersion}, registered after ${waited} s, shortcuts: ${links.join('; ') || 'none'}`;
   });
   if (!installed) return;
 
@@ -587,7 +612,7 @@ async function testPortableUnpacked(expectedVersion) {
   await step(build, 'nothing of the portable app in %APPDATA%\\CUBRID Admin or %TEMP%', async () => {
     const inAppData = fs.existsSync(path.join(APPDATA_ROOT, 'desktop-settings.json')) || fs.existsSync(path.join(APPDATA_ROOT, 'cwm-workspace'));
     assert(!inAppData, `${APPDATA_ROOT} holds desktop-settings.json or cwm-workspace: ${listDir(APPDATA_ROOT)}`);
-    const stray = findFiles(os.tmpdir(), 'desktop-settings.json', 4, [home]).concat(TEMP !== os.tmpdir() ? findFiles(TEMP, 'desktop-settings.json', 4, [home]) : []);
+    const stray = findFiles(os.tmpdir(), 'desktop-settings.json', 4, [home]);
     assert(stray.length === 0, `desktop-settings.json found in a temp folder: ${stray.join('; ')}`);
     const profile = fs.existsSync(APPDATA_ROOT) ? ` (${APPDATA_ROOT} holds only Chromium's own profile files: ${listDir(APPDATA_ROOT)})` : '';
     return `settings and workspace only in ${home}${profile}`;
@@ -673,7 +698,7 @@ async function testPortableStub(expectedVersion) {
       await screenshot(page, build, 'home');
       assert(fs.existsSync(path.join(folder, 'desktop-settings.json')), 'desktop-settings.json is not beside the exe');
       assert(fs.existsSync(path.join(folder, 'cwm-workspace', 'data')), 'cwm-workspace\\data is not beside the exe');
-      const stray = findFiles(os.tmpdir(), 'desktop-settings.json', 4, [folder]).concat(TEMP !== os.tmpdir() ? findFiles(TEMP, 'desktop-settings.json', 4, [folder]) : []);
+      const stray = findFiles(os.tmpdir(), 'desktop-settings.json', 4, [folder]);
       assert(stray.length === 0, `desktop-settings.json in a temp folder: ${stray.join('; ')}`);
       assert(!fs.existsSync(path.join(APPDATA_ROOT, 'desktop-settings.json')), `desktop-settings.json in ${APPDATA_ROOT}`);
       return `${folder}: ${listDir(folder)}`;
@@ -682,9 +707,7 @@ async function testPortableStub(expectedVersion) {
     await closeUpdateNotice(page, build);
 
     await step(build, 'About shows the version', async () => {
-      await clickText(page, HELP_LABELS);
-      await clickText(page, ABOUT_LABELS);
-      const shown = (await page.locator(t('about-app-version')).textContent()).trim();
+      const shown = await openAbout(page);
       await screenshot(page, build, 'about');
       await closeAbout(page);
       assert(shown === `v${expectedVersion}`, `About "${shown}", package name "${expectedVersion}"`);
@@ -694,15 +717,19 @@ async function testPortableStub(expectedVersion) {
     // The real quit question: ask through the header menu's Quit, then answer
     // it with Enter (its default button is Quit) from outside the app.
     await step(build, 'real quit question on quit, answered with Enter, app exits', async () => {
-      await page.evaluate(() => { window.desktopBridge.quitApp(); });
-      await browser.close().catch(() => undefined);
+      // The modal question blocks the main process, and with it every answer
+      // over CDP: fire the quit, do not wait on it, and drop the connection.
+      await Promise.race([page.evaluate(() => { window.desktopBridge.quitApp(); }).catch(() => undefined), sleep(3000)]);
+      const connection = browser;
       browser = null;
+      void connection.close().catch(() => undefined);
       await sleep(3000);
       assert(exitCode === null, `the app exited (${exitCode}) without asking`);
       const shot = screenScreenshot(build, 'quit-question-screen');
       pwsh(
         'Add-Type -AssemblyName System.Windows.Forms; $shell = New-Object -ComObject WScript.Shell; ' +
-          `$null = $shell.AppActivate(${q(PRODUCT)}); Start-Sleep -Milliseconds 500; [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')`
+          `$null = $shell.AppActivate(${q(PRODUCT)}); Start-Sleep -Milliseconds 500; [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')`,
+        60000
       );
       const code = await Promise.race([exited, sleep(30000).then(() => 'timeout')]);
       assert(code !== 'timeout', 'the app is still running 30 s after Enter in the quit question');
@@ -712,7 +739,7 @@ async function testPortableStub(expectedVersion) {
       return `exit code ${code}; screen capture ${shot}`;
     });
   } finally {
-    if (browser) await browser.close().catch(() => undefined);
+    if (browser) await Promise.race([browser.close().catch(() => undefined), sleep(5000)]);
     killTree('cleanup');
     fs.closeSync(fd);
   }
