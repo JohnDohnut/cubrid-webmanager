@@ -560,7 +560,10 @@ async function testInstaller(expectedVersion) {
   const exe = path.join(entry.InstallLocation, EXE_NAME);
   await step(build, 'installed executable carries the version', async () => {
     const info = versionInfo(exe);
-    assert(info.ProductVersion === expectedVersion, `ProductVersion ${info.ProductVersion}, expected ${expectedVersion}`);
+    // FileVersion is the full product version; ProductVersion is its numeric form (0.1.0.26 for 0.1.0.0026, electron-builder's buildNumber).
+    const numeric = expectedVersion.split('.').map(Number).join('.');
+    assert(info.FileVersion === expectedVersion, `FileVersion ${info.FileVersion}, expected ${expectedVersion}`);
+    assert(info.ProductVersion === numeric || info.ProductVersion === expectedVersion, `ProductVersion ${info.ProductVersion}, expected ${numeric}`);
     assert(String(entry.DisplayVersion).startsWith(expectedVersion.split('.').slice(0, 3).join('.')), `DisplayVersion ${entry.DisplayVersion}`);
     return JSON.stringify(info);
   });
