@@ -531,6 +531,40 @@ if (-not $Setup) {
       "$DataDir kept: $((Get-ChildItem $DataDir | ForEach-Object Name) -join ', ')"
     } | Out-Null
     Copy-ServiceLogs 'after-reinstall'
+
+    # Once more, launched from cmd.exe instead of PowerShell (a plain environment).
+    Step 'install again from cmd.exe: data folder kept in place, same secrets.json, PORT kept' {
+      $secrets = Join-Path $DataDir 'cwm-vault\secrets.json'
+      Assert (Test-Path $secrets) 'no secrets.json to check with'
+      Assert (-not (Test-Path (Join-Path $InstallDir 'Uninstall.exe'))) 'still installed; the previous uninstall did not finish'
+      $hashBefore = Get-FileSha256 $secrets
+      $folderCreatedBefore = (Get-Item $DataDir).CreationTimeUtc
+      $portBefore = (Get-Content $ConfPath -Raw | ConvertFrom-Json).PORT
+      $deadline = (Get-Date).AddSeconds(90)
+      do { Start-Sleep -Seconds 5; $null = (& sc.exe query $ServiceId 2>&1); $gone = ($LASTEXITCODE -eq 1060) } while (-not $gone -and (Get-Date) -lt $deadline)
+      $p = Start-Process -FilePath "$env:ComSpec" -ArgumentList '/c', 'start', '""', '/wait', "`"$($Setup.FullName)`"", '/S' -Wait -PassThru -NoNewWindow
+      $facts = Get-DataFolderFacts
+      Record 'data folder after the reinstall from cmd.exe' 'info' ("cmd exit code $($p.ExitCode); installed $(Test-Path (Join-Path $InstallDir 'Uninstall.exe')); service $(Get-ServiceState); $facts")
+      Assert ($p.ExitCode -eq 0) "exit code $($p.ExitCode); $facts"
+      Assert ((Get-PreexistingFolders).Count -eq 0) "the data folder was moved aside: $((Get-PreexistingFolders) -join ', ')"
+      Assert ((Get-Item $DataDir).CreationTimeUtc -eq $folderCreatedBefore) 'the data folder is a new folder'
+      Assert ((Get-FileSha256 $secrets) -eq $hashBefore) 'secrets.json changed by the reinstall'
+      $port = (Get-Content $ConfPath -Raw | ConvertFrom-Json).PORT
+      Assert ($port -eq $portBefore) "conf PORT is $port, was $portBefore"
+      Assert ((Get-ServiceState) -eq 'Stopped') "service after the reinstall: $(Get-ServiceState)"
+      "kept, same secrets.json, PORT $port, service registered"
+    } | Out-Null
+
+    Step 'silent uninstall after the cmd.exe reinstall: ProgramData kept' {
+      Assert (Test-Path (Join-Path $InstallDir 'Uninstall.exe')) 'nothing installed to uninstall'
+      $p = Start-Process -FilePath (Join-Path $InstallDir 'Uninstall.exe') -ArgumentList '/S' -Wait -PassThru
+      Assert ($p.ExitCode -eq 0) "uninstaller exit code $($p.ExitCode)"
+      $deadline = (Get-Date).AddSeconds(120)
+      while ((Get-Date) -lt $deadline -and ((Test-Path $InstallDir) -or (Get-ServiceState) -ne 'missing')) { Start-Sleep -Seconds 2 }
+      Assert ((Get-ServiceState) -eq 'missing') "service is $(Get-ServiceState) after the uninstall"
+      Assert (Test-Path (Join-Path $DataDir 'cwm-vault\secrets.json')) 'secrets.json removed by the uninstall'
+      "$DataDir kept: $((Get-ChildItem $DataDir | ForEach-Object Name) -join ', ')"
+    } | Out-Null
   }
 }
 
