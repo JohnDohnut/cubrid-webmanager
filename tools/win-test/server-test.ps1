@@ -412,9 +412,9 @@ if (-not $Setup) {
       $folderCreatedBefore = (Get-Item $DataDir).CreationTimeUtc
       $portBefore = (Get-Content $ConfPath -Raw | ConvertFrom-Json).PORT
       $p = Start-Process -FilePath $Setup.FullName -ArgumentList '/S' -Wait -PassThru
-      Assert ($p.ExitCode -eq 0) "installer exit code $($p.ExitCode)"
       $facts = Get-DataFolderFacts
-      Record 'data folder after the reinstall' 'info' $facts
+      Record 'data folder after the reinstall' 'info' ("installer exit code $($p.ExitCode); program folder $(if (Test-Path $InstallDir) { 'present' } else { 'absent' }); service $(Get-ServiceState); $facts")
+      Assert ($p.ExitCode -eq 0) "installer exit code $($p.ExitCode) (2 = aborted by the setup script); $facts"
       $moved = Get-PreexistingFolders
       Assert ($moved.Count -eq 0) "the data folder was moved aside: $($moved -join ', '); $facts"
       Assert ((Get-Item $DataDir).CreationTimeUtc -eq $folderCreatedBefore) "the data folder is a new folder; $facts"
@@ -432,6 +432,7 @@ if (-not $Setup) {
     } | Out-Null
 
     Step 'silent uninstall again: service and program gone, ProgramData kept' {
+      Assert (Test-Path (Join-Path $InstallDir 'Uninstall.exe')) 'nothing installed to uninstall (the reinstall did not happen)'
       $p = Start-Process -FilePath (Join-Path $InstallDir 'Uninstall.exe') -ArgumentList '/S' -Wait -PassThru
       Assert ($p.ExitCode -eq 0) "uninstaller exit code $($p.ExitCode)"
       $deadline = (Get-Date).AddSeconds(120)
