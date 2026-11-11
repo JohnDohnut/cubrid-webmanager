@@ -100,7 +100,21 @@ function Wait-ApiVersion([int] $Port, [int] $Seconds = 120) {
 
 function Get-ServiceState {
   $service = Get-Service -Name $ServiceId -ErrorAction SilentlyContinue
-  if ($service) { return $service.Status.ToString() } else { return 'missing' }
+  if ($service) { $state = $service.Status.ToString(); $service.Dispose(); return $state } else { return 'missing' }
+}
+
+# What the setup script reads before deciding about the data folder.
+function Get-InstallRecord {
+  $data = (Get-ItemProperty -Path 'HKLM:\Software\CUBRID\CUBRID Admin Server' -ErrorAction SilentlyContinue).DataFolder
+  $loc = (Get-ItemProperty -Path $UninstallKey -ErrorAction SilentlyContinue).InstallLocation
+  $query = (& sc.exe query $ServiceId 2>&1) | Out-String
+  $queryExit = $LASTEXITCODE
+  $ps32 = "$env:SystemRoot\SysWOW64\WindowsPowerShell\v1.0\powershell.exe"
+  $owner32 = if (Test-Path $ps32) {
+    $raw = & $ps32 -NoProfile -NonInteractive -Command "[Console]::Write((Get-Acl -LiteralPath '$DataDir').GetOwner([System.Security.Principal.SecurityIdentifier]).Value)" 2>&1 | Out-String
+    "'" + $raw.Trim() + "' (exit $LASTEXITCODE, $($raw.Length) chars raw)"
+  } else { '(no 32-bit PowerShell)' }
+  "DataFolder record '$data'; InstallLocation '$loc'; sc query exit $queryExit ($(($query -replace '\s+', ' ').Trim().Substring(0, [Math]::Min(80, ($query -replace '\s+', ' ').Trim().Length)))); owner by 32-bit PowerShell $owner32"
 }
 
 function Wait-ServiceState([string] $Expected, [int] $Seconds = 60) {
@@ -411,6 +425,13 @@ if (-not $Setup) {
       $hashBefore = Get-FileSha256 $secrets
       $folderCreatedBefore = (Get-Item $DataDir).CreationTimeUtc
       $portBefore = (Get-Content $ConfPath -Raw | ConvertFrom-Json).PORT
+      # Let the deleted service go for good (a service stays marked for deletion
+      # while a handle to it is open) before the setup registers it again.
+      [GC]::Collect(); [GC]::WaitForPendingFinalizers()
+      $deadline = (Get-Date).AddSeconds(90)
+      do { Start-Sleep -Seconds 5; $null = (& sc.exe query $ServiceId 2>&1); $gone = ($LASTEXITCODE -eq 1060) } while (-not $gone -and (Get-Date) -lt $deadline)
+      Start-Sleep -Seconds 10
+      Record 'before the reinstall' 'info' (Get-InstallRecord)
       $p = Start-Process -FilePath $Setup.FullName -ArgumentList '/S' -Wait -PassThru
       $facts = Get-DataFolderFacts
       Record 'data folder after the reinstall' 'info' ("installer exit code $($p.ExitCode); program folder $(if (Test-Path $InstallDir) { 'present' } else { 'absent' }); service $(Get-ServiceState); $facts")
