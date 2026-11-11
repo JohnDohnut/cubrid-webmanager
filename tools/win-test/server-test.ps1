@@ -470,15 +470,15 @@ if (-not $Setup) {
         Assert (Test-Path $svc) "no program files to run by hand ($InstallDir holds: $((Get-ChildItem $InstallDir -Force -ErrorAction SilentlyContinue | ForEach-Object Name) -join ', '))"
         $notes = @()
         $out = (& $svc install 2>&1) | Out-String
-        $notes += "WinSW install exit $LASTEXITCODE: $(($out -replace '\s+', ' ').Trim())"
+        $notes += "WinSW install exit ${LASTEXITCODE}: $(($out -replace '\s+', ' ').Trim())"
         $out = (& sc.exe config $ServiceId obj= $ServiceAccount 2>&1) | Out-String
-        $notes += "sc config exit $LASTEXITCODE: $(($out -replace '\s+', ' ').Trim())"
+        $notes += "sc config exit ${LASTEXITCODE}: $(($out -replace '\s+', ' ').Trim())"
         $out = (& icacls.exe $DataDir /inheritance:r /grant:r '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' "${ServiceAccount}:(OI)(CI)F" /Q 2>&1) | Out-String
-        $notes += "icacls grant exit $LASTEXITCODE: $(($out -replace '\s+', ' ').Trim())"
+        $notes += "icacls grant exit ${LASTEXITCODE}: $(($out -replace '\s+', ' ').Trim())"
         $out = (& icacls.exe "$DataDir\*" /reset /T /C /Q 2>&1) | Out-String
-        $notes += "icacls reset exit $LASTEXITCODE: $(($out -replace '\s+', ' ').Trim())"
+        $notes += "icacls reset exit ${LASTEXITCODE}: $(($out -replace '\s+', ' ').Trim())"
         $out = (& icacls.exe $DataDir /setowner '*S-1-5-32-544' /T /C /Q 2>&1) | Out-String
-        $notes += "icacls setowner exit $LASTEXITCODE: $(($out -replace '\s+', ' ').Trim())"
+        $notes += "icacls setowner exit ${LASTEXITCODE}: $(($out -replace '\s+', ' ').Trim())"
         $out = (& $svc uninstall 2>&1) | Out-String
         $notes += "WinSW uninstall (cleanup) exit $LASTEXITCODE"
         $notes -join ' || '
