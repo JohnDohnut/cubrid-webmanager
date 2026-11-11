@@ -87,7 +87,12 @@ jobs:
 
       - name: Build desktop packages (Linux)
         timeout-minutes: 20
-        run: npx nx run desktop:package -- --linux --x64 --arm64
+        env:
+          DEBUG: electron-builder
+        run: |
+          # TEST BRANCH ONLY: show what runs every minute, to find a stuck step.
+          ( while sleep 60; do echo "== $(date -u +%T)"; ps -axo pid,etime,%cpu,command | grep -E "rpmbuild|fpm|ruby|xz|zstd|gzip|cpio|[ /]ar |dpkg|tar " | grep -v grep | cut -c1-220; done ) &
+          npx nx run desktop:package -- --linux --x64 --arm64
 
       - name: Collect release files
         timeout-minutes: 10
