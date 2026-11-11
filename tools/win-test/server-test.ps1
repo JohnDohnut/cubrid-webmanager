@@ -284,6 +284,30 @@ if (-not $Setup) {
         "unchanged; $info; service log: $logLines; $body"
       } | Out-Null
 
+      # The installer's upgrade steps one at a time, the vault looked at after each.
+      Step 'installer upgrade steps one by one (stopwait, sc config, icacls grant, icacls reset, start): secrets.json stays' {
+        $svc = Join-Path $InstallDir 'cubrid-admin-service.exe'
+        $secrets = Join-Path $DataDir 'cwm-vault\secrets.json'
+        $hashBefore = Get-FileSha256 $secrets
+        $notes = @()
+        $out = (& $svc stopwait 2>&1) | Out-String
+        Wait-ServiceState 'Stopped' 60
+        $notes += "after stopwait (exit $LASTEXITCODE): $(Get-SecretsInfo)"
+        $null = (& sc.exe config $ServiceId obj= $ServiceAccount 2>&1)
+        $notes += "after sc config (exit $LASTEXITCODE): $(Get-SecretsInfo)"
+        $null = (& icacls.exe $DataDir /inheritance:r /grant:r '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' "${ServiceAccount}:(OI)(CI)F" /Q 2>&1)
+        $notes += "after icacls grant (exit $LASTEXITCODE): $(Get-SecretsInfo)"
+        $null = (& icacls.exe "$DataDir\*" /reset /T /C /Q 2>&1)
+        $notes += "after icacls reset (exit $LASTEXITCODE): $(Get-SecretsInfo)"
+        $out = (& $svc start 2>&1) | Out-String
+        Wait-ServiceState 'Running' 60
+        $null = Wait-ApiVersion $Port 120
+        $notes += "after start (exit $LASTEXITCODE): $(Get-SecretsInfo); service log: $(Get-VaultLogLines)"
+        $joined = $notes -join ' || '
+        Assert ((Get-FileSha256 $secrets) -eq $hashBefore) "secrets.json changed: $joined"
+        "unchanged; $joined"
+      } | Out-Null
+
       # ── upgrade while the service runs ────────────────────────────────────
       Step 'upgrade (same setup /S while the service runs): stopped, replaced, started again, secrets.json unchanged' {
         $secrets = Join-Path $DataDir 'cwm-vault\secrets.json'
