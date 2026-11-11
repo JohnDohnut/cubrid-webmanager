@@ -452,6 +452,62 @@ if (-not $Setup) {
       "kept (created $($folderCreatedBefore.ToString('HH:mm:ss.fff'))), same secrets.json, PORT $port, service registered and started: $body"
     } | Out-Null
 
+    # When the silent reinstall stopped: which of the setup's commands fails, run
+    # by hand from the copied program files, and what the setup says on screen.
+    if (-not (Test-Path (Join-Path $InstallDir 'Uninstall.exe')) -and (Test-Path (Join-Path $InstallDir 'cubrid-admin-service.exe'))) {
+      Step 'reinstall diagnostics: the setup commands by hand' {
+        $svc = Join-Path $InstallDir 'cubrid-admin-service.exe'
+        $notes = @()
+        $out = (& $svc install 2>&1) | Out-String
+        $notes += "WinSW install exit $LASTEXITCODE: $(($out -replace '\s+', ' ').Trim())"
+        $out = (& sc.exe config $ServiceId obj= $ServiceAccount 2>&1) | Out-String
+        $notes += "sc config exit $LASTEXITCODE: $(($out -replace '\s+', ' ').Trim())"
+        $out = (& icacls.exe $DataDir /inheritance:r /grant:r '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' "${ServiceAccount}:(OI)(CI)F" /Q 2>&1) | Out-String
+        $notes += "icacls grant exit $LASTEXITCODE: $(($out -replace '\s+', ' ').Trim())"
+        $out = (& icacls.exe "$DataDir\*" /reset /T /C /Q 2>&1) | Out-String
+        $notes += "icacls reset exit $LASTEXITCODE: $(($out -replace '\s+', ' ').Trim())"
+        $out = (& icacls.exe $DataDir /setowner '*S-1-5-32-544' /T /C /Q 2>&1) | Out-String
+        $notes += "icacls setowner exit $LASTEXITCODE: $(($out -replace '\s+', ' ').Trim())"
+        $out = (& $svc uninstall 2>&1) | Out-String
+        $notes += "WinSW uninstall (cleanup) exit $LASTEXITCODE"
+        $notes -join ' || '
+      } | Out-Null
+
+      Step 'reinstall diagnostics: the setup run with its window, screenshots' {
+        Add-Type -AssemblyName System.Windows.Forms
+        Add-Type -AssemblyName System.Drawing
+        $shell = New-Object -ComObject WScript.Shell
+        $shots = @()
+        $capture = {
+          param($name)
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+          $g = [System.Drawing.Graphics]::FromImage($bmp)
+          $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+          $file = Join-Path $Out "setup-$name.png"
+          $bmp.Save($file); $g.Dispose(); $bmp.Dispose()
+          $file
+        }
+        $p = Start-Process -FilePath $Setup.FullName -PassThru
+        Start-Sleep -Seconds 6
+        $shots += & $capture 'directory-page'
+        $null = $shell.AppActivate('CUBRID Admin Server Setup')
+        Start-Sleep -Milliseconds 500
+        [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
+        for ($i = 1; $i -le 8 -and -not $p.HasExited; $i++) {
+          Start-Sleep -Seconds 5
+          $shots += & $capture "after-install-$i"
+        }
+        $null = $shell.AppActivate('CUBRID Admin Server Setup')
+        [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
+        Start-Sleep -Seconds 5
+        $shots += & $capture 'after-enter'
+        if (-not $p.HasExited) { Start-Sleep -Seconds 10 }
+        if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue; $exit = 'killed' } else { $exit = $p.ExitCode }
+        "setup exit $exit; service $(Get-ServiceState); screenshots: $(($shots | ForEach-Object { Split-Path $_ -Leaf }) -join ', ')"
+      } | Out-Null
+    }
+
     Step 'silent uninstall again: service and program gone, ProgramData kept' {
       Assert (Test-Path (Join-Path $InstallDir 'Uninstall.exe')) 'nothing installed to uninstall (the reinstall did not happen)'
       $p = Start-Process -FilePath (Join-Path $InstallDir 'Uninstall.exe') -ArgumentList '/S' -Wait -PassThru
