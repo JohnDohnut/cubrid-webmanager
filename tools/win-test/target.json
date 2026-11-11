@@ -1,5 +1,6 @@
 {
-  "ref": "cb601356",
-  "reuse_run_id": "42993653226",
-  "arm64": true
+  "ref": "ca2b2d93",
+  "reuse_run_id": "",
+  "arm64": false,
+  "desktop": false
 }
