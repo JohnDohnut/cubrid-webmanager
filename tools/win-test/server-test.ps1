@@ -77,20 +77,25 @@ function Get-FreePort {
   return $port
 }
 
+# The server answers when its port gives any HTTP status: /api/version is
+# behind the app login (401 without one), the web screens at / are not.
 function Wait-ApiVersion([int] $Port, [int] $Seconds = 120) {
   $deadline = (Get-Date).AddSeconds($Seconds)
   $last = ''
   while ((Get-Date) -lt $deadline) {
     try {
-      $response = Invoke-WebRequest -Uri "https://127.0.0.1:$Port/api/version" -SkipCertificateCheck -TimeoutSec 5 -UseBasicParsing
-      if ($response.StatusCode -eq 200) { return $response.Content }
-      $last = "HTTP $($response.StatusCode)"
+      $response = Invoke-WebRequest -Uri "https://127.0.0.1:$Port/api/version" -SkipCertificateCheck -SkipHttpErrorCheck -TimeoutSec 5 -UseBasicParsing
+      $version = "GET /api/version -> HTTP $($response.StatusCode) $(($response.Content -replace '\s+', ' ').Trim().Substring(0, [Math]::Min(160, ($response.Content -replace '\s+', ' ').Trim().Length)))"
+      $root = Invoke-WebRequest -Uri "https://127.0.0.1:$Port/" -SkipCertificateCheck -SkipHttpErrorCheck -TimeoutSec 5 -UseBasicParsing
+      $rootNote = "GET / -> HTTP $($root.StatusCode) ($($root.Content.Length) bytes$(if ($root.Content -match '<html') { ', html' }))"
+      if ($root.StatusCode -ne 200) { throw "the web screens at / answer $($root.StatusCode), not 200 ($version)" }
+      return "$version; $rootNote"
     } catch {
       $last = $_.Exception.Message
     }
     Start-Sleep -Seconds 2
   }
-  throw "no answer from https://127.0.0.1:$Port/api/version in $Seconds s (last: $last)"
+  throw "no answer from https://127.0.0.1:$Port in $Seconds s (last: $last)"
 }
 
 function Get-ServiceState {
@@ -185,8 +190,8 @@ if (-not $Setup) {
     Step "service runs as $ServiceAccount" {
       $qc = (& sc.exe qc $ServiceId 2>&1) | Out-String
       Assert ($LASTEXITCODE -eq 0) "sc qc exit code ${LASTEXITCODE}: $qc"
-      $startName = ($qc -split "`r?`n" | Where-Object { $_ -match 'SERVICE_START_NAME' }) -replace '.*:\s*', ''
-      $binary = ($qc -split "`r?`n" | Where-Object { $_ -match 'BINARY_PATH_NAME' }) -replace '.*:\s*', ''
+      $startName = ($qc -split "`r?`n" | Where-Object { $_ -match 'SERVICE_START_NAME' }) -replace '^\s*SERVICE_START_NAME\s*:\s*', ''
+      $binary = ($qc -split "`r?`n" | Where-Object { $_ -match 'BINARY_PATH_NAME' }) -replace '^\s*BINARY_PATH_NAME\s*:\s*', ''
       Assert ($startName.Trim() -ieq $ServiceAccount) "SERVICE_START_NAME '$startName'"
       Assert ($binary -like '*cubrid-admin-service.exe*') "BINARY_PATH_NAME '$binary'"
       "SERVICE_START_NAME '$($startName.Trim())', BINARY_PATH_NAME '$($binary.Trim())'"
@@ -222,14 +227,14 @@ if (-not $Setup) {
     # ── start on a free port ──────────────────────────────────────────────
     $Port = Get-FreePort
     $ConfPath = Join-Path $DataDir 'conf\cwm.conf'
-    $started = Step "PORT=$Port in cwm.conf, service started, /api/version answers" {
+    $started = Step "PORT=$Port in cwm.conf, service started, the port answers (https)" {
       $conf = Get-Content $ConfPath -Raw | ConvertFrom-Json
       $conf.PORT = "$Port"
       $conf | ConvertTo-Json | Set-Content -Path $ConfPath -Encoding utf8
       Start-Service -Name $ServiceId
       Wait-ServiceState 'Running' 60
       $body = Wait-ApiVersion $Port 120
-      "service Running; GET https://127.0.0.1:$Port/api/version -> $body"
+      "service Running; $body"
     }
     Copy-ServiceLogs 'after-start'
 
@@ -270,7 +275,7 @@ if (-not $Setup) {
         $body = Wait-ApiVersion $Port 120
         $owner = Get-ProcessOwner (Get-ServerProcess | Select-Object -First 1)
         Assert ($owner -ieq $ServiceAccount) "process owner after the upgrade '$owner'"
-        "pid $pidBefore -> $pidAfter, secrets.json sha256 $hashBefore unchanged, PORT kept, owner '$owner', /api/version -> $body"
+        "pid $pidBefore -> $pidAfter, secrets.json sha256 $hashBefore unchanged, PORT kept, owner '$owner'; $body"
       } | Out-Null
 
       Step 'data folder ACL unchanged after the upgrade' {
@@ -293,7 +298,7 @@ if (-not $Setup) {
       $deadline = (Get-Date).AddSeconds(120)
       while ((Get-Date) -lt $deadline -and ((Test-Path $InstallDir) -or (Get-ServiceState) -ne 'missing')) { Start-Sleep -Seconds 2 }
       Assert ((Get-ServiceState) -eq 'missing') "service is $(Get-ServiceState) after the uninstall"
-      Assert (-not (Test-Path $InstallDir)) "$InstallDir still holds $((Get-ChildItem $InstallDir | ForEach-Object Name) -join ', ')"
+      Assert (-not (Test-Path $InstallDir)) "$InstallDir still holds $((Get-ChildItem $InstallDir -ErrorAction SilentlyContinue | ForEach-Object Name) -join ', ')"
       Assert (-not (Test-Path $UninstallKey)) 'the uninstall entry is still there'
       Assert (Test-Path $DataDir) "$DataDir was removed"
       Assert (Test-Path $ConfPath) 'conf\cwm.conf was removed'
@@ -330,7 +335,7 @@ if (-not $Zip) {
     $dir = Join-Path $portableRoot ([System.IO.Path]::GetFileNameWithoutExtension($Zip.Name))
     if (Test-Path (Join-Path $dir 'cubrid-admin.exe')) {
       $zipPort = Get-FreePort
-      Step "portable server on PORT=$zipPort answers /api/version, with cwm-vault and ssl beside it" {
+      Step "portable server on PORT=$zipPort answers (https), with cwm-vault and ssl beside it" {
         $conf = Get-Content (Join-Path $dir 'conf\cwm.conf.sample') -Raw | ConvertFrom-Json
         $conf.PORT = "$zipPort"
         $conf | ConvertTo-Json | Set-Content -Path (Join-Path $dir 'conf\cwm.conf') -Encoding utf8
@@ -341,7 +346,7 @@ if (-not $Zip) {
         Assert (-not $script:proc.HasExited) "the server exited with $($script:proc.ExitCode)"
         Assert (Test-Path (Join-Path $dir 'cwm-vault\secrets.json')) 'cwm-vault\secrets.json is not beside the exe'
         Assert (Test-Path (Join-Path $dir 'ssl\cert.pem')) 'ssl\cert.pem is not beside the exe'
-        "pid $($script:proc.Id); GET https://127.0.0.1:$zipPort/api/version -> $body; $dir holds $((Get-ChildItem $dir | ForEach-Object Name) -join ', ')"
+        "pid $($script:proc.Id); $body; $dir holds $((Get-ChildItem $dir | ForEach-Object Name) -join ', ')"
       } | Out-Null
     }
   } finally {

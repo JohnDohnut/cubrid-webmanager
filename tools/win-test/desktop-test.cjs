@@ -234,12 +234,16 @@ async function visible(page, selector) {
   return page.locator(selector).first().isVisible().catch(() => false);
 }
 
+// A menu item appears a moment after its menu opens: each label gets a short wait.
 async function clickText(page, labels) {
-  for (const label of labels) {
-    const locator = page.getByText(label, { exact: true }).first();
-    if (await locator.isVisible().catch(() => false)) {
-      await locator.click();
-      return label;
+  for (let round = 0; round < 3; round += 1) {
+    for (const label of labels) {
+      const locator = page.getByText(label, { exact: true }).first();
+      const shown = await locator.waitFor({ state: 'visible', timeout: 2000 }).then(() => true, () => false);
+      if (shown) {
+        await locator.click();
+        return label;
+      }
     }
   }
   throw new Error(`none of ${labels.join(' / ')} is visible`);
