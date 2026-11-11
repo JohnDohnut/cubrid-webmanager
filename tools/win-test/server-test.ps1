@@ -170,6 +170,10 @@ function Get-DataFolderFacts {
   "owner $owner ($ownerName); powershell 5.1 prints $ps51; folder created $((Get-Item $DataDir).CreationTimeUtc.ToString('HH:mm:ss.fff')); $($times -join ', '); conf PORT $port; ProgramData entries: $($siblings -join ' | ')"
 }
 
+function Get-PreexistingFolders {
+  @(Get-ChildItem $env:ProgramData -Directory -Filter 'CUBRID Admin Server.preexisting-*' -ErrorAction SilentlyContinue | ForEach-Object Name)
+}
+
 function Get-VaultLogLines {
   $log = Join-Path $DataDir 'logs\service\cubrid-admin-service.out.log'
   if (-not (Test-Path $log)) { return '(no service out log)' }
@@ -334,6 +338,7 @@ if (-not $Setup) {
         $secrets = Join-Path $DataDir 'cwm-vault\secrets.json'
         $hashBefore = Get-FileSha256 $secrets
         $createdBefore = (Get-Item $secrets).CreationTimeUtc
+        $folderCreatedBefore = (Get-Item $DataDir).CreationTimeUtc
         $pidBefore = (Get-ServerProcess | Select-Object -First 1).ProcessId
         # Files the installer must write again (the running exe cannot be touched from here).
         $sample = Join-Path $InstallDir 'cwm.conf.sample'
@@ -356,6 +361,9 @@ if (-not $Setup) {
         $recreated = if ((Get-Item $secrets -ErrorAction SilentlyContinue).CreationTimeUtc -ne $createdBefore) { 'a new file (CreationTime changed)' } else { 'the same file' }
         $answers8080 = try { (Invoke-WebRequest -Uri 'https://127.0.0.1:8080/' -SkipCertificateCheck -SkipHttpErrorCheck -TimeoutSec 5 -UseBasicParsing).StatusCode } catch { 'no' }
         Assert ((Get-FileSha256 $secrets) -eq $hashBefore) "cwm-vault\secrets.json changed: $recreated; now $info; service log after the restart: $logLines; port 8080 answers: $answers8080; $facts"
+        $moved = Get-PreexistingFolders
+        Assert ($moved.Count -eq 0) "the data folder was moved aside: $($moved -join ', ')"
+        Assert ((Get-Item $DataDir).CreationTimeUtc -eq $folderCreatedBefore) "the data folder is a new folder (created $((Get-Item $DataDir).CreationTimeUtc.ToString('HH:mm:ss.fff')), was $($folderCreatedBefore.ToString('HH:mm:ss.fff')))"
         $conf = Get-Content $ConfPath -Raw | ConvertFrom-Json
         Assert ($conf.PORT -eq "$Port") "cwm.conf PORT is $($conf.PORT) after the upgrade"
         $body = Wait-ApiVersion $Port 120
@@ -394,6 +402,46 @@ if (-not $Setup) {
       "$DataDir kept: $((Get-ChildItem $DataDir | ForEach-Object Name) -join ', ')"
     } | Out-Null
     Copy-ServiceLogs 'after-uninstall'
+
+    # Install again over the kept data folder: the record (conf, cwm-vault) and the
+    # owner match, so the folder must stay in place with its keys and settings.
+    Step 'install again after the uninstall: data folder kept in place, same secrets.json, PORT kept' {
+      $secrets = Join-Path $DataDir 'cwm-vault\secrets.json'
+      Assert (Test-Path $secrets) 'no secrets.json left by the uninstall to check with'
+      $hashBefore = Get-FileSha256 $secrets
+      $folderCreatedBefore = (Get-Item $DataDir).CreationTimeUtc
+      $portBefore = (Get-Content $ConfPath -Raw | ConvertFrom-Json).PORT
+      $p = Start-Process -FilePath $Setup.FullName -ArgumentList '/S' -Wait -PassThru
+      Assert ($p.ExitCode -eq 0) "installer exit code $($p.ExitCode)"
+      $facts = Get-DataFolderFacts
+      Record 'data folder after the reinstall' 'info' $facts
+      $moved = Get-PreexistingFolders
+      Assert ($moved.Count -eq 0) "the data folder was moved aside: $($moved -join ', '); $facts"
+      Assert ((Get-Item $DataDir).CreationTimeUtc -eq $folderCreatedBefore) "the data folder is a new folder; $facts"
+      Assert (Test-Path $secrets) 'secrets.json is gone after the reinstall'
+      Assert ((Get-FileSha256 $secrets) -eq $hashBefore) 'secrets.json changed by the reinstall'
+      $port = (Get-Content $ConfPath -Raw | ConvertFrom-Json).PORT
+      Assert ($port -eq $portBefore) "conf PORT is $port, was $portBefore"
+      $service = Get-Service -Name $ServiceId -ErrorAction SilentlyContinue
+      Assert ($null -ne $service -and $service.Status -eq 'Stopped') "service after the reinstall: $(Get-ServiceState)"
+      Start-Service -Name $ServiceId
+      Wait-ServiceState 'Running' 60
+      $body = Wait-ApiVersion ([int] $port) 120
+      Assert ((Get-FileSha256 $secrets) -eq $hashBefore) 'secrets.json changed when the service started after the reinstall'
+      "kept (created $($folderCreatedBefore.ToString('HH:mm:ss.fff'))), same secrets.json, PORT $port, service registered and started: $body"
+    } | Out-Null
+
+    Step 'silent uninstall again: service and program gone, ProgramData kept' {
+      $p = Start-Process -FilePath (Join-Path $InstallDir 'Uninstall.exe') -ArgumentList '/S' -Wait -PassThru
+      Assert ($p.ExitCode -eq 0) "uninstaller exit code $($p.ExitCode)"
+      $deadline = (Get-Date).AddSeconds(120)
+      while ((Get-Date) -lt $deadline -and ((Test-Path $InstallDir) -or (Get-ServiceState) -ne 'missing')) { Start-Sleep -Seconds 2 }
+      Assert ((Get-ServiceState) -eq 'missing') "service is $(Get-ServiceState) after the uninstall"
+      Assert (-not (Test-Path $InstallDir)) "$InstallDir still exists"
+      Assert (Test-Path (Join-Path $DataDir 'cwm-vault\secrets.json')) 'secrets.json removed by the uninstall'
+      "$DataDir kept: $((Get-ChildItem $DataDir | ForEach-Object Name) -join ', ')"
+    } | Out-Null
+    Copy-ServiceLogs 'after-reinstall'
   }
 }
 
