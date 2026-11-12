@@ -20,6 +20,7 @@
     "express": "^4.22.3",
     "http-proxy-middleware": "^3.0.10",
     "material-symbols": "0.48.3",
+    "monaco-editor": "0.57.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "proper-lockfile": "^4.1.2",
