@@ -271,14 +271,15 @@ export default function DesktopWorkspaceSettingsPage() {
 
   // File > Import Workspace opens this page with ?do=import: start once.
   const startedFromMenu = useRef(false);
+  const startImportRef = useLatestRef(startImport);
   useEffect(() => {
     // Opened once the server start in progress is over.
     if (loading || starting || startedFromMenu.current) return;
     if (new URLSearchParams(location.search).get('do') !== 'import') return;
     startedFromMenu.current = true;
     navigate(location.pathname, { replace: true });
-    void startImport();
-  }, [loading, starting, location.search]);
+    void startImportRef.current();
+  }, [loading, starting, location.search, location.pathname, navigate, startImportRef]);
 
   // Saving the folder the app already runs on would restart it for nothing.
   const unchanged = Boolean(info)
