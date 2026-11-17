@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { isDesktopApp } from '../isDesktopApp';
 import { Icon } from '../../../components/ds/foundation/Icon';
@@ -8,6 +8,8 @@ import { useCM } from '../../../constants/useCM';
 import { desktopErrorText } from '../desktopErrorText';
 import LanguageToggle from '../../layout/components/LanguageToggle';
 import { ConfirmDialog } from '../../../components/ds/layout/ConfirmDialog';
+import { useResetEffect } from '../../../infrastructure/hooks/useResetEffect';
+import { useLatestRef } from '../../../infrastructure/hooks/useLatestRef';
 import WorkspaceExportDialog from './WorkspaceExportDialog';
 import WorkspacePasswordDialog from './WorkspacePasswordDialog';
 import { Modal } from '../../../components/ds/layout/Modal';
@@ -85,35 +87,40 @@ export default function DesktopWorkspaceSettingsPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const loadInfo = useCallback(async () => {
-    if (!bridge) {
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-    try {
-      const [next, setupRequired, startupError] = await Promise.all([
-        bridge.getWorkspaceInfo(),
-        bridge.isWorkspaceSetupRequired(),
-        bridge.getWorkspaceStartupError?.() ?? null,
-      ]);
-      setInfo(next);
-      setWorkspaceRoot(next.workspaceRoot);
-      setSetupMode(setupRequired);
-      // The configured workspace failed at launch: say why (a WORKSPACE_* code).
-      if (startupError) setError(desktopErrorText({ message: startupError }, CM, CM.workspaceSaveFailedMsg));
-    } catch (err) {
-      setError(desktopErrorText(err, CM, CM.workspaceSettingsLoadFailedMsg));
-    } finally {
-      setLoading(false);
-    }
+  // Without a bridge (not the desktop app) there is nothing to read.
+  useResetEffect(() => {
+    if (!bridge) setLoading(false);
   }, [bridge]);
-
+  // Read once per bridge: a language switch must not read the settings again
+  // (that would drop a folder being typed and any error shown). The labels
+  // for an error are the current ones at that time.
+  const cmRef = useLatestRef(CM);
   useEffect(() => {
+    if (!bridge) return;
+    const loadInfo = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const [next, setupRequired, startupError] = await Promise.all([
+          bridge.getWorkspaceInfo(),
+          bridge.isWorkspaceSetupRequired(),
+          bridge.getWorkspaceStartupError?.() ?? null,
+        ]);
+        setInfo(next);
+        setWorkspaceRoot(next.workspaceRoot);
+        setSetupMode(setupRequired);
+        // The configured workspace failed at launch: say why (a WORKSPACE_* code).
+        const labels = cmRef.current;
+        if (startupError) setError(desktopErrorText({ message: startupError }, labels, labels.workspaceSaveFailedMsg));
+      } catch (err) {
+        const labels = cmRef.current;
+        setError(desktopErrorText(err, labels, labels.workspaceSettingsLoadFailedMsg));
+      } finally {
+        setLoading(false);
+      }
+    };
     void loadInfo();
-  }, [loadInfo]);
+  }, [bridge, cmRef]);
 
   // A slow start shows its time; nothing fails only because it is slow.
   useEffect(() => {
