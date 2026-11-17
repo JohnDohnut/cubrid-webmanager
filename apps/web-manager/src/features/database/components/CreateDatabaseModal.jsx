@@ -44,6 +44,8 @@ import {
   isValidGeneralVolumeSize,
   volumeSizeMbToPages,
 } from '../databaseVolumeValidation';
+import { useResetEffect } from '../../../infrastructure/hooks/useResetEffect';
+import { useLatestRef } from '../../../infrastructure/hooks/useLatestRef';
 
 // The engine takes 4K-16K and turns any other size into one of them.
 const PAGE_SIZES = DB_PAGE_SIZES;
@@ -169,16 +171,41 @@ export default function CreateDatabaseModal() {
 
   const hostEnv = useSelector((state) => state.host.hostEnvs[selectedHostUid]);
 
-  // Runs once per modal opening — NOT every time hostEnv?.CUBRID_DATABASES
-  // changes. It used to depend on that value directly, so the async
-  // fetchCreateDatabaseInfo below (or hostEnv arriving later) re-triggered
-  // this effect and called setFormData(INITIAL_FORM_DATA) again, silently
-  // wiping out whatever the user had already typed (e.g. the db name).
-  const hasInitializedRef = useRef(false);
   // Set once the user directly edits genericVolPath/logVolPath — after that,
   // the dbName-driven effect below stops overwriting them with the
   // auto-derived baseDir/dbName path.
   const pathManuallyEditedRef = useRef(false);
+
+  // Opened: the first step and an empty form, once per opening (NOT every
+  // time hostEnv?.CUBRID_DATABASES changes: that used to wipe out whatever
+  // the user had already typed). Before the folder fill below, which runs in
+  // the same render: a reset after the fill would undo it.
+  useResetEffect(({ selectedHostUid }) => {
+    if (!isCreateDatabaseModalOpen || !selectedHostUid) return;
+    setStep(1);
+    setFormData(INITIAL_FORM_DATA);
+    setCreationWarning(null);
+  }, [isCreateDatabaseModalOpen], { selectedHostUid });
+
+  // Reacts to hostEnv arriving (or changing) independently of the one-time
+  // reset above, so a late-resolving fetch still populates the path fields
+  // — merging via prev.x || dir rather than replacing, so it never clobbers
+  // a value the user (or the fetch below) has already set.
+  useResetEffect(() => {
+    if (!isCreateDatabaseModalOpen) return;
+    const cachedDir = hostEnv?.CUBRID_DATABASES;
+    if (!cachedDir) return;
+    setFormData(prev => ({
+      ...prev,
+      baseDir: prev.baseDir || cachedDir,
+      genericVolPath: prev.genericVolPath || cachedDir,
+      logVolPath: prev.logVolPath || cachedDir,
+      volumes: prev.volumes.map(vol => ({ ...vol, path: vol.path || cachedDir }))
+    }));
+  }, [isCreateDatabaseModalOpen, hostEnv?.CUBRID_DATABASES]);
+
+  // Once per opening, as the reset above.
+  const hasInitializedRef = useRef(false);
   useEffect(() => {
     if (!isCreateDatabaseModalOpen) {
       hasInitializedRef.current = false;
@@ -187,13 +214,9 @@ export default function CreateDatabaseModal() {
     }
     if (!selectedHostUid || hasInitializedRef.current) return;
     hasInitializedRef.current = true;
-
-    setStep(1);
     resetAction();
-    setFormData(INITIAL_FORM_DATA);
-    setCreationWarning(null);
 
-    // Backend fallback in case hostEnv (below) never arrives or is stale.
+    // Backend fallback in case hostEnv (above) never arrives or is stale.
     // Uses functional merges (prev.x || dir), so it's safe even if the user
     // has already started typing by the time this resolves.
     dispatch(fetchCreateDatabaseInfo({ hostUid: selectedHostUid }))
@@ -213,25 +236,13 @@ export default function CreateDatabaseModal() {
       .catch(() => undefined);
   }, [isCreateDatabaseModalOpen, selectedHostUid, dispatch, resetAction]);
 
-  // Reacts to hostEnv arriving (or changing) independently of the one-time
-  // reset above, so a late-resolving fetch still populates the path fields
-  // — merging via prev.x || dir rather than replacing, so it never clobbers
-  // a value the user (or the fetch above) has already set.
+  // The paths follow the name typed, under the folder as it is then; a folder
+  // arriving later fills the empty paths above instead.
+  const formDbName = formData.dbName;
+  const baseDirRef = useLatestRef(formData.baseDir);
   useEffect(() => {
-    if (!isCreateDatabaseModalOpen) return;
-    const cachedDir = hostEnv?.CUBRID_DATABASES;
-    if (!cachedDir) return;
-    setFormData(prev => ({
-      ...prev,
-      baseDir: prev.baseDir || cachedDir,
-      genericVolPath: prev.genericVolPath || cachedDir,
-      logVolPath: prev.logVolPath || cachedDir,
-      volumes: prev.volumes.map(vol => ({ ...vol, path: vol.path || cachedDir }))
-    }));
-  }, [isCreateDatabaseModalOpen, hostEnv?.CUBRID_DATABASES]);
-
-  useEffect(() => {
-    const { dbName, baseDir } = formData;
+    const dbName = formDbName;
+    const baseDir = baseDirRef.current;
     if (baseDir && !pathManuallyEditedRef.current) {
       const fullPath = dbName
         ? (baseDir.endsWith('/') ? `${baseDir}${dbName}` : `${baseDir}/${dbName}`)
@@ -247,7 +258,7 @@ export default function CreateDatabaseModal() {
         };
       });
     }
-  }, [formData.dbName]);
+  }, [formDbName, baseDirRef]);
 
   if (!isCreateDatabaseModalOpen) return null;
 

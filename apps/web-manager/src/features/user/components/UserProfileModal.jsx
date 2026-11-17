@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useSelector, shallowEqual } from 'react-redux';
 import { authApi } from '../../auth/authApi';
 
@@ -8,6 +8,7 @@ import { Button } from '../../../components/ds/foundation/Button';
 import { Input } from '../../../components/ds/forms/Input';
 import { SectionHeader } from '../../../components/ds/foundation/SectionHeader';
 import { useCM } from '../../../constants/useCM';
+import { useResetEffect } from '../../../infrastructure/hooks/useResetEffect';
 
 export default function UserProfileModal({ isOpen, onClose }) {
   const CM = useCM();
@@ -21,7 +22,10 @@ export default function UserProfileModal({ isOpen, onClose }) {
     confirmPassword: '',
   });
 
-  useEffect(() => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useResetEffect(() => {
     if (isOpen) {
       setProfile({ id: user?.id || '' });
       setPasswords({ oldPassword: '', newPassword: '', confirmPassword: '' });
@@ -29,9 +33,6 @@ export default function UserProfileModal({ isOpen, onClose }) {
       setError(null);
     }
   }, [isOpen, user]);
-
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
   const globalLoading = useSelector((state) => state.auth.loading);
   const globalError = useSelector((state) => state.auth.error);
