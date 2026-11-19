@@ -177,4 +177,79 @@ describe('CodeMirrorSqlEditor in a dialog that saves on Enter', () => {
     enter(document.querySelector('[data-testid="plan-id"]'));
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
+
+  // The Enter that ends a Korean (IME) composition: isComposing, keyCode 229.
+  const composingEnter = (el, how) => {
+    const event = new KeyboardEvent('keydown', { key: 'Enter', isComposing: how === 'isComposing', bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'keyCode', { value: how === 'keyCode' ? 229 : 13 });
+    act(() => { el.dispatchEvent(event); });
+  };
+
+  it.each([['isComposing'], ['keyCode']])('does not save the plan on the Enter that ends a composition (%s) in the find, replace or dialog fields', (how) => {
+    const onSubmit = vi.fn();
+    renderInModal(onSubmit);
+    const view = EditorView.findFromDOM(document.querySelector('.cm-editor'));
+    act(() => { openSearchPanel(view); });
+    composingEnter(document.querySelector('.cm-search input[name=search]'), how);
+    composingEnter(document.querySelector('.cm-search input[name=replace]'), how);
+    composingEnter(document.querySelector('[data-testid="plan-id"]'), how);
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(document.querySelector('.cm-editor')).not.toBeNull();
+  });
+});
+
+describe('long lines in the SQL editor', () => {
+  it('do not wrap, as in Monaco before (wordWrap off)', () => {
+    render({ value: 'SELECT 1' });
+    expect(viewOf().contentDOM.classList.contains('cm-lineWrapping')).toBe(false);
+  });
+});
+
+describe('Tab in the SQL editor (as in Monaco before)', () => {
+  const press = (view, shiftKey = false) => {
+    const event = new KeyboardEvent('keydown', { key: 'Tab', code: 'Tab', keyCode: 9, shiftKey, bubbles: true, cancelable: true });
+    act(() => { view.contentDOM.dispatchEvent(event); });
+    return event;
+  };
+  const at = (view, anchor, head = anchor) => act(() => view.dispatch({ selection: { anchor, head } }));
+
+  it('puts spaces up to the next 4-column tab stop at the cursor, not at the start of the line', () => {
+    const onChange = vi.fn();
+    render({ value: 'SELECT 1', onChange });
+    const view = viewOf();
+    at(view, 2);
+    expect(press(view).defaultPrevented).toBe(true);
+    expect(view.state.doc.toString()).toBe('SE  LECT 1');
+    expect(view.state.selection.main.head).toBe(4);
+    at(view, 0);
+    press(view);
+    expect(view.state.doc.toString()).toBe('    SE  LECT 1');
+    expect(onChange).toHaveBeenLastCalledWith('    SE  LECT 1');
+  });
+
+  it('replaces part of a line with the spaces; indents several selected lines by 4', () => {
+    render({ value: 'SELECT a\nFROM t' });
+    const view = viewOf();
+    at(view, 7, 8);
+    press(view);
+    expect(view.state.doc.toString()).toBe('SELECT  \nFROM t');
+    at(view, 0, view.state.doc.length);
+    press(view);
+    expect(view.state.doc.toString()).toBe('    SELECT  \n    FROM t');
+  });
+
+  it('Shift+Tab takes one indent off the start of the line, wherever the cursor is', () => {
+    render({ value: '      SELECT 1' });
+    const view = viewOf();
+    at(view, 10);
+    press(view, true);
+    expect(view.state.doc.toString()).toBe('  SELECT 1');
+  });
+
+  it('read only: leaves Tab to the page (the focus moves on) and changes nothing', () => {
+    render({ value: 'SELECT 1', readOnly: true });
+    const view = viewOf();
+    expect(press(view).defaultPrevented).toBe(false);
+    expect(view.state.doc.toString()).toBe('SELECT 1');
+  });
 });
