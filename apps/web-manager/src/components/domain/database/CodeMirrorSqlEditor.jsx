@@ -7,6 +7,7 @@ import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } 
 import { sqlCompletionSource, sqlHighlighting, sqlLanguage } from './sqlLanguage';
 import { useCM } from '../../../constants/useCM';
 import { EDITOR_ASSIST } from '../../../constants/editorAssist';
+import { useLatestRef } from '../../../infrastructure/hooks/useLatestRef';
 
 const MONO = 'var(--font-mono)';
 const SANS = 'var(--font-sans)';
@@ -83,8 +84,7 @@ export default function CodeMirrorSqlEditor({ value, onChange, height, readOnly 
   const CM = useCM();
   const hostRef = useRef(null);
   const viewRef = useRef(null);
-  const latest = useRef({});
-  latest.current = { CM, onChange, readOnly, placeholder };
+  const latest = useLatestRef({ CM, onChange, readOnly, placeholder, value, testId });
   const compartments = useRef({
     readOnly: new Compartment(), theme: new Compartment(), phrases: new Compartment(), placeholder: new Compartment(),
   });
@@ -116,14 +116,14 @@ export default function CodeMirrorSqlEditor({ value, onChange, height, readOnly 
         ro.of(EditorState.readOnly.of(ctx().readOnly)),
         theme.of(isDark() ? darkTheme : lightTheme),
         phrases.of(EditorState.phrases.of(ctx().CM.codeMirrorPhrases ?? {})),
-        EditorView.contentAttributes.of({ 'data-testid': testId, spellcheck: 'false', 'aria-multiline': 'true' }),
+        EditorView.contentAttributes.of({ 'data-testid': ctx().testId, spellcheck: 'false', 'aria-multiline': 'true' }),
         // Only edits in the editor: a new state from outside (setState) does not come here.
         EditorView.updateListener.of((update) => {
           if (update.docChanged) ctx().onChange?.(update.state.doc.toString());
         }),
       ],
     });
-    const view = new EditorView({ parent: hostRef.current, state: stateFor.current(value ?? '') });
+    const view = new EditorView({ parent: hostRef.current, state: stateFor.current(ctx().value ?? '') });
     viewRef.current = view;
     // Follow the app's light/dark switch.
     const observer = new MutationObserver(() => {
@@ -136,8 +136,7 @@ export default function CodeMirrorSqlEditor({ value, onChange, height, readOnly 
       viewRef.current = null;
     };
     // The view is made once; later props reach it through `latest` and the effects below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [latest]);
 
   // A new value from outside (the plan loaded into the edit dialog) replaces the
   // text with a new state: not in the undo history, and not sent to onChange.
