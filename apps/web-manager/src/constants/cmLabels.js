@@ -1524,6 +1524,9 @@ export const CM = {
   backToSignIn: 'Back to sign in',
   desktopConnectFailedMsg: 'Could not connect to the desktop app. Quit and run again with',
   selectWorkspaceTitle: 'Select Workspace',
+  previousWorkspaceTitle: 'Continue with the Previous Workspace',
+  usePreviousWorkspaceBtn: 'Use This Workspace',
+  startNewWorkspaceBtn: 'Start a New Workspace',
   workspaceTitle: 'Workspace',
   workspaceDescPrefix: 'You only need to specify ',
   workspaceDescFolderPhrase: 'a single folder',
@@ -2214,6 +2217,8 @@ export const CM = {
   desktopErrors: {
     WORKSPACE_PATH_REQUIRED: 'Workspace path is required.',
     WORKSPACE_IN_APP_BUNDLE: 'Workspace cannot be inside the application bundle.',
+    WORKSPACE_IN_INSTALL_FOLDER: 'Workspace cannot be inside the installation folder.',
+    WORKSPACE_IS_SERVER_FOLDER: 'This is a CUBRID Admin Server folder. Choose another folder.',
     WORKSPACE_NOT_WRITABLE: 'The workspace folder cannot be written to.',
     WORKSPACE_NOT_READABLE: 'The workspace folder cannot be read.',
     WORKSPACE_CANNOT_CREATE_FOLDER: 'A folder cannot be made in the workspace.',

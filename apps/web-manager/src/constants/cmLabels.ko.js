@@ -1595,6 +1595,9 @@ export const CM_KO = {
   workspaceDesktopOnlyDesc: '워크스페이스 설정은 CUBRID Admin 데스크톱 앱에서 사용할 수 있습니다.',
   desktopConnectFailedMsg: '데스크톱 앱에 연결할 수 없습니다. 종료 후 다음 명령으로 다시 실행하세요:',
   selectWorkspaceTitle: '워크스페이스 선택',
+  previousWorkspaceTitle: '이전 워크스페이스 이어 쓰기',
+  usePreviousWorkspaceBtn: '이 워크스페이스 쓰기',
+  startNewWorkspaceBtn: '새 워크스페이스 만들기',
   workspaceTitle: '워크스페이스',
   workspaceDescPrefix: '데이터·인증서·설정이 저장될 ',
   workspaceDescFolderPhrase: '폴더 하나',
@@ -2491,6 +2494,8 @@ export const CM_KO = {
   desktopErrors: {
     WORKSPACE_PATH_REQUIRED: '워크스페이스 경로를 입력하세요.',
     WORKSPACE_IN_APP_BUNDLE: '워크스페이스는 앱 번들 안에 둘 수 없습니다.',
+    WORKSPACE_IN_INSTALL_FOLDER: '워크스페이스는 설치 폴더 안에 둘 수 없습니다.',
+    WORKSPACE_IS_SERVER_FOLDER: 'CUBRID Admin Server 폴더입니다. 다른 폴더를 고르세요.',
     WORKSPACE_NOT_WRITABLE: '워크스페이스 폴더에 쓸 수 없습니다.',
     WORKSPACE_NOT_READABLE: '워크스페이스 폴더를 읽을 수 없습니다.',
     WORKSPACE_CANNOT_CREATE_FOLDER: '워크스페이스에 폴더를 만들 수 없습니다.',
