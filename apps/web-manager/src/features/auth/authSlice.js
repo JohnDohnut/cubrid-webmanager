@@ -1,12 +1,9 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { setAuthToken } from '../../api/apiClient';
+import { hasStoredSession, sessionFromResponse, setAppSession } from '../../api/apiClient';
 import { authApi } from './authApi';
 import { isDesktopApp } from '../desktop/isDesktopApp';
 import { requestErrorText } from '../../infrastructure/errors/serverErrorText';
 import { getCM, getStoredLocale } from '../../constants/useCM';
-
-const token = localStorage.getItem('token');
-const refreshToken = localStorage.getItem('refreshToken');
 
 export const fetchUser = createAsyncThunk(
   'auth/fetchUser',
@@ -34,13 +31,12 @@ export const updateAccount = createAsyncThunk(
 
 export const logoutUser = createAsyncThunk(
   'auth/logoutUser',
-  async (_, { getState, dispatch }) => {
-    // Storage has the latest one, also when another tab refreshed.
-    const storedRefresh = localStorage.getItem('refreshToken') || getState().auth.refreshToken;
+  async (_, { dispatch }) => {
     try {
-      await authApi.logout(storedRefresh);
+      // The server ends the session and clears its cookies.
+      await authApi.logout();
     } catch {
-      // Clear client session even when server logout fails (e.g. expired access token).
+      // Clear client session even when server logout fails.
     } finally {
       // Must trigger root reducer reset path (`auth/logout`) to clear all slices.
       dispatch(logout());
@@ -48,11 +44,33 @@ export const logoutUser = createAsyncThunk(
   }
 );
 
+/**
+ * Asks the server, with the cookies, whether this browser is signed in: once
+ * when the app opens in a browser (the desktop app has no app login). The
+ * cookies are shared by every address of the host, the session kept in
+ * localStorage is not: a second address of the same host (proxy, other port)
+ * has none, and a tab left on the login page has an old view of it. A 401
+ * (after the refresh the client tries) means signed out; no answer at all
+ * (server down) keeps what the stored session says.
+ */
+export const checkSession = createAsyncThunk(
+  'auth/checkSession',
+  async (_, { rejectWithValue }) => {
+    try {
+      return await authApi.getUserInfo();
+    } catch (err) {
+      return rejectWithValue({ status: err?.response?.status ?? null });
+    }
+  }
+);
+
+// The tokens are httpOnly cookies the page cannot see; a session kept from
+// the last visit counts as signed in until checkSession has the server's answer.
 const initialState = {
   // The desktop app has no app login (isDesktopApp).
-  isAuthenticated: isDesktopApp() || !!token,
-  token: token || null,
-  refreshToken: refreshToken || null,
+  isAuthenticated: isDesktopApp() || hasStoredSession(),
+  // In a browser the screens wait for checkSession; the desktop app needs no check.
+  sessionChecked: isDesktopApp(),
   user: null,
   loading: false,
   error: null,
@@ -66,56 +84,41 @@ const authSlice = createSlice({
       state.loading = true;
       state.error = null;
     },
+    // payload: the login answer ({ expiresIn }) and the user.
     loginSuccess: (state, action) => {
-      if (!action.payload?.token || !action.payload?.refreshToken) {
+      const session = sessionFromResponse(action.payload);
+      if (!session) {
         state.loading = false;
         state.isAuthenticated = false;
-        state.token = null;
-        state.refreshToken = null;
         state.user = null;
         state.error = getCM(getStoredLocale()).loginTokenMissingMsg;
-        localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
-        setAuthToken(null);
+        setAppSession(null);
         return;
       }
       state.loading = false;
       state.isAuthenticated = true;
-      state.token = action.payload.token;
-      state.refreshToken = action.payload.refreshToken ?? null;
       state.user = action.payload.user;
       state.error = null;
-      localStorage.setItem('token', action.payload.token);
-      if (action.payload.refreshToken) {
-        localStorage.setItem('refreshToken', action.payload.refreshToken);
-      } else {
-        localStorage.removeItem('refreshToken');
-      }
-      setAuthToken(action.payload.token);
+      // The ID goes with the session the tabs share (see SESSION_EXPIRY_KEY).
+      const user = action.payload.user?.id;
+      setAppSession(typeof user === 'string' && user ? { ...session, user } : session);
     },
-    // The tokens are already in storage (this tab's refresh stored them, or
-    // another tab's did); the state only follows. Writing them back here put
-    // an older refresh token, read before another tab's new one reached this
-    // tab, over the new one, and the next refresh then reused a spent token.
-    sessionRefreshed: (state, action) => {
-      state.token = action.payload.token;
-      if (action.payload.refreshToken) state.refreshToken = action.payload.refreshToken;
+    // The session is already kept (this tab's refresh, or another tab's);
+    // the state only follows.
+    sessionRefreshed: (state) => {
       state.isAuthenticated = true;
-      setAuthToken(action.payload.token);
     },
     loginFailure: (state, action) => {
       state.loading = false;
       state.error = action.payload;
     },
     logout: (state) => {
+      // The root reducer resets every slice on logout: the answer is known (signed out).
+      state.sessionChecked = true;
       state.isAuthenticated = false;
-      state.token = null;
-      state.refreshToken = null;
       state.user = null;
       state.error = null;
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      setAuthToken(null);
+      setAppSession(null);
     },
     clearError: (state) => {
       state.error = null;
@@ -123,6 +126,19 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      .addCase(checkSession.fulfilled, (state, action) => {
+        state.sessionChecked = true;
+        state.isAuthenticated = true;
+        state.user = action.payload ?? state.user;
+      })
+      .addCase(checkSession.rejected, (state, action) => {
+        state.sessionChecked = true;
+        const status = action.payload?.status;
+        if (status === 401 || status === 403) {
+          state.isAuthenticated = false;
+          state.user = null;
+        }
+      })
       .addCase(fetchUser.pending, (state) => {
         state.loading = true;
       })
