@@ -1,12 +1,13 @@
 import apiClient from '../../api/apiClient';
 
 export const hostApi = {
-  // POC (HA slave setup): the password goes only into these requests.
-  haSlavePocCheck: (hostUid, body) => apiClient.post(`/${hostUid}/ha/make-slave/check-connection`, body),
-  haSlavePocStart: (hostUid, body) => apiClient.post(`/${hostUid}/ha/make-slave/start`, body),
-  haSlavePocStatus: (hostUid, uuid, offset) => apiClient.post(`/${hostUid}/ha/make-slave/status`, { uuid, offset }),
-  haSlavePocCancel: (hostUid, uuid) => apiClient.post(`/${hostUid}/ha/make-slave/cancel`, { uuid }),
-  haSlavePocCleanup: (hostUid, uuid) => apiClient.post(`/${hostUid}/ha/make-slave/cleanup`, { uuid }),
+  // POC (HA slave add, run on the master): passwords go only into these requests.
+  haAddSlaveCheck: (hostUid, body) => apiClient.post(`/${hostUid}/ha/add-slave/check-connection`, body),
+  haAddSlaveConvert: (hostUid, body) => apiClient.post(`/${hostUid}/ha/add-slave/convert-master`, body),
+  haAddSlaveStart: (hostUid, body) => apiClient.post(`/${hostUid}/ha/add-slave/start`, body),
+  haAddSlaveStatus: (hostUid, uuid, offset) => apiClient.post(`/${hostUid}/ha/add-slave/status`, { uuid, offset }),
+  haAddSlaveCancel: (hostUid, uuid) => apiClient.post(`/${hostUid}/ha/add-slave/cancel`, { uuid }),
+  haAddSlaveCleanup: (hostUid, uuid, osPassword) => apiClient.post(`/${hostUid}/ha/add-slave/cleanup`, { uuid, osPassword }),
   getHosts: () => {
     return apiClient.get('/host');
   },

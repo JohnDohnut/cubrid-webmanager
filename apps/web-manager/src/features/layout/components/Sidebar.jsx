@@ -1409,16 +1409,6 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
               requestRestartService(hostUid, serverName);
             }}
           />
-          <MenuItem
-            icon="content_copy"
-            label={CM.haSlavePoc.menu}
-            disabled={!authorizedHosts.includes(contextMenu.hostUid)}
-            onClick={() => {
-              const hostUid = contextMenu.hostUid;
-              setContextMenu(null);
-              dispatch(openTab(`ha_make_slave:${hostUid}`));
-            }}
-          />
           <MenuDivider />
           <MenuItem icon="add_box" label={CM.addHost} onClick={() => { onAddHost(); setContextMenu(null); }} />
           <MenuItem icon="edit" label={CM.editHost} onClick={() => { dispatch(openEditHostModal(contextMenu.hostUid)); setContextMenu(null); }} />
@@ -1713,6 +1703,17 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
               }}
             />
           )}
+          {/* POC (HA slave add): a running database of this host, HA master or single. */}
+          <MenuItem
+            icon="content_copy"
+            label={CM.haAddSlave.menu}
+            disabled={!authorizedHosts.includes(selectedHostUid) || !dbContextMenu.isActive}
+            onClick={() => {
+              const dbname = dbContextMenu.db;
+              setDbContextMenu(null);
+              dispatch(openTab(`ha_add_slave:${selectedHostUid}:${dbname}`));
+            }}
+          />
           {loggedInDatabases.includes(dbKey(selectedHostUid, dbContextMenu.db)) && (
             <MenuItem
               icon="logout"
