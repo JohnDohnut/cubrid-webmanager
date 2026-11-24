@@ -7,14 +7,15 @@ import { Typography } from '../../../components/ds/foundation/Typography';
 import { useCM } from '../../../constants/useCM';
 
 // POC (HA slave setup demo), on the host that becomes the slave. Its CMS
-// checks the ssh connection to the master (ha_check_ssh), then runs the
-// setup step by step itself (ha_make_slave, master side over ssh). The
-// password stays in this component's state and goes only into the requests
-// made after the user confirmed the master's host key; nothing is saved.
+// checks the ssh connection to the master and to each replica
+// (ha_check_ssh), then runs the setup step by step itself (ha_make_slave,
+// other nodes over ssh). Passwords stay in this component's state and go
+// only into the requests made after the user confirmed that node's host
+// key; nothing is saved.
 
 const POLL_MS = 1000;
 const SSH_FIELDS = [
-  { key: 'masterHost' },
+  { key: 'host' },
   { key: 'sshPort', type: 'number' },
   { key: 'osUser', autoComplete: 'off' },
   { key: 'osPassword', type: 'password', autoComplete: 'new-password' },
@@ -40,15 +41,115 @@ function errorText(err) {
   return err?.response?.data?.message || err?.message || String(err);
 }
 
+let nextNodeId = 1;
+/** One node reached over ssh: its inputs, ha_check_ssh's answer, and whether its key was confirmed. */
+const newNode = () => ({
+  id: nextNodeId++,
+  ssh: { host: '', sshPort: '22', osUser: '', osPassword: '' },
+  check: null, // { result, message, hostkey_sha256, remote_hostname, ... } | { error }
+  checking: false,
+  accepted: false,
+});
+const sshTarget = (ssh) => ({ masterHost: ssh.host.trim(), sshPort: Number(ssh.sshPort) || 22, osUser: ssh.osUser.trim() });
+/** Checked over ssh with the confirmed key: the only state that lets the setup start. */
+const isConfirmed = (node) => node.accepted && node.check?.result === 'ok' && Boolean(node.check?.hostkey_sha256) && Boolean(node.ssh.osPassword);
+
+/**
+ * The inputs and the two-round connection check of one node (the master or a
+ * replica): the first round sends no password and returns the host key; the
+ * user confirms the key, and the second round logs in with it.
+ */
+function SshTargetCard({ hostUid, title, node, onChange, onRemove, disabled, L, labels }) {
+  const setField = (key) => (e) => onChange({
+    ssh: { ...node.ssh, [key]: e.target.value },
+    // Another node or account: the earlier check and the accepted key no longer apply.
+    check: null,
+    accepted: false,
+  });
+
+  const callCheck = async (body) => {
+    onChange({ checking: true });
+    try {
+      const res = await hostApi.haSlavePocCheck(hostUid, body);
+      onChange({ checking: false, check: res ?? {} });
+      return res;
+    } catch (err) {
+      onChange({ checking: false, check: { error: errorText(err) } });
+      return null;
+    }
+  };
+
+  const runCheck = () => {
+    onChange({ accepted: false });
+    callCheck(sshTarget(node.ssh));
+  };
+
+  const acceptKey = async (e) => {
+    const on = e.target.checked;
+    onChange({ accepted: on });
+    if (!on || !node.check?.hostkey_sha256) return;
+    const res = await callCheck({ ...sshTarget(node.ssh), osPassword: node.ssh.osPassword, hostKeyFingerprint: node.check.hostkey_sha256 });
+    if (res?.result !== 'ok') onChange({ accepted: false });
+  };
+
+  const { check } = node;
+  const filled = node.ssh.host.trim() && node.ssh.osUser.trim();
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-3">
+        <Typography variant="h4">{title}</Typography>
+        {onRemove && <Button size="sm" variant="ghost" onClick={onRemove} disabled={disabled}>{L.removeReplica}</Button>}
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {SSH_FIELDS.map(({ key, type, autoComplete }) => (
+          <Input key={key} label={labels[key]} type={type} value={node.ssh[key]} onChange={setField(key)} autoComplete={autoComplete} disabled={disabled} />
+        ))}
+      </div>
+      <div>
+        <Button onClick={runCheck} disabled={!filled || node.checking || disabled}>{node.checking ? L.checking : L.check}</Button>
+      </div>
+      {check && (
+        <div className="flex flex-col gap-1 text-13">
+          {check.error ? (
+            <span className="text-rose-500">{check.error}</span>
+          ) : (
+            <>
+              <span>
+                {L.result}: <span className={STATE_STYLE[check.result] ?? 'text-rose-500'}>{check.result}</span>
+                {check.message ? ` - ${check.message}` : ''}
+              </span>
+              {check.hostkey_sha256 && (
+                <span>{L.fingerprint}: <code className="font-mono">{check.hostkey_type} {check.hostkey_sha256}</code></span>
+              )}
+              {check.remote_hostname && <span>{L.remoteHostname}: {check.remote_hostname}</span>}
+              {(check.remote_version || check.local_version) && (
+                <span>{L.versions}: {check.remote_version ?? '-'} / {check.local_version ?? '-'}</span>
+              )}
+              {check.remote_cubrid_databases && <span>{L.remoteDatabases}: {check.remote_cubrid_databases}</span>}
+              {check.hostkey_sha256 && (
+                <Checkbox
+                  label={labels.acceptFingerprint}
+                  checked={node.accepted}
+                  onChange={acceptKey}
+                  disabled={disabled || node.checking || !node.ssh.osPassword}
+                />
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function HaMakeSlavePoc({ hostUid }) {
   const CM = useCM();
   const L = CM.haSlavePoc;
+  const masterLabels = { host: L.masterHost, sshPort: L.sshPort, osUser: L.osUser, osPassword: L.osPassword, acceptFingerprint: L.acceptFingerprint };
+  const replicaLabels = { host: L.replicaHost, sshPort: L.sshPort, osUser: L.osUser, osPassword: L.osPassword, acceptFingerprint: L.acceptReplicaFingerprint };
 
-  const [ssh, setSsh] = useState({ masterHost: '', sshPort: '22', osUser: '', osPassword: '' });
-  // ha_check_ssh's answer: { result, message, hostkey_sha256, remote_hostname, ... } | { error }
-  const [check, setCheck] = useState(null);
-  const [checking, setChecking] = useState(false);
-  const [accepted, setAccepted] = useState(false);
+  const [master, setMaster] = useState(newNode);
+  const [replicas, setReplicas] = useState([]);
 
   const [setup, setSetup] = useState({
     dbName: '', masterNode: '', slaveHost: '', replLogHome: '', masterBackupPath: '', slaveBackupPath: '',
@@ -60,45 +161,14 @@ export default function HaMakeSlavePoc({ hostUid }) {
   const [cleanup, setCleanup] = useState(null);
   const logRef = useRef(null);
 
-  const sshTarget = () => ({ masterHost: ssh.masterHost.trim(), sshPort: Number(ssh.sshPort) || 22, osUser: ssh.osUser.trim() });
-  const setSshField = (key) => (e) => {
-    setSsh((prev) => ({ ...prev, [key]: e.target.value }));
-    // Another master or account: the earlier check and the accepted key no longer apply.
-    setCheck(null);
-    setAccepted(false);
+  const patchMaster = (patch) => {
+    setMaster((prev) => ({ ...prev, ...patch }));
+    // The master's node name, as ha_node_list names it, from its confirmed check.
+    const name = patch.check?.result === 'ok' ? patch.check.remote_hostname : null;
+    if (name) setSetup((prev) => (prev.masterNode ? prev : { ...prev, masterNode: name }));
   };
+  const patchReplica = (id) => (patch) => setReplicas((prev) => prev.map((node) => (node.id === id ? { ...node, ...patch } : node)));
   const setSetupField = (key) => (e) => setSetup((prev) => ({ ...prev, [key]: e.target.value }));
-
-  const callCheck = async (body) => {
-    setChecking(true);
-    try {
-      const res = await hostApi.haSlavePocCheck(hostUid, body);
-      setCheck(res ?? {});
-      return res;
-    } catch (err) {
-      setCheck({ error: errorText(err) });
-      return null;
-    } finally {
-      setChecking(false);
-    }
-  };
-
-  // First call: no fingerprint and no password; CMS answers hostkey_unknown with the key.
-  const runCheck = () => {
-    setAccepted(false);
-    callCheck(sshTarget());
-  };
-
-  // The user confirmed the key: the second call logs in with it and the password.
-  const acceptKey = async (e) => {
-    const on = e.target.checked;
-    setAccepted(on);
-    if (!on || !check?.hostkey_sha256) return;
-    const fingerprint = check.hostkey_sha256;
-    const res = await callCheck({ ...sshTarget(), osPassword: ssh.osPassword, hostKeyFingerprint: fingerprint });
-    if (res?.result !== 'ok') setAccepted(false);
-    if (res?.remote_hostname) setSetup((prev) => (prev.masterNode ? prev : { ...prev, masterNode: res.remote_hostname }));
-  };
 
   const startSetup = async () => {
     setStarting(true);
@@ -107,14 +177,23 @@ export default function HaMakeSlavePoc({ hostUid }) {
       const body = {
         dbName: setup.dbName.trim(),
         masterHost: setup.masterNode.trim(),
-        sshPort: Number(ssh.sshPort) || 22,
-        osUser: ssh.osUser.trim(),
-        osPassword: ssh.osPassword,
-        hostKeyFingerprint: check?.hostkey_sha256 ?? '',
+        sshPort: Number(master.ssh.sshPort) || 22,
+        osUser: master.ssh.osUser.trim(),
+        osPassword: master.ssh.osPassword,
+        hostKeyFingerprint: master.check?.hostkey_sha256 ?? '',
         startHa,
       };
       for (const key of ['slaveHost', 'replLogHome', 'masterBackupPath', 'slaveBackupPath']) {
         if (setup[key].trim()) body[key] = setup[key].trim();
+      }
+      if (replicas.length > 0) {
+        body.replicas = replicas.map((node) => ({
+          host: node.ssh.host.trim(),
+          sshPort: Number(node.ssh.sshPort) || 22,
+          osUser: node.ssh.osUser.trim(),
+          osPassword: node.ssh.osPassword,
+          hostKeyFingerprint: node.check?.hostkey_sha256 ?? '',
+        }));
       }
       const res = await hostApi.haSlavePocStart(hostUid, body);
       setJob({ uuid: res?.uuid, job_status: res?.job_status ?? 'running', steps: [], log: '', offset: 0 });
@@ -184,64 +263,51 @@ export default function HaMakeSlavePoc({ hostUid }) {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [job?.log]);
 
-  const checkOk = check?.result === 'ok' && Boolean(check?.hostkey_sha256);
-  const sshFilled = ssh.masterHost.trim() && ssh.osUser.trim();
-  const canStart = checkOk && accepted && ssh.osPassword && setup.dbName.trim() && setup.masterNode.trim() && !running && !starting;
+  const allConfirmed = isConfirmed(master) && replicas.every(isConfirmed);
+  const canStart = allConfirmed && setup.dbName.trim() && setup.masterNode.trim() && !running && !starting;
   const keptPaths = Array.isArray(job?.kept_db_paths) ? job.kept_db_paths : [];
 
   return (
     <div className="flex-1 overflow-auto p-6 flex flex-col gap-6 max-w-5xl">
       <section className="flex flex-col gap-3">
-        <Typography variant="h3">{L.sshSection}</Typography>
-        <div className="grid grid-cols-2 gap-3">
-          {SSH_FIELDS.map(({ key, type, autoComplete }) => (
-            <Input key={key} label={L[key]} type={type} value={ssh[key]} onChange={setSshField(key)} autoComplete={autoComplete} disabled={running} />
-          ))}
-        </div>
+        <SshTargetCard
+          hostUid={hostUid}
+          title={L.sshSection}
+          node={master}
+          onChange={patchMaster}
+          disabled={running}
+          L={L}
+          labels={masterLabels}
+        />
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <Typography variant="h3">{L.replicaSection}</Typography>
+        {replicas.map((node, index) => (
+          <SshTargetCard
+            key={node.id}
+            hostUid={hostUid}
+            title={L.replicaTitle(index + 1)}
+            node={node}
+            onChange={patchReplica(node.id)}
+            onRemove={() => setReplicas((prev) => prev.filter((r) => r.id !== node.id))}
+            disabled={running}
+            L={L}
+            labels={replicaLabels}
+          />
+        ))}
         <div>
-          <Button onClick={runCheck} disabled={!sshFilled || checking || running}>{checking ? L.checking : L.check}</Button>
+          <Button variant="secondary" onClick={() => setReplicas((prev) => [...prev, newNode()])} disabled={running}>{L.addReplica}</Button>
         </div>
-        {check && (
-          <div className="flex flex-col gap-1 text-13">
-            {check.error ? (
-              <span className="text-rose-500">{check.error}</span>
-            ) : (
-              <>
-                <span>
-                  {L.result}: <span className={STATE_STYLE[check.result] ?? 'text-rose-500'}>{check.result}</span>
-                  {check.message ? ` - ${check.message}` : ''}
-                </span>
-                {check.hostkey_sha256 && (
-                  <span>{L.fingerprint}: <code className="font-mono">{check.hostkey_type} {check.hostkey_sha256}</code></span>
-                )}
-                {check.remote_hostname && <span>{L.remoteHostname}: {check.remote_hostname}</span>}
-                {(check.remote_version || check.local_version) && (
-                  <span>{L.versions}: {check.remote_version ?? '-'} / {check.local_version ?? '-'}</span>
-                )}
-                {check.remote_cubrid_databases && <span>{L.remoteDatabases}: {check.remote_cubrid_databases}</span>}
-                {check.hostkey_sha256 && (
-                  <Checkbox
-                    label={L.acceptFingerprint}
-                    checked={accepted}
-                    onChange={acceptKey}
-                    disabled={running || checking || !ssh.osPassword}
-                  />
-                )}
-              </>
-            )}
-          </div>
-        )}
       </section>
 
       <section className="flex flex-col gap-3">
         <Typography variant="h3">{L.setupSection}</Typography>
-        {!(checkOk && accepted) && <span className="text-13 text-slate-500">{L.needCheck}</span>}
+        {!allConfirmed && <span className="text-13 text-slate-500">{L.needCheck}</span>}
         <div className="grid grid-cols-2 gap-3">
           {SETUP_FIELDS.map((key) => (
             <Input key={key} label={L[key]} value={setup[key]} onChange={setSetupField(key)} disabled={running} />
           ))}
-          {/* Replicas: CMS refuses any in this POC, so the field only shows where they would go. */}
-          <Input label={L.replicaHosts} value="" disabled onChange={() => {}} />
         </div>
         <Checkbox label={L.startHa} checked={startHa} onChange={(e) => setStartHa(e.target.checked)} disabled={running} />
         <div className="flex gap-2">
@@ -271,7 +337,7 @@ export default function HaMakeSlavePoc({ hostUid }) {
               {(job.steps ?? []).map((step) => (
                 <li key={step.id} className="flex gap-3">
                   <span className="w-8 shrink-0 text-slate-400">{step.no}</span>
-                  <span className="w-64 shrink-0">{step.title || step.id}</span>
+                  <span className="w-72 shrink-0">{step.title || step.id}</span>
                   <span className={`w-32 shrink-0 ${STATE_STYLE[step.state] ?? ''}`}>{step.state}</span>
                   {step.detail && <span className="text-slate-500 truncate" title={step.detail}>{step.detail}</span>}
                 </li>

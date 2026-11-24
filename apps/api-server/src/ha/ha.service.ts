@@ -228,6 +228,16 @@ export class HaService extends BaseService {
       master_backup_path: request.masterBackupPath,
       slave_backup_path: request.slaveBackupPath,
       start_ha: request.startHa === false ? 'no' : 'yes',
+      // Each replica as ha_check_ssh takes it; the log hides os_password at any depth.
+      replicas: request.replicas?.length
+        ? request.replicas.map((replica) => ({
+          host: replica.host,
+          ssh_port: String(replica.sshPort),
+          os_user: replica.osUser,
+          os_password: replica.osPassword,
+          hostkey_sha256: replica.hostKeyFingerprint,
+        }))
+        : undefined,
     }));
   }
 

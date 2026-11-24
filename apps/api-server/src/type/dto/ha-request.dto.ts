@@ -1,4 +1,5 @@
-import { IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+import { ArrayMaxSize, IsArray, IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min, ValidateNested } from 'class-validator';
 
 /**
  * Validated request body for HaController's heartbeat-list endpoint.
@@ -39,6 +40,30 @@ export class HaSshCheckDto {
   @IsOptional()
   @IsString()
   hostKeyFingerprint?: string;
+}
+
+/** POC: one replica of the HA group, checked over ssh like the master. */
+export class HaReplicaDto {
+  @IsString()
+  @IsNotEmpty()
+  host: string;
+
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  sshPort: number;
+
+  @IsString()
+  @IsNotEmpty()
+  osUser: string;
+
+  @IsString()
+  @IsNotEmpty()
+  osPassword: string;
+
+  @IsString()
+  @IsNotEmpty()
+  hostKeyFingerprint: string;
 }
 
 /**
@@ -91,6 +116,13 @@ export class HaMakeSlaveStartDto {
   @IsOptional()
   @IsBoolean()
   startHa?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(8)
+  @ValidateNested({ each: true })
+  @Type(() => HaReplicaDto)
+  replicas?: HaReplicaDto[];
 }
 
 /** POC: one running slave setup; offset is how much of the log the screen already has. */
