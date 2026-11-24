@@ -329,6 +329,9 @@ export default function HaMakeSlavePoc({ hostUid }) {
                   {job.exit_code !== undefined && job.exit_code !== null && job.exit_code !== '' ? ` (exit ${job.exit_code})` : ''}
                 </span>
               )}
+              {Array.isArray(job.replica_hosts) && job.replica_hosts.length > 0 && (
+                <span>{L.replicaSection}: {job.replica_hosts.join(', ')}</span>
+              )}
               {job.requestError && <span className="text-rose-500">{job.requestError}</span>}
             </div>
 
