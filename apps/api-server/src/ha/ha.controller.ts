@@ -85,4 +85,15 @@ export class HaController {
     this.logger.log(`HA slave POC: setup cancel on host ${hostUid}`);
     return await this.haService.cancelMakeSlave(req.user.sub, hostUid, body);
   }
+
+  /**
+   * POC: deletes the old slave database folders a successful setup moved aside.
+   *
+   * @route POST /:hostUid/ha/make-slave/cleanup
+   */
+  @Post('make-slave/cleanup')
+  async cleanupMakeSlave(@Request() req, @Param('hostUid') hostUid: string, @Body() body: HaMakeSlaveJobDto) {
+    this.logger.log(`HA slave POC: cleanup on host ${hostUid}`);
+    return await this.haService.cleanupMakeSlave(req.user.sub, hostUid, body);
+  }
 }

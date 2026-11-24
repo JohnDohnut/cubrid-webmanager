@@ -6,6 +6,7 @@ export const hostApi = {
   haSlavePocStart: (hostUid, body) => apiClient.post(`/${hostUid}/ha/make-slave/start`, body),
   haSlavePocStatus: (hostUid, uuid, offset) => apiClient.post(`/${hostUid}/ha/make-slave/status`, { uuid, offset }),
   haSlavePocCancel: (hostUid, uuid) => apiClient.post(`/${hostUid}/ha/make-slave/cancel`, { uuid }),
+  haSlavePocCleanup: (hostUid, uuid) => apiClient.post(`/${hostUid}/ha/make-slave/cleanup`, { uuid }),
   getHosts: () => {
     return apiClient.get('/host');
   },

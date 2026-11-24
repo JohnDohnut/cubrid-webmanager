@@ -6,11 +6,11 @@ import { Button } from '../../../components/ds/foundation/Button';
 import { Typography } from '../../../components/ds/foundation/Typography';
 import { useCM } from '../../../constants/useCM';
 
-// POC (HA slave setup demo), on the host that becomes the slave: check the
-// ssh connection to the master and its host key, then this host's CMS runs
-// the setup step by step (master side over ssh, this host locally). The
-// password stays in this component's state and goes only into the
-// requests; nothing is saved.
+// POC (HA slave setup demo), on the host that becomes the slave. Its CMS
+// checks the ssh connection to the master (ha_check_ssh), then runs the
+// setup step by step itself (ha_make_slave, master side over ssh). The
+// password stays in this component's state and goes only into the requests
+// made after the user confirmed the master's host key; nothing is saved.
 
 const POLL_MS = 1000;
 const SSH_FIELDS = [
@@ -19,35 +19,25 @@ const SSH_FIELDS = [
   { key: 'osUser', autoComplete: 'off' },
   { key: 'osPassword', type: 'password', autoComplete: 'new-password' },
 ];
-const SETUP_FIELDS = ['dbName', 'replLogHome', 'backupDestPath', 'replicaHosts'];
-// The steps in order; the CMS task reports each by these ids. A step it
-// reports under another id is shown after these, under its own name.
-const STEP_IDS = ['backup', 'transfer', 'archive', 'restore', 'firstCopy', 'masterSetup', 'slaveHaStart'];
-const TERMINAL = new Set(['success', 'fail', 'failure', 'cancelled', 'canceled', 'done', 'error']);
+const SETUP_FIELDS = ['dbName', 'masterNode', 'slaveHost', 'replLogHome', 'masterBackupPath', 'slaveBackupPath'];
+const TERMINAL = new Set(['success', 'fail', 'cancelled', 'interrupted']);
 const STATE_STYLE = {
+  ok: 'text-emerald-600',
   running: 'text-amber-500',
   success: 'text-emerald-600',
   done: 'text-emerald-600',
   fail: 'text-rose-500',
-  failure: 'text-rose-500',
-  error: 'text-rose-500',
+  failed: 'text-rose-500',
+  rollback_failed: 'text-rose-500',
+  interrupted: 'text-rose-500',
   cancelled: 'text-slate-500',
-  canceled: 'text-slate-500',
-  rolledback: 'text-slate-500',
+  skipped: 'text-slate-400',
+  rolled_back: 'text-slate-500',
+  pending: 'text-slate-400',
 };
 
 function errorText(err) {
   return err?.response?.data?.message || err?.message || String(err);
-}
-
-/** The step list to show: the known steps in order, then any others the task reported. */
-function stepRows(reported) {
-  const byId = new Map((Array.isArray(reported) ? reported : []).map((step) => [step.id, step]));
-  const rows = STEP_IDS.map((id) => ({ id, state: 'pending', ...byId.get(id) }));
-  for (const step of byId.values()) {
-    if (!STEP_IDS.includes(step.id)) rows.push(step);
-  }
-  return rows;
 }
 
 export default function HaMakeSlavePoc({ hostUid }) {
@@ -55,17 +45,22 @@ export default function HaMakeSlavePoc({ hostUid }) {
   const L = CM.haSlavePoc;
 
   const [ssh, setSsh] = useState({ masterHost: '', sshPort: '22', osUser: '', osPassword: '' });
-  const [check, setCheck] = useState(null); // { ok, fingerprint, message } | { error }
+  // ha_check_ssh's answer: { result, message, hostkey_sha256, remote_hostname, ... } | { error }
+  const [check, setCheck] = useState(null);
   const [checking, setChecking] = useState(false);
   const [accepted, setAccepted] = useState(false);
 
-  const [setup, setSetup] = useState({ dbName: '', replLogHome: '', backupDestPath: '', replicaHosts: '' });
-  // { uuid, status, steps, log, offset, rollback, error }
+  const [setup, setSetup] = useState({
+    dbName: '', masterNode: '', slaveHost: '', replLogHome: '', masterBackupPath: '', slaveBackupPath: '',
+  });
+  const [startHa, setStartHa] = useState(true);
+  // { uuid, job_status, phase, steps, log, offset, error, message, exit_code, kept_db_paths, requestError }
   const [job, setJob] = useState(null);
   const [starting, setStarting] = useState(false);
+  const [cleanup, setCleanup] = useState(null);
   const logRef = useRef(null);
 
-  const sshTarget = () => ({ ...ssh, sshPort: Number(ssh.sshPort) || 22 });
+  const sshTarget = () => ({ masterHost: ssh.masterHost.trim(), sshPort: Number(ssh.sshPort) || 22, osUser: ssh.osUser.trim() });
   const setSshField = (key) => (e) => {
     setSsh((prev) => ({ ...prev, [key]: e.target.value }));
     // Another master or account: the earlier check and the accepted key no longer apply.
@@ -74,32 +69,57 @@ export default function HaMakeSlavePoc({ hostUid }) {
   };
   const setSetupField = (key) => (e) => setSetup((prev) => ({ ...prev, [key]: e.target.value }));
 
-  const runCheck = async () => {
+  const callCheck = async (body) => {
     setChecking(true);
-    setCheck(null);
-    setAccepted(false);
     try {
-      const res = await hostApi.haSlavePocCheck(hostUid, sshTarget());
+      const res = await hostApi.haSlavePocCheck(hostUid, body);
       setCheck(res ?? {});
+      return res;
     } catch (err) {
       setCheck({ error: errorText(err) });
+      return null;
     } finally {
       setChecking(false);
     }
   };
 
+  // First call: no fingerprint and no password; CMS answers hostkey_unknown with the key.
+  const runCheck = () => {
+    setAccepted(false);
+    callCheck(sshTarget());
+  };
+
+  // The user confirmed the key: the second call logs in with it and the password.
+  const acceptKey = async (e) => {
+    const on = e.target.checked;
+    setAccepted(on);
+    if (!on || !check?.hostkey_sha256) return;
+    const fingerprint = check.hostkey_sha256;
+    const res = await callCheck({ ...sshTarget(), osPassword: ssh.osPassword, hostKeyFingerprint: fingerprint });
+    if (res?.result !== 'ok') setAccepted(false);
+    if (res?.remote_hostname) setSetup((prev) => (prev.masterNode ? prev : { ...prev, masterNode: res.remote_hostname }));
+  };
+
   const startSetup = async () => {
     setStarting(true);
+    setCleanup(null);
     try {
-      const body = { ...sshTarget(), hostKeyFingerprint: check?.fingerprint ?? '', dbName: setup.dbName.trim() };
-      if (setup.replLogHome.trim()) body.replLogHome = setup.replLogHome.trim();
-      if (setup.backupDestPath.trim()) body.backupDestPath = setup.backupDestPath.trim();
-      const replicas = setup.replicaHosts.split(',').map((host) => host.trim()).filter(Boolean);
-      if (replicas.length > 0) body.replicaHosts = replicas;
+      const body = {
+        dbName: setup.dbName.trim(),
+        masterHost: setup.masterNode.trim(),
+        sshPort: Number(ssh.sshPort) || 22,
+        osUser: ssh.osUser.trim(),
+        osPassword: ssh.osPassword,
+        hostKeyFingerprint: check?.hostkey_sha256 ?? '',
+        startHa,
+      };
+      for (const key of ['slaveHost', 'replLogHome', 'masterBackupPath', 'slaveBackupPath']) {
+        if (setup[key].trim()) body[key] = setup[key].trim();
+      }
       const res = await hostApi.haSlavePocStart(hostUid, body);
-      setJob({ uuid: res?.uuid, status: 'running', steps: [], log: '', offset: 0 });
+      setJob({ uuid: res?.uuid, job_status: res?.job_status ?? 'running', steps: [], log: '', offset: 0 });
     } catch (err) {
-      setJob({ status: 'error', steps: [], log: '', offset: 0, error: errorText(err) });
+      setJob({ job_status: 'fail', steps: [], log: '', offset: 0, requestError: errorText(err) });
     } finally {
       setStarting(false);
     }
@@ -108,16 +128,27 @@ export default function HaMakeSlavePoc({ hostUid }) {
   const cancelSetup = async () => {
     if (!job?.uuid) return;
     try {
-      await hostApi.haSlavePocCancel(hostUid, job.uuid);
+      const res = await hostApi.haSlavePocCancel(hostUid, job.uuid);
+      setJob((prev) => ({ ...prev, phase: res?.phase ?? prev.phase }));
     } catch (err) {
-      setJob((prev) => ({ ...prev, error: errorText(err) }));
+      setJob((prev) => ({ ...prev, requestError: errorText(err) }));
     }
   };
 
-  const running = Boolean(job?.uuid) && !TERMINAL.has(job?.status);
+  const cleanupOld = async () => {
+    if (!job?.uuid) return;
+    try {
+      const res = await hostApi.haSlavePocCleanup(hostUid, job.uuid);
+      setCleanup({ done: true, res });
+    } catch (err) {
+      setCleanup({ error: errorText(err) });
+    }
+  };
+
+  // Polls until the job ends and its rollback (phase) is done too.
+  const running = Boolean(job?.uuid) && (!TERMINAL.has(job?.job_status) || job?.phase === 'rollback');
   const uuid = job?.uuid;
 
-  // Polls the setup's state, step states and new log while it runs.
   useEffect(() => {
     if (!running || !uuid) return undefined;
     let stopped = false;
@@ -125,21 +156,21 @@ export default function HaMakeSlavePoc({ hostUid }) {
     const timer = setInterval(async () => {
       try {
         const res = await hostApi.haSlavePocStatus(hostUid, uuid, offset);
-        if (stopped) return;
-        const chunk = typeof res?.log === 'string' ? res.log : '';
-        offset = Number.isInteger(res?.offset) ? res.offset : offset + chunk.length;
+        if (stopped || !res) return;
+        const chunk = typeof res.output === 'string' ? res.output : '';
+        const next = Number(res.next_offset);
+        offset = Number.isFinite(next) ? next : offset + chunk.length;
         setJob((prev) => (prev?.uuid === uuid
           ? {
             ...prev,
-            status: res?.status ?? prev.status,
-            steps: Array.isArray(res?.steps) ? res.steps : prev.steps,
+            ...res,
+            steps: Array.isArray(res.steps) ? res.steps : prev.steps,
             log: prev.log + chunk,
             offset,
-            rollback: res?.rollback ?? prev.rollback,
           }
           : prev));
       } catch (err) {
-        if (!stopped) setJob((prev) => (prev?.uuid === uuid ? { ...prev, status: 'error', error: errorText(err) } : prev));
+        if (!stopped) setJob((prev) => (prev?.uuid === uuid ? { ...prev, requestError: errorText(err) } : prev));
       }
     }, POLL_MS);
     return () => {
@@ -153,13 +184,13 @@ export default function HaMakeSlavePoc({ hostUid }) {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [job?.log]);
 
-  const checkOk = Boolean(check?.ok) && Boolean(check?.fingerprint);
-  const sshFilled = ssh.masterHost && ssh.osUser && ssh.osPassword;
-  const canStart = checkOk && accepted && setup.dbName.trim() && !running && !starting;
-  const rollback = job?.rollback;
+  const checkOk = check?.result === 'ok' && Boolean(check?.hostkey_sha256);
+  const sshFilled = ssh.masterHost.trim() && ssh.osUser.trim();
+  const canStart = checkOk && accepted && ssh.osPassword && setup.dbName.trim() && setup.masterNode.trim() && !running && !starting;
+  const keptPaths = Array.isArray(job?.kept_db_paths) ? job.kept_db_paths : [];
 
   return (
-    <div className="flex-1 overflow-auto p-6 flex flex-col gap-6 max-w-4xl">
+    <div className="flex-1 overflow-auto p-6 flex flex-col gap-6 max-w-5xl">
       <section className="flex flex-col gap-3">
         <Typography variant="h3">{L.sshSection}</Typography>
         <div className="grid grid-cols-2 gap-3">
@@ -168,22 +199,33 @@ export default function HaMakeSlavePoc({ hostUid }) {
           ))}
         </div>
         <div>
-          <Button onClick={runCheck} disabled={!sshFilled || checking || running}>{L.check}</Button>
+          <Button onClick={runCheck} disabled={!sshFilled || checking || running}>{checking ? L.checking : L.check}</Button>
         </div>
         {check && (
-          <div className="flex flex-col gap-2 text-13">
+          <div className="flex flex-col gap-1 text-13">
             {check.error ? (
-              <span className="text-rose-500">{L.failed}: {check.error}</span>
+              <span className="text-rose-500">{check.error}</span>
             ) : (
               <>
-                <span className={check.ok ? 'text-emerald-600' : 'text-rose-500'}>
-                  {check.ok ? L.connected : L.failed}{check.message ? `: ${check.message}` : ''}
+                <span>
+                  {L.result}: <span className={STATE_STYLE[check.result] ?? 'text-rose-500'}>{check.result}</span>
+                  {check.message ? ` - ${check.message}` : ''}
                 </span>
-                {check.fingerprint && (
-                  <>
-                    <span>{L.fingerprint}: <code className="font-mono">{check.fingerprint}</code></span>
-                    <Checkbox label={L.acceptFingerprint} checked={accepted} onChange={(e) => setAccepted(e.target.checked)} disabled={running} />
-                  </>
+                {check.hostkey_sha256 && (
+                  <span>{L.fingerprint}: <code className="font-mono">{check.hostkey_type} {check.hostkey_sha256}</code></span>
+                )}
+                {check.remote_hostname && <span>{L.remoteHostname}: {check.remote_hostname}</span>}
+                {(check.remote_version || check.local_version) && (
+                  <span>{L.versions}: {check.remote_version ?? '-'} / {check.local_version ?? '-'}</span>
+                )}
+                {check.remote_cubrid_databases && <span>{L.remoteDatabases}: {check.remote_cubrid_databases}</span>}
+                {check.hostkey_sha256 && (
+                  <Checkbox
+                    label={L.acceptFingerprint}
+                    checked={accepted}
+                    onChange={acceptKey}
+                    disabled={running || checking || !ssh.osPassword}
+                  />
                 )}
               </>
             )}
@@ -198,41 +240,55 @@ export default function HaMakeSlavePoc({ hostUid }) {
           {SETUP_FIELDS.map((key) => (
             <Input key={key} label={L[key]} value={setup[key]} onChange={setSetupField(key)} disabled={running} />
           ))}
+          {/* Replicas: CMS refuses any in this POC, so the field only shows where they would go. */}
+          <Input label={L.replicaHosts} value="" disabled onChange={() => {}} />
         </div>
+        <Checkbox label={L.startHa} checked={startHa} onChange={(e) => setStartHa(e.target.checked)} disabled={running} />
         <div className="flex gap-2">
           <Button onClick={startSetup} disabled={!canStart}>{L.run}</Button>
-          <Button variant="secondary" onClick={cancelSetup} disabled={!running}>{L.cancel}</Button>
+          <Button variant="secondary" onClick={cancelSetup} disabled={!running || job?.phase === 'rollback'}>{L.cancel}</Button>
         </div>
 
         {job && (
           <div className="flex flex-col gap-3">
-            <span className="text-13">
-              {L.status}: <span className={STATE_STYLE[job.status] ?? ''}>{job.status}</span>
-              {job.error ? ` - ${job.error}` : ''}
-            </span>
+            <div className="flex flex-col gap-1 text-13">
+              <span>
+                {L.status}: <span className={STATE_STYLE[job.job_status] ?? ''}>{job.job_status}</span>
+                {job.phase ? ` · ${L.phase}: ${job.phase}` : ''}
+                {job.step_no && job.step_count ? ` · ${job.step_no}/${job.step_count}` : ''}
+              </span>
+              {(job.error || job.message) && (
+                <span className="text-rose-500">
+                  {[job.error, job.message].filter(Boolean).join(': ')}
+                  {job.exit_code !== undefined && job.exit_code !== null && job.exit_code !== '' ? ` (exit ${job.exit_code})` : ''}
+                </span>
+              )}
+              {job.requestError && <span className="text-rose-500">{job.requestError}</span>}
+            </div>
 
             <Typography variant="label">{L.steps}</Typography>
             <ol className="flex flex-col gap-1 text-13">
-              {stepRows(job.steps).map((step) => (
+              {(job.steps ?? []).map((step) => (
                 <li key={step.id} className="flex gap-3">
-                  <span className="w-72 shrink-0">{L.stepNames[step.id] ?? step.name ?? step.id}</span>
-                  <span className={`w-24 shrink-0 ${STATE_STYLE[step.state] ?? 'text-slate-400'}`}>{step.state}</span>
-                  {step.message && <span className="text-slate-500 truncate" title={step.message}>{step.message}</span>}
+                  <span className="w-8 shrink-0 text-slate-400">{step.no}</span>
+                  <span className="w-64 shrink-0">{step.title || step.id}</span>
+                  <span className={`w-32 shrink-0 ${STATE_STYLE[step.state] ?? ''}`}>{step.state}</span>
+                  {step.detail && <span className="text-slate-500 truncate" title={step.detail}>{step.detail}</span>}
                 </li>
               ))}
             </ol>
 
-            {rollback && (
+            {keptPaths.length > 0 && (
               <div className="flex flex-col gap-1 text-13">
-                <Typography variant="label">{L.rollback}</Typography>
-                {Array.isArray(rollback)
-                  ? rollback.map((item) => (
-                    <span key={item.id ?? item.name ?? JSON.stringify(item)}>
-                      {item.name ?? item.id}: <span className={STATE_STYLE[item.state] ?? ''}>{item.state}</span>
-                      {item.message ? ` - ${item.message}` : ''}
-                    </span>
-                  ))
-                  : <span>{typeof rollback === 'string' ? rollback : JSON.stringify(rollback)}</span>}
+                <Typography variant="label">{L.keptDbPaths}</Typography>
+                {keptPaths.map((path) => <code key={path} className="font-mono">{path}</code>)}
+                {job.job_status === 'success' && (
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="secondary" onClick={cleanupOld} disabled={Boolean(cleanup?.done)}>{L.cleanup}</Button>
+                    {cleanup?.done && <span className="text-emerald-600">{L.cleanedUp}</span>}
+                    {cleanup?.error && <span className="text-rose-500">{cleanup.error}</span>}
+                  </div>
+                )}
               </div>
             )}
 

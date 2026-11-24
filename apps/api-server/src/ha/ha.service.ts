@@ -1,7 +1,7 @@
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import { BaseService, HandleCmsErrors } from '@common';
 import { HostService } from '@host';
-import { Injectable, NotImplementedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { HaMakeSlaveJobDto, HaMakeSlaveStartDto, HaSshCheckDto } from '@type/index';
 import {
   HaReloadCmsRequest,
@@ -20,20 +20,21 @@ import {
 import { HeartbeatListClientRequest, HeartbeatListClientResponse } from '@api-interfaces';
 
 /**
- * POC (HA slave setup): CMS tasks for the ssh connection check and the slave
- * setup, which this host's CMS runs step by step (master side over ssh).
- * Filled in from the CMS side's spec; until then the endpoints answer 501.
+ * POC (HA slave setup): CMS tasks on the host that becomes the slave. Its
+ * CMS checks the ssh connection to the master and runs the setup step by
+ * step itself (master side over ssh). Linux CMS builds only.
  */
-export const HA_MAKE_SLAVE_TASKS: { sshCheck: string | null; start: string | null; status: string | null; cancel: string | null } = {
-  sshCheck: null,
-  start: null,
-  status: null,
-  cancel: null,
-};
+const HA_MAKE_SLAVE_TASKS = {
+  sshCheck: 'ha_check_ssh',
+  start: 'ha_make_slave',
+  status: 'ha_make_slave_status',
+  cancel: 'ha_make_slave_cancel',
+  cleanup: 'ha_make_slave_cleanup',
+} as const;
+// ha_check_ssh answers within about 20 seconds.
+const SSH_CHECK_TIMEOUT_MS = 40_000;
 
-function pendingSpec(what: string): never {
-  throw new NotImplementedException(`HA slave POC: the CMS task for ${what} is not defined yet`);
-}
+type CmsPocRequest = { task: string } & Record<string, unknown>;
 
 @Injectable()
 export class HaService extends BaseService {
@@ -176,27 +177,78 @@ export class HaService extends BaseService {
     );
   }
 
-  /** POC: ssh from this host to the master; returns the result and the master's host key fingerprint. */
-  async checkSshConnection(_userId: string, _hostUid: string, _request: HaSshCheckDto): Promise<Record<string, unknown>> {
-    if (!HA_MAKE_SLAVE_TASKS.sshCheck) pendingSpec('the ssh connection check');
-    return {};
+  /** CMS fields of a POC call, without empty optional values. */
+  private pocRequest(task: string, fields: Record<string, unknown>): CmsPocRequest {
+    const request: CmsPocRequest = { task };
+    for (const [key, value] of Object.entries(fields)) {
+      if (value !== undefined && value !== null && value !== '') request[key] = value;
+    }
+    return request;
   }
 
-  /** POC: starts the slave setup on this host; returns the CMS job uuid. */
-  async startMakeSlave(_userId: string, _hostUid: string, _request: HaMakeSlaveStartDto): Promise<{ uuid: string }> {
-    if (!HA_MAKE_SLAVE_TASKS.start) pendingSpec('the slave setup');
-    return { uuid: '' };
+  private async pocCall(userId: string, hostUid: string, request: CmsPocRequest, timeoutMs?: number) {
+    const response = await this.executeCmsRequest<CmsPocRequest, Record<string, unknown>>(
+      userId,
+      hostUid,
+      request,
+      timeoutMs ? { timeoutMs } : undefined
+    );
+    return this.extractDomainData(response as { __EXEC_TIME?: unknown; note?: unknown; status?: unknown; task?: unknown });
   }
 
-  /** POC: the setup's overall state, each step's state, the log after `offset`, and what was undone on failure. */
-  async makeSlaveStatus(_userId: string, _hostUid: string, _request: HaMakeSlaveJobDto): Promise<Record<string, unknown>> {
-    if (!HA_MAKE_SLAVE_TASKS.status) pendingSpec('the setup progress');
-    return {};
+  /**
+   * POC: ssh from this host to the master (CMS ha_check_ssh). Without a
+   * fingerprint CMS stops before the password and returns hostkey_unknown
+   * with the master's fingerprint; with the one the user confirmed and the
+   * password it logs in and compares versions.
+   */
+  @HandleCmsErrors()
+  async checkSshConnection(userId: string, hostUid: string, request: HaSshCheckDto) {
+    return this.pocCall(userId, hostUid, this.pocRequest(HA_MAKE_SLAVE_TASKS.sshCheck, {
+      host: request.masterHost,
+      ssh_port: String(request.sshPort),
+      os_user: request.osUser,
+      os_password: request.hostKeyFingerprint ? request.osPassword : undefined,
+      hostkey_sha256: request.hostKeyFingerprint,
+    }), SSH_CHECK_TIMEOUT_MS);
   }
 
-  /** POC: cancels the running setup. */
-  async cancelMakeSlave(_userId: string, _hostUid: string, _request: HaMakeSlaveJobDto): Promise<Record<string, unknown>> {
-    if (!HA_MAKE_SLAVE_TASKS.cancel) pendingSpec('the setup cancel');
-    return {};
+  /** POC: starts the slave setup on this host (CMS ha_make_slave); returns its uuid. */
+  @HandleCmsErrors()
+  async startMakeSlave(userId: string, hostUid: string, request: HaMakeSlaveStartDto) {
+    return this.pocCall(userId, hostUid, this.pocRequest(HA_MAKE_SLAVE_TASKS.start, {
+      db_name: request.dbName,
+      master_host: request.masterHost,
+      ssh_port: String(request.sshPort),
+      os_user: request.osUser,
+      os_password: request.osPassword,
+      hostkey_sha256: request.hostKeyFingerprint,
+      slave_host: request.slaveHost,
+      repl_log_home: request.replLogHome,
+      master_backup_path: request.masterBackupPath,
+      slave_backup_path: request.slaveBackupPath,
+      start_ha: request.startHa === false ? 'no' : 'yes',
+    }));
+  }
+
+  /** POC: the setup's state, its steps, and the progress log after `offset` (CMS ha_make_slave_status). */
+  @HandleCmsErrors()
+  async makeSlaveStatus(userId: string, hostUid: string, request: HaMakeSlaveJobDto) {
+    return this.pocCall(userId, hostUid, this.pocRequest(HA_MAKE_SLAVE_TASKS.status, {
+      uuid: request.uuid,
+      offset: String(request.offset ?? 0),
+    }));
+  }
+
+  /** POC: cancels the running setup; CMS then undoes the finished steps (CMS ha_make_slave_cancel). */
+  @HandleCmsErrors()
+  async cancelMakeSlave(userId: string, hostUid: string, request: HaMakeSlaveJobDto) {
+    return this.pocCall(userId, hostUid, this.pocRequest(HA_MAKE_SLAVE_TASKS.cancel, { uuid: request.uuid }));
+  }
+
+  /** POC: deletes the old slave database folders a successful setup moved aside (CMS ha_make_slave_cleanup). */
+  @HandleCmsErrors()
+  async cleanupMakeSlave(userId: string, hostUid: string, request: HaMakeSlaveJobDto) {
+    return this.pocCall(userId, hostUid, this.pocRequest(HA_MAKE_SLAVE_TASKS.cleanup, { uuid: request.uuid }));
   }
 }
