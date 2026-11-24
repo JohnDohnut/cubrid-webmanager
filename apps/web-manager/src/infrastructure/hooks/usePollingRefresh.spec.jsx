@@ -44,6 +44,8 @@ beforeEach(() => {
       if (action.type === 'refresh') return { ...state, layout: { ...state.layout, refreshCounter: state.layout.refreshCounter + 1 } };
       if (action.type === 'dbLogout') return { ...state, database: { loggedInDatabases: [] } };
       if (action.type === 'dbLogin') return { ...state, database: { loggedInDatabases: ['host1:demodb'] } };
+      // logoutDatabase.pending: still logged in, its logout on the way.
+      if (action.type === 'dbLoggingOut') return { ...state, database: { loggedInDatabases: ['host1:demodb'], loggingOutDatabases: { 'host1:demodb': true } } };
       return state;
     },
   });
@@ -264,4 +266,26 @@ it("reads nothing for a database's screen after its logout: no poll, refresh but
   // Logging in again reads once.
   await act(async () => store.dispatch({ type: 'dbLogin' }));
   expect(fetchCalls).toHaveLength(1);
+});
+
+it("reads nothing for a database's screen while its logout runs, as the logout confirm closes", async () => {
+  const onFetch = (silent) => () => { fetchCalls.push(silent); return Promise.resolve(); };
+  await render({ onFetch, dbname: 'demodb', pollingIntervalSeconds: 1 });
+  expect(fetchCalls).toHaveLength(1);
+
+  // The confirm covers the screen; confirming closes it and sends the logout
+  // in the same click. The server may drop the login before the answer comes.
+  let closeModal;
+  await act(async () => { closeModal = markModalOpen(); });
+  fetchCalls = [];
+  await act(async () => {
+    closeModal();
+    store.dispatch({ type: 'dbLoggingOut' });
+  });
+  await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
+  expect(fetchCalls).toEqual([]);
+
+  await act(async () => store.dispatch({ type: 'dbLogout' }));
+  await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
+  expect(fetchCalls).toEqual([]);
 });

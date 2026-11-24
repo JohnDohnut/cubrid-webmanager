@@ -110,6 +110,30 @@ describe('loggedInDatabases is scoped per host, not by bare dbname', () => {
     expect(loggedInDatabases).toContain('hostB:demodb');
   });
 
+  it('marks a database as logging out while its logout runs, and clears the mark whatever the answer', async () => {
+    databaseApi.loginDatabaseWithProfile.mockResolvedValue(true);
+    const store = configureStore({ reducer });
+    await store.dispatch(loginDatabase({ hostUid: 'hostA', dbname: 'demodb' }));
+
+    const ok = deferred();
+    databaseApi.logoutDatabase.mockReturnValueOnce(ok.promise);
+    const done = store.dispatch(logoutDatabase({ hostUid: 'hostA', dbname: 'demodb' }));
+    // Still logged in, but its logout is on the way.
+    expect(store.getState().loggedInDatabases).toContain('hostA:demodb');
+    expect(store.getState().loggingOutDatabases).toEqual({ 'hostA:demodb': true });
+    ok.resolve();
+    await done;
+    expect(store.getState().loggedInDatabases).not.toContain('hostA:demodb');
+    expect(store.getState().loggingOutDatabases).toEqual({});
+
+    await store.dispatch(loginDatabase({ hostUid: 'hostA', dbname: 'demodb' }));
+    databaseApi.logoutDatabase.mockRejectedValueOnce(new Error('refused'));
+    await store.dispatch(logoutDatabase({ hostUid: 'hostA', dbname: 'demodb' }));
+    // A failed logout leaves the login, and its screens read again.
+    expect(store.getState().loggedInDatabases).toContain('hostA:demodb');
+    expect(store.getState().loggingOutDatabases).toEqual({});
+  });
+
   it('resetDatabaseState (plain host-focus switch) does not clear other hosts\' logins', async () => {
     databaseApi.loginDatabaseWithProfile.mockResolvedValue(true);
     const store = configureStore({ reducer });

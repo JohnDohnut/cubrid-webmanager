@@ -16,7 +16,7 @@ import { EmptyState } from '../../../../components/ds/feedback/EmptyState';
 import { FetchEmptyState } from '../../../../components/ds/feedback/FetchEmptyState';
 import { useCM } from '../../../../constants/useCM';
 import { useRefreshWhenShown } from './useRefreshWhenShown';
-import { dbKey } from '../../dbKey';
+import { isDbReadable } from '../../dbReadable';
 
 /** lockdb dashboard row → gettransactioninfo / killtransaction shape */
 function lockRowToTransaction(row) {
@@ -47,7 +47,7 @@ export default function DBLockTransactionSection({ locks, locksStatus, pollingPr
   // The signal reaches every open DB dashboard, hidden tabs included; only a
   // logged-in database re-reads its locks (a per-db request the server
   // refuses without a DB login). A missed signal is not replayed later.
-  const isLoggedIn = useSelector((state) => Boolean(hostUid && dbname) && state.database.loggedInDatabases.includes(dbKey(hostUid, dbname)));
+  const isLoggedIn = useSelector((state) => isDbReadable(state, hostUid, dbname));
   const transactionKillSignal = useSelector((state) => state.databaseUI.transactionKillSignal);
   const lastSeenKillSignal = useRef(transactionKillSignal);
   useEffect(() => {

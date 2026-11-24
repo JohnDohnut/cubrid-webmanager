@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useAnyModalOpen } from './useAnyModalOpen';
-import { dbKey } from '../../features/database/dbKey';
+import { isDbReadable } from '../../features/database/dbReadable';
 
 /**
  * A custom hook to manage background data polling, visibility-aware refresh,
@@ -22,8 +22,8 @@ export const usePollingRefresh = ({ hostUid, tabId, pollingIntervalSeconds, onFe
   
   // We use shallowEqual in your app, but for these simple primitive states, normal selector is fine.
   const { authorizedHosts, reconnectQueue } = useSelector((state) => state.host);
-  const isDbLoggedIn = useSelector((state) =>
-    !dbname || (state.database?.loggedInDatabases ?? []).includes(dbKey(hostUid, dbname)));
+  // Not while its logout runs either (isDbReadable).
+  const isDbLoggedIn = useSelector((state) => !dbname || isDbReadable(state, hostUid, dbname));
   const { refreshCounter, activeMainTab } = useSelector((state) => state.layout);
 
   const [isManualRefreshing, setIsManualRefreshing] = useState(false);

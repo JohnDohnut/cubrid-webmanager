@@ -69,6 +69,18 @@ describe('acquireStatdumpWatcher', () => {
     expect(api.startStatDumpWatcher).toHaveBeenCalledTimes(1);
   });
 
+  it('released for a logout, ends the periodic start and sends no stop the server would refuse', async () => {
+    const release = acquire();
+    release({ loginGone: true });
+    await vi.advanceTimersByTimeAsync(STOP_GRACE_MS + WATCHER_REFRESH_MS * 2);
+    expect(api.stopStatDumpWatcher).not.toHaveBeenCalled();
+    expect(api.startStatDumpWatcher).toHaveBeenCalledTimes(1);
+
+    // Logged in again: a new holder starts it again.
+    acquire();
+    expect(api.startStatDumpWatcher).toHaveBeenCalledTimes(2);
+  });
+
   it('does not stop when re-acquired within the grace period (tab reopen, StrictMode)', async () => {
     acquire()();
     acquire();

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useStore } from 'react-redux';
 import { acquireStatdumpWatcher, restartFrozenStatdumpWatcher, setStatdumpWatcherPaused } from './statdumpWatcher';
-import { dbKey } from './dbKey';
+import { isDbReadable } from './dbReadable';
 import { useAnyModalOpen } from '../../infrastructure/hooks/useAnyModalOpen';
 import { useLatestRef } from '../../infrastructure/hooks/useLatestRef';
 
@@ -21,7 +21,9 @@ import { useLatestRef } from '../../infrastructure/hooks/useLatestRef';
  */
 export function useStatdumpWatcher(hostUid, dbname, perfSample) {
   const isAuthorized = useSelector((state) => Boolean(hostUid) && state.host.authorizedHosts.includes(hostUid));
-  const isLoggedIn = useSelector((state) => Boolean(hostUid && dbname) && state.database.loggedInDatabases.includes(dbKey(hostUid, dbname)));
+  const store = useStore();
+  // Not while its logout runs either (isDbReadable).
+  const isLoggedIn = useSelector((state) => isDbReadable(state, hostUid, dbname));
   const isPendingReconnect = useSelector((state) => Boolean(hostUid) && (state.host.reconnectQueue ?? []).includes(hostUid));
   const anyModalOpen = useAnyModalOpen();
   const canWatch = isAuthorized && isLoggedIn;
@@ -31,8 +33,11 @@ export function useStatdumpWatcher(hostUid, dbname, perfSample) {
 
   useEffect(() => {
     if (!canWatch) return undefined;
-    return acquireStatdumpWatcher(hostUid, dbname, undefined, { paused: pausedRef.current });
-  }, [canWatch, hostUid, dbname, pausedRef]);
+    const release = acquireStatdumpWatcher(hostUid, dbname, undefined, { paused: pausedRef.current });
+    // Released for a logout: no stop the server would refuse. Read from the
+    // store, as this runs before the render's own values reach any ref.
+    return () => release({ loginGone: !isDbReadable(store.getState(), hostUid, dbname) });
+  }, [canWatch, hostUid, dbname, pausedRef, store]);
 
   useEffect(() => {
     if (!canWatch) return;

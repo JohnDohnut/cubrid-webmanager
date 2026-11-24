@@ -365,6 +365,9 @@ const initialState = {
   selectedDatabaseSubItem: null,
   loggedInDatabases: [],
   loggingInDatabases: {},
+  // { dbKey: true } while its logout request runs: the server may already
+  // have dropped the login, so nothing reads the database meanwhile (dbReadable.js).
+  loggingOutDatabases: {},
   loginChangedSeq: {}, // { dbKey: seq } — see noteLoginChange
   loadingByHost: {}, // { hostUid: boolean } — fetchDatabaseStartInfo's own
   // loading, kept per host like databasesByHost itself: a single shared
@@ -438,6 +441,9 @@ const databaseCoreSlice = createSlice({
       state.loggedInDatabases = state.loggedInDatabases.filter((key) => !key.startsWith(prefix));
       Object.keys(state.loggingInDatabases).forEach((key) => {
         if (key.startsWith(prefix)) delete state.loggingInDatabases[key];
+      });
+      Object.keys(state.loggingOutDatabases).forEach((key) => {
+        if (key.startsWith(prefix)) delete state.loggingOutDatabases[key];
       });
     },
     // Corrects the client's belief about a single database's login state to
@@ -595,9 +601,11 @@ const databaseCoreSlice = createSlice({
         if (dbname) state.loggingInDatabases[dbKey(hostUid, dbname)] = false;
         state.error = action.payload;
       })
-      .addCase(logoutDatabase.pending, (state) => {
+      .addCase(logoutDatabase.pending, (state, action) => {
+        const { hostUid, dbname } = action.meta.arg || {};
         state.actionLoading = true;
         state.error = null;
+        if (hostUid && dbname) state.loggingOutDatabases[dbKey(hostUid, dbname)] = true;
       })
       .addCase(logoutDatabase.fulfilled, (state, action) => {
         const { hostUid } = action.meta.arg || {};
@@ -605,11 +613,14 @@ const databaseCoreSlice = createSlice({
         state.actionLoading = false;
         const key = dbKey(hostUid, dbname);
         state.loggedInDatabases = state.loggedInDatabases.filter((d) => d !== key);
+        delete state.loggingOutDatabases[key];
         noteLoginChange(state, hostUid, dbname, action.meta.seq);
       })
       .addCase(logoutDatabase.rejected, (state, action) => {
+        const { hostUid, dbname } = action.meta.arg || {};
         state.actionLoading = false;
         state.error = action.payload;
+        if (hostUid && dbname) delete state.loggingOutDatabases[dbKey(hostUid, dbname)];
       })
       .addCase(registerDatabase.pending, (state) => {
         state.actionLoading = true;

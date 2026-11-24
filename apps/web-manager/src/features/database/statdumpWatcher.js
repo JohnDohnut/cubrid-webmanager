@@ -62,7 +62,10 @@ export function setStatdumpWatcherPaused(hostUid, dbname, paused) {
 
 /**
  * Hold a watcher for host+db; ref-counted across dashboards in this app.
- * Returns the release function. The last release stops the watcher.
+ * Returns the release function. The last release stops the watcher, unless
+ * it says the database's login is gone ({ loginGone: true }): the server
+ * refuses that stop (MISSING_DB_CREDENTIALS) and its lease ends the watcher,
+ * so the periodic start just ends here.
  *
  * Stopping is shared state on the CMS (one watcher per database for every
  * client), so another NCA still showing this database loses it until its
@@ -84,13 +87,18 @@ export function acquireStatdumpWatcher(hostUid, dbname, api = databaseApi, { pau
   }
 
   let released = false;
-  return () => {
+  return ({ loginGone = false } = {}) => {
     if (released) return;
     released = true;
     const current = watchers.get(key);
     if (!current) return;
     current.count -= 1;
     if (current.count > 0) return;
+    if (loginGone) {
+      clearInterval(current.timer);
+      watchers.delete(key);
+      return;
+    }
     current.stopTimer = setTimeout(() => {
       if (watchers.get(key) !== current || current.count > 0) return;
       clearInterval(current.timer);
