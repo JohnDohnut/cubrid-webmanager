@@ -1,7 +1,8 @@
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import { BaseService, HandleCmsErrors } from '@common';
 import { HostService } from '@host';
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotImplementedException } from '@nestjs/common';
+import { HaMakeSlaveJobDto, HaMakeSlaveStartDto, HaSshCheckDto } from '@type/index';
 import {
   HaReloadCmsRequest,
   HaStartDatabaseCmsRequest,
@@ -17,6 +18,22 @@ import {
   HeartbeatListCmsResponse,
 } from '@type/cms-response';
 import { HeartbeatListClientRequest, HeartbeatListClientResponse } from '@api-interfaces';
+
+/**
+ * POC (HA slave setup): CMS tasks for the ssh connection check and the
+ * ha_make_slavedb.sh run. Filled in from the CMS side's spec; until then
+ * the endpoints answer 501.
+ */
+export const HA_MAKE_SLAVE_TASKS: { sshCheck: string | null; run: string | null; status: string | null; cancel: string | null } = {
+  sshCheck: null,
+  run: null,
+  status: null,
+  cancel: null,
+};
+
+function pendingSpec(what: string): never {
+  throw new NotImplementedException(`HA slave POC: the CMS task for ${what} is not defined yet`);
+}
 
 @Injectable()
 export class HaService extends BaseService {
@@ -157,5 +174,29 @@ export class HaService extends BaseService {
       hostUid,
       cmsRequest
     );
+  }
+
+  /** POC: ssh from this host to the master; returns the result and the master's host key fingerprint. */
+  async checkSshConnection(_userId: string, _hostUid: string, _request: HaSshCheckDto): Promise<Record<string, unknown>> {
+    if (!HA_MAKE_SLAVE_TASKS.sshCheck) pendingSpec('the ssh connection check');
+    return {};
+  }
+
+  /** POC: starts ha_make_slavedb.sh on this host; returns the CMS job uuid. */
+  async startMakeSlave(_userId: string, _hostUid: string, _request: HaMakeSlaveStartDto): Promise<{ uuid: string }> {
+    if (!HA_MAKE_SLAVE_TASKS.run) pendingSpec('the script run');
+    return { uuid: '' };
+  }
+
+  /** POC: the job's state and the output after `offset`. */
+  async makeSlaveStatus(_userId: string, _hostUid: string, _request: HaMakeSlaveJobDto): Promise<Record<string, unknown>> {
+    if (!HA_MAKE_SLAVE_TASKS.status) pendingSpec('the script progress');
+    return {};
+  }
+
+  /** POC: stops the running script. */
+  async cancelMakeSlave(_userId: string, _hostUid: string, _request: HaMakeSlaveJobDto): Promise<Record<string, unknown>> {
+    if (!HA_MAKE_SLAVE_TASKS.cancel) pendingSpec('the script cancel');
+    return {};
   }
 }

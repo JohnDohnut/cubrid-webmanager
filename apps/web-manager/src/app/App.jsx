@@ -22,6 +22,7 @@ import VolumeInfoMonitor from '../features/database/components/VolumeInfoMonitor
 import VolumeCategoryMonitor from '../features/database/components/VolumeCategoryMonitor';
 import CubridConfigEditor from '../features/server/components/CubridConfigEditor';
 import BrokerConfigEditor from '../features/server/components/BrokerConfigEditor';
+import HaMakeSlavePoc from '../features/host/components/HaMakeSlavePoc';
 import { SplitPane } from '../components/ds/layout/SplitPane';
 import UnloadDatabaseModal from '../features/database/components/UnloadDatabaseModal';
 import LoadDatabaseModal from '../features/database/components/LoadDatabaseModal';
@@ -162,6 +163,8 @@ function DashboardLayout() {
       acc[tabId] = CM.volumesTab(category);
     } else if (tabId === 'service_dashboard') {
       acc[tabId] = CM.serviceDashboard;
+    } else if (tabId.startsWith('ha_make_slave:')) {
+      acc[tabId] = CM.haSlavePoc.tab;
     }
 
     return acc;
@@ -407,6 +410,7 @@ function DashboardLayout() {
                       hostUid={resourceId}
                     />
                   )}
+                  {tabId.startsWith('ha_make_slave:') && <HaMakeSlavePoc hostUid={resourceId} />}
                   {isLogViewer && (
                     <LogViewer
                       hostUid={tabId.split(':')[1]}

@@ -1409,6 +1409,16 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
               requestRestartService(hostUid, serverName);
             }}
           />
+          <MenuItem
+            icon="content_copy"
+            label={CM.haSlavePoc.menu}
+            disabled={!authorizedHosts.includes(contextMenu.hostUid)}
+            onClick={() => {
+              const hostUid = contextMenu.hostUid;
+              setContextMenu(null);
+              dispatch(openTab(`ha_make_slave:${hostUid}`));
+            }}
+          />
           <MenuDivider />
           <MenuItem icon="add_box" label={CM.addHost} onClick={() => { onAddHost(); setContextMenu(null); }} />
           <MenuItem icon="edit" label={CM.editHost} onClick={() => { dispatch(openEditHostModal(contextMenu.hostUid)); setContextMenu(null); }} />
