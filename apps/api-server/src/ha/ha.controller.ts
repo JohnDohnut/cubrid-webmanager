@@ -55,18 +55,18 @@ export class HaController {
   }
 
   /**
-   * POC: runs ha_make_slavedb.sh on this host.
+   * POC: starts the slave setup on this host.
    *
    * @route POST /:hostUid/ha/make-slave/start
    */
   @Post('make-slave/start')
   async startMakeSlave(@Request() req, @Param('hostUid') hostUid: string, @Body() body: HaMakeSlaveStartDto) {
-    this.logger.log(`HA slave POC: script start on host ${hostUid}`);
+    this.logger.log(`HA slave POC: setup start on host ${hostUid}`);
     return await this.haService.startMakeSlave(req.user.sub, hostUid, body);
   }
 
   /**
-   * POC: the script's state and new output.
+   * POC: the setup's state, step states and new log.
    *
    * @route POST /:hostUid/ha/make-slave/status
    */
@@ -76,13 +76,13 @@ export class HaController {
   }
 
   /**
-   * POC: stops the script.
+   * POC: cancels the setup.
    *
    * @route POST /:hostUid/ha/make-slave/cancel
    */
   @Post('make-slave/cancel')
   async cancelMakeSlave(@Request() req, @Param('hostUid') hostUid: string, @Body() body: HaMakeSlaveJobDto) {
-    this.logger.log(`HA slave POC: script cancel on host ${hostUid}`);
+    this.logger.log(`HA slave POC: setup cancel on host ${hostUid}`);
     return await this.haService.cancelMakeSlave(req.user.sub, hostUid, body);
   }
 }

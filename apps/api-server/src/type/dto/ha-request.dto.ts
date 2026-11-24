@@ -1,4 +1,4 @@
-import { IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsArray, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from 'class-validator';
 
 /**
  * Validated request body for HaController's heartbeat-list endpoint.
@@ -44,15 +44,14 @@ export class HaSshCheckDto extends HaSshTargetDto {
   hostKeyFingerprint?: string;
 }
 
-/** POC: ha_make_slavedb.sh run with the script's own variables. */
+/**
+ * POC: the slave setup this host's CMS runs itself (master side over ssh,
+ * this host locally), with the master checked first.
+ */
 export class HaMakeSlaveStartDto extends HaSshTargetDto {
   @IsString()
   @IsNotEmpty()
   hostKeyFingerprint: string;
-
-  @IsString()
-  @IsNotEmpty()
-  targetHost: string;
 
   @IsString()
   @IsNotEmpty()
@@ -66,20 +65,14 @@ export class HaMakeSlaveStartDto extends HaSshTargetDto {
   @IsString()
   backupDestPath?: string;
 
+  // Replicas: the field is here for the layout; the demo leaves it empty.
   @IsOptional()
-  @IsString()
-  backupOption?: string;
-
-  @IsOptional()
-  @IsString()
-  restoreOption?: string;
-
-  @IsOptional()
-  @IsString()
-  scpOption?: string;
+  @IsArray()
+  @IsString({ each: true })
+  replicaHosts?: string[];
 }
 
-/** POC: one running ha_make_slavedb.sh job; offset is how much output the screen already has. */
+/** POC: one running slave setup; offset is how much of the log the screen already has. */
 export class HaMakeSlaveJobDto {
   @IsString()
   @IsNotEmpty()

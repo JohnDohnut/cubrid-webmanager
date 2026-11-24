@@ -20,13 +20,13 @@ import {
 import { HeartbeatListClientRequest, HeartbeatListClientResponse } from '@api-interfaces';
 
 /**
- * POC (HA slave setup): CMS tasks for the ssh connection check and the
- * ha_make_slavedb.sh run. Filled in from the CMS side's spec; until then
- * the endpoints answer 501.
+ * POC (HA slave setup): CMS tasks for the ssh connection check and the slave
+ * setup, which this host's CMS runs step by step (master side over ssh).
+ * Filled in from the CMS side's spec; until then the endpoints answer 501.
  */
-export const HA_MAKE_SLAVE_TASKS: { sshCheck: string | null; run: string | null; status: string | null; cancel: string | null } = {
+export const HA_MAKE_SLAVE_TASKS: { sshCheck: string | null; start: string | null; status: string | null; cancel: string | null } = {
   sshCheck: null,
-  run: null,
+  start: null,
   status: null,
   cancel: null,
 };
@@ -182,21 +182,21 @@ export class HaService extends BaseService {
     return {};
   }
 
-  /** POC: starts ha_make_slavedb.sh on this host; returns the CMS job uuid. */
+  /** POC: starts the slave setup on this host; returns the CMS job uuid. */
   async startMakeSlave(_userId: string, _hostUid: string, _request: HaMakeSlaveStartDto): Promise<{ uuid: string }> {
-    if (!HA_MAKE_SLAVE_TASKS.run) pendingSpec('the script run');
+    if (!HA_MAKE_SLAVE_TASKS.start) pendingSpec('the slave setup');
     return { uuid: '' };
   }
 
-  /** POC: the job's state and the output after `offset`. */
+  /** POC: the setup's overall state, each step's state, the log after `offset`, and what was undone on failure. */
   async makeSlaveStatus(_userId: string, _hostUid: string, _request: HaMakeSlaveJobDto): Promise<Record<string, unknown>> {
-    if (!HA_MAKE_SLAVE_TASKS.status) pendingSpec('the script progress');
+    if (!HA_MAKE_SLAVE_TASKS.status) pendingSpec('the setup progress');
     return {};
   }
 
-  /** POC: stops the running script. */
+  /** POC: cancels the running setup. */
   async cancelMakeSlave(_userId: string, _hostUid: string, _request: HaMakeSlaveJobDto): Promise<Record<string, unknown>> {
-    if (!HA_MAKE_SLAVE_TASKS.cancel) pendingSpec('the script cancel');
+    if (!HA_MAKE_SLAVE_TASKS.cancel) pendingSpec('the setup cancel');
     return {};
   }
 }
