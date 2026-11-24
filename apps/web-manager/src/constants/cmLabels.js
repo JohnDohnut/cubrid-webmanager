@@ -1530,7 +1530,7 @@ export const CM = {
   workspaceTitle: 'Workspace',
   workspaceDescPrefix: 'You only need to specify ',
   workspaceDescFolderPhrase: 'a single folder',
-  workspaceDescMiddle: ' to store your data, certificates, and settings. The app will automatically create ',
+  workspaceDescMiddle: ' to store your data, certificates, and settings. The app will create ',
   workspaceDescSuffix: ' inside it automatically.',
   workspaceFolderLabel: 'Workspace folder',
   defaultLocationLabel: (path) => `Default location: ${path}`,
