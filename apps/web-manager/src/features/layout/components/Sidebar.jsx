@@ -1433,6 +1433,19 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
             onClick={() => { dispatch(openCmsUserManagementModal(contextMenu.hostUid)); setContextMenu(null); }}
           />
           <MenuItem icon="info" label={CM.serverVersion} disabled={!authorizedHosts.includes(contextMenu.hostUid) || reconnectQueue.includes(contextMenu.hostUid)} onClick={() => { dispatch(openServerVersionModal(contextMenu.hostUid)); setContextMenu(null); }} />
+          <MenuDivider />
+          {/* POC (HA slave add): run on the HA master's host (or a single server's); covers every HA database of the host. */}
+          <MenuItem
+            icon="content_copy"
+            label={CM.haAddSlave.menu}
+            disabled={!authorizedHosts.includes(contextMenu.hostUid)}
+            title={hostOffReason(contextMenu.hostUid)}
+            onClick={() => {
+              const hostUid = contextMenu.hostUid;
+              setContextMenu(null);
+              dispatch(openTab(`ha_add_slave:${hostUid}`));
+            }}
+          />
         </ContextMenuWrapper>
       )}
 
@@ -1703,17 +1716,6 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
               }}
             />
           )}
-          {/* POC (HA slave add): a running database of this host, HA master or single. */}
-          <MenuItem
-            icon="content_copy"
-            label={CM.haAddSlave.menu}
-            disabled={!authorizedHosts.includes(selectedHostUid) || !dbContextMenu.isActive}
-            onClick={() => {
-              const dbname = dbContextMenu.db;
-              setDbContextMenu(null);
-              dispatch(openTab(`ha_add_slave:${selectedHostUid}:${dbname}`));
-            }}
-          />
           {loggedInDatabases.includes(dbKey(selectedHostUid, dbContextMenu.db)) && (
             <MenuItem
               icon="logout"

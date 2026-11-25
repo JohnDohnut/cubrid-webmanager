@@ -17,6 +17,9 @@ export const STATE_STYLE = {
 
 export const TERMINAL_JOB_STATES = new Set(['success', 'fail', 'cancelled', 'interrupted']);
 
+/** Whether the job still needs polling: running, or ended but still rolling back. */
+export const isJobLive = (job) => Boolean(job?.uuid) && (!TERMINAL_JOB_STATES.has(job?.job_status) || job?.phase === 'rollback');
+
 export function errorText(err) {
   return err?.response?.data?.message || err?.message || String(err);
 }

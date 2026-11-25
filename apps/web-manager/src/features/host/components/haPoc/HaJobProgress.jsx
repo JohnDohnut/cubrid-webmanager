@@ -2,19 +2,16 @@ import React, { useEffect, useRef, useState } from 'react';
 import { hostApi } from '../../hostApi';
 import { Button } from '../../../../components/ds/foundation/Button';
 import { Typography } from '../../../../components/ds/foundation/Typography';
-import { STATE_STYLE, TERMINAL_JOB_STATES, errorText } from './haPocShared';
+import { STATE_STYLE, errorText, isJobLive } from './haPocShared';
 
 const POLL_MS = 1000;
-
-/** Whether the job still needs polling: running, or ended but still rolling back. */
-export const isJobLive = (job) => Boolean(job?.uuid) && (!TERMINAL_JOB_STATES.has(job?.job_status) || job?.phase === 'rollback');
 
 /**
  * Polls the setup's state, its steps and the progress log after `offset`
  * while the job is live. `job` is the caller's state: { uuid, job_status,
  * phase, steps, log, offset, ... }; each answer is merged into it.
  */
-export function useHaJobPolling(hostUid, job, setJob) {
+function useHaJobPolling(hostUid, job, setJob) {
   const live = isJobLive(job);
   const uuid = job?.uuid;
   useEffect(() => {

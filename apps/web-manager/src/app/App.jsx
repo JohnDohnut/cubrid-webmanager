@@ -164,7 +164,9 @@ function DashboardLayout() {
     } else if (tabId === 'service_dashboard') {
       acc[tabId] = CM.serviceDashboard;
     } else if (tabId.startsWith('ha_add_slave:')) {
-      acc[tabId] = CM.haAddSlave.tab(tabId.split(':')[2]);
+      const hostUid = tabId.split(':')[1];
+      const host = hosts.find((h) => h.uid === hostUid);
+      acc[tabId] = CM.haAddSlave.tab(host?.alias || host?.address || hostUid);
     }
 
     return acc;
@@ -410,7 +412,7 @@ function DashboardLayout() {
                       hostUid={resourceId}
                     />
                   )}
-                  {tabId.startsWith('ha_add_slave:') && <HaAddSlaveWizard hostUid={resourceId} dbname={tabId.split(':')[2]} />}
+                  {tabId.startsWith('ha_add_slave:') && <HaAddSlaveWizard hostUid={resourceId} />}
                   {isLogViewer && (
                     <LogViewer
                       hostUid={tabId.split(':')[1]}
