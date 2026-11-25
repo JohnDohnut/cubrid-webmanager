@@ -11,18 +11,33 @@ const sshNodeBody = (node) => ({
   hostKeyFingerprint: node.check?.hostkey_sha256 ?? '',
 });
 
-/** ha_convert_master, for a single database: the restart is confirmed in the wizard's first step. */
-export function buildConvertMasterRequest({ dbname, options }) {
-  const body = { dbName: dbname, confirmMasterRestart: true };
+/**
+ * A single server's databases once the picked ones go to HA: every running
+ * one restarts; the running ones not picked come back as single databases;
+ * the ones not picked stay single.
+ */
+export function convertPlan({ picked, running, all }) {
+  const inHa = new Set(picked);
+  return {
+    haDatabases: picked,
+    restartDatabases: running,
+    otherRunningDatabases: running.filter((name) => !inHa.has(name)),
+    singleDatabases: all.filter((name) => !inHa.has(name)),
+  };
+}
+
+/** ha_convert_master, for a single server: the restarts are confirmed in the wizard's first step. */
+export function buildConvertMasterRequest({ dbNames, options, confirmOtherDbRestart }) {
+  const body = { dbNames, confirmMasterRestart: true };
+  if (confirmOtherDbRestart) body.confirmOtherDbRestart = true;
   if (trimmed(options.haGroup)) body.haGroup = trimmed(options.haGroup);
   if (Number(options.haPortId) > 0) body.haPortId = Number(options.haPortId);
   return body;
 }
 
-/** ha_make_slave: the new slave (its node name is also the address), the replicas, the options. */
-export function buildAddSlaveRequest({ dbname, slave, replicas, options }) {
+/** ha_make_slave, for every database in the master's ha_db_list: the new slave (its node name is also the address), the replicas, the options. */
+export function buildAddSlaveRequest({ slave, replicas, options }) {
   const body = {
-    dbName: dbname,
     slave: sshNodeBody(slave),
     startHa: options.startHa !== false,
   };

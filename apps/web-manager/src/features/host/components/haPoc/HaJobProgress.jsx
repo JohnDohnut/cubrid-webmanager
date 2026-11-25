@@ -79,16 +79,27 @@ export default function HaJobProgress({ hostUid, job, setJob, L, cleanupPassword
   };
 
   const keptPaths = Array.isArray(job?.kept_db_paths) ? job.kept_db_paths : [];
+  const steps = Array.isArray(job?.steps) ? job.steps : [];
+  // A step done per database comes once per database (`db`); a node step has no database.
+  const current = steps.find((step) => String(step.no) === String(job.step_no));
+  const currentTitle = current ? current.title || current.id : job.step;
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-3 text-13">
         <span>
           {L.status}: <span className={STATE_STYLE[job.job_status] ?? ''}>{job.job_status}</span>
           {job.phase ? ` · ${L.phase}: ${job.phase}` : ''}
-          {job.step_no && job.step_count ? ` · ${job.step_no}/${job.step_count}` : ''}
         </span>
         <Button size="sm" variant="secondary" onClick={cancel} disabled={!live || job.phase === 'rollback'}>{L.cancel}</Button>
       </div>
+      {job.step_no && job.step_count ? (
+        <span className="text-13">
+          {L.stepOf(job.step_no, job.step_count)}, {currentTitle}{job.step_db ? ` (${job.step_db})` : ''}
+        </span>
+      ) : null}
+      {Array.isArray(job.db_names) && job.db_names.length > 0 && (
+        <span className="text-13">{L.databases}: {job.db_names.join(', ')}</span>
+      )}
       {(job.error || job.message) && (
         <span className="text-13 text-rose-500">
           {[job.error, job.message].filter(Boolean).join(': ')}
@@ -105,10 +116,11 @@ export default function HaJobProgress({ hostUid, job, setJob, L, cleanupPassword
 
       <Typography variant="label">{L.steps}</Typography>
       <ol className="flex flex-col gap-1 text-13">
-        {(job.steps ?? []).map((step) => (
-          <li key={step.id} className="flex gap-3">
+        {steps.map((step) => (
+          <li key={step.no} className="flex gap-3">
             <span className="w-8 shrink-0 text-slate-400">{step.no}</span>
             <span className="w-72 shrink-0">{step.title || step.id}</span>
+            <span className="w-28 shrink-0 font-mono text-slate-500">{step.db || ''}</span>
             <span className={`w-32 shrink-0 ${STATE_STYLE[step.state] ?? ''}`}>{step.state}</span>
             {step.detail && <span className="text-slate-500 truncate" title={step.detail}>{step.detail}</span>}
           </li>

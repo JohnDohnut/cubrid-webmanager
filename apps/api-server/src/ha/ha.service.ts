@@ -1,6 +1,7 @@
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import { BaseService, HandleCmsErrors } from '@common';
 import { HostService } from '@host';
+import { CmsError } from '@error/cms/cms-error';
 import { Injectable } from '@nestjs/common';
 import { HaAddSlaveStartDto, HaConvertMasterDto, HaSlaveCleanupDto, HaSlaveJobDto, HaSshCheckDto, HaSshNodeDto } from '@type/index';
 import {
@@ -32,6 +33,8 @@ const HA_SLAVE_TASKS = {
   cancel: 'ha_make_slave_cancel',
   cleanup: 'ha_make_slave_cleanup',
 } as const;
+// ha_convert_master's answers when a restart is not confirmed yet (it then does not start).
+const CONVERT_CONFIRM_NOTES = new Set(['confirm_master_restart', 'confirm_other_db_restart']);
 // ha_check_ssh answers within about 20 seconds.
 const SSH_CHECK_TIMEOUT_MS = 40_000;
 
@@ -214,19 +217,42 @@ export class HaService extends BaseService {
     }), SSH_CHECK_TIMEOUT_MS);
   }
 
-  /** POC: turns this host's single database into a one-node HA master; restarts it (CMS ha_convert_master). */
+  /**
+   * POC: turns this single (non-HA) host into a one-node HA master with the
+   * databases picked as its ha_db_list; every running database restarts
+   * (CMS ha_convert_master). When a restart is not confirmed yet CMS does
+   * not start: that answer (which confirmation, and the databases that
+   * restart or stay single) comes back as data with `confirm`, for the
+   * screen to show before it asks again.
+   */
   @HandleCmsErrors()
   async convertMaster(userId: string, hostUid: string, request: HaConvertMasterDto) {
-    return this.pocCall(userId, hostUid, this.pocRequest(HA_SLAVE_TASKS.convertMaster, {
-      db_name: request.dbName,
+    const cmsRequest = this.pocRequest(HA_SLAVE_TASKS.convertMaster, {
+      db_names: request.dbNames.join(','),
       confirm_master_restart: request.confirmMasterRestart ? 'yes' : undefined,
+      confirm_other_db_restart: request.confirmOtherDbRestart ? 'yes' : undefined,
       master_host: request.masterHost,
       ha_group: request.haGroup,
       ha_port_id: request.haPortId === undefined ? undefined : String(request.haPortId),
-    }));
+    });
+    try {
+      return await this.pocCall(userId, hostUid, cmsRequest);
+    } catch (err) {
+      const response = err instanceof CmsError ? err.additionalData?.response : undefined;
+      const note = typeof response?.note === 'string' ? response.note : '';
+      if (!CONVERT_CONFIRM_NOTES.has(note)) throw err;
+      return {
+        confirm: note,
+        ha_databases: response.ha_databases,
+        restart_databases: response.restart_databases,
+        other_running_databases: response.other_running_databases,
+        single_databases: response.single_databases,
+        message: response.message,
+      };
+    }
   }
 
-  /** POC: adds a new slave from this host, the HA master (CMS ha_make_slave); returns its uuid. */
+  /** POC: adds a new slave from this host, the HA master, for every database in its ha_db_list (CMS ha_make_slave); returns its uuid and those databases. */
   @HandleCmsErrors()
   async startAddSlave(userId: string, hostUid: string, request: HaAddSlaveStartDto) {
     // Each node as ha_check_ssh takes it; the log hides os_password at any depth.
@@ -239,7 +265,6 @@ export class HaService extends BaseService {
     });
     const slave = node(request.slave);
     return this.pocCall(userId, hostUid, this.pocRequest(HA_SLAVE_TASKS.makeSlave, {
-      db_name: request.dbName,
       slave_host: slave.host,
       ssh_port: slave.ssh_port,
       os_user: slave.os_user,

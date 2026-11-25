@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, Equals, IsArray, IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, ArrayNotEmpty, Equals, IsArray, IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min, ValidateNested } from 'class-validator';
 
 /**
  * Validated request body for HaController's heartbeat-list endpoint.
@@ -73,13 +73,22 @@ export class HaSshNodeDto {
  * part of the request.
  */
 export class HaConvertMasterDto {
-  @IsString()
-  @IsNotEmpty()
-  dbName: string;
+  /** The databases to put in HA: the new ha_db_list. The others stay single. */
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(64)
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  dbNames: string[];
 
   @IsBoolean()
   @Equals(true)
   confirmMasterRestart: boolean;
+
+  /** The running databases not picked restart too (as single databases); needed only when there are any. */
+  @IsOptional()
+  @IsBoolean()
+  confirmOtherDbRestart?: boolean;
 
   @IsOptional()
   @IsString()
@@ -97,15 +106,11 @@ export class HaConvertMasterDto {
 }
 
 /**
- * POC: adds a new slave from this host, the HA master (CMS ha_make_slave).
- * slave.host is the new slave's node name (its uname -n), also the address
+ * POC: adds a new slave from this host, the HA master (CMS ha_make_slave),
+ * for every database in its ha_db_list. slave.host is the new slave's node name (its uname -n), also the address
  * ssh goes to.
  */
 export class HaAddSlaveStartDto {
-  @IsString()
-  @IsNotEmpty()
-  dbName: string;
-
   @ValidateNested()
   @Type(() => HaSshNodeDto)
   slave: HaSshNodeDto;

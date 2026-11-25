@@ -13,15 +13,15 @@ import { useLatestRef } from '../../../../infrastructure/hooks/useLatestRef';
 import SshTargetCard from './SshTargetCard';
 import HaJobProgress from './HaJobProgress';
 import { errorText, isJobLive, isSshConfirmed, newSshNode } from './haPocShared';
-import { buildAddSlaveRequest, buildConvertMasterRequest, summarizeRequests } from './addSlaveRequest';
+import { buildAddSlaveRequest, buildConvertMasterRequest, convertPlan, summarizeRequests } from './addSlaveRequest';
 
 // POC (HA slave add), opened on a host: the HA master's (every database in
 // its ha_db_list goes to the new slave) or a single, non-HA server's (the
 // user picks the databases to put in HA). This host's CMS builds the new
 // slave on another server over ssh. A wizard: target, new slave, replicas,
 // options, summary, progress. A single server is first turned into a
-// one-node HA master (ha_convert_master, which restarts the databases
-// picked); when that succeeds the slave add (ha_make_slave) starts on its own. Each step's checks must pass before
+// one-node HA master (ha_convert_master, which restarts every running
+// database); when that succeeds the slave add (ha_make_slave) starts on its own. Each step's checks must pass before
 // Next; passwords stay in this state and go only into the requests
 // (connection check round 2, start, cleanup).
 
@@ -52,9 +52,12 @@ export default function HaAddSlaveWizard({ hostUid }) {
   const [step, setStep] = useState(STEP_TARGET);
   // This host's HA role, the replicas in its node list and each HA database's state (heartbeat list).
   const [ha, setHa] = useState({ done: false, role: null, replicas: [], modes: {}, error: null });
-  // Single server: the databases to put in HA, and the restart agreed for exactly those.
+  // Single server: the databases to put in HA, and the restarts agreed for exactly that pick.
   const [picked, setPicked] = useState([]);
   const [switchConfirmed, setSwitchConfirmed] = useState(false);
+  const [otherConfirmed, setOtherConfirmed] = useState(false);
+  // CMS's own lists when it asked again for a confirmation (the databases changed since step one).
+  const [cmsConfirm, setCmsConfirm] = useState(null);
   const [slave, setSlave] = useState(() => newSshNode());
   const [replicas, setReplicas] = useState([]);
   const [options, setOptions] = useState({ replLogHome: '', masterBackupPath: '', slaveBackupPath: '', haGroup: '', haPortId: '', startHa: true });
@@ -93,20 +96,22 @@ export default function HaAddSlaveWizard({ hostUid }) {
   const patchReplica = (id) => (patch) => setReplicas((prev) => prev.map((node) => (node.id === id ? { ...node, ...patch } : node)));
   const setOption = (key) => (e) => setOptions((prev) => ({ ...prev, [key]: e.target.value }));
 
+  const allNames = databases.map((db) => db.dbname);
+  // In databases.txt order, as the table shows them.
+  const plan = convertPlan({ picked: allNames.filter((name) => picked.includes(name)), running: allNames.filter((name) => activeDbs.includes(name)), all: allNames });
+  const hasOthers = plan.otherRunningDatabases.length > 0;
   const togglePick = (name) => (e) => {
     const on = e.target.checked;
     setPicked((prev) => (on ? [...prev, name] : prev.filter((n) => n !== name)));
-    // The agreement was for the list shown; a new list needs it again.
+    // The agreement was for the lists shown; new lists need it again.
     setSwitchConfirmed(false);
+    setOtherConfirmed(false);
   };
-  // The databases the job covers: all of ha_db_list, or the ones picked.
-  const dbNames = isHaDb ? haDbNames : picked;
-  const dbname = dbNames[0];
 
   // What each step needs before Next.
   const targetOk = isHaDb
     ? ha.done && !ha.error && ha.role === 'master'
-    : haKnown && picked.length > 0 && switchConfirmed;
+    : haKnown && picked.length > 0 && switchConfirmed && (!hasOthers || otherConfirmed);
   // The new slave's node name is also the address: it must be that server's uname -n.
   const slaveName = slave.ssh.host.trim();
   const slaveNameMismatch = slave.check?.result === 'ok' && slave.check.remote_hostname && slave.check.remote_hostname !== slaveName;
@@ -118,8 +123,7 @@ export default function HaAddSlaveWizard({ hostUid }) {
     [STEP_SUMMARY]: true,
   };
   const live = isJobLive(job) || isJobLive(convertJob);
-  // Until the host-level spec: the requests still name one database (the first).
-  const request = { dbname, dbNames, slave, replicas, options };
+  const request = { dbNames: plan.haDatabases, confirmOtherDbRestart: hasOthers && otherConfirmed, slave, replicas, options };
 
   const startAddSlave = async () => {
     const res = await hostApi.haAddSlaveStart(hostUid, buildAddSlaveRequest(request));
@@ -134,6 +138,14 @@ export default function HaAddSlaveWizard({ hostUid }) {
         await startAddSlave();
       } else {
         const res = await hostApi.haAddSlaveConvert(hostUid, buildConvertMasterRequest(request));
+        if (res?.confirm) {
+          // Not started: CMS sees other restarts than step one showed. Back there to agree again.
+          setCmsConfirm(res);
+          setSwitchConfirmed(false);
+          setOtherConfirmed(false);
+          setStep(STEP_TARGET);
+          return;
+        }
         setConvertJob(newJob(res));
       }
       setStep(STEP_PROGRESS);
@@ -199,16 +211,28 @@ export default function HaAddSlaveWizard({ hostUid }) {
               <span className="text-slate-500">{W.singlePick}</span>
               <DbTable
                 W={W}
-                rows={databases.map(({ dbname: name }) => ({ name, running: activeDbs.includes(name) }))}
+                rows={allNames.map((name) => ({ name, running: activeDbs.includes(name) }))}
                 picked={picked}
                 onPick={togglePick}
                 empty={W.noDatabases}
               />
+              {cmsConfirm && (
+                <div className="flex flex-col gap-1 p-3 rounded border border-rose-300 bg-rose-50 dark:bg-rose-500/10" data-testid="ha-convert-cms-confirm">
+                  <span className="text-rose-600 dark:text-rose-300">{W.cmsAsksAgain}</span>
+                  {cmsConfirm.message && <span>{cmsConfirm.message}</span>}
+                  <span>{W.restartList} {listText(cmsConfirm.restart_databases, W.none)}</span>
+                  <span>{W.otherRestartList} {listText(cmsConfirm.other_running_databases, W.none)}</span>
+                </div>
+              )}
               {picked.length > 0 && (
-                <div className="flex flex-col gap-2 p-3 rounded border border-amber-300 bg-amber-50 dark:bg-amber-500/10">
+                <div className="flex flex-col gap-2 p-3 rounded border border-amber-300 bg-amber-50 dark:bg-amber-500/10" data-testid="ha-convert-plan">
                   <span className="text-amber-700 dark:text-amber-300">{W.singleWarning}</span>
-                  <span>{W.restartList} <b>{picked.join(', ')}</b></span>
+                  <span>{W.haList} <b>{plan.haDatabases.join(', ')}</b></span>
+                  <span>{W.restartList} <b>{listText(plan.restartDatabases, W.none)}</b></span>
+                  {hasOthers && <span>{W.otherRestartList} <b>{plan.otherRunningDatabases.join(', ')}</b></span>}
+                  <span>{W.singleStayList} {listText(plan.singleDatabases, W.none)}</span>
                   <Checkbox label={W.singleConfirm} checked={switchConfirmed} onChange={(e) => setSwitchConfirmed(e.target.checked)} />
+                  {hasOthers && <Checkbox label={W.otherConfirm} checked={otherConfirmed} onChange={(e) => setOtherConfirmed(e.target.checked)} />}
                 </div>
               )}
             </>
@@ -272,7 +296,7 @@ export default function HaAddSlaveWizard({ hostUid }) {
             {JSON.stringify(summarizeRequests(request, { convert: !isHaDb }), null, 2)}
           </pre>
           {!isHaDb && (
-            <span className="text-13 text-amber-700 dark:text-amber-300">{W.singleWarning} {W.restartList} {picked.join(', ')}</span>
+            <span className="text-13 text-amber-700 dark:text-amber-300">{W.singleWarning} {W.restartList} {listText(plan.restartDatabases, W.none)}</span>
           )}
           {startError && <span className="text-13 text-rose-500">{startError}</span>}
         </section>
@@ -303,9 +327,11 @@ export default function HaAddSlaveWizard({ hostUid }) {
   );
 }
 
+const listText = (names, none) => (Array.isArray(names) && names.length ? names.join(', ') : none);
+
 /**
  * The databases of step one. HA: name, running, HA state. Single: a checkbox
- * per database (its label is the name; only a running one can be picked), running.
+ * per database (its label is the name; a stopped one can be picked too), running.
  */
 function DbTable({ W, rows, haState = false, picked, onPick, empty }) {
   if (rows.length === 0) return <span className="text-slate-500">{empty}</span>;
@@ -324,7 +350,7 @@ function DbTable({ W, rows, haState = false, picked, onPick, empty }) {
           <tr key={row.name} className="border-t border-slate-100 dark:border-white/5" data-testid={`ha-target-db-${row.name}`}>
             <td className={`${cell} font-mono`}>
               {onPick
-                ? <Checkbox label={row.name} checked={picked.includes(row.name)} onChange={onPick(row.name)} disabled={!row.running} />
+                ? <Checkbox label={row.name} checked={picked.includes(row.name)} onChange={onPick(row.name)} />
                 : row.name}
             </td>
             <td className={`${cell} ${row.running ? 'text-emerald-600' : 'text-slate-400'}`}>{row.running ? W.running : W.stopped}</td>

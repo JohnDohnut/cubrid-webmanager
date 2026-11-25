@@ -73,7 +73,7 @@ it('keeps Next off on an HA host that is not the master', async () => {
   expect(nextButton().disabled).toBe(true);
 });
 
-it('on a single server, picks running databases only and asks again for the restart when the pick changes', async () => {
+it('on a single server, shows what restarts for the pick and asks again when the pick changes', async () => {
   await render({
     haDbNamesByHost: { h1: [] },
     databasesByHost: { h1: [{ dbname: 'db1' }, { dbname: 'db2' }, { dbname: 'down' }] },
@@ -82,20 +82,39 @@ it('on a single server, picks running databases only and asks again for the rest
   expect(mocks.heartbeat).not.toHaveBeenCalled();
   expect(text()).toContain('Mode: Single (not HA)');
   const box = (name) => row(name).querySelector('input[type=checkbox]');
-  expect(box('down').disabled).toBe(true);
+  const consent = (label) => [...container.querySelectorAll('input[type=checkbox]')].find((i) => i.closest('label')?.textContent.includes(label));
+  const plan = () => container.querySelector('[data-testid="ha-convert-plan"]').textContent;
+  expect(box('down').disabled).toBe(false);
   expect(nextButton().disabled).toBe(true);
 
   await click(box('db1'));
-  expect(text()).toContain('These databases restart: db1');
+  expect(plan()).toContain('Into HA: db1');
+  expect(plan()).toContain('Restart (every running database): db1, db2');
+  expect(plan()).toContain('Of those, back as single databases: db2');
+  expect(plan()).toContain('Stay single: db2, down');
+  await click(consent('switch to HA'));
   expect(nextButton().disabled).toBe(true);
-  const consent = () => [...container.querySelectorAll('input[type=checkbox]')].find((i) => i.closest('label')?.textContent.includes('I understand'));
-  await click(consent());
+  await click(consent('not picked restart too'));
   expect(nextButton().disabled).toBe(false);
 
-  await click(box('db2'));
-  expect(text()).toContain('These databases restart: db1, db2');
-  expect(consent().checked).toBe(false);
+  await click(box('down'));
+  expect(plan()).toContain('Into HA: db1, down');
+  expect(consent('switch to HA').checked).toBe(false);
   expect(nextButton().disabled).toBe(true);
+});
+
+it('on a single server, needs one agreement only when every running database is picked', async () => {
+  await render({
+    haDbNamesByHost: { h1: [] },
+    databasesByHost: { h1: [{ dbname: 'db1' }, { dbname: 'db2' }] },
+    activeDatabasesByHost: { h1: ['db1'] },
+  });
+  await click(row('db1').querySelector('input[type=checkbox]'));
+  expect(container.querySelector('[data-testid="ha-convert-plan"]').textContent).not.toContain('back as single');
+  const consents = [...container.querySelectorAll('[data-testid="ha-convert-plan"] input[type=checkbox]')];
+  expect(consents).toHaveLength(1);
+  await click(consents[0]);
+  expect(nextButton().disabled).toBe(false);
 });
 
 it('waits for the host start info before choosing the mode', async () => {
