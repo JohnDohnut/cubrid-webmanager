@@ -115,6 +115,14 @@ export class HaAddSlaveStartDto {
   @Type(() => HaSshNodeDto)
   slave: HaSshNodeDto;
 
+  /** The master's other slaves (its ha_node_list without itself), each registered on the new slave too. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(8)
+  @ValidateNested({ each: true })
+  @Type(() => HaSshNodeDto)
+  existingSlaves?: HaSshNodeDto[];
+
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(8)

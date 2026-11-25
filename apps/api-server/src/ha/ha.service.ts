@@ -270,6 +270,8 @@ export class HaService extends BaseService {
       os_user: slave.os_user,
       os_password: slave.os_password,
       hostkey_sha256: slave.hostkey_sha256,
+      // The existing nodes: CMS takes both keys and merges them, and tells slaves from replicas by the master's settings.
+      existing_nodes: request.existingSlaves?.length ? request.existingSlaves.map(node) : undefined,
       replicas: request.replicas?.length ? request.replicas.map(node) : undefined,
       master_host: request.masterHost,
       repl_log_home: request.replLogHome,

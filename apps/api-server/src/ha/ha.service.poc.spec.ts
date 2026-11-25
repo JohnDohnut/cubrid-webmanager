@@ -67,10 +67,11 @@ describe('HaService HA slave add POC', () => {
 
   it('starts ha_make_slave without a database name: CMS takes every database in ha_db_list', async () => {
     cmsClient.postAuthenticated.mockResolvedValue({ status: 'success', note: 'none', task: 'ha_make_slave', uuid: 'u2', db_names: ['db1', 'db2'] });
-    const res = await service.startAddSlave('user', 'h1', { slave: node, replicas: [{ ...node, host: 'harep' }] });
+    const res = await service.startAddSlave('user', 'h1', { slave: node, existingSlaves: [{ ...node, host: 'hasl1' }], replicas: [{ ...node, host: 'harep' }] });
     expect(sent()).toMatchObject({ task: 'ha_make_slave', slave_host: 'haslave', os_password: 'pw', start_ha: 'yes' });
     expect(sent()).not.toHaveProperty('db_name');
     expect(sent().replicas).toEqual([{ host: 'harep', ssh_port: '22', os_user: 'cubrid', os_password: 'pw', hostkey_sha256: 'SHA256:x' }]);
+    expect(sent().existing_nodes).toEqual([{ host: 'hasl1', ssh_port: '22', os_user: 'cubrid', os_password: 'pw', hostkey_sha256: 'SHA256:x' }]);
     expect(res).toMatchObject({ uuid: 'u2', db_names: ['db1', 'db2'] });
   });
 });

@@ -1631,6 +1631,7 @@ export const CM = {
   haSlavePoc: {
     downtime: (sec) => `Database down for ${sec} s`,
     stepOf: (no, count) => `Step ${no} / ${count}`,
+    existingNodes: 'Existing nodes',
     databases: 'Databases',
     sshPort: 'ssh port',
     osUser: 'OS user',

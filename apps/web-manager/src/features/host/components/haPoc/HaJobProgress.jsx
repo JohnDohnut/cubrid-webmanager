@@ -109,7 +109,10 @@ export default function HaJobProgress({ hostUid, job, setJob, L, cleanupPassword
       {job.downtime_sec !== undefined && job.downtime_sec !== null && job.downtime_sec !== '' && (
         <span className="text-13">{L.downtime(job.downtime_sec)}</span>
       )}
-      {Array.isArray(job.replica_hosts) && job.replica_hosts.length > 0 && (
+      {Array.isArray(job.existing_nodes) && job.existing_nodes.length > 0 && (
+        <span className="text-13">{L.existingNodes}: {job.existing_nodes.map((n) => `${n.host} (${n.role})`).join(', ')}</span>
+      )}
+      {!Array.isArray(job.existing_nodes) && Array.isArray(job.replica_hosts) && job.replica_hosts.length > 0 && (
         <span className="text-13">{L.replicaSection}: {job.replica_hosts.join(', ')}</span>
       )}
       {job.requestError && <span className="text-13 text-rose-500">{job.requestError}</span>}

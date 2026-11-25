@@ -1702,6 +1702,7 @@ export const CM_KO = {
   haSlavePoc: {
     downtime: (sec) => `DB 중단 ${sec}초`,
     stepOf: (no, count) => `단계 ${no} / ${count}`,
+    existingNodes: '기존 노드',
     databases: '데이터베이스',
     sshPort: 'ssh 포트',
     osUser: 'OS 아이디',
