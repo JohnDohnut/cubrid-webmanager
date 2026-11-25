@@ -305,7 +305,7 @@ export default function HaAddSlaveWizard({ hostUid }) {
       {step === STEP_SUMMARY && (
         <section className="flex flex-col gap-3">
           <Typography variant="h3">{W.stepSummary}</Typography>
-          <span className="text-13">{W.summaryPeers(peers.length ? peers.map((node) => `${node.ssh.host.trim()} (${node.role === 'slave' ? 'Slave' : 'Replica'})`).join(', ') : W.none)}</span>
+          <span className="text-13">{W.summaryPeers(peers.length ? peers.map((node) => `${node.ssh.host.trim()} (${node.role === 'slave' ? W.peerSlaveTitle : W.peerReplicaTitle})`).join(', ') : W.none)}</span>
           <pre className="font-mono text-12 bg-slate-100 dark:bg-white/5 p-3 rounded overflow-auto">
             {JSON.stringify(summarizeRequests(request, { convert: !isHaDb }), null, 2)}
           </pre>
