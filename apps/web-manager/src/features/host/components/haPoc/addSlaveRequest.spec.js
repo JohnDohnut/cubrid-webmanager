@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { buildAddSlaveRequest, buildConvertMasterRequest, convertPlan, summarizeRequests } from './addSlaveRequest';
 
-const node = (host, osPassword = 'pw') => ({ ssh: { host: ` ${host} `, sshPort: '22', osUser: 'cubrid', osPassword }, check: { hostkey_sha256: `SHA256:${host}` } });
+const node = (host, role, osPassword = 'pw') => ({ role, ssh: { host: ` ${host} `, sshPort: '22', osUser: 'cubrid', osPassword }, check: { hostkey_sha256: `SHA256:${host}` } });
 const options = { replLogHome: '', masterBackupPath: ' /bk ', slaveBackupPath: '', haGroup: '', haPortId: '', startHa: true };
 
 it('plans the restarts of a single server: every running database restarts, the ones not picked stay single', () => {
@@ -20,18 +20,21 @@ it('asks ha_convert_master for the databases picked, with the other restart only
 });
 
 it('starts ha_make_slave without any database: CMS takes the whole ha_db_list', () => {
-  const body = buildAddSlaveRequest({ slave: node('haslave'), replicas: [node('harep')], options });
+  const body = buildAddSlaveRequest({ slave: node('haslave'), peers: [node('harep', 'replica'), node('hasl1', 'slave')], options });
   expect(body).toEqual({
     slave: { host: 'haslave', sshPort: 22, osUser: 'cubrid', osPassword: 'pw', hostKeyFingerprint: 'SHA256:haslave' },
     startHa: true,
     masterBackupPath: '/bk',
+    existingSlaves: [{ host: 'hasl1', sshPort: 22, osUser: 'cubrid', osPassword: 'pw', hostKeyFingerprint: 'SHA256:hasl1' }],
     replicas: [{ host: 'harep', sshPort: 22, osUser: 'cubrid', osPassword: 'pw', hostKeyFingerprint: 'SHA256:harep' }],
   });
+  expect(buildAddSlaveRequest({ slave: node('haslave'), peers: [], options })).not.toHaveProperty('replicas');
 });
 
 it('hides the passwords in the summary', () => {
-  const sum = summarizeRequests({ dbNames: ['db1'], slave: node('haslave'), replicas: [node('harep')], options }, { convert: true });
+  const sum = summarizeRequests({ dbNames: ['db1'], slave: node('haslave'), peers: [node('harep', 'replica'), node('hasl1', 'slave')], options }, { convert: true });
   expect(sum.convertMaster).toEqual({ dbNames: ['db1'], confirmMasterRestart: true });
   expect(sum.addSlave.slave.osPassword).toBe('••••');
   expect(sum.addSlave.replicas[0].osPassword).toBe('••••');
+  expect(sum.addSlave.existingSlaves[0].osPassword).toBe('••••');
 });

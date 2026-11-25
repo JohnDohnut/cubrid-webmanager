@@ -18,7 +18,7 @@ import { buildAddSlaveRequest, buildConvertMasterRequest, convertPlan, summarize
 // POC (HA slave add), opened on a host: the HA master's (every database in
 // its ha_db_list goes to the new slave) or a single, non-HA server's (the
 // user picks the databases to put in HA). This host's CMS builds the new
-// slave on another server over ssh. A wizard: target, new slave, replicas,
+// slave on another server over ssh. A wizard: target, new slave, existing nodes,
 // options, summary, progress. A single server is first turned into a
 // one-node HA master (ha_convert_master, which restarts every running
 // database); when that succeeds the slave add (ha_make_slave) starts on its own. Each step's checks must pass before
@@ -50,8 +50,8 @@ export default function HaAddSlaveWizard({ hostUid }) {
   const isHaDb = haKnown && haDbNames.length > 0;
 
   const [step, setStep] = useState(STEP_TARGET);
-  // This host's HA role, the replicas in its node list and each HA database's state (heartbeat list).
-  const [ha, setHa] = useState({ done: false, role: null, replicas: [], modes: {}, error: null });
+  // This host's HA role, the other nodes in its node list (slaves, replicas) and each HA database's state (heartbeat list).
+  const [ha, setHa] = useState({ done: false, role: null, slaves: [], replicas: [], modes: {}, error: null });
   // Single server: the databases to put in HA, and the restarts agreed for exactly that pick.
   const [picked, setPicked] = useState([]);
   const [switchConfirmed, setSwitchConfirmed] = useState(false);
@@ -59,7 +59,8 @@ export default function HaAddSlaveWizard({ hostUid }) {
   // CMS's own lists when it asked again for a confirmation (the databases changed since step one).
   const [cmsConfirm, setCmsConfirm] = useState(null);
   const [slave, setSlave] = useState(() => newSshNode());
-  const [replicas, setReplicas] = useState([]);
+  // The existing nodes the new slave is registered on: { ...ssh node, role: 'slave' | 'replica' }.
+  const [peers, setPeers] = useState([]);
   const [options, setOptions] = useState({ replLogHome: '', masterBackupPath: '', slaveBackupPath: '', haGroup: '', haPortId: '', startHa: true });
   const [showAdvanced, setShowAdvanced] = useState(false);
   // The conversion's job (single database only), then the slave add's.
@@ -75,25 +76,31 @@ export default function HaAddSlaveWizard({ hostUid }) {
       .then((res) => {
         if (cancelled) return;
         const nodes = extractHaHeartbeatNodes(res);
-        const replicaNames = nodes
-          .filter((node) => (node.state || '').trim().toLowerCase() === 'replica')
-          .map((node) => node.hostname || node.ip)
-          .filter(Boolean);
+        const self = (res?.currentnode || '').trim();
+        const nameOf = (node) => (node.hostname || node.ip || '').trim();
+        const isReplica = (node) => (node.state || '').trim().toLowerCase() === 'replica';
+        // ha_replica_list: the replicas; ha_node_list without this node: the existing slaves.
+        const replicaNames = nodes.filter(isReplica).map(nameOf).filter(Boolean);
+        const slaveNames = nodes.filter((node) => !isReplica(node) && nameOf(node) !== self).map(nameOf).filter(Boolean);
         setHa({
           done: true,
           role: (res?.currentnodestate || '').trim().toLowerCase(),
+          slaves: slaveNames,
           replicas: replicaNames,
           modes: Object.fromEntries(getHaDbServerModes(res)),
           error: null,
         });
-        // Every replica in the master's list must be given; prefilled and fixed.
-        setReplicas(replicaNames.map((name) => ({ ...newSshNode(name), locked: true })));
+        // Every other node in the master's lists must be given; prefilled and fixed.
+        setPeers([
+          ...slaveNames.map((name) => ({ ...newSshNode(name), role: 'slave', locked: true })),
+          ...replicaNames.map((name) => ({ ...newSshNode(name), role: 'replica', locked: true })),
+        ]);
       })
-      .catch((err) => { if (!cancelled) setHa({ done: true, role: null, replicas: [], modes: {}, error: errorText(err) }); });
+      .catch((err) => { if (!cancelled) setHa({ done: true, role: null, slaves: [], replicas: [], modes: {}, error: errorText(err) }); });
     return () => { cancelled = true; };
   }, [hostUid, isHaDb]);
 
-  const patchReplica = (id) => (patch) => setReplicas((prev) => prev.map((node) => (node.id === id ? { ...node, ...patch } : node)));
+  const patchPeer = (id) => (patch) => setPeers((prev) => prev.map((node) => (node.id === id ? { ...node, ...patch } : node)));
   const setOption = (key) => (e) => setOptions((prev) => ({ ...prev, [key]: e.target.value }));
 
   const allNames = databases.map((db) => db.dbname);
@@ -118,12 +125,12 @@ export default function HaAddSlaveWizard({ hostUid }) {
   const stepOk = {
     [STEP_TARGET]: targetOk,
     [STEP_SLAVE]: isSshConfirmed(slave) && !slaveNameMismatch,
-    [STEP_REPLICAS]: replicas.every(isSshConfirmed),
+    [STEP_REPLICAS]: peers.every(isSshConfirmed),
     [STEP_OPTIONS]: true,
     [STEP_SUMMARY]: true,
   };
   const live = isJobLive(job) || isJobLive(convertJob);
-  const request = { dbNames: plan.haDatabases, confirmOtherDbRestart: hasOthers && otherConfirmed, slave, replicas, options };
+  const request = { dbNames: plan.haDatabases, confirmOtherDbRestart: hasOthers && otherConfirmed, slave, peers, options };
 
   const startAddSlave = async () => {
     const res = await hostApi.haAddSlaveStart(hostUid, buildAddSlaveRequest(request));
@@ -172,7 +179,10 @@ export default function HaAddSlaveWizard({ hostUid }) {
 
   const stepNames = [W.stepTarget, W.stepSlave, W.stepReplicas, W.stepOptions, W.stepSummary, W.stepProgress];
   const slaveLabels = { host: W.slaveHost, sshPort: L.sshPort, osUser: L.osUser, osPassword: L.osPassword, acceptFingerprint: W.acceptSlaveFingerprint };
-  const replicaLabels = { host: L.replicaHost, sshPort: L.sshPort, osUser: L.osUser, osPassword: L.osPassword, acceptFingerprint: L.acceptReplicaFingerprint };
+  const peerLabels = {
+    slave: { host: W.peerSlaveHost, sshPort: L.sshPort, osUser: L.osUser, osPassword: L.osPassword, acceptFingerprint: W.acceptPeerSlaveFingerprint },
+    replica: { host: L.replicaHost, sshPort: L.sshPort, osUser: L.osUser, osPassword: L.osPassword, acceptFingerprint: L.acceptReplicaFingerprint },
+  };
 
   return (
     <div className="flex-1 overflow-auto p-6 flex flex-col gap-8 max-w-5xl">
@@ -193,6 +203,7 @@ export default function HaAddSlaveWizard({ hostUid }) {
                   <>
                     <span>{W.haRole}: {ha.role || '-'}</span>
                     {ha.role !== 'master' && <span className="text-rose-500">{W.notMaster}</span>}
+                    <span>{W.existingSlaves}: {ha.slaves.length ? ha.slaves.join(', ') : W.none}</span>
                     <span>{L.replicaSection}: {ha.replicas.length ? ha.replicas.join(', ') : W.none}</span>
                     <Typography variant="h4">{W.haDatabases}</Typography>
                     <span className="text-slate-500">{W.haDbNote}</span>
@@ -252,23 +263,24 @@ export default function HaAddSlaveWizard({ hostUid }) {
       {step === STEP_REPLICAS && (
         <section className="flex flex-col gap-4">
           <Typography variant="h3">{W.stepReplicas}</Typography>
-          <span className="text-13 text-slate-500">{W.replicaHint}</span>
-          {replicas.length === 0 && <span className="text-13 text-slate-500">{W.noReplicas}</span>}
-          {replicas.map((node, index) => (
+          <span className="text-13 text-slate-500">{W.peerHint}</span>
+          {peers.length === 0 && <span className="text-13 text-slate-500">{W.noPeers}</span>}
+          {peers.map((node) => (
             <SshTargetCard
               key={node.id}
               hostUid={hostUid}
-              title={L.replicaTitle(index + 1)}
+              title={node.role === 'slave' ? W.peerSlaveTitle : W.peerReplicaTitle}
               node={node}
-              onChange={patchReplica(node.id)}
-              onRemove={node.locked ? undefined : () => setReplicas((prev) => prev.filter((r) => r.id !== node.id))}
+              onChange={patchPeer(node.id)}
+              onRemove={node.locked ? undefined : () => setPeers((prev) => prev.filter((r) => r.id !== node.id))}
               hostLocked={node.locked}
               L={L}
-              labels={replicaLabels}
+              labels={peerLabels[node.role]}
             />
           ))}
-          <div>
-            <Button variant="secondary" onClick={() => setReplicas((prev) => [...prev, newSshNode()])}>{L.addReplica}</Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setPeers((prev) => [...prev, { ...newSshNode(), role: 'slave' }])}>{W.addPeerSlave}</Button>
+            <Button variant="secondary" onClick={() => setPeers((prev) => [...prev, { ...newSshNode(), role: 'replica' }])}>{L.addReplica}</Button>
           </div>
         </section>
       )}
@@ -293,7 +305,7 @@ export default function HaAddSlaveWizard({ hostUid }) {
       {step === STEP_SUMMARY && (
         <section className="flex flex-col gap-3">
           <Typography variant="h3">{W.stepSummary}</Typography>
-          <span className="text-13">{W.summaryReplicas(replicas.length ? replicas.map((node) => node.ssh.host.trim()).join(', ') : W.none)}</span>
+          <span className="text-13">{W.summaryPeers(peers.length ? peers.map((node) => `${node.ssh.host.trim()} (${node.role === 'slave' ? 'Slave' : 'Replica'})`).join(', ') : W.none)}</span>
           <pre className="font-mono text-12 bg-slate-100 dark:bg-white/5 p-3 rounded overflow-auto">
             {JSON.stringify(summarizeRequests(request, { convert: !isHaDb }), null, 2)}
           </pre>

@@ -35,8 +35,13 @@ export function buildConvertMasterRequest({ dbNames, options, confirmOtherDbRest
   return body;
 }
 
-/** ha_make_slave, for every database in the master's ha_db_list: the new slave (its node name is also the address), the replicas, the options. */
-export function buildAddSlaveRequest({ slave, replicas, options }) {
+/**
+ * ha_make_slave, for every database in the master's ha_db_list: the new
+ * slave (its node name is also the address), the existing nodes it is
+ * registered on (slaves and replicas, apart), the options.
+ */
+export function buildAddSlaveRequest({ slave, peers, options }) {
+  const ofRole = (role) => peers.filter((node) => node.role === role).map(sshNodeBody);
   const body = {
     slave: sshNodeBody(slave),
     startHa: options.startHa !== false,
@@ -45,7 +50,10 @@ export function buildAddSlaveRequest({ slave, replicas, options }) {
     const value = trimmed(options[key]);
     if (value) body[key] = value;
   }
-  if (replicas.length > 0) body.replicas = replicas.map(sshNodeBody);
+  const existingSlaves = ofRole('slave');
+  const replicas = ofRole('replica');
+  if (existingSlaves.length > 0) body.existingSlaves = existingSlaves;
+  if (replicas.length > 0) body.replicas = replicas;
   return body;
 }
 
@@ -55,6 +63,11 @@ export function summarizeRequests(state, { convert }) {
   const add = buildAddSlaveRequest(state);
   return {
     ...(convert ? { convertMaster: buildConvertMasterRequest(state) } : {}),
-    addSlave: { ...add, slave: hide(add.slave), ...(add.replicas ? { replicas: add.replicas.map(hide) } : {}) },
+    addSlave: {
+      ...add,
+      slave: hide(add.slave),
+      ...(add.existingSlaves ? { existingSlaves: add.existingSlaves.map(hide) } : {}),
+      ...(add.replicas ? { replicas: add.replicas.map(hide) } : {}),
+    },
   };
 }
