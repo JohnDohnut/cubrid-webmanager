@@ -252,6 +252,7 @@ export default function HaAddSlaveWizard({ hostUid }) {
       {step === STEP_REPLICAS && (
         <section className="flex flex-col gap-4">
           <Typography variant="h3">{W.stepReplicas}</Typography>
+          <span className="text-13 text-slate-500">{W.replicaHint}</span>
           {replicas.length === 0 && <span className="text-13 text-slate-500">{W.noReplicas}</span>}
           {replicas.map((node, index) => (
             <SshTargetCard
@@ -292,6 +293,7 @@ export default function HaAddSlaveWizard({ hostUid }) {
       {step === STEP_SUMMARY && (
         <section className="flex flex-col gap-3">
           <Typography variant="h3">{W.stepSummary}</Typography>
+          <span className="text-13">{W.summaryReplicas(replicas.length ? replicas.map((node) => node.ssh.host.trim()).join(', ') : W.none)}</span>
           <pre className="font-mono text-12 bg-slate-100 dark:bg-white/5 p-3 rounded overflow-auto">
             {JSON.stringify(summarizeRequests(request, { convert: !isHaDb }), null, 2)}
           </pre>
