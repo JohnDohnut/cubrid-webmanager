@@ -111,8 +111,9 @@ export default function HaAddNodesWizard({ hostUid }) {
     setOtherConfirmed(false);
   };
 
-  // Where it runs: a single server, the master or a slave; never a replica.
-  const runsOnHa = isHaDb && ha.done && !ha.error && (ha.role === 'master' || ha.role === 'slave');
+  // Where it runs: a single server or the master. A slave or a replica host (cases 5, 6) waits until
+  // CMS supports it (its plan refuses them for now); the rest of the wizard already handles them.
+  const runsOnHa = isHaDb && ha.done && !ha.error && ha.role === 'master';
   const targetOk = isHaDb
     ? runsOnHa
     : haKnown && picked.length > 0 && switchConfirmed && (!hasOthers || otherConfirmed);
@@ -152,8 +153,11 @@ export default function HaAddNodesWizard({ hostUid }) {
                 : (
                   <>
                     <span>{W.mode}: {W.modeHa} · {W.haRole}: {ha.role || '-'}</span>
-                    {!runsOnHa && <span className="text-rose-500">{ha.role === 'replica' ? W.replicaHostNotYet : W.roleNotAllowed}</span>}
-                    {ha.role === 'slave' && <span className="text-amber-700 dark:text-amber-300">{W.slaveHostNote(masterName || '-')}</span>}
+                    {!runsOnHa && (
+                      <span className="text-rose-500">
+                        {ha.role === 'replica' ? W.replicaHostNotYet : ha.role === 'slave' ? W.slaveHostNotYet(masterName || '-') : W.roleNotAllowed}
+                      </span>
+                    )}
                     <Typography variant="h4">{W.haNodes}</Typography>
                     <NodeTable
                       W={W}

@@ -133,6 +133,14 @@ export default function HaJobProgress({ hostUid, job, setJob, L, cleanupPassword
         ))}
       </ol>
 
+      {Array.isArray(job.unrestored) && job.unrestored.length > 0 && (
+        <div className="flex flex-col gap-1 text-13 p-3 rounded border border-rose-300 bg-rose-50 dark:bg-rose-500/10" data-testid="ha-job-unrestored">
+          <Typography variant="label">{L.unrestored}</Typography>
+          {job.unrestored.map((item) => (
+            <span key={`${item.node}|${item.kind}|${item.path}`} className="font-mono">{item.node} · {item.kind} · {item.path}</span>
+          ))}
+        </div>
+      )}
       {keptPaths.length > 0 && (
         <div className="flex flex-col gap-1 text-13">
           <Typography variant="label">{L.keptDbPaths}</Typography>

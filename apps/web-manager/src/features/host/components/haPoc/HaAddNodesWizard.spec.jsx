@@ -76,16 +76,16 @@ it('keeps Next off on a replica host', async () => {
   expect(nextButton().disabled).toBe(true);
 });
 
-it('runs on a slave host too, into its HA group, the master then among the existing nodes', async () => {
+it('says a slave host is not supported yet, naming the master', async () => {
   mocks.heartbeat.mockResolvedValue({
     currentnode: 'hasl1',
     currentnodestate: 'slave',
     hanodelist: [{ node: [{ hostname: 'hamaster', state: 'master' }, { hostname: 'hasl1', state: 'slave' }, { hostname: 'hareplica', state: 'replica' }] }],
   });
   await render({ haDbNamesByHost: { h1: ['hadb'] }, databasesByHost: { h1: [{ dbname: 'hadb' }] }, activeDatabasesByHost: { h1: ['hadb'] } });
-  expect(text()).toContain('This host is a slave. The new nodes join its HA group (master hamaster).');
+  expect(text()).toContain('Running on a slave host is not supported yet (after testing). Open this on the master (hamaster).');
   expect(container.querySelector('[data-testid="ha-target-node-hasl1"]').textContent).toBe('hasl1 (this host)Slave');
-  expect(nextButton().disabled).toBe(false);
+  expect(nextButton().disabled).toBe(true);
 });
 
 it('on a single server, shows what restarts for the pick and asks again when the pick changes', async () => {
