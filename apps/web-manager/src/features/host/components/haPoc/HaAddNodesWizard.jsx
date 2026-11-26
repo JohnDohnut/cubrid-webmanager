@@ -188,6 +188,7 @@ export default function HaAddNodesWizard({ hostUid }) {
               />
               {picked.length > 0 && (
                 <div className="flex flex-col gap-2 p-3 rounded border border-amber-300 bg-amber-50 dark:bg-amber-500/10" data-testid="ha-convert-plan">
+                  <Typography variant="h4">{W.promoteTitle}</Typography>
                   <span className="text-amber-700 dark:text-amber-300">{W.singleWarning}</span>
                   <span>{W.haList} <b>{plan.haDatabases.join(', ')}</b></span>
                   <span>{W.restartList} <b>{listText(plan.restartDatabases, W.none)}</b></span>
@@ -289,7 +290,7 @@ export default function HaAddNodesWizard({ hostUid }) {
           <span className="text-13">{W.summaryNew(nodeList(newNodes))}</span>
           <span className="text-13">{W.summaryPeers(nodeList(peers))}</span>
           {!isHaDb && (
-            <span className="text-13 text-amber-700 dark:text-amber-300">{W.singleWarning} {W.restartList} {listText(plan.restartDatabases, W.none)}</span>
+            <span className="text-13 text-amber-700 dark:text-amber-300">{W.promoteTitle}: {W.singleWarning} {W.restartList} {listText(plan.restartDatabases, W.none)}</span>
           )}
           <pre className="font-mono text-12 bg-slate-100 dark:bg-white/5 p-3 rounded overflow-auto">
             {JSON.stringify(summarizeRequest(request), null, 2)}

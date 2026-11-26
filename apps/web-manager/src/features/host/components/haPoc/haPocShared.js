@@ -17,6 +17,9 @@ export const STATE_STYLE = {
 
 export const TERMINAL_JOB_STATES = new Set(['success', 'fail', 'cancelled', 'interrupted']);
 
+/** The steps that promote a single server to an HA master (the convert_* ids). */
+export const isPromoteStep = (step) => String(step?.id ?? '').startsWith('convert_');
+
 /** Whether the job still needs polling: running, or ended but still rolling back. */
 export const isJobLive = (job) => Boolean(job?.uuid) && (!TERMINAL_JOB_STATES.has(job?.job_status) || job?.phase === 'rollback');
 

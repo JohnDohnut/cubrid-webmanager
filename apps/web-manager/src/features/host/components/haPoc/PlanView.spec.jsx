@@ -39,6 +39,7 @@ const plan = {
   warnings: ['log_max_archives is 0 on nodeA'],
   steps: [
     { no: 1, id: 'precheck', title: 'Check this server', node: '', db: '', actor: 'script' },
+    { no: 3, id: 'convert_stop', title: 'Stop the running databases', node: '', db: '', actor: 'script' },
     { no: 10, id: 'send_backup', title: 'Send the backup', node: 'nodeX1', db: 'hadb', actor: 'script' },
   ],
 };
@@ -56,6 +57,9 @@ it('shows what the plan will do, and asks only for the confirmations not given y
   expect(text).toContain('log_max_archives is 0 on nodeA');
   expect(container.querySelector('[data-testid="ha-plan-changes"]').textContent).toContain('cubrid@nodeA:nodeX1');
   expect(container.querySelector('[data-testid="ha-plan-steps"]').textContent).toContain('10Send the backupnodeX1hadb');
+  expect(container.querySelector('[data-testid="ha-plan-steps"]').textContent).toContain('3Promote to HA masterStop the running databases');
+  expect(container.querySelector('[data-testid="ha-plan-convert"]').textContent).toContain('Promote to HA master');
+  expect(text).not.toMatch(/switch/i);
 
   const boxes = [...container.querySelectorAll('[data-testid="ha-plan-confirm"] input[type=checkbox]')];
   expect(boxes.map((b) => b.checked)).toEqual([true, false]);
@@ -67,4 +71,6 @@ it('has no switch block and no confirmation on an HA host', async () => {
   await act(async () => root.render(<PlanView plan={{ ...plan, convert: null, confirm_required: [] }} W={CM.haAddSlave} agreed={[]} onAgree={() => {}} />));
   expect(container.querySelector('[data-testid="ha-plan-convert"]')).toBeNull();
   expect(container.querySelector('[data-testid="ha-plan-confirm"]')).toBeNull();
+  expect(container.textContent).not.toContain('Promote to HA master');
+  expect(container.querySelector('[data-testid="ha-plan-steps"]').textContent).not.toContain('Stop the running databases');
 });

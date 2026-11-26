@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { hostApi } from '../../hostApi';
 import { Button } from '../../../../components/ds/foundation/Button';
 import { Typography } from '../../../../components/ds/foundation/Typography';
-import { STATE_STYLE, errorText, isJobLive } from './haPocShared';
+import { STATE_STYLE, errorText, isJobLive, isPromoteStep } from './haPocShared';
 
 const POLL_MS = 1000;
 
@@ -50,7 +50,7 @@ function useHaJobPolling(hostUid, job, setJob) {
  * cleanup of the old database folders it moved aside on the new slave
  * (`cleanupPassword`, the new slave's, which that request needs again).
  */
-export default function HaJobProgress({ hostUid, job, setJob, L, cleanupPassword }) {
+export default function HaJobProgress({ hostUid, job, setJob, L, cleanupPassword, promoting = false }) {
   const [cleanup, setCleanup] = useState(null);
   const logRef = useRef(null);
   useHaJobPolling(hostUid, job, setJob);
@@ -79,7 +79,8 @@ export default function HaJobProgress({ hostUid, job, setJob, L, cleanupPassword
   };
 
   const keptPaths = Array.isArray(job?.kept_db_paths) ? job.kept_db_paths : [];
-  const steps = Array.isArray(job?.steps) ? job.steps : [];
+  // A host already HA has no promotion: its steps are not shown at all.
+  const steps = (Array.isArray(job?.steps) ? job.steps : []).filter((step) => promoting || !isPromoteStep(step));
   // A step done per database comes once per database (`db`); a node step has no database.
   const current = steps.find((step) => String(step.no) === String(job.step_no));
   const currentTitle = current ? current.title || current.id : job.step;
@@ -96,7 +97,7 @@ export default function HaJobProgress({ hostUid, job, setJob, L, cleanupPassword
       </div>
       {job.step_no && job.step_count ? (
         <span className="text-13">
-          {L.stepOf(job.step_no, job.step_count)}, {currentTitle}{[job.step_node, job.step_db].some(Boolean) ? ` (${[job.step_node, job.step_db].filter(Boolean).join(' · ')})` : ''}
+          {L.stepOf(job.step_no, job.step_count)}, {promoting && isPromoteStep(current) ? `${L.promoteGroup} · ` : ''}{currentTitle}{[job.step_node, job.step_db].some(Boolean) ? ` (${[job.step_node, job.step_db].filter(Boolean).join(' · ')})` : ''}
         </span>
       ) : null}
       {Array.isArray(job.db_names) && job.db_names.length > 0 && (
@@ -124,6 +125,7 @@ export default function HaJobProgress({ hostUid, job, setJob, L, cleanupPassword
         {steps.map((step) => (
           <li key={step.no} className="flex gap-3">
             <span className="w-8 shrink-0 text-slate-400">{step.no}</span>
+            {promoting && <span className="w-36 shrink-0 text-amber-700 dark:text-amber-300">{isPromoteStep(step) ? L.promoteGroup : ''}</span>}
             <span className="w-72 shrink-0">{step.title || step.id}</span>
             {byNode && <span className="w-28 shrink-0 font-mono text-slate-500">{step.node || ''}</span>}
             <span className="w-28 shrink-0 font-mono text-slate-500">{step.db || ''}</span>

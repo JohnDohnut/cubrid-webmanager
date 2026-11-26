@@ -44,3 +44,19 @@ it('names the node and database of each step, and lists what could not be undone
   expect(container.querySelector('[data-testid="ha-job-unrestored"]').textContent)
     .toBe('Not undone (check these by hand)nodeS1 · config · /home/cubrid/CUBRID/conf/cubrid_ha.conf');
 });
+
+it('tags the promotion steps on a single server, and leaves them out on an HA host', async () => {
+  const job = {
+    uuid: 'u1', job_status: 'success', phase: 'done', step_no: 2, step_count: 2,
+    steps: [
+      { no: 1, id: 'convert_stop', title: 'Stop the running databases', node: '', db: '', state: 'done' },
+      { no: 2, id: 'new_config', title: 'Prepare the new node', node: 'nodeX1', db: '', state: 'done' },
+    ],
+    log: '',
+  };
+  await act(async () => root.render(<HaJobProgress hostUid="h1" job={job} setJob={() => {}} L={CM.haSlavePoc} promoting />));
+  expect(container.querySelector('ol').textContent).toContain('1Promote to HA masterStop the running databases');
+  await act(async () => root.render(<HaJobProgress hostUid="h1" job={job} setJob={() => {}} L={CM.haSlavePoc} />));
+  expect(container.querySelector('ol').textContent).not.toContain('Stop the running databases');
+  expect(container.textContent).not.toContain('Promote to HA master');
+});

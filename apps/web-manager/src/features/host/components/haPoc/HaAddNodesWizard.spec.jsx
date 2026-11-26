@@ -103,18 +103,19 @@ it('on a single server, shows what restarts for the pick and asks again when the
   expect(nextButton().disabled).toBe(true);
 
   await click(box('db1'));
+  expect(plan()).toContain('Promote to HA master');
   expect(plan()).toContain('Into HA: db1');
   expect(plan()).toContain('Restart (every running database): db1, db2');
   expect(plan()).toContain('Of those, back as single databases: db2');
   expect(plan()).toContain('Stay single: db2, down');
-  await click(consent('switch to HA'));
+  await click(consent('promote to HA master'));
   expect(nextButton().disabled).toBe(true);
   await click(consent('not picked restart too'));
   expect(nextButton().disabled).toBe(false);
 
   await click(box('down'));
   expect(plan()).toContain('Into HA: db1, down');
-  expect(consent('switch to HA').checked).toBe(false);
+  expect(consent('promote to HA master').checked).toBe(false);
   expect(nextButton().disabled).toBe(true);
 });
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Checkbox } from '../../../../components/ds/forms/Checkbox';
 import { Typography } from '../../../../components/ds/foundation/Typography';
+import { isPromoteStep } from './haPocShared';
 
 // POC (HA node add): what CMS's plan (ha_add_nodes, action plan) says it
 // will do, shown before run: the nodes and their roles, the switch to HA
@@ -24,6 +25,8 @@ export default function PlanView({ plan, W, agreed, onAgree }) {
   const roleName = { master: W.roleMaster, slave: W.roleSlave, replica: W.roleReplica };
   const required = Array.isArray(plan.confirm_required) ? plan.confirm_required : [];
   const confirmLabel = { confirm_master_restart: W.singleConfirm, confirm_other_db_restart: W.otherConfirm };
+  // A host already HA has no promotion: its steps are not shown at all.
+  const steps = (plan.steps ?? []).filter((step) => plan.convert || !isPromoteStep(step));
   return (
     <div className="flex flex-col gap-4 text-13" data-testid="ha-plan">
       <span>{W.planLocal(plan.local?.host ?? '-', plan.local?.state ?? '-')} · {W.planMaster(plan.master_host ?? '-')}</span>
@@ -51,6 +54,7 @@ export default function PlanView({ plan, W, agreed, onAgree }) {
 
       {plan.convert && (
         <div className="flex flex-col gap-1 p-3 rounded border border-amber-300 bg-amber-50 dark:bg-amber-500/10" data-testid="ha-plan-convert">
+          <Typography variant="h4">{W.promoteTitle}</Typography>
           <span className="text-amber-700 dark:text-amber-300">{W.singleWarning}</span>
           <span>{W.haList} <b>{list(plan.convert.ha_databases)}</b></span>
           <span>{W.restartList} <b>{list(plan.convert.restart_databases)}</b></span>
@@ -101,11 +105,12 @@ export default function PlanView({ plan, W, agreed, onAgree }) {
         </tbody>
       </table>
 
-      <Typography variant="h4">{W.planSteps((plan.steps ?? []).length)}</Typography>
+      <Typography variant="h4">{W.planSteps(steps.length)}</Typography>
       <ol className="flex flex-col gap-1" data-testid="ha-plan-steps">
-        {(plan.steps ?? []).map((step) => (
+        {steps.map((step) => (
           <li key={step.no} className="flex gap-3">
             <span className="w-8 shrink-0 text-slate-400">{step.no}</span>
+            <span className="w-36 shrink-0 text-amber-700 dark:text-amber-300">{isPromoteStep(step) ? W.promoteTitle : ''}</span>
             <span className="w-72 shrink-0">{step.title || step.id}</span>
             <span className="w-28 shrink-0 font-mono text-slate-500">{step.node || ''}</span>
             <span className="w-28 shrink-0 font-mono text-slate-500">{step.db || ''}</span>
