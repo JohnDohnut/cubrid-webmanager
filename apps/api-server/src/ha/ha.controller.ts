@@ -66,6 +66,16 @@ export class HaController {
   }
 
   /**
+   * POC: the runs started on this host, to find one again after the browser closed.
+   *
+   * @route POST /:hostUid/ha/add-nodes/jobs
+   */
+  @Post('add-nodes/jobs')
+  async addNodesJobs(@Request() req, @Param('hostUid') hostUid: string) {
+    return await this.haService.addNodesJobs(req.user.sub, hostUid);
+  }
+
+  /**
    * POC: a job's state, steps, plan and new log.
    *
    * @route POST /:hostUid/ha/add-nodes/status

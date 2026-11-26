@@ -10,7 +10,7 @@ import { Typography } from '../../../../components/ds/foundation/Typography';
 import { Steps } from '../../../../components/ds/layout/Steps';
 import { useCM } from '../../../../constants/useCM';
 import SshTargetCard from './SshTargetCard';
-import { STATE_STYLE, errorText, isJobLive, isSshConfirmed, newSshNode, pathProblems } from './haPocShared';
+import { STATE_STYLE, UNDO_ON_REQUEST, errorText, isJobLive, isSshConfirmed, newSshNode, pathProblems } from './haPocShared';
 import BulkSshTools from './BulkSshTools';
 import SshProblem from './SshProblem';
 import PlanView from './PlanView';
@@ -38,6 +38,8 @@ const STEP_EXISTING = 2;
 const STEP_OPTIONS = 3;
 const STEP_SUMMARY = 4;
 const STEP_PROGRESS = 5;
+// How many of this host's latest runs are looked at for one still going or to undo.
+const RESUME_LOOKUP = 5;
 const newJob = (res) => ({ uuid: res?.uuid, job_status: res?.job_status ?? 'running', steps: [], log: '', offset: 0 });
 const NONE = [];
 const ROLES = ['slave', 'replica'];
@@ -81,6 +83,40 @@ export default function HaAddNodesWizard({ hostUid }) {
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState(null);
   useHaJobPolling(hostUid, planJob, setPlanJob);
+  // Runs started on this host earlier (another tab, a closed browser) that are still going or
+  // can be undone: { record, status }. A run opened from here holds no password (`resumed`).
+  const [unfinished, setUnfinished] = useState([]);
+  const [resumed, setResumed] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const isUnfinished = (st) => isJobLive(st) || UNDO_ON_REQUEST.has(st?.job_status)
+      || (st?.job_status === 'rollback_failed' && Array.isArray(st.unrestored) && st.unrestored.length > 0);
+    hostApi.haAddNodesJobs(hostUid)
+      .then(async (records) => {
+        const recent = (Array.isArray(records) ? records : []).slice(0, RESUME_LOOKUP);
+        // The state only (offset past the log's end: no log).
+        const found = await Promise.all(recent.map((record) => hostApi.haAddNodesStatus(hostUid, record.uuid, Number.MAX_SAFE_INTEGER)
+          .then((status) => ({ record, status }))
+          .catch(() => null)));
+        if (!cancelled) setUnfinished(found.filter((f) => f && isUnfinished(f.status)));
+      })
+      .catch(() => { /* none to show */ });
+    return () => { cancelled = true; };
+  }, [hostUid]);
+
+  const openUnfinished = async ({ record }) => {
+    setStartError(null);
+    try {
+      const res = await hostApi.haAddNodesStatus(hostUid, record.uuid, 0);
+      const log = typeof res?.output === 'string' ? res.output : '';
+      setResumed(record);
+      setRunJob({ ...res, uuid: record.uuid, steps: Array.isArray(res?.steps) ? res.steps : [], log, offset: Number(res?.next_offset) || log.length });
+      setStep(STEP_PROGRESS);
+    } catch (err) {
+      setStartError(errorText(err));
+    }
+  };
 
   useEffect(() => {
     if (!isHaDb) return undefined;
@@ -204,6 +240,23 @@ export default function HaAddNodesWizard({ hostUid }) {
       <div className="pb-6">
         <Steps steps={stepNames} currentStep={step} />
       </div>
+
+      {step === STEP_TARGET && !runJob && unfinished.length > 0 && (
+        <section className="flex flex-col gap-2 p-3 rounded border border-amber-300 bg-amber-50 dark:bg-amber-500/10 text-13" data-testid="ha-unfinished">
+          <Typography variant="h4">{W.unfinishedTitle}</Typography>
+          <span className="text-amber-700 dark:text-amber-300">{W.unfinishedNote}</span>
+          {unfinished.map((u) => (
+            <div key={u.record.uuid} className="flex items-center gap-3" data-testid={`ha-unfinished-${u.record.uuid}`}>
+              <span className="font-mono">{u.record.uuid.slice(0, 8)}</span>
+              <span>{new Date(u.record.startedAt).toLocaleString()}</span>
+              <span>{u.record.newNodes.map((n) => n.host).join(', ')}</span>
+              <span className={STATE_STYLE[u.status.job_status] ?? ''}>{u.status.job_status}</span>
+              <Button size="sm" variant="secondary" onClick={() => openUnfinished(u)}>{W.unfinishedOpen}</Button>
+            </div>
+          ))}
+          {startError && <span className="text-rose-500">{startError}</span>}
+        </section>
+      )}
 
       {step === STEP_TARGET && (
         <section className="flex flex-col gap-3 text-13">
@@ -458,11 +511,12 @@ export default function HaAddNodesWizard({ hostUid }) {
             job={runJob}
             setJob={setRunJob}
             L={L}
-            promoting={!isHaDb}
+            promoting={resumed ? true : !isHaDb}
             causes={W.sshCauses}
             sshLabels={W.sshLabels}
-            cleanupNodes={jobNodes.newNodes}
-            rollbackNodes={jobNodes}
+            cleanupNodes={resumed ? [] : jobNodes.newNodes}
+            rollbackNodes={resumed ? { newNodes: resumed.newNodes, existingNodes: resumed.existingNodes } : jobNodes}
+            passwordsKnown={!resumed}
           />
         </section>
       )}

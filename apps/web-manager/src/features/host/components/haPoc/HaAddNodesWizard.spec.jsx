@@ -7,10 +7,12 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 vi.hoisted(() => {
   window.matchMedia ??= () => ({ matches: false, addEventListener: () => undefined, removeEventListener: () => undefined });
 });
-const mocks = vi.hoisted(() => ({ heartbeat: vi.fn(), check: vi.fn(), start: vi.fn(), status: vi.fn() }));
+const mocks = vi.hoisted(() => ({ heartbeat: vi.fn(), check: vi.fn(), start: vi.fn(), status: vi.fn(), jobs: vi.fn(), rollback: vi.fn() }));
 vi.mock('../../../../api/apiClient', () => ({ default: { defaults: { headers: { common: {} } } } }));
 vi.mock('../../../server/monitoringApi', () => ({ monitoringApi: { getHaHeartbeatList: mocks.heartbeat } }));
-vi.mock('../../hostApi', () => ({ hostApi: { haAddNodesCheck: mocks.check, haAddNodesStart: mocks.start, haAddNodesStatus: mocks.status } }));
+vi.mock('../../hostApi', () => ({
+  hostApi: { haAddNodesCheck: mocks.check, haAddNodesStart: mocks.start, haAddNodesStatus: mocks.status, haAddNodesJobs: mocks.jobs, haAddNodesRollback: mocks.rollback },
+}));
 import HaAddNodesWizard from './HaAddNodesWizard';
 
 let container;
@@ -19,6 +21,7 @@ let root;
 beforeEach(() => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   vi.resetAllMocks();
+  mocks.jobs.mockResolvedValue([]);
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
@@ -402,4 +405,45 @@ it('names the databases not logged in, whose tables without a primary key cannot
   mocks.heartbeat.mockResolvedValue(heartbeat('master'));
   await render(haDb);
   expect(container.querySelector('[data-testid="ha-pk-login-hint"]').textContent).toContain('log in first: hadb2');
+});
+
+it('finds a run left unfinished on this host and undoes it, asking the passwords of the nodes with undo left', async () => {
+  mocks.heartbeat.mockResolvedValue(heartbeat('master'));
+  const record = {
+    uuid: '6b07c56dd9e8893feb27ae8d', action: 'run', startedAt: '2026-11-26T05:00:00Z',
+    newNodes: [{ role: 'slave', host: 'haxs1', sshPort: 22, osUser: 'cubrid', hostKeyFingerprint: 'SHA256:s' }, { role: 'replica', host: 'haxr1', sshPort: 22, osUser: 'cubrid', hostKeyFingerprint: 'SHA256:r' }],
+    existingNodes: [{ host: 'hasl1', sshPort: 22, osUser: 'cubrid', hostKeyFingerprint: 'SHA256:e' }],
+  };
+  mocks.jobs.mockResolvedValue([record]);
+  mocks.status.mockResolvedValue({
+    uuid: record.uuid, action: 'run', job_status: 'interrupted', phase: 'done', steps: [], output: 'log so far',
+    unrestored: [{ node: 'haxs1', kind: 'config', path: '/c' }, { node: 'hasl1', kind: 'config', path: '/c' }, { node: 'haxs1', kind: 'dir', path: '/d' }],
+  });
+  mocks.rollback.mockResolvedValue({ uuid: record.uuid, job_status: 'running' });
+  await render(haDb);
+  const banner = container.querySelector(`[data-testid="ha-unfinished-${record.uuid}"]`);
+  expect(banner.textContent).toContain('haxs1, haxr1');
+  expect(banner.textContent).toContain('interrupted');
+  await click([...banner.querySelectorAll('button')].find((b) => b.textContent === 'Open'));
+  expect(text()).toContain('log so far');
+
+  await click(button('Undo'));
+  const dialog = document.querySelector('[data-testid="ha-relog-modal"]');
+  const labelsShown = [...dialog.querySelectorAll('label')].map((l) => l.textContent.trim());
+  expect(labelsShown).toEqual(['haxs1 OS password', 'hasl1 OS password']);
+  expect(dialog.textContent).toContain('holds no password');
+  for (const input of dialog.querySelectorAll('input[type=password]')) await type(input, `pw-${input.id}`);
+  await click([...dialog.querySelectorAll('button')].find((b) => b.textContent === 'Undo'));
+  const [, uuid, nodes] = mocks.rollback.mock.calls[0];
+  expect(uuid).toBe(record.uuid);
+  expect(nodes.newNodes.map((n) => [n.host, Boolean(n.osPassword)])).toEqual([['haxs1', true]]);
+  expect(nodes.existingNodes.map((n) => [n.host, Boolean(n.osPassword)])).toEqual([['hasl1', true]]);
+});
+
+it('shows no unfinished runs when every one ended', async () => {
+  mocks.heartbeat.mockResolvedValue(heartbeat('master'));
+  mocks.jobs.mockResolvedValue([{ uuid: 'u1', action: 'run', startedAt: 't', newNodes: [], existingNodes: [] }]);
+  mocks.status.mockResolvedValue({ uuid: 'u1', job_status: 'success', phase: 'done', steps: [] });
+  await render(haDb);
+  expect(container.querySelector('[data-testid="ha-unfinished"]')).toBeNull();
 });

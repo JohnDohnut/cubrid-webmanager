@@ -4,6 +4,7 @@ export const hostApi = {
   // POC (HA node add, run on the master or a single server): passwords go only into these requests.
   haAddNodesCheck: (hostUid, body) => apiClient.post(`/${hostUid}/ha/add-nodes/check-connection`, body),
   haAddNodesStart: (hostUid, body) => apiClient.post(`/${hostUid}/ha/add-nodes/start`, body),
+  haAddNodesJobs: (hostUid) => apiClient.post(`/${hostUid}/ha/add-nodes/jobs`, {}),
   haAddNodesStatus: (hostUid, uuid, offset) => apiClient.post(`/${hostUid}/ha/add-nodes/status`, { uuid, offset }),
   haAddNodesCancel: (hostUid, uuid) => apiClient.post(`/${hostUid}/ha/add-nodes/cancel`, { uuid }),
   haAddNodesRollback: (hostUid, uuid, nodes) => apiClient.post(`/${hostUid}/ha/add-nodes/rollback`, { uuid, ...nodes }),

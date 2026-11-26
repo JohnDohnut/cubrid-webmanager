@@ -2,6 +2,7 @@ import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.servic
 import { BaseService, HandleCmsErrors } from '@common';
 import { HostService } from '@host';
 import { DatabaseUserService } from '@database/user/database-user.service';
+import { HaJobNode, HaJobRegistry } from './ha-job-registry';
 import { Injectable } from '@nestjs/common';
 import { HaAddNodesCleanupDto, HaAddNodesDto, HaAddNodesJobDto, HaAddNodesRollbackDto, HaNewNodeDto, HaSshCheckDto, HaSshNodeDto } from '@type/index';
 import {
@@ -42,7 +43,8 @@ export class HaService extends BaseService {
   constructor(
     protected readonly hostService: HostService,
     protected readonly cmsClient: CmsHttpsClientService,
-    private readonly databaseUserService: DatabaseUserService
+    private readonly databaseUserService: DatabaseUserService,
+    private readonly jobRegistry: HaJobRegistry
   ) {
     super(hostService, cmsClient);
   }
@@ -257,7 +259,7 @@ export class HaService extends BaseService {
     const run = request.action === 'run';
     const yes = (on?: boolean) => (run && on ? 'yes' : undefined);
     const promoting = (request.dbNames?.length ?? 0) > 0;
-    return this.pocCall(userId, hostUid, this.pocRequest(HA_NODES_TASKS.addNodes, {
+    const res = await this.pocCall(userId, hostUid, this.pocRequest(HA_NODES_TASKS.addNodes, {
       action: request.action,
       new_nodes: request.newNodes.map((n) => this.newNodeFields(n)),
       existing_nodes: request.existingNodes.map((n) => this.nodeFields(n)),
@@ -269,6 +271,24 @@ export class HaService extends BaseService {
       start_ha: request.startHa === false ? 'no' : 'yes',
       db_accounts: run ? undefined : await this.liveDbAccounts(userId, hostUid, request.checkDbNames),
     }));
+    // A run is kept (without passwords) so it can be found again after the browser closed.
+    const uuid = (res as { uuid?: unknown })?.uuid;
+    if (run && typeof uuid === 'string' && uuid) {
+      const reach = (n: HaSshNodeDto): HaJobNode => ({ host: n.host, sshPort: n.sshPort, osUser: n.osUser, hostKeyFingerprint: n.hostKeyFingerprint });
+      await this.jobRegistry.add(userId, hostUid, {
+        uuid,
+        action: 'run',
+        startedAt: new Date().toISOString(),
+        newNodes: request.newNodes.map((n) => ({ role: n.role, ...reach(n) })),
+        existingNodes: request.existingNodes.map(reach),
+      });
+    }
+    return res;
+  }
+
+  /** POC: the runs started on this host (newest first), each with its nodes' logins but no password. */
+  async addNodesJobs(userId: string, hostUid: string) {
+    return this.jobRegistry.list(userId, hostUid);
   }
 
   /** POC: a job's state, its steps, the plan and the log after `offset` (CMS ha_add_nodes_status). */

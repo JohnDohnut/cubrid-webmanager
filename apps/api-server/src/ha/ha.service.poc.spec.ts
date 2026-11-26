@@ -3,12 +3,14 @@ import { HaService } from './ha.service';
 import { HostService } from '@host';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import { DatabaseUserService } from '@database/user/database-user.service';
+import { HaJobRegistry } from './ha-job-registry';
 
 // POC (HA node add): what the ha_add_nodes tasks get from the wizard's requests.
 describe('HaService HA node add POC', () => {
   let service: HaService;
   let cmsClient: { postAuthenticated: jest.Mock };
   let isDbLoginActive: jest.Mock;
+  let registry: { add: jest.Mock; list: jest.Mock };
   const host = {
     uid: 'h1', id: 'admin', address: '10.0.0.1', port: 8001, token: 't', alias: 'm',
     dbProfiles: {
@@ -24,12 +26,14 @@ describe('HaService HA node add POC', () => {
   beforeEach(async () => {
     cmsClient = { postAuthenticated: jest.fn().mockResolvedValue({ status: 'success', note: 'none', task: 'ha_add_nodes', uuid: 'u1', job_status: 'running' }) };
     isDbLoginActive = jest.fn();
+    registry = { add: jest.fn(), list: jest.fn().mockResolvedValue([]) };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         HaService,
         { provide: HostService, useValue: { findHostInternal: jest.fn().mockResolvedValue(host) } },
         { provide: CmsHttpsClientService, useValue: cmsClient },
         { provide: DatabaseUserService, useValue: { isDbLoginActive } },
+        { provide: HaJobRegistry, useValue: registry },
       ],
     }).compile();
     service = module.get(HaService);
@@ -83,6 +87,19 @@ describe('HaService HA node add POC', () => {
     }));
     expect(sent()).not.toHaveProperty('confirm_new_node_db_restart');
     expect(sent()).not.toHaveProperty('db_accounts');
+    // The run is kept to find again, with the nodes' logins but never a password.
+    expect(registry.add).toHaveBeenCalledWith('user', 'h1', expect.objectContaining({
+      uuid: 'u1',
+      action: 'run',
+      newNodes: [{ role: 'slave', host: 'nx1', sshPort: 22, osUser: 'cubrid', hostKeyFingerprint: 'SHA256:nx1' }],
+      existingNodes: [],
+    }));
+    expect(JSON.stringify(registry.add.mock.calls[0][2])).not.toContain('pw');
+  });
+
+  it('keeps no record of a plan', async () => {
+    await service.addNodes('user', 'h1', { action: 'plan', newNodes: [{ ...node('nx1'), role: 'slave' }], existingNodes: [] });
+    expect(registry.add).not.toHaveBeenCalled();
   });
 
   it('leaves the logins out when none is live', async () => {

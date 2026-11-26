@@ -14,7 +14,9 @@ import RelogModal from './RelogModal';
  * the new nodes (`cleanupNodes`: their logins, which that request needs
  * again). `promoting`: a single server's promotion is part of the run.
  */
-export default function HaJobProgress({ hostUid, job, setJob, L, cleanupNodes = [], rollbackNodes = null, promoting = false, causes = {}, sshLabels }) {
+export default function HaJobProgress({
+  hostUid, job, setJob, L, cleanupNodes = [], rollbackNodes = null, passwordsKnown = true, promoting = false, causes = {}, sshLabels,
+}) {
   const [cleanup, setCleanup] = useState(null);
   const [relogOpen, setRelogOpen] = useState(false);
   const logRef = useRef(null);
@@ -47,10 +49,18 @@ export default function HaJobProgress({ hostUid, job, setJob, L, cleanupNodes = 
   const lostNodes = Array.isArray(job?.lost_nodes)
     ? job.lost_nodes
     : (job?.error === 'connection_lost' && job?.step_node ? [job.step_node] : []);
+  // The nodes with undo left to do (unrestored); none listed on an interrupted job means all of its nodes.
+  const unrestoredNodes = [...new Set((Array.isArray(job?.unrestored) ? job.unrestored : []).map((u) => u.node).filter(Boolean))];
+  const jobHosts = rollbackNodes ? [...rollbackNodes.newNodes, ...rollbackNodes.existingNodes].map((n) => n.host) : [];
+  // Only the passwords the wizard does not hold are asked: the lost nodes' in this tab; after the
+  // browser was closed (no password held) those of every node with undo left.
+  const askHosts = passwordsKnown
+    ? lostNodes
+    : (unrestoredNodes.length > 0 ? unrestoredNodes : jobHosts);
   // An interrupted or blocked job is undone from its record on request, and one whose undo
-  // failed on nodes it lost; then it is polled again.
+  // left lines to do; then it is polled again.
   const canUndo = Boolean(rollbackNodes)
-    && (UNDO_ON_REQUEST.has(job?.job_status) || (job?.job_status === 'rollback_failed' && lostNodes.length > 0));
+    && (UNDO_ON_REQUEST.has(job?.job_status) || (job?.job_status === 'rollback_failed' && (unrestoredNodes.length > 0 || lostNodes.length > 0)));
   const rollback = async (nodes = rollbackNodes) => {
     try {
       await hostApi.haAddNodesRollback(hostUid, job.uuid, nodes);
@@ -74,7 +84,7 @@ export default function HaJobProgress({ hostUid, job, setJob, L, cleanupNodes = 
         </span>
         <Button size="sm" variant="secondary" onClick={cancel} disabled={!live || job.phase === 'rollback'}>{L.cancel}</Button>
         {canUndo && (
-          <Button size="sm" variant="secondary" onClick={() => (lostNodes.length > 0 ? setRelogOpen(true) : rollback())}>{L.rollback}</Button>
+          <Button size="sm" variant="secondary" onClick={() => (askHosts.length > 0 ? setRelogOpen(true) : rollback())}>{L.rollback}</Button>
         )}
       </div>
       {job.job_status === 'interrupted' && <span className="text-13 text-amber-700 dark:text-amber-300">{L.interruptedNote}</span>}
@@ -103,14 +113,21 @@ export default function HaJobProgress({ hostUid, job, setJob, L, cleanupNodes = 
 
       {relogOpen && (
         <RelogModal
-          hosts={lostNodes}
+          hosts={askHosts}
+          lost={lostNodes}
+          note={passwordsKnown ? L.relogNote : L.relogNoteReopened}
           L={L}
           onCancel={() => setRelogOpen(false)}
           onSubmit={(passwords) => {
             setRelogOpen(false);
-            // Those nodes take the passwords just entered; the others keep what the wizard holds.
-            const withNew = (node) => (lostNodes.includes(node.host) ? { ...node, osPassword: passwords[node.host] } : node);
-            rollback({ newNodes: rollbackNodes.newNodes.map(withNew), existingNodes: rollbackNodes.existingNodes.map(withNew) });
+            // Those nodes take the passwords just entered; in this tab the others keep what the wizard
+            // holds, after a reopen only the nodes asked go (the only ones with a password).
+            const withNew = (node) => (askHosts.includes(node.host) ? { ...node, osPassword: passwords[node.host] } : node);
+            const keep = (node) => passwordsKnown || askHosts.includes(node.host);
+            rollback({
+              newNodes: rollbackNodes.newNodes.filter(keep).map(withNew),
+              existingNodes: rollbackNodes.existingNodes.filter(keep).map(withNew),
+            });
           }}
         />
       )}
