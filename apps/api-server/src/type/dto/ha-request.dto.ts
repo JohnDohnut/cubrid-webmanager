@@ -151,6 +151,25 @@ export class HaAddNodesJobDto {
   offset?: number;
 }
 
+/** POC: undoes what an interrupted job (its script gone mid-way) changed; needs every node's login again. */
+export class HaAddNodesRollbackDto {
+  @IsString()
+  @IsNotEmpty()
+  uuid: string;
+
+  @IsArray()
+  @ArrayMaxSize(32)
+  @ValidateNested({ each: true })
+  @Type(() => HaNewNodeDto)
+  newNodes: HaNewNodeDto[];
+
+  @IsArray()
+  @ArrayMaxSize(64)
+  @ValidateNested({ each: true })
+  @Type(() => HaSshNodeDto)
+  existingNodes: HaSshNodeDto[];
+}
+
 /** POC: deletes the old database folders a successful job moved aside on the new nodes; needs their logins again. */
 export class HaAddNodesCleanupDto {
   @IsString()

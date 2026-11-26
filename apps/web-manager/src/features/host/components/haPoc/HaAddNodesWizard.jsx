@@ -176,6 +176,9 @@ export default function HaAddNodesWizard({ hostUid }) {
       setStarting(false);
     }
   };
+  // The nodes' logins the run's cleanup and undo need again.
+  const { newNodes: jobNewNodes, existingNodes: jobExistingNodes } = buildAddNodesRequest(request);
+  const jobNodes = { newNodes: jobNewNodes, existingNodes: jobExistingNodes };
   const back = () => {
     // Inputs may change on the way back: the plan no longer applies.
     if (step === STEP_SUMMARY) {
@@ -419,7 +422,8 @@ export default function HaAddNodesWizard({ hostUid }) {
             setJob={setRunJob}
             L={L}
             promoting={!isHaDb}
-            cleanupNodes={buildAddNodesRequest(request).newNodes}
+            cleanupNodes={jobNodes.newNodes}
+            rollbackNodes={jobNodes}
           />
         </section>
       )}

@@ -2,7 +2,8 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
-vi.mock('../../hostApi', () => ({ hostApi: {} }));
+const mocks = vi.hoisted(() => ({ rollback: vi.fn() }));
+vi.mock('../../hostApi', () => ({ hostApi: { haAddNodesRollback: mocks.rollback } }));
 import HaJobProgress from './HaJobProgress';
 import { CM } from '../../../../constants/cmLabels';
 
@@ -60,4 +61,16 @@ it('tags the promotion steps on a single server, and leaves them out on an HA ho
   await act(async () => root.render(<HaJobProgress hostUid="h1" job={job} setJob={() => {}} L={CM.haSlavePoc} />));
   expect(container.querySelector('[data-testid="ha-job-steps"]').textContent).not.toContain('Stop the running databases');
   expect(container.textContent).not.toContain('Promote to HA master');
+});
+
+it('undoes an interrupted job with every node\'s login, then polls it again', async () => {
+  mocks.rollback.mockResolvedValue({ uuid: 'u1', job_status: 'running' });
+  let job = { uuid: 'u1', job_status: 'interrupted', phase: 'done', steps: [], log: '' };
+  const setJob = (fn) => { job = typeof fn === 'function' ? fn(job) : fn; };
+  const nodes = { newNodes: [{ role: 'slave', host: 'nx1', osPassword: 'pw' }], existingNodes: [{ host: 'hasl1', osPassword: 'pw' }] };
+  await act(async () => root.render(<HaJobProgress hostUid="h1" job={job} setJob={setJob} L={CM.haSlavePoc} rollbackNodes={nodes} />));
+  expect(container.textContent).toContain('The job stopped mid-way');
+  await act(async () => [...container.querySelectorAll('button')].find((b) => b.textContent === 'Undo').click());
+  expect(mocks.rollback).toHaveBeenCalledWith('h1', 'u1', nodes);
+  expect(job).toMatchObject({ job_status: 'running', phase: 'rollback' });
 });

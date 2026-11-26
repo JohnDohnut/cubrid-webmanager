@@ -1,7 +1,7 @@
 import { Body, Controller, Logger, Param, Post, Request } from '@nestjs/common';
 import { HeartbeatListClientResponse } from '@api-interfaces';
 import { HaReloadCmsResponse } from '@type/cms-response';
-import { HaAddNodesCleanupDto, HaAddNodesDto, HaAddNodesJobDto, HaSshCheckDto, HeartbeatListDto } from '@type/index';
+import { HaAddNodesCleanupDto, HaAddNodesDto, HaAddNodesJobDto, HaAddNodesRollbackDto, HaSshCheckDto, HeartbeatListDto } from '@type/index';
 import { HaService } from './ha.service';
 
 @Controller(':hostUid/ha')
@@ -84,6 +84,17 @@ export class HaController {
   async cancelAddNodes(@Request() req, @Param('hostUid') hostUid: string, @Body() body: HaAddNodesJobDto) {
     this.logger.log(`HA node add POC: cancel on host ${hostUid}`);
     return await this.haService.cancelAddNodes(req.user.sub, hostUid, body);
+  }
+
+  /**
+   * POC: undoes what an interrupted job changed.
+   *
+   * @route POST /:hostUid/ha/add-nodes/rollback
+   */
+  @Post('add-nodes/rollback')
+  async rollbackAddNodes(@Request() req, @Param('hostUid') hostUid: string, @Body() body: HaAddNodesRollbackDto) {
+    this.logger.log(`HA node add POC: rollback on host ${hostUid}`);
+    return await this.haService.rollbackAddNodes(req.user.sub, hostUid, body);
   }
 
   /**

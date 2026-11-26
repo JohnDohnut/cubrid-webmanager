@@ -12,7 +12,7 @@ import StageSteps from './StageSteps';
  * the new nodes (`cleanupNodes`: their logins, which that request needs
  * again). `promoting`: a single server's promotion is part of the run.
  */
-export default function HaJobProgress({ hostUid, job, setJob, L, cleanupNodes = [], promoting = false }) {
+export default function HaJobProgress({ hostUid, job, setJob, L, cleanupNodes = [], rollbackNodes = null, promoting = false }) {
   const [cleanup, setCleanup] = useState(null);
   const logRef = useRef(null);
   useHaJobPolling(hostUid, job, setJob);
@@ -40,6 +40,16 @@ export default function HaJobProgress({ hostUid, job, setJob, L, cleanupNodes = 
     }
   };
 
+  // An interrupted job (its script gone mid-way) is undone from its record on request; then it is polled again.
+  const rollback = async () => {
+    try {
+      await hostApi.haAddNodesRollback(hostUid, job.uuid, rollbackNodes);
+      setJob((prev) => ({ ...prev, job_status: 'running', phase: 'rollback', requestError: null }));
+    } catch (err) {
+      setJob((prev) => ({ ...prev, requestError: errorText(err) }));
+    }
+  };
+
   const keptPaths = Array.isArray(job?.kept_db_paths) ? job.kept_db_paths : [];
   const steps = Array.isArray(job?.steps) ? job.steps : [];
   const current = steps.find((step) => String(step.no) === String(job.step_no));
@@ -53,7 +63,11 @@ export default function HaJobProgress({ hostUid, job, setJob, L, cleanupNodes = 
           {job.phase ? ` · ${L.phase}: ${job.phase}` : ''}
         </span>
         <Button size="sm" variant="secondary" onClick={cancel} disabled={!live || job.phase === 'rollback'}>{L.cancel}</Button>
+        {job.job_status === 'interrupted' && rollbackNodes && (
+          <Button size="sm" variant="secondary" onClick={rollback}>{L.rollback}</Button>
+        )}
       </div>
+      {job.job_status === 'interrupted' && <span className="text-13 text-amber-700 dark:text-amber-300">{L.interruptedNote}</span>}
       {job.step_no && job.step_count ? (
         <span className="text-13">
           {L.stepOf(job.step_no, job.step_count)}, {promoting && isPromoteStep(current) ? `${L.promoteGroup} · ` : ''}{currentTitle}{where ? ` (${where})` : ''}

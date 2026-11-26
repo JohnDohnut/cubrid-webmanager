@@ -1677,6 +1677,8 @@ export const CM = {
     downtime: (sec) => `Database down for ${sec} s`,
     stepOf: (no, count) => `Step ${no} / ${count}`,
     promoteGroup: 'Promote to HA master',
+    rollback: 'Undo',
+    interruptedNote: 'The job stopped mid-way (its script did not finish). Undo reverts what it changed, from its record.',
     nodes: 'Nodes',
     newNode: 'new',
     stageGroups: {

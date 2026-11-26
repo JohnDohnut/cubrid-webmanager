@@ -1748,6 +1748,8 @@ export const CM_KO = {
     downtime: (sec) => `DB 중단 ${sec}초`,
     stepOf: (no, count) => `단계 ${no} / ${count}`,
     promoteGroup: 'HA Master 승격',
+    rollback: '되돌리기',
+    interruptedNote: '작업이 중간에 멈춤(스크립트가 끝나지 않음). 되돌리기를 누르면 기록대로 바꾼 것을 되돌림.',
     nodes: '노드',
     newNode: '새 노드',
     stageGroups: {

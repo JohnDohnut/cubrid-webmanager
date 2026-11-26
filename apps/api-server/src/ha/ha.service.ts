@@ -3,7 +3,7 @@ import { BaseService, HandleCmsErrors } from '@common';
 import { HostService } from '@host';
 import { DatabaseUserService } from '@database/user/database-user.service';
 import { Injectable } from '@nestjs/common';
-import { HaAddNodesCleanupDto, HaAddNodesDto, HaAddNodesJobDto, HaNewNodeDto, HaSshCheckDto, HaSshNodeDto } from '@type/index';
+import { HaAddNodesCleanupDto, HaAddNodesDto, HaAddNodesJobDto, HaAddNodesRollbackDto, HaNewNodeDto, HaSshCheckDto, HaSshNodeDto } from '@type/index';
 import {
   HaReloadCmsRequest,
   HaStartDatabaseCmsRequest,
@@ -284,6 +284,17 @@ export class HaService extends BaseService {
   @HandleCmsErrors()
   async cancelAddNodes(userId: string, hostUid: string, request: HaAddNodesJobDto) {
     return this.pocCall(userId, hostUid, this.pocRequest(HA_NODES_TASKS.cancel, { uuid: request.uuid }));
+  }
+
+  /** POC: undoes what an interrupted job changed, from its undo record (CMS ha_add_nodes, action rollback, same uuid). */
+  @HandleCmsErrors()
+  async rollbackAddNodes(userId: string, hostUid: string, request: HaAddNodesRollbackDto) {
+    return this.pocCall(userId, hostUid, this.pocRequest(HA_NODES_TASKS.addNodes, {
+      action: 'rollback',
+      uuid: request.uuid,
+      new_nodes: request.newNodes.map((n) => this.newNodeFields(n)),
+      existing_nodes: request.existingNodes.map((n) => this.nodeFields(n)),
+    }));
   }
 
   /** POC: deletes the old database folders a successful job moved aside on the new nodes (CMS ha_add_nodes, action cleanup). */

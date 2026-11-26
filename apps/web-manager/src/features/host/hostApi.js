@@ -6,6 +6,7 @@ export const hostApi = {
   haAddNodesStart: (hostUid, body) => apiClient.post(`/${hostUid}/ha/add-nodes/start`, body),
   haAddNodesStatus: (hostUid, uuid, offset) => apiClient.post(`/${hostUid}/ha/add-nodes/status`, { uuid, offset }),
   haAddNodesCancel: (hostUid, uuid) => apiClient.post(`/${hostUid}/ha/add-nodes/cancel`, { uuid }),
+  haAddNodesRollback: (hostUid, uuid, nodes) => apiClient.post(`/${hostUid}/ha/add-nodes/rollback`, { uuid, ...nodes }),
   haAddNodesCleanup: (hostUid, uuid, newNodes) => apiClient.post(`/${hostUid}/ha/add-nodes/cleanup`, { uuid, newNodes }),
   getHosts: () => {
     return apiClient.get('/host');

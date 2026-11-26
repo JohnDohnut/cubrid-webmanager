@@ -98,6 +98,9 @@ describe('HaService HA node add POC', () => {
     await service.cancelAddNodes('user', 'h1', { uuid: 'u1' });
     expect(sent()).toEqual(expect.objectContaining({ task: 'ha_add_nodes_cancel', uuid: 'u1' }));
     cmsClient.postAuthenticated.mockClear();
+    await service.rollbackAddNodes('user', 'h1', { uuid: 'u1', newNodes: [{ ...node('nx1'), role: 'slave' }], existingNodes: [node('hasl1')] });
+    expect(sent()).toEqual(expect.objectContaining({ task: 'ha_add_nodes', action: 'rollback', uuid: 'u1', new_nodes: [{ role: 'slave', ...cmsNode('nx1') }], existing_nodes: [cmsNode('hasl1')] }));
+    cmsClient.postAuthenticated.mockClear();
     await service.cleanupAddNodes('user', 'h1', { uuid: 'u1', newNodes: [{ ...node('nx1'), role: 'slave' }] });
     expect(sent()).toEqual(expect.objectContaining({ task: 'ha_add_nodes', action: 'cleanup', uuid: 'u1', new_nodes: [{ role: 'slave', ...cmsNode('nx1') }] }));
   });
