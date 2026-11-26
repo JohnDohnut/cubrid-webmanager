@@ -85,3 +85,10 @@ it('takes an undone job as ended, and offers Undo again after a blocked one', as
   expect(buttons()).toEqual([['Cancel', true], ['Undo', false]]);
   expect(container.textContent).toContain('A command did not answer');
 });
+
+it('says the cause and what to do when the run fails on a node', async () => {
+  const job = { uuid: 'u1', job_status: 'fail', phase: 'done', error: 'no_answer', message: 'haxs1: no answer in 30 s', step_node: 'haxs1', action: 'Check haxs1', steps: [], log: '' };
+  await act(async () => root.render(<HaJobProgress hostUid="h1" job={job} setJob={() => {}} L={CM.haSlavePoc} causes={CM.haAddSlave.sshCauses} sshLabels={CM.haAddSlave.sshLabels} />));
+  expect(container.querySelector('[data-testid="ha-job-problem"]').textContent)
+    .toBe('haxs1 · Cause: The node did not answer in timeTo do: Check haxs1Detail: haxs1: no answer in 30 s');
+});

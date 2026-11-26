@@ -158,6 +158,10 @@ export default function HaAddNodesWizard({ hostUid }) {
     : [];
   // CMS's own list of the plan checks that failed, by node and path; older answers only have the text.
   const preflight = planJob && !planReady && Array.isArray(planJob.preflight_failures) ? planJob.preflight_failures : [];
+  // CMS's result per node of its connection checks (code, message, action); older answers only fail a step.
+  const nodeChecks = planJob && !planReady && Array.isArray(planJob.node_checks)
+    ? planJob.node_checks.filter((c) => c.code && c.code !== 'ok')
+    : [];
 
   const startJob = async (action) => {
     setStarting(true);
@@ -381,7 +385,19 @@ export default function HaAddNodesWizard({ hostUid }) {
                   </tbody>
                 </table>
               )}
-              {preflight.length === 0 && planFailures.map((f) => {
+              {nodeChecks.map((c) => (
+                <SshProblem
+                  key={c.node}
+                  node={c.node}
+                  code={c.code}
+                  message={c.message}
+                  hint={c.action}
+                  causes={W.sshCauses}
+                  labels={W.sshLabels}
+                  testId={`ha-plan-node-check-${c.node}`}
+                />
+              ))}
+              {preflight.length === 0 && nodeChecks.length === 0 && planFailures.map((f) => {
                 // A node check that failed on ssh: the cause and what to do, for that node.
                 const sshCode = f.error || planJob.error;
                 if (f.id === 'node_check' && W.sshCauses[sshCode]) {
@@ -391,7 +407,7 @@ export default function HaAddNodesWizard({ hostUid }) {
                       node={f.node}
                       code={sshCode}
                       message={f.detail}
-                      hint={f.hint}
+                      hint={f.action ?? planJob.action}
                       causes={W.sshCauses}
                       labels={W.sshLabels}
                       testId={`ha-plan-failed-${f.node || 'local'}`}
@@ -443,6 +459,8 @@ export default function HaAddNodesWizard({ hostUid }) {
             setJob={setRunJob}
             L={L}
             promoting={!isHaDb}
+            causes={W.sshCauses}
+            sshLabels={W.sshLabels}
             cleanupNodes={jobNodes.newNodes}
             rollbackNodes={jobNodes}
           />

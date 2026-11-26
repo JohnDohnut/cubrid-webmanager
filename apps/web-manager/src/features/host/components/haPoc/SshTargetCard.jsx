@@ -101,7 +101,7 @@ export default function SshTargetCard({ hostUid, title, node, onChange, onRemove
                   node={node.ssh.host.trim()}
                   code={check.result}
                   message={check.message}
-                  hint={check.hint}
+                  hint={check.action ?? check.hint}
                   causes={causes}
                   labels={sshLabels}
                   testId="ha-ssh-problem"

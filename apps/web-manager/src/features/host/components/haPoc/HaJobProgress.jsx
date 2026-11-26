@@ -5,6 +5,7 @@ import { Typography } from '../../../../components/ds/foundation/Typography';
 import { STATE_STYLE, UNDO_ON_REQUEST, errorText, isJobLive, isPromoteStep } from './haPocShared';
 import { useHaJobPolling } from './useHaJobPolling';
 import StageSteps from './StageSteps';
+import SshProblem from './SshProblem';
 
 /**
  * A run's state, its steps under their stage groups, the log and cancel; for
@@ -12,7 +13,7 @@ import StageSteps from './StageSteps';
  * the new nodes (`cleanupNodes`: their logins, which that request needs
  * again). `promoting`: a single server's promotion is part of the run.
  */
-export default function HaJobProgress({ hostUid, job, setJob, L, cleanupNodes = [], rollbackNodes = null, promoting = false }) {
+export default function HaJobProgress({ hostUid, job, setJob, L, cleanupNodes = [], rollbackNodes = null, promoting = false, causes = {}, sshLabels }) {
   const [cleanup, setCleanup] = useState(null);
   const logRef = useRef(null);
   useHaJobPolling(hostUid, job, setJob);
@@ -77,7 +78,10 @@ export default function HaJobProgress({ hostUid, job, setJob, L, cleanupNodes = 
       {Array.isArray(job.db_names) && job.db_names.length > 0 && (
         <span className="text-13">{L.databases}: {job.db_names.join(', ')}</span>
       )}
-      {(job.error || job.message) && (
+      {/* A known cause (or CMS's own action line): the node, the cause and what to do; otherwise CMS's text. */}
+      {job.error && sshLabels && (causes[job.error] || job.action) ? (
+        <SshProblem node={job.step_node} code={job.error} message={job.message} hint={job.action} causes={causes} labels={sshLabels} testId="ha-job-problem" />
+      ) : (job.error || job.message) && (
         <span className="text-13 text-rose-500">{[job.error, job.message].filter(Boolean).join(': ')}</span>
       )}
       {job.downtime_sec !== undefined && job.downtime_sec !== null && job.downtime_sec !== '' && (

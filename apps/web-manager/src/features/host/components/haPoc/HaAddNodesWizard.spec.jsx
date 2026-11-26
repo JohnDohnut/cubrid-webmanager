@@ -376,6 +376,28 @@ it('says per node why the plan could not reach it over ssh', async () => {
   }
 });
 
+it('lists CMS\'s per-node connection results with its own action line', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  try {
+    await toSummary(haDb);
+    mocks.start.mockResolvedValueOnce({ uuid: 'p1', job_status: 'running' });
+    mocks.status.mockResolvedValue({
+      uuid: 'p1', job_status: 'fail', phase: 'done', error: 'port_refused', message: 'ns1: port 22 refused', output: '', steps: [],
+      node_checks: [
+        { node: 'hasl1', code: 'ok' },
+        { node: 'ns1', code: 'port_refused', message: 'ns1: port 22 refused', action: 'Start sshd on ns1' },
+      ],
+    });
+    await click(button('Get the plan'));
+    await poll();
+    expect(container.querySelector('[data-testid="ha-plan-node-check-hasl1"]')).toBeNull();
+    expect(container.querySelector('[data-testid="ha-plan-node-check-ns1"]').textContent)
+      .toBe('ns1 · Cause: The ssh port refused the connectionTo do: Start sshd on ns1Detail: ns1: port 22 refused');
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 it('names the databases not logged in, whose tables without a primary key cannot be checked', async () => {
   mocks.heartbeat.mockResolvedValue(heartbeat('master'));
   await render(haDb);

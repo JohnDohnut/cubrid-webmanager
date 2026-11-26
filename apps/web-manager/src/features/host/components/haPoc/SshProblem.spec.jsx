@@ -42,12 +42,12 @@ const render = (check) => act(async () => root.render(
 const problem = () => container.querySelector('[data-testid="ha-ssh-problem"]');
 
 it('names the node, the cause and what to do for a failed check, not just "failed"', async () => {
-  await render({ result: 'password_auth_disabled', message: 'publickey only' });
+  await render({ result: 'no_password_auth', message: 'publickey only' });
   expect(problem().textContent).toBe('haxs1 · Cause: Password login is offTo do: Turn PasswordAuthentication on in the node\'s sshd settingsDetail: publickey only');
 });
 
-it('takes CMS\'s own hint, and shows an unknown code as it is', async () => {
-  await render({ result: 'brand_new_code', message: 'x', hint: 'do this' });
+it('takes CMS\'s own action line, and shows an unknown code as it is', async () => {
+  await render({ result: 'brand_new_code', message: 'x', action: 'do this' });
   expect(problem().textContent).toBe('haxs1 · Cause: brand_new_codeTo do: do thisDetail: x');
 });
 
