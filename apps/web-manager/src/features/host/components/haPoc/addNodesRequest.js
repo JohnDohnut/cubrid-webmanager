@@ -1,9 +1,13 @@
-// POC (HA slave add): the wizard's state as the requests to the master's
+// POC (HA node add): the wizard's state as the requests to this host's
 // CMS. Passwords only go in here, when the job starts.
+// The add request's shape waits for the CMS design (script + API); until
+// then it is the wizard's own: the new nodes and the existing nodes, each
+// with its role.
 
 const trimmed = (value) => (typeof value === 'string' ? value.trim() : value);
 
 const sshNodeBody = (node) => ({
+  role: node.role,
   host: node.ssh.host.trim(),
   sshPort: Number(node.ssh.sshPort) || 22,
   osUser: node.ssh.osUser.trim(),
@@ -35,39 +39,38 @@ export function buildConvertMasterRequest({ dbNames, options, confirmOtherDbRest
   return body;
 }
 
-/**
- * ha_make_slave, for every database in the master's ha_db_list: the new
- * slave (its node name is also the address), the existing nodes it is
- * registered on (slaves and replicas, apart), the options.
- */
-export function buildAddSlaveRequest({ slave, peers, options }) {
-  const ofRole = (role) => peers.filter((node) => node.role === role).map(sshNodeBody);
+/** The node add, for every database in ha_db_list: the new nodes (slaves and replicas), the existing nodes, the options. */
+export function buildAddNodesRequest({ newNodes, peers, options }) {
   const body = {
-    slave: sshNodeBody(slave),
+    newNodes: newNodes.map(sshNodeBody),
+    existingNodes: peers.map(sshNodeBody),
     startHa: options.startHa !== false,
   };
   for (const key of ['replLogHome', 'masterBackupPath', 'slaveBackupPath']) {
     const value = trimmed(options[key]);
     if (value) body[key] = value;
   }
-  const existingSlaves = ofRole('slave');
-  const replicas = ofRole('replica');
-  if (existingSlaves.length > 0) body.existingSlaves = existingSlaves;
-  if (replicas.length > 0) body.replicas = replicas;
   return body;
 }
 
 /** What the summary step shows: the requests with the passwords left out. */
 export function summarizeRequests(state, { convert }) {
   const hide = (node) => ({ ...node, osPassword: node.osPassword ? '••••' : '' });
-  const add = buildAddSlaveRequest(state);
+  const add = buildAddNodesRequest(state);
   return {
     ...(convert ? { convertMaster: buildConvertMasterRequest(state) } : {}),
-    addSlave: {
-      ...add,
-      slave: hide(add.slave),
-      ...(add.existingSlaves ? { existingSlaves: add.existingSlaves.map(hide) } : {}),
-      ...(add.replicas ? { replicas: add.replicas.map(hide) } : {}),
-    },
+    addNodes: { ...add, newNodes: add.newNodes.map(hide), existingNodes: add.existingNodes.map(hide) },
   };
+}
+
+/**
+ * Why the new nodes cannot go on yet, or null: each needs its own name
+ * (its uname -n, also its address), not one the HA group already has.
+ */
+export function newNodesProblem(newNodes, takenNames) {
+  if (newNodes.length === 0) return 'none';
+  const names = newNodes.map((node) => node.ssh.host.trim());
+  if (names.some((name, i) => name && names.indexOf(name) !== i)) return 'duplicate';
+  if (names.some((name) => takenNames.includes(name))) return 'taken';
+  return null;
 }

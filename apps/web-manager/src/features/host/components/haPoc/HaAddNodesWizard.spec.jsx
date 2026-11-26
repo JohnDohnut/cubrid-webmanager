@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({ heartbeat: vi.fn(), check: vi.fn() }));
 vi.mock('../../../../api/apiClient', () => ({ default: { defaults: { headers: { common: {} } } } }));
 vi.mock('../../../server/monitoringApi', () => ({ monitoringApi: { getHaHeartbeatList: mocks.heartbeat } }));
 vi.mock('../../hostApi', () => ({ hostApi: { haAddSlaveCheck: mocks.check } }));
-import HaAddSlaveWizard from './HaAddSlaveWizard';
+import HaAddNodesWizard from './HaAddNodesWizard';
 
 let container;
 let root;
@@ -37,7 +37,7 @@ const render = (database) => act(async () => {
     database,
   };
   const store = configureStore({ reducer: Object.fromEntries(Object.entries(fixed).map(([key, value]) => [key, () => value])) });
-  root.render(<Provider store={store}><HaAddSlaveWizard hostUid="h1" /></Provider>);
+  root.render(<Provider store={store}><HaAddNodesWizard hostUid="h1" /></Provider>);
 });
 
 const text = () => container.textContent;
@@ -60,19 +60,32 @@ it('lists every database of ha_db_list on an HA master, with its running and HA 
   });
   expect(mocks.heartbeat).toHaveBeenCalledWith('h1');
   expect(text()).toContain('Mode: HA');
-  expect(text()).toContain('Existing slaves: hasl1');
-  expect(text()).toContain('Replicas: hareplica');
+  expect(container.querySelector('[data-testid="ha-target-node-hamaster"]').textContent).toBe('hamaster (this host)Master');
+  expect(container.querySelector('[data-testid="ha-target-node-hasl1"]').textContent).toBe('hasl1Slave');
+  expect(container.querySelector('[data-testid="ha-target-node-hareplica"]').textContent).toBe('hareplicaReplica');
   expect(row('hadb').textContent).toBe('hadbrunningactive');
   expect(row('hadb2').textContent).toBe('hadb2stopped-');
   expect(row('other')).toBeNull();
   expect(nextButton().disabled).toBe(false);
 });
 
-it('keeps Next off on an HA host that is not the master', async () => {
-  mocks.heartbeat.mockResolvedValue(heartbeat('slave'));
+it('keeps Next off on a replica host', async () => {
+  mocks.heartbeat.mockResolvedValue(heartbeat('replica'));
   await render({ haDbNamesByHost: { h1: ['hadb'] }, databasesByHost: { h1: [{ dbname: 'hadb' }] }, activeDatabasesByHost: { h1: ['hadb'] } });
-  expect(text()).toContain('Run this on the master');
+  expect(text()).toContain('Run this on the HA master or a slave host');
   expect(nextButton().disabled).toBe(true);
+});
+
+it('runs on a slave host too, into its HA group, the master then among the existing nodes', async () => {
+  mocks.heartbeat.mockResolvedValue({
+    currentnode: 'hasl1',
+    currentnodestate: 'slave',
+    hanodelist: [{ node: [{ hostname: 'hamaster', state: 'master' }, { hostname: 'hasl1', state: 'slave' }, { hostname: 'hareplica', state: 'replica' }] }],
+  });
+  await render({ haDbNamesByHost: { h1: ['hadb'] }, databasesByHost: { h1: [{ dbname: 'hadb' }] }, activeDatabasesByHost: { h1: ['hadb'] } });
+  expect(text()).toContain('This host is a slave. The new nodes join its HA group (master hamaster).');
+  expect(container.querySelector('[data-testid="ha-target-node-hasl1"]').textContent).toBe('hasl1 (this host)Slave');
+  expect(nextButton().disabled).toBe(false);
 });
 
 it('on a single server, shows what restarts for the pick and asks again when the pick changes', async () => {
@@ -130,30 +143,44 @@ const type = (input, value) => act(async () => {
   Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(input, value);
   input.dispatchEvent(new Event('input', { bubbles: true }));
 });
-const inputByLabel = (label) => {
-  const el = [...container.querySelectorAll('label[for]')].find((l) => l.textContent.trim().startsWith(label));
-  return el && document.getElementById(el.htmlFor);
-};
 
-it('fills the existing nodes step with the master\'s slaves and replicas, with their roles, fixed', async () => {
+it('adds several new nodes, each with its role, and fills the existing nodes from the HA settings, fixed', async () => {
   mocks.heartbeat.mockResolvedValue(heartbeat('master'));
   mocks.check.mockImplementation(async (_h, body) => ({ result: body.hostKeyFingerprint ? 'ok' : 'hostkey_unknown', hostkey_type: 'ecdsa', hostkey_sha256: 'SHA256:k', remote_hostname: body.host }));
   await render({ haDbNamesByHost: { h1: ['hadb'] }, databasesByHost: { h1: [{ dbname: 'hadb' }] }, activeDatabasesByHost: { h1: ['hadb'] } });
   await click(nextButton());
-  await type(inputByLabel('New slave host'), 'haslave');
-  await type(inputByLabel('OS user'), 'cubrid');
-  await type(inputByLabel('OS password'), 'pw');
-  await click([...container.querySelectorAll('button')].find((b) => b.textContent === 'Check connection'));
-  const accept = [...container.querySelectorAll('input[type=checkbox]')].find((i) => i.closest('label')?.textContent.includes('new slave\'s key'));
-  await click(accept);
+
+  const row = (n) => container.querySelector(`[data-testid="ha-new-node-${n}"]`);
+  const fill = async (n, host) => {
+    const r = row(n);
+    const input = (label) => {
+      const el = [...r.querySelectorAll('label[for]')].find((l) => l.textContent.trim().startsWith(label));
+      return document.getElementById(el.htmlFor);
+    };
+    await type(input('Host (node name)'), host);
+    await type(input('OS user'), 'cubrid');
+    await type(input('OS password'), 'pw');
+    await click([...r.querySelectorAll('button')].find((b) => b.textContent === 'Check connection'));
+    await click([...r.querySelectorAll('input[type=checkbox]')].find((i) => i.closest('label')?.textContent.includes('server\'s key')));
+  };
+  await fill(1, 'ns1');
+  expect(nextButton().disabled).toBe(false);
+  await click([...container.querySelectorAll('button')].find((b) => b.textContent === 'Add a row'));
+  await click([...row(2).querySelectorAll('button')].find((b) => b.textContent === 'Replica'));
+  expect(nextButton().disabled).toBe(true);
+  await fill(2, 'ns1');
+  expect(text()).toContain('The same host is in twice.');
+  expect(nextButton().disabled).toBe(true);
+  await fill(2, 'hareplica');
+  expect(text()).toContain('That node name is already in this HA group.');
+  await fill(2, 'nr1');
   expect(nextButton().disabled).toBe(false);
   await click(nextButton());
 
-  expect(text()).toContain('Needed to register the new slave on every existing node');
+  expect(text()).toContain('Needed to register the new nodes on every existing node');
   const hosts = [...container.querySelectorAll('input')].filter((i) => ['hasl1', 'hareplica'].includes(i.value));
   expect(hosts.map((i) => [i.value, i.disabled])).toEqual([['hasl1', true], ['hareplica', true]]);
   expect(text()).toContain('Existing slave');
   expect(text()).toContain('Existing replica');
-  // Both must be checked before Next.
   expect(nextButton().disabled).toBe(true);
 });

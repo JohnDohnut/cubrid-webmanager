@@ -1434,7 +1434,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
           />
           <MenuItem icon="info" label={CM.serverVersion} disabled={!authorizedHosts.includes(contextMenu.hostUid) || reconnectQueue.includes(contextMenu.hostUid)} onClick={() => { dispatch(openServerVersionModal(contextMenu.hostUid)); setContextMenu(null); }} />
           <MenuDivider />
-          {/* POC (HA slave add): run on the HA master's host (or a single server's); covers every HA database of the host. */}
+          {/* POC (HA node add): new slaves and replicas, from the HA master's or a slave's host, or a single server's. */}
           <MenuItem
             icon="content_copy"
             label={CM.haAddSlave.menu}
@@ -1443,7 +1443,7 @@ export default function Sidebar({ isCollapsed, onAddHost }) {
             onClick={() => {
               const hostUid = contextMenu.hostUid;
               setContextMenu(null);
-              dispatch(openTab(`ha_add_slave:${hostUid}`));
+              dispatch(openTab(`ha_add_nodes:${hostUid}`));
             }}
           />
         </ContextMenuWrapper>

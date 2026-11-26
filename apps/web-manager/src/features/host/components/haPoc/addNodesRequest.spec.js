@@ -1,7 +1,8 @@
 import { expect, it } from 'vitest';
-import { buildAddSlaveRequest, buildConvertMasterRequest, convertPlan, summarizeRequests } from './addSlaveRequest';
+import { buildAddNodesRequest, buildConvertMasterRequest, convertPlan, newNodesProblem, summarizeRequests } from './addNodesRequest';
 
 const node = (host, role, osPassword = 'pw') => ({ role, ssh: { host: ` ${host} `, sshPort: '22', osUser: 'cubrid', osPassword }, check: { hostkey_sha256: `SHA256:${host}` } });
+const body = (host, role) => ({ role, host, sshPort: 22, osUser: 'cubrid', osPassword: 'pw', hostKeyFingerprint: `SHA256:${host}` });
 const options = { replLogHome: '', masterBackupPath: ' /bk ', slaveBackupPath: '', haGroup: '', haPortId: '', startHa: true };
 
 it('plans the restarts of a single server: every running database restarts, the ones not picked stay single', () => {
@@ -19,22 +20,29 @@ it('asks ha_convert_master for the databases picked, with the other restart only
     .toEqual({ dbNames: ['db1'], confirmMasterRestart: true, confirmOtherDbRestart: true, haPortId: 59902 });
 });
 
-it('starts ha_make_slave without any database: CMS takes the whole ha_db_list', () => {
-  const body = buildAddSlaveRequest({ slave: node('haslave'), peers: [node('harep', 'replica'), node('hasl1', 'slave')], options });
-  expect(body).toEqual({
-    slave: { host: 'haslave', sshPort: 22, osUser: 'cubrid', osPassword: 'pw', hostKeyFingerprint: 'SHA256:haslave' },
+it('sends every new node and every existing node with its role', () => {
+  expect(buildAddNodesRequest({
+    newNodes: [node('ns1', 'slave'), node('nr1', 'replica')],
+    peers: [node('hasl1', 'slave'), node('harep', 'replica')],
+    options,
+  })).toEqual({
+    newNodes: [body('ns1', 'slave'), body('nr1', 'replica')],
+    existingNodes: [body('hasl1', 'slave'), body('harep', 'replica')],
     startHa: true,
     masterBackupPath: '/bk',
-    existingSlaves: [{ host: 'hasl1', sshPort: 22, osUser: 'cubrid', osPassword: 'pw', hostKeyFingerprint: 'SHA256:hasl1' }],
-    replicas: [{ host: 'harep', sshPort: 22, osUser: 'cubrid', osPassword: 'pw', hostKeyFingerprint: 'SHA256:harep' }],
   });
-  expect(buildAddSlaveRequest({ slave: node('haslave'), peers: [], options })).not.toHaveProperty('replicas');
 });
 
 it('hides the passwords in the summary', () => {
-  const sum = summarizeRequests({ dbNames: ['db1'], slave: node('haslave'), peers: [node('harep', 'replica'), node('hasl1', 'slave')], options }, { convert: true });
+  const sum = summarizeRequests({ dbNames: ['db1'], newNodes: [node('ns1', 'slave')], peers: [node('harep', 'replica')], options }, { convert: true });
   expect(sum.convertMaster).toEqual({ dbNames: ['db1'], confirmMasterRestart: true });
-  expect(sum.addSlave.slave.osPassword).toBe('••••');
-  expect(sum.addSlave.replicas[0].osPassword).toBe('••••');
-  expect(sum.addSlave.existingSlaves[0].osPassword).toBe('••••');
+  expect(sum.addNodes.newNodes[0].osPassword).toBe('••••');
+  expect(sum.addNodes.existingNodes[0].osPassword).toBe('••••');
+});
+
+it('wants at least one new node, each once, none already in the group', () => {
+  expect(newNodesProblem([], ['m'])).toBe('none');
+  expect(newNodesProblem([node('a', 'slave'), node('a', 'replica')], ['m'])).toBe('duplicate');
+  expect(newNodesProblem([node('m', 'slave')], ['m'])).toBe('taken');
+  expect(newNodesProblem([node('a', 'slave'), node('b', 'replica')], ['m'])).toBeNull();
 });

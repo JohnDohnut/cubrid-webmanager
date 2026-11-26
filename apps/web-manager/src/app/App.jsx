@@ -22,7 +22,7 @@ import VolumeInfoMonitor from '../features/database/components/VolumeInfoMonitor
 import VolumeCategoryMonitor from '../features/database/components/VolumeCategoryMonitor';
 import CubridConfigEditor from '../features/server/components/CubridConfigEditor';
 import BrokerConfigEditor from '../features/server/components/BrokerConfigEditor';
-import HaAddSlaveWizard from '../features/host/components/haPoc/HaAddSlaveWizard';
+import HaAddNodesWizard from '../features/host/components/haPoc/HaAddNodesWizard';
 import { SplitPane } from '../components/ds/layout/SplitPane';
 import UnloadDatabaseModal from '../features/database/components/UnloadDatabaseModal';
 import LoadDatabaseModal from '../features/database/components/LoadDatabaseModal';
@@ -163,7 +163,7 @@ function DashboardLayout() {
       acc[tabId] = CM.volumesTab(category);
     } else if (tabId === 'service_dashboard') {
       acc[tabId] = CM.serviceDashboard;
-    } else if (tabId.startsWith('ha_add_slave:')) {
+    } else if (tabId.startsWith('ha_add_nodes:')) {
       const hostUid = tabId.split(':')[1];
       const host = hosts.find((h) => h.uid === hostUid);
       acc[tabId] = CM.haAddSlave.tab(host?.alias || host?.address || hostUid);
@@ -412,7 +412,7 @@ function DashboardLayout() {
                       hostUid={resourceId}
                     />
                   )}
-                  {tabId.startsWith('ha_add_slave:') && <HaAddSlaveWizard hostUid={resourceId} />}
+                  {tabId.startsWith('ha_add_nodes:') && <HaAddNodesWizard hostUid={resourceId} />}
                   {isLogViewer && (
                     <LogViewer
                       hostUid={tabId.split(':')[1]}
