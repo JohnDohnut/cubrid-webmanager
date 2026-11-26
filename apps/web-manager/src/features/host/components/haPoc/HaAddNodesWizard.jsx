@@ -127,7 +127,7 @@ export default function HaAddNodesWizard({ hostUid }) {
     [STEP_EXISTING]: peers.every(isSshConfirmed),
     [STEP_OPTIONS]: true,
   };
-  const request = { single: !isHaDb, dbNames: plan.haDatabases, confirmOtherDbRestart: hasOthers && otherConfirmed, newNodes, peers, options };
+  const request = { single: !isHaDb, dbNames: plan.haDatabases, newNodes, peers, options };
 
   const roleName = { master: W.roleMaster, slave: W.roleSlave, replica: W.roleReplica };
   const nodeList = (nodes) => (nodes.length ? nodes.map((node) => `${node.ssh.host.trim()} (${roleName[node.role]})`).join(', ') : W.none);

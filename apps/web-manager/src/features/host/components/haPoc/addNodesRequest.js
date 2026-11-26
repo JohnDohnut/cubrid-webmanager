@@ -32,20 +32,23 @@ export function convertPlan({ picked, running, all }) {
 /**
  * ha_add_nodes (action plan or run): the new nodes with their roles, the
  * existing nodes (CMS takes their roles from this host's settings), the
- * options; for a single server also the databases to put in HA and the
- * restarts agreed in the wizard's first step.
+ * options; for a single server also the databases to put in HA. The
+ * restart confirmations go only with run: the ones the plan asked for
+ * (confirm_required) that the user agreed to (`confirmKeys`).
  */
-export function buildAddNodesRequest({ newNodes, peers, options, single, dbNames, confirmOtherDbRestart }, action = 'plan') {
+export function buildAddNodesRequest({ newNodes, peers, options, single, dbNames }, action = 'plan', confirmKeys = []) {
   const body = {
     action,
     newNodes: newNodes.map(sshNodeBody),
     existingNodes: peers.map((node) => sshNodeBody({ ...node, role: undefined })),
     startHa: options.startHa !== false,
   };
+  if (action === 'run') {
+    if (confirmKeys.includes('confirm_master_restart')) body.confirmMasterRestart = true;
+    if (confirmKeys.includes('confirm_other_db_restart')) body.confirmOtherDbRestart = true;
+  }
   if (single) {
     body.dbNames = dbNames;
-    body.confirmMasterRestart = true;
-    if (confirmOtherDbRestart) body.confirmOtherDbRestart = true;
     body.rollbackConvert = Boolean(options.rollbackConvert);
     if (trimmed(options.haGroup)) body.haGroup = trimmed(options.haGroup);
     if (Number(options.haPortId) > 0) body.haPortId = Number(options.haPortId);

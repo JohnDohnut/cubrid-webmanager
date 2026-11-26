@@ -28,10 +28,14 @@ it('asks ha_add_nodes for a plan with every new node and its role, and the exist
   });
 });
 
-it('adds the databases to put in HA and the agreed restarts on a single server', () => {
-  const req = buildAddNodesRequest({ single: true, dbNames: ['db1'], confirmOtherDbRestart: true, newNodes: [node('ns1', 'slave')], peers: [], options: { ...options, haPortId: '59902' } }, 'run');
-  expect(req).toMatchObject({ action: 'run', dbNames: ['db1'], confirmMasterRestart: true, confirmOtherDbRestart: true, rollbackConvert: false, haPortId: 59902, existingNodes: [] });
-  expect(buildAddNodesRequest({ single: true, dbNames: ['db1'], confirmOtherDbRestart: false, newNodes: [], peers: [], options })).not.toHaveProperty('confirmOtherDbRestart');
+it('sends the databases to put in HA on a single server, and the restart confirmations only with run', () => {
+  const state = { single: true, dbNames: ['db1'], newNodes: [node('ns1', 'slave')], peers: [], options: { ...options, haPortId: '59902' } };
+  const plan = buildAddNodesRequest(state, 'plan', ['confirm_master_restart', 'confirm_other_db_restart']);
+  expect(plan).toMatchObject({ action: 'plan', dbNames: ['db1'], rollbackConvert: false, haPortId: 59902, existingNodes: [] });
+  expect(plan).not.toHaveProperty('confirmMasterRestart');
+  expect(buildAddNodesRequest(state, 'run', ['confirm_master_restart', 'confirm_other_db_restart']))
+    .toMatchObject({ action: 'run', confirmMasterRestart: true, confirmOtherDbRestart: true });
+  expect(buildAddNodesRequest(state, 'run', ['confirm_master_restart'])).not.toHaveProperty('confirmOtherDbRestart');
 });
 
 it('hides the passwords in the summary', () => {
