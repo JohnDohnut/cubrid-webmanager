@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { hostApi } from '../../hostApi';
 import { Button } from '../../../../components/ds/foundation/Button';
 import { Typography } from '../../../../components/ds/foundation/Typography';
-import { STATE_STYLE, errorText, isJobLive, isPromoteStep } from './haPocShared';
+import { STATE_STYLE, UNDO_ON_REQUEST, errorText, isJobLive, isPromoteStep } from './haPocShared';
 import { useHaJobPolling } from './useHaJobPolling';
 import StageSteps from './StageSteps';
 
@@ -40,7 +40,7 @@ export default function HaJobProgress({ hostUid, job, setJob, L, cleanupNodes = 
     }
   };
 
-  // An interrupted job (its script gone mid-way) is undone from its record on request; then it is polled again.
+  // An interrupted or blocked job is undone from its record on request; then it is polled again.
   const rollback = async () => {
     try {
       await hostApi.haAddNodesRollback(hostUid, job.uuid, rollbackNodes);
@@ -63,11 +63,12 @@ export default function HaJobProgress({ hostUid, job, setJob, L, cleanupNodes = 
           {job.phase ? ` · ${L.phase}: ${job.phase}` : ''}
         </span>
         <Button size="sm" variant="secondary" onClick={cancel} disabled={!live || job.phase === 'rollback'}>{L.cancel}</Button>
-        {job.job_status === 'interrupted' && rollbackNodes && (
+        {UNDO_ON_REQUEST.has(job.job_status) && rollbackNodes && (
           <Button size="sm" variant="secondary" onClick={rollback}>{L.rollback}</Button>
         )}
       </div>
       {job.job_status === 'interrupted' && <span className="text-13 text-amber-700 dark:text-amber-300">{L.interruptedNote}</span>}
+      {job.job_status === 'rollback_blocked' && <span className="text-13 text-amber-700 dark:text-amber-300">{L.blockedNote}</span>}
       {job.step_no && job.step_count ? (
         <span className="text-13">
           {L.stepOf(job.step_no, job.step_count)}, {promoting && isPromoteStep(current) ? `${L.promoteGroup} · ` : ''}{currentTitle}{where ? ` (${where})` : ''}

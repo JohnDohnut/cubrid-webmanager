@@ -74,3 +74,14 @@ it('undoes an interrupted job with every node\'s login, then polls it again', as
   expect(mocks.rollback).toHaveBeenCalledWith('h1', 'u1', nodes);
   expect(job).toMatchObject({ job_status: 'running', phase: 'rollback' });
 });
+
+it('takes an undone job as ended, and offers Undo again after a blocked one', async () => {
+  const nodes = { newNodes: [], existingNodes: [] };
+  const render = (job) => act(async () => root.render(<HaJobProgress hostUid="h1" job={job} setJob={() => {}} L={CM.haSlavePoc} rollbackNodes={nodes} />));
+  const buttons = () => [...container.querySelectorAll('button')].map((b) => [b.textContent, b.disabled]);
+  await render({ uuid: 'u1', job_status: 'rolled_back', phase: 'done', steps: [], log: '' });
+  expect(buttons()).toEqual([['Cancel', true]]);
+  await render({ uuid: 'u1', job_status: 'rollback_blocked', phase: 'done', steps: [], log: '' });
+  expect(buttons()).toEqual([['Cancel', true], ['Undo', false]]);
+  expect(container.textContent).toContain('A command did not answer');
+});

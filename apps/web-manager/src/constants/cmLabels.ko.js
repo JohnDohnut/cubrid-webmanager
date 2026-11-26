@@ -1749,6 +1749,7 @@ export const CM_KO = {
     stepOf: (no, count) => `단계 ${no} / ${count}`,
     promoteGroup: 'HA Master 승격',
     rollback: '되돌리기',
+    blockedNote: '명령 하나가 응답하지 않아 그 위로는 되돌리지 않고 멈춤. 해당 노드를 확인한 뒤 되돌리기를 누름.',
     interruptedNote: '작업이 중간에 멈춤(스크립트가 끝나지 않음). 되돌리기를 누르면 기록대로 바꾼 것을 되돌림.',
     nodes: '노드',
     newNode: '새 노드',

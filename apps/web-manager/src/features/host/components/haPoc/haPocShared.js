@@ -8,6 +8,7 @@ export const STATE_STYLE = {
   fail: 'text-rose-500',
   failed: 'text-rose-500',
   rollback_failed: 'text-rose-500',
+  rollback_blocked: 'text-rose-500',
   interrupted: 'text-rose-500',
   cancelled: 'text-slate-500',
   skipped: 'text-slate-400',
@@ -15,7 +16,11 @@ export const STATE_STYLE = {
   pending: 'text-slate-400',
 };
 
-export const TERMINAL_JOB_STATES = new Set(['success', 'fail', 'cancelled', 'interrupted']);
+// How a job ends (ha_add_nodes_status job_status): done, or failed / cancelled and undone (or not
+// entirely), or stopped: its script gone mid-way (interrupted), or a command that did not answer so
+// nothing was undone on top of it (rollback_blocked); those two are undone on request.
+export const TERMINAL_JOB_STATES = new Set(['success', 'fail', 'cancelled', 'interrupted', 'rolled_back', 'rollback_failed', 'rollback_blocked']);
+export const UNDO_ON_REQUEST = new Set(['interrupted', 'rollback_blocked']);
 
 /**
  * A plan check's failure split by path where CMS lists them ("<node> cannot

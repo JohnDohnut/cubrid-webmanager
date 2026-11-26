@@ -1678,6 +1678,7 @@ export const CM = {
     stepOf: (no, count) => `Step ${no} / ${count}`,
     promoteGroup: 'Promote to HA master',
     rollback: 'Undo',
+    blockedNote: 'A command did not answer, so nothing was undone on top of it. Check that node, then Undo.',
     interruptedNote: 'The job stopped mid-way (its script did not finish). Undo reverts what it changed, from its record.',
     nodes: 'Nodes',
     newNode: 'new',
