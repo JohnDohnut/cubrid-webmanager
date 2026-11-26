@@ -1,9 +1,9 @@
 import { expect, it } from 'vitest';
-import { buildAddNodesRequest, buildConvertMasterRequest, convertPlan, newNodesProblem, summarizeRequests } from './addNodesRequest';
+import { buildAddNodesRequest, convertPlan, newNodesProblem, summarizeRequest } from './addNodesRequest';
 
 const node = (host, role, osPassword = 'pw') => ({ role, ssh: { host: ` ${host} `, sshPort: '22', osUser: 'cubrid', osPassword }, check: { hostkey_sha256: `SHA256:${host}` } });
-const body = (host, role) => ({ role, host, sshPort: 22, osUser: 'cubrid', osPassword: 'pw', hostKeyFingerprint: `SHA256:${host}` });
-const options = { replLogHome: '', masterBackupPath: ' /bk ', slaveBackupPath: '', haGroup: '', haPortId: '', startHa: true };
+const body = (host, role) => ({ ...(role ? { role } : {}), host, sshPort: 22, osUser: 'cubrid', osPassword: 'pw', hostKeyFingerprint: `SHA256:${host}` });
+const options = { replLogHome: '', backupPath: ' /bk ', remoteBackupPath: '', haGroup: '', haPortId: '', startHa: true, rollbackConvert: false };
 
 it('plans the restarts of a single server: every running database restarts, the ones not picked stay single', () => {
   expect(convertPlan({ picked: ['db1', 'down'], running: ['db1', 'db2'], all: ['db1', 'db2', 'down', 'db3'] })).toEqual({
@@ -14,30 +14,30 @@ it('plans the restarts of a single server: every running database restarts, the 
   });
 });
 
-it('asks ha_convert_master for the databases picked, with the other restart only when agreed', () => {
-  expect(buildConvertMasterRequest({ dbNames: ['db1'], options, confirmOtherDbRestart: false })).toEqual({ dbNames: ['db1'], confirmMasterRestart: true });
-  expect(buildConvertMasterRequest({ dbNames: ['db1'], options: { ...options, haPortId: '59902' }, confirmOtherDbRestart: true }))
-    .toEqual({ dbNames: ['db1'], confirmMasterRestart: true, confirmOtherDbRestart: true, haPortId: 59902 });
-});
-
-it('sends every new node and every existing node with its role', () => {
+it('asks ha_add_nodes for a plan with every new node and its role, and the existing nodes without roles', () => {
   expect(buildAddNodesRequest({
     newNodes: [node('ns1', 'slave'), node('nr1', 'replica')],
     peers: [node('hasl1', 'slave'), node('harep', 'replica')],
-    options,
+    options: { ...options, rollbackConvert: true },
   })).toEqual({
+    action: 'plan',
     newNodes: [body('ns1', 'slave'), body('nr1', 'replica')],
-    existingNodes: [body('hasl1', 'slave'), body('harep', 'replica')],
+    existingNodes: [body('hasl1'), body('harep')],
     startHa: true,
-    masterBackupPath: '/bk',
+    backupPath: '/bk',
   });
 });
 
+it('adds the databases to put in HA and the agreed restarts on a single server', () => {
+  const req = buildAddNodesRequest({ single: true, dbNames: ['db1'], confirmOtherDbRestart: true, newNodes: [node('ns1', 'slave')], peers: [], options: { ...options, haPortId: '59902' } }, 'run');
+  expect(req).toMatchObject({ action: 'run', dbNames: ['db1'], confirmMasterRestart: true, confirmOtherDbRestart: true, rollbackConvert: false, haPortId: 59902, existingNodes: [] });
+  expect(buildAddNodesRequest({ single: true, dbNames: ['db1'], confirmOtherDbRestart: false, newNodes: [], peers: [], options })).not.toHaveProperty('confirmOtherDbRestart');
+});
+
 it('hides the passwords in the summary', () => {
-  const sum = summarizeRequests({ dbNames: ['db1'], newNodes: [node('ns1', 'slave')], peers: [node('harep', 'replica')], options }, { convert: true });
-  expect(sum.convertMaster).toEqual({ dbNames: ['db1'], confirmMasterRestart: true });
-  expect(sum.addNodes.newNodes[0].osPassword).toBe('••••');
-  expect(sum.addNodes.existingNodes[0].osPassword).toBe('••••');
+  const sum = summarizeRequest({ newNodes: [node('ns1', 'slave')], peers: [node('harep', 'replica')], options });
+  expect(sum.newNodes[0].osPassword).toBe('••••');
+  expect(sum.existingNodes[0].osPassword).toBe('••••');
 });
 
 it('wants at least one new node, each once, none already in the group', () => {

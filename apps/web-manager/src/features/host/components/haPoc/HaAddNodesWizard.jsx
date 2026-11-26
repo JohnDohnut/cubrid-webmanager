@@ -10,7 +10,8 @@ import { Steps } from '../../../../components/ds/layout/Steps';
 import { useCM } from '../../../../constants/useCM';
 import SshTargetCard from './SshTargetCard';
 import { errorText, isSshConfirmed, newSshNode } from './haPocShared';
-import { convertPlan, newNodesProblem, summarizeRequests } from './addNodesRequest';
+import BulkSshTools from './BulkSshTools';
+import { convertPlan, newNodesProblem, summarizeRequest } from './addNodesRequest';
 
 // POC (HA node add), opened on a host: adds new slaves and replicas, any
 // number of each, to its HA group in one go. The host is the group's master,
@@ -21,15 +22,17 @@ import { convertPlan, newNodesProblem, summarizeRequests } from './addNodesReque
 // gets the new ones registered. A wizard: target, nodes to add, existing
 // nodes, options, summary, progress. Each step's checks must pass before
 // Next; passwords stay in this state and go only into the requests.
-// The CMS side (a script and the API that runs it) is not designed yet: the
-// summary shows the request, and Start waits for it.
+// The CMS side (ha_add_nodes: a script and the API that runs it) is in
+// design: it first returns a plan (every node checked, the roles, what
+// changes, the databases that restart, the step table), shown before run.
+// Until its API is wired the summary shows the request, and Start waits.
 
 const STEP_TARGET = 0;
 const STEP_NEW_NODES = 1;
 const STEP_EXISTING = 2;
 const STEP_OPTIONS = 3;
 const STEP_SUMMARY = 4;
-const OPTION_FIELDS = ['replLogHome', 'masterBackupPath', 'slaveBackupPath'];
+const OPTION_FIELDS = ['replLogHome', 'backupPath', 'remoteBackupPath'];
 // Only for a single server's conversion.
 const CONVERT_FIELDS = ['haGroup', 'haPortId'];
 const NONE = [];
@@ -64,7 +67,7 @@ export default function HaAddNodesWizard({ hostUid }) {
   const [newNodes, setNewNodes] = useState(() => [{ ...newSshNode(), role: 'slave' }]);
   // The existing nodes the new ones are registered on: { ...ssh node, role: 'master' | 'slave' | 'replica' }.
   const [peers, setPeers] = useState([]);
-  const [options, setOptions] = useState({ replLogHome: '', masterBackupPath: '', slaveBackupPath: '', haGroup: '', haPortId: '', startHa: true });
+  const [options, setOptions] = useState({ replLogHome: '', backupPath: '', remoteBackupPath: '', haGroup: '', haPortId: '', startHa: true, rollbackConvert: false });
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
@@ -124,7 +127,7 @@ export default function HaAddNodesWizard({ hostUid }) {
     [STEP_EXISTING]: peers.every(isSshConfirmed),
     [STEP_OPTIONS]: true,
   };
-  const request = { dbNames: plan.haDatabases, confirmOtherDbRestart: hasOthers && otherConfirmed, newNodes, peers, options };
+  const request = { single: !isHaDb, dbNames: plan.haDatabases, confirmOtherDbRestart: hasOthers && otherConfirmed, newNodes, peers, options };
 
   const roleName = { master: W.roleMaster, slave: W.roleSlave, replica: W.roleReplica };
   const nodeList = (nodes) => (nodes.length ? nodes.map((node) => `${node.ssh.host.trim()} (${roleName[node.role]})`).join(', ') : W.none);
@@ -199,6 +202,7 @@ export default function HaAddNodesWizard({ hostUid }) {
         <section className="flex flex-col gap-4">
           <Typography variant="h3">{W.stepNewNodes}</Typography>
           <span className="text-13 text-slate-500">{W.newNodesHint}</span>
+          {newNodes.length > 1 && <BulkSshTools hostUid={hostUid} nodes={newNodes} setNodes={setNewNodes} W={W} L={L} testId="ha-bulk-new" />}
           {newNodes.map((node, index) => (
             <div key={node.id} className="flex flex-col gap-2 p-3 rounded border border-slate-200 dark:border-white/10" data-testid={`ha-new-node-${index + 1}`}>
               <div className="flex items-center gap-2 text-13">
@@ -239,6 +243,7 @@ export default function HaAddNodesWizard({ hostUid }) {
           <Typography variant="h3">{W.stepReplicas}</Typography>
           <span className="text-13 text-slate-500">{W.peerHint}</span>
           {peers.length === 0 && <span className="text-13 text-slate-500">{W.noPeers}</span>}
+          {peers.length > 1 && <BulkSshTools hostUid={hostUid} nodes={peers} setNodes={setPeers} W={W} L={L} testId="ha-bulk-existing" />}
           {peers.map((node) => (
             <SshTargetCard
               key={node.id}
@@ -258,6 +263,9 @@ export default function HaAddNodesWizard({ hostUid }) {
         <section className="flex flex-col gap-3">
           <Typography variant="h3">{W.stepOptions}</Typography>
           <Checkbox label={L.startHa} checked={options.startHa} onChange={(e) => setOptions((prev) => ({ ...prev, startHa: e.target.checked }))} />
+          {!isHaDb && (
+            <Checkbox label={W.rollbackConvert} checked={options.rollbackConvert} onChange={(e) => setOptions((prev) => ({ ...prev, rollbackConvert: e.target.checked }))} />
+          )}
           <div>
             <Button size="sm" variant="ghost" onClick={() => setShowAdvanced((v) => !v)}>{showAdvanced ? W.hideAdvanced : W.showAdvanced}</Button>
           </div>
@@ -280,7 +288,7 @@ export default function HaAddNodesWizard({ hostUid }) {
             <span className="text-13 text-amber-700 dark:text-amber-300">{W.singleWarning} {W.restartList} {listText(plan.restartDatabases, W.none)}</span>
           )}
           <pre className="font-mono text-12 bg-slate-100 dark:bg-white/5 p-3 rounded overflow-auto">
-            {JSON.stringify(summarizeRequests(request, { convert: !isHaDb }), null, 2)}
+            {JSON.stringify(summarizeRequest(request), null, 2)}
           </pre>
           <span className="text-13 text-slate-500">{W.apiPending}</span>
         </section>

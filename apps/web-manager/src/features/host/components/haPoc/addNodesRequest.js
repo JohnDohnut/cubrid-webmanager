@@ -1,13 +1,12 @@
 // POC (HA node add): the wizard's state as the requests to this host's
 // CMS. Passwords only go in here, when the job starts.
-// The add request's shape waits for the CMS design (script + API); until
-// then it is the wizard's own: the new nodes and the existing nodes, each
-// with its role.
+// The shape follows the CMS design draft (ha_add_nodes: a script and the
+// API that runs it); the NCA server side waits for its review.
 
 const trimmed = (value) => (typeof value === 'string' ? value.trim() : value);
 
 const sshNodeBody = (node) => ({
-  role: node.role,
+  ...(node.role ? { role: node.role } : {}),
   host: node.ssh.host.trim(),
   sshPort: Number(node.ssh.sshPort) || 22,
   osUser: node.ssh.osUser.trim(),
@@ -30,37 +29,39 @@ export function convertPlan({ picked, running, all }) {
   };
 }
 
-/** ha_convert_master, for a single server: the restarts are confirmed in the wizard's first step. */
-export function buildConvertMasterRequest({ dbNames, options, confirmOtherDbRestart }) {
-  const body = { dbNames, confirmMasterRestart: true };
-  if (confirmOtherDbRestart) body.confirmOtherDbRestart = true;
-  if (trimmed(options.haGroup)) body.haGroup = trimmed(options.haGroup);
-  if (Number(options.haPortId) > 0) body.haPortId = Number(options.haPortId);
-  return body;
-}
-
-/** The node add, for every database in ha_db_list: the new nodes (slaves and replicas), the existing nodes, the options. */
-export function buildAddNodesRequest({ newNodes, peers, options }) {
+/**
+ * ha_add_nodes (action plan or run): the new nodes with their roles, the
+ * existing nodes (CMS takes their roles from this host's settings), the
+ * options; for a single server also the databases to put in HA and the
+ * restarts agreed in the wizard's first step.
+ */
+export function buildAddNodesRequest({ newNodes, peers, options, single, dbNames, confirmOtherDbRestart }, action = 'plan') {
   const body = {
+    action,
     newNodes: newNodes.map(sshNodeBody),
-    existingNodes: peers.map(sshNodeBody),
+    existingNodes: peers.map((node) => sshNodeBody({ ...node, role: undefined })),
     startHa: options.startHa !== false,
   };
-  for (const key of ['replLogHome', 'masterBackupPath', 'slaveBackupPath']) {
+  if (single) {
+    body.dbNames = dbNames;
+    body.confirmMasterRestart = true;
+    if (confirmOtherDbRestart) body.confirmOtherDbRestart = true;
+    body.rollbackConvert = Boolean(options.rollbackConvert);
+    if (trimmed(options.haGroup)) body.haGroup = trimmed(options.haGroup);
+    if (Number(options.haPortId) > 0) body.haPortId = Number(options.haPortId);
+  }
+  for (const key of ['replLogHome', 'backupPath', 'remoteBackupPath']) {
     const value = trimmed(options[key]);
     if (value) body[key] = value;
   }
   return body;
 }
 
-/** What the summary step shows: the requests with the passwords left out. */
-export function summarizeRequests(state, { convert }) {
+/** What the summary step shows: the request with the passwords left out. */
+export function summarizeRequest(state) {
   const hide = (node) => ({ ...node, osPassword: node.osPassword ? '••••' : '' });
   const add = buildAddNodesRequest(state);
-  return {
-    ...(convert ? { convertMaster: buildConvertMasterRequest(state) } : {}),
-    addNodes: { ...add, newNodes: add.newNodes.map(hide), existingNodes: add.existingNodes.map(hide) },
-  };
+  return { ...add, newNodes: add.newNodes.map(hide), existingNodes: add.existingNodes.map(hide) };
 }
 
 /**

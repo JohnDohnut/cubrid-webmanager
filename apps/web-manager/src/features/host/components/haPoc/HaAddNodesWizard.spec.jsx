@@ -184,3 +184,59 @@ it('adds several new nodes, each with its role, and fills the existing nodes fro
   expect(text()).toContain('Existing replica');
   expect(nextButton().disabled).toBe(true);
 });
+
+const okCheck = async (_h, body) => ({ result: body.hostKeyFingerprint ? 'ok' : 'hostkey_unknown', hostkey_sha256: `SHA256:${body.host}`, remote_hostname: body.host });
+const labelled = (scope, label) => document.getElementById([...scope.querySelectorAll('label[for]')].find((l) => l.textContent.trim().startsWith(label)).htmlFor);
+const confirmNewNode = async (n, host) => {
+  const r = container.querySelector(`[data-testid="ha-new-node-${n}"]`);
+  await type(labelled(r, 'Host (node name)'), host);
+  await type(labelled(r, 'OS user'), 'cubrid');
+  await type(labelled(r, 'OS password'), 'pw');
+  await click([...r.querySelectorAll('button')].find((b) => b.textContent === 'Check connection'));
+  await click([...r.querySelectorAll('input[type=checkbox]')].find((i) => i.closest('label')?.textContent.includes('server\'s key')));
+};
+
+it('goes through an empty existing nodes step when the master has no slave and no replica', async () => {
+  mocks.heartbeat.mockResolvedValue({ currentnode: 'hamaster', currentnodestate: 'master', hanodelist: [{ node: [{ hostname: 'hamaster', state: 'master' }] }] });
+  mocks.check.mockImplementation(okCheck);
+  await render({ haDbNamesByHost: { h1: ['hadb'] }, databasesByHost: { h1: [{ dbname: 'hadb' }] }, activeDatabasesByHost: { h1: ['hadb'] } });
+  await click(nextButton());
+  await confirmNewNode(1, 'ns1');
+  await click(nextButton());
+  expect(text()).toContain('No node other than this host. Just go Next.');
+  expect(container.querySelector('[data-testid="ha-bulk-existing"]')).toBeNull();
+  expect(nextButton().disabled).toBe(false);
+});
+
+it('with ten existing nodes, puts one account into all and checks them all, each key still confirmed on its own', async () => {
+  const names = Array.from({ length: 10 }, (_, i) => `node${i + 1}`);
+  mocks.heartbeat.mockResolvedValue({
+    currentnode: 'hamaster',
+    currentnodestate: 'master',
+    hanodelist: [{ node: [{ hostname: 'hamaster', state: 'master' }, ...names.map((n, i) => ({ hostname: n, state: i < 6 ? 'slave' : 'replica' }))] }],
+  });
+  mocks.check.mockImplementation(okCheck);
+  await render({ haDbNamesByHost: { h1: ['hadb'] }, databasesByHost: { h1: [{ dbname: 'hadb' }] }, activeDatabasesByHost: { h1: ['hadb'] } });
+  expect(container.querySelectorAll('[data-testid^="ha-target-node-"]')).toHaveLength(11);
+  await click(nextButton());
+  await confirmNewNode(1, 'ns1');
+  await click(nextButton());
+
+  const bulk = container.querySelector('[data-testid="ha-bulk-existing"]');
+  expect(bulk.textContent).toContain('Confirmed 0 / 10');
+  await type(labelled(bulk, 'OS user'), 'cubrid');
+  await type(labelled(bulk, 'OS password'), 'pw');
+  await click([...bulk.querySelectorAll('button')].find((b) => b.textContent === 'Put into all'));
+  mocks.check.mockClear();
+  await click([...bulk.querySelectorAll('button')].find((b) => b.textContent === 'Check all'));
+  // The first round only: no password, no key.
+  expect(mocks.check).toHaveBeenCalledTimes(10);
+  expect(mocks.check.mock.calls.every(([, b]) => !b.osPassword && !b.hostKeyFingerprint)).toBe(true);
+  expect(nextButton().disabled).toBe(true);
+
+  const keys = [...container.querySelectorAll('input[type=checkbox]')].filter((i) => i.closest('label')?.textContent.includes('server\'s key'));
+  expect(keys).toHaveLength(10);
+  for (const key of keys) await click(key);
+  expect(bulk.textContent).toContain('Confirmed 10 / 10');
+  expect(nextButton().disabled).toBe(false);
+});
