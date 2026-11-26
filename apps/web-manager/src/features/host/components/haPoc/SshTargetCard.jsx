@@ -5,6 +5,10 @@ import { Checkbox } from '../../../../components/ds/forms/Checkbox';
 import { Button } from '../../../../components/ds/foundation/Button';
 import { Typography } from '../../../../components/ds/foundation/Typography';
 import { STATE_STYLE, errorText, sshTarget } from './haPocShared';
+import SshProblem from './SshProblem';
+
+// ha_check_ssh results that are not a failure: done, or the key to confirm (the first round).
+const NOT_A_PROBLEM = new Set(['ok', 'hostkey_unknown']);
 
 const SSH_FIELDS = [
   { key: 'host' },
@@ -21,8 +25,9 @@ const SSH_FIELDS = [
  *
  * `labels`: { host, sshPort, osUser, osPassword, acceptFingerprint }; `L`: the shared POC labels.
  * `hostLocked`: the host comes from the HA settings and cannot be changed here.
+ * `causes`/`sshLabels`: a failed check's cause and what to do, by CMS's code.
  */
-export default function SshTargetCard({ hostUid, title, node, onChange, onRemove, disabled, hostLocked = false, L, labels }) {
+export default function SshTargetCard({ hostUid, title, node, onChange, onRemove, disabled, hostLocked = false, L, labels, causes = {}, sshLabels }) {
   const setField = (key) => (e) => onChange({
     ssh: { ...node.ssh, [key]: e.target.value },
     // Another node or account: the earlier check and the accepted key no longer apply.
@@ -89,8 +94,19 @@ export default function SshTargetCard({ hostUid, title, node, onChange, onRemove
             <>
               <span>
                 {L.result}: <span className={STATE_STYLE[check.result] ?? 'text-rose-500'}>{check.result}</span>
-                {check.message ? ` - ${check.message}` : ''}
+                {check.message && (NOT_A_PROBLEM.has(check.result) || !sshLabels) ? ` - ${check.message}` : ''}
               </span>
+              {!NOT_A_PROBLEM.has(check.result) && sshLabels && (
+                <SshProblem
+                  node={node.ssh.host.trim()}
+                  code={check.result}
+                  message={check.message}
+                  hint={check.hint}
+                  causes={causes}
+                  labels={sshLabels}
+                  testId="ha-ssh-problem"
+                />
+              )}
               {check.hostkey_sha256 && (
                 <span>{L.fingerprint}: <code className="font-mono">{check.hostkey_type} {check.hostkey_sha256}</code></span>
               )}

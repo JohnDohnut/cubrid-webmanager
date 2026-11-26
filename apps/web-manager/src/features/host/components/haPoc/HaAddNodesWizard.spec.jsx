@@ -358,6 +358,24 @@ it('lists the failed plan checks by node, path and reason when CMS gives them', 
   }
 });
 
+it('says per node why the plan could not reach it over ssh', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  try {
+    await toSummary(haDb);
+    mocks.start.mockResolvedValueOnce({ uuid: 'p1', job_status: 'running' });
+    mocks.status.mockResolvedValue({
+      uuid: 'p1', job_status: 'fail', phase: 'done', error: 'name_unresolved', message: 'ns1: no such host', output: '',
+      steps: [{ no: 2, stage: 'S2', id: 'node_check', title: 'Check a new node', node: 'ns1', db: '', state: 'failed', detail: 'getent hosts ns1: not found' }],
+    });
+    await click(button('Get the plan'));
+    await poll();
+    expect(container.querySelector('[data-testid="ha-plan-failed-ns1"]').textContent)
+      .toBe('ns1 · Cause: The node name does not resolveTo do: Add the node name to this server\'s /etc/hosts or DNSDetail: getent hosts ns1: not found');
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 it('names the databases not logged in, whose tables without a primary key cannot be checked', async () => {
   mocks.heartbeat.mockResolvedValue(heartbeat('master'));
   await render(haDb);

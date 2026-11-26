@@ -12,6 +12,7 @@ import { useCM } from '../../../../constants/useCM';
 import SshTargetCard from './SshTargetCard';
 import { STATE_STYLE, errorText, isJobLive, isSshConfirmed, newSshNode, pathProblems } from './haPocShared';
 import BulkSshTools from './BulkSshTools';
+import SshProblem from './SshProblem';
 import PlanView from './PlanView';
 import HaJobProgress from './HaJobProgress';
 import { useHaJobPolling } from './useHaJobPolling';
@@ -292,6 +293,8 @@ export default function HaAddNodesWizard({ hostUid }) {
                 onRemove={newNodes.length > 1 ? () => setNewNodes((prev) => prev.filter((n) => n.id !== node.id)) : undefined}
                 L={L}
                 labels={sshLabels(W.newNodeHost)}
+                causes={W.sshCauses}
+                sshLabels={W.sshLabels}
               />
               {nameMismatch(node) && <span className="text-13 text-rose-500">{W.slaveNameMismatch(node.check.remote_hostname)}</span>}
             </div>
@@ -320,6 +323,8 @@ export default function HaAddNodesWizard({ hostUid }) {
               hostLocked={node.locked}
               L={L}
               labels={sshLabels(W.peerHost)}
+              causes={W.sshCauses}
+              sshLabels={W.sshLabels}
             />
           ))}
         </section>
@@ -377,6 +382,22 @@ export default function HaAddNodesWizard({ hostUid }) {
                 </table>
               )}
               {preflight.length === 0 && planFailures.map((f) => {
+                // A node check that failed on ssh: the cause and what to do, for that node.
+                const sshCode = f.error || planJob.error;
+                if (f.id === 'node_check' && W.sshCauses[sshCode]) {
+                  return (
+                    <SshProblem
+                      key={f.no}
+                      node={f.node}
+                      code={sshCode}
+                      message={f.detail}
+                      hint={f.hint}
+                      causes={W.sshCauses}
+                      labels={W.sshLabels}
+                      testId={`ha-plan-failed-${f.node || 'local'}`}
+                    />
+                  );
+                }
                 const problems = pathProblems(f.detail);
                 return (
                   <div key={f.no} className="flex flex-col gap-1" data-testid={`ha-plan-failed-${f.node || 'local'}`}>
