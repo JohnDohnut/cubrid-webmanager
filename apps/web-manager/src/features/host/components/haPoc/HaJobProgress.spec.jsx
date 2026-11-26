@@ -3,6 +3,10 @@ import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ rollback: vi.fn() }));
+vi.hoisted(() => {
+  window.matchMedia ??= () => ({ matches: false, addEventListener: () => undefined, removeEventListener: () => undefined });
+});
+vi.mock('../../../../api/apiClient', () => ({ default: { defaults: { headers: { common: {} } } } }));
 vi.mock('../../hostApi', () => ({ hostApi: { haAddNodesRollback: mocks.rollback } }));
 import HaJobProgress from './HaJobProgress';
 import { CM } from '../../../../constants/cmLabels';
@@ -91,4 +95,37 @@ it('says the cause and what to do when the run fails on a node', async () => {
   await act(async () => root.render(<HaJobProgress hostUid="h1" job={job} setJob={() => {}} L={CM.haSlavePoc} causes={CM.haAddSlave.sshCauses} sshLabels={CM.haAddSlave.sshLabels} />));
   expect(container.querySelector('[data-testid="ha-job-problem"]').textContent)
     .toBe('haxs1 · Cause: The node did not answer in timeTo do: Check haxs1Detail: haxs1: no answer in 30 s');
+});
+
+it('asks again only for the passwords of the nodes it lost before undoing, and keeps none', async () => {
+  mocks.rollback.mockReset();
+  mocks.rollback.mockResolvedValue({ uuid: 'u1', job_status: 'running' });
+  let job = { uuid: 'u1', job_status: 'rollback_failed', phase: 'done', error: 'connection_lost', lost_nodes: ['haxs1'], steps: [], log: '' };
+  const setJob = (fn) => { job = typeof fn === 'function' ? fn(job) : fn; };
+  const nodes = {
+    newNodes: [{ role: 'slave', host: 'haxs1', osPassword: 'old' }, { role: 'replica', host: 'haxr1', osPassword: 'pr' }],
+    existingNodes: [{ host: 'hasl1', osPassword: 'ps' }],
+  };
+  const { Provider } = await import('react-redux');
+  const { configureStore } = await import('@reduxjs/toolkit');
+  const store = configureStore({ reducer: { user: () => ({ preferences: { uiLocale: 'en' } }) } });
+  await act(async () => root.render(<Provider store={store}><HaJobProgress hostUid="h1" job={job} setJob={setJob} L={CM.haSlavePoc} rollbackNodes={nodes} /></Provider>));
+  await act(async () => [...container.querySelectorAll('button')].find((b) => b.textContent === 'Undo').click());
+  const dialog = document.querySelector('[data-testid="ha-relog-modal"]');
+  expect(dialog.textContent).toContain('haxs1 OS password');
+  expect(dialog.textContent).not.toContain('haxr1');
+  const input = dialog.querySelector('input[type=password]');
+  expect(input.value).toBe('');
+  const undo = () => [...dialog.querySelectorAll('button')].find((b) => b.textContent === 'Undo');
+  expect(undo().disabled).toBe(true);
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(input, 'new');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await act(async () => undo().click());
+  expect(mocks.rollback).toHaveBeenCalledWith('h1', 'u1', {
+    newNodes: [{ role: 'slave', host: 'haxs1', osPassword: 'new' }, { role: 'replica', host: 'haxr1', osPassword: 'pr' }],
+    existingNodes: [{ host: 'hasl1', osPassword: 'ps' }],
+  });
+  expect(document.querySelector('[data-testid="ha-relog-modal"]')).toBeNull();
 });

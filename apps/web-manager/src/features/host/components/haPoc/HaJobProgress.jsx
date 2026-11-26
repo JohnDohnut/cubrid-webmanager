@@ -6,6 +6,7 @@ import { STATE_STYLE, UNDO_ON_REQUEST, errorText, isJobLive, isPromoteStep } fro
 import { useHaJobPolling } from './useHaJobPolling';
 import StageSteps from './StageSteps';
 import SshProblem from './SshProblem';
+import RelogModal from './RelogModal';
 
 /**
  * A run's state, its steps under their stage groups, the log and cancel; for
@@ -15,6 +16,7 @@ import SshProblem from './SshProblem';
  */
 export default function HaJobProgress({ hostUid, job, setJob, L, cleanupNodes = [], rollbackNodes = null, promoting = false, causes = {}, sshLabels }) {
   const [cleanup, setCleanup] = useState(null);
+  const [relogOpen, setRelogOpen] = useState(false);
   const logRef = useRef(null);
   useHaJobPolling(hostUid, job, setJob);
 
@@ -41,10 +43,17 @@ export default function HaJobProgress({ hostUid, job, setJob, L, cleanupNodes = 
     }
   };
 
-  // An interrupted or blocked job is undone from its record on request; then it is polled again.
-  const rollback = async () => {
+  // The nodes whose connection dropped during the job (connection_lost): their passwords are asked again before an undo.
+  const lostNodes = Array.isArray(job?.lost_nodes)
+    ? job.lost_nodes
+    : (job?.error === 'connection_lost' && job?.step_node ? [job.step_node] : []);
+  // An interrupted or blocked job is undone from its record on request, and one whose undo
+  // failed on nodes it lost; then it is polled again.
+  const canUndo = Boolean(rollbackNodes)
+    && (UNDO_ON_REQUEST.has(job?.job_status) || (job?.job_status === 'rollback_failed' && lostNodes.length > 0));
+  const rollback = async (nodes = rollbackNodes) => {
     try {
-      await hostApi.haAddNodesRollback(hostUid, job.uuid, rollbackNodes);
+      await hostApi.haAddNodesRollback(hostUid, job.uuid, nodes);
       setJob((prev) => ({ ...prev, job_status: 'running', phase: 'rollback', requestError: null }));
     } catch (err) {
       setJob((prev) => ({ ...prev, requestError: errorText(err) }));
@@ -64,8 +73,8 @@ export default function HaJobProgress({ hostUid, job, setJob, L, cleanupNodes = 
           {job.phase ? ` · ${L.phase}: ${job.phase}` : ''}
         </span>
         <Button size="sm" variant="secondary" onClick={cancel} disabled={!live || job.phase === 'rollback'}>{L.cancel}</Button>
-        {UNDO_ON_REQUEST.has(job.job_status) && rollbackNodes && (
-          <Button size="sm" variant="secondary" onClick={rollback}>{L.rollback}</Button>
+        {canUndo && (
+          <Button size="sm" variant="secondary" onClick={() => (lostNodes.length > 0 ? setRelogOpen(true) : rollback())}>{L.rollback}</Button>
         )}
       </div>
       {job.job_status === 'interrupted' && <span className="text-13 text-amber-700 dark:text-amber-300">{L.interruptedNote}</span>}
@@ -91,6 +100,20 @@ export default function HaJobProgress({ hostUid, job, setJob, L, cleanupNodes = 
         <span className="text-13">{L.nodes}: {job.nodes.map((n) => `${n.host} (${n.role}${n.new ? `, ${L.newNode}` : ''})`).join(', ')}</span>
       )}
       {job.requestError && <span className="text-13 text-rose-500">{job.requestError}</span>}
+
+      {relogOpen && (
+        <RelogModal
+          hosts={lostNodes}
+          L={L}
+          onCancel={() => setRelogOpen(false)}
+          onSubmit={(passwords) => {
+            setRelogOpen(false);
+            // Those nodes take the passwords just entered; the others keep what the wizard holds.
+            const withNew = (node) => (lostNodes.includes(node.host) ? { ...node, osPassword: passwords[node.host] } : node);
+            rollback({ newNodes: rollbackNodes.newNodes.map(withNew), existingNodes: rollbackNodes.existingNodes.map(withNew) });
+          }}
+        />
+      )}
 
       <Typography variant="label">{L.steps}</Typography>
       <StageSteps steps={steps} groups={L.stageGroups} promoting={promoting} states testId="ha-job-steps" />
