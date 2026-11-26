@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, ArrayNotEmpty, Equals, IsArray, IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, ArrayNotEmpty, IsArray, IsBoolean, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min, ValidateNested } from 'class-validator';
 
 /**
  * Validated request body for HaController's heartbeat-list endpoint.
@@ -43,7 +43,7 @@ export class HaSshCheckDto {
   hostKeyFingerprint?: string;
 }
 
-/** POC: one node reached over ssh (the new slave or a replica), checked with its confirmed host key. */
+/** POC: one node reached over ssh (a new node or an existing one), checked with its confirmed host key. */
 export class HaSshNodeDto {
   @IsString()
   @IsNotEmpty()
@@ -67,92 +67,80 @@ export class HaSshNodeDto {
   hostKeyFingerprint: string;
 }
 
+/** POC (HA node add): a server to add, with its role in the HA group. */
+export class HaNewNodeDto extends HaSshNodeDto {
+  @IsIn(['slave', 'replica'])
+  role: 'slave' | 'replica';
+}
+
 /**
- * POC: turns this host's single database into a one-node HA master (CMS
- * ha_convert_master). The database restarts, so the user's confirmation is
- * part of the request.
+ * POC (HA node add, CMS ha_add_nodes): new slaves and replicas for this
+ * host's HA group in one job. `plan` checks every node and returns what run
+ * would do, changing nothing; `run` does it. A single (non-HA) host is first
+ * promoted to an HA master with `dbNames`. The restart confirmations go only
+ * with run (the ones the plan asked for).
  */
-export class HaConvertMasterDto {
-  /** The databases to put in HA: the new ha_db_list. The others stay single. */
+export class HaAddNodesDto {
+  @IsIn(['plan', 'run'])
+  action: 'plan' | 'run';
+
   @IsArray()
   @ArrayNotEmpty()
+  @ArrayMaxSize(32)
+  @ValidateNested({ each: true })
+  @Type(() => HaNewNodeDto)
+  newNodes: HaNewNodeDto[];
+
+  /** Every other node of the group (CMS takes their roles from this host's settings). */
+  @IsArray()
+  @ArrayMaxSize(64)
+  @ValidateNested({ each: true })
+  @Type(() => HaSshNodeDto)
+  existingNodes: HaSshNodeDto[];
+
+  /** Single host only: the databases to put in HA (the new ha_db_list). */
+  @IsOptional()
+  @IsArray()
   @ArrayMaxSize(64)
   @IsString({ each: true })
   @IsNotEmpty({ each: true })
-  dbNames: string[];
+  dbNames?: string[];
 
+  @IsOptional()
   @IsBoolean()
-  @Equals(true)
-  confirmMasterRestart: boolean;
+  confirmMasterRestart?: boolean;
 
-  /** The running databases not picked restart too (as single databases); needed only when there are any. */
   @IsOptional()
   @IsBoolean()
   confirmOtherDbRestart?: boolean;
 
   @IsOptional()
-  @IsString()
-  masterHost?: string;
+  @IsBoolean()
+  confirmNewNodeDbRestart?: boolean;
 
   @IsOptional()
-  @IsString()
-  haGroup?: string;
-
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(65535)
-  haPortId?: number;
-}
-
-/**
- * POC: adds a new slave from this host, the HA master (CMS ha_make_slave),
- * for every database in its ha_db_list. slave.host is the new slave's node name (its uname -n), also the address
- * ssh goes to.
- */
-export class HaAddSlaveStartDto {
-  @ValidateNested()
-  @Type(() => HaSshNodeDto)
-  slave: HaSshNodeDto;
-
-  /** The master's other slaves (its ha_node_list without itself), each registered on the new slave too. */
-  @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(8)
-  @ValidateNested({ each: true })
-  @Type(() => HaSshNodeDto)
-  existingSlaves?: HaSshNodeDto[];
-
-  @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(8)
-  @ValidateNested({ each: true })
-  @Type(() => HaSshNodeDto)
-  replicas?: HaSshNodeDto[];
-
-  @IsOptional()
-  @IsString()
-  masterHost?: string;
-
-  @IsOptional()
-  @IsString()
-  replLogHome?: string;
-
-  @IsOptional()
-  @IsString()
-  masterBackupPath?: string;
-
-  @IsOptional()
-  @IsString()
-  slaveBackupPath?: string;
+  @IsBoolean()
+  rollbackConvert?: boolean;
 
   @IsOptional()
   @IsBoolean()
   startHa?: boolean;
+
+  /**
+   * plan only: the databases to look for tables without a primary key in
+   * (HA does not replicate them). The server adds the login of each one the
+   * user is logged in to now; never a saved login alone.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(64)
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  checkDbNames?: string[];
 }
 
-/** POC: one job (conversion or slave add); offset is how much of the log the screen already has. */
-export class HaSlaveJobDto {
+/** POC: one job; offset is how much of the log the screen already has. */
+export class HaAddNodesJobDto {
   @IsString()
   @IsNotEmpty()
   uuid: string;
@@ -163,13 +151,16 @@ export class HaSlaveJobDto {
   offset?: number;
 }
 
-/** POC: deletes the old database folders a slave add moved aside on the new slave; needs its password again. */
-export class HaSlaveCleanupDto {
+/** POC: deletes the old database folders a successful job moved aside on the new nodes; needs their logins again. */
+export class HaAddNodesCleanupDto {
   @IsString()
   @IsNotEmpty()
   uuid: string;
 
-  @IsString()
-  @IsNotEmpty()
-  osPassword: string;
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(32)
+  @ValidateNested({ each: true })
+  @Type(() => HaNewNodeDto)
+  newNodes: HaNewNodeDto[];
 }

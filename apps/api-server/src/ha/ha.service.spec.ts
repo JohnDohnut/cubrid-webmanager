@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { HaService } from './ha.service';
 import { HostService } from '@host';
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
+import { DatabaseUserService } from '@database/user/database-user.service';
 
 jest.mock('@common', () => ({
   ...jest.requireActual('@common'),
@@ -37,6 +38,7 @@ describe('HaService', () => {
         HaService,
         { provide: HostService, useValue: hostService },
         { provide: CmsHttpsClientService, useValue: cmsClient },
+        { provide: DatabaseUserService, useValue: { isDbLoginActive: jest.fn() } },
       ],
     }).compile();
 

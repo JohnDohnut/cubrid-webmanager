@@ -7,10 +7,10 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 vi.hoisted(() => {
   window.matchMedia ??= () => ({ matches: false, addEventListener: () => undefined, removeEventListener: () => undefined });
 });
-const mocks = vi.hoisted(() => ({ heartbeat: vi.fn(), check: vi.fn() }));
+const mocks = vi.hoisted(() => ({ heartbeat: vi.fn(), check: vi.fn(), start: vi.fn(), status: vi.fn() }));
 vi.mock('../../../../api/apiClient', () => ({ default: { defaults: { headers: { common: {} } } } }));
 vi.mock('../../../server/monitoringApi', () => ({ monitoringApi: { getHaHeartbeatList: mocks.heartbeat } }));
-vi.mock('../../hostApi', () => ({ hostApi: { haAddSlaveCheck: mocks.check } }));
+vi.mock('../../hostApi', () => ({ hostApi: { haAddNodesCheck: mocks.check, haAddNodesStart: mocks.start, haAddNodesStatus: mocks.status } }));
 import HaAddNodesWizard from './HaAddNodesWizard';
 
 let container;
@@ -240,4 +240,103 @@ it('with ten existing nodes, puts one account into all and checks them all, each
   for (const key of keys) await click(key);
   expect(bulk.textContent).toContain('Confirmed 10 / 10');
   expect(nextButton().disabled).toBe(false);
+});
+
+const toSummary = async (database, beat = heartbeat('master')) => {
+  mocks.heartbeat.mockResolvedValue(beat);
+  mocks.check.mockImplementation(okCheck);
+  await render(database);
+  await click(nextButton());
+  await confirmNewNode(1, 'ns1');
+  await click(nextButton());
+  // hasl1, hareplica
+  const bulk = container.querySelector('[data-testid="ha-bulk-existing"]');
+  await type(labelled(bulk, 'OS user'), 'cubrid');
+  await type(labelled(bulk, 'OS password'), 'pw');
+  await click([...bulk.querySelectorAll('button')].find((b) => b.textContent === 'Put into all'));
+  await click([...bulk.querySelectorAll('button')].find((b) => b.textContent === 'Check all'));
+  for (const key of [...container.querySelectorAll('input[type=checkbox]')].filter((i) => i.closest('label')?.textContent.includes('server\'s key'))) await click(key);
+  await click(nextButton());
+  await click(nextButton());
+};
+const button = (name) => [...container.querySelectorAll('button')].find((b) => b.textContent === name);
+const poll = () => act(async () => { await vi.advanceTimersByTimeAsync(1100); });
+const haDb = { haDbNamesByHost: { h1: ['hadb', 'hadb2'] }, databasesByHost: { h1: [{ dbname: 'hadb' }, { dbname: 'hadb2' }] }, activeDatabasesByHost: { h1: ['hadb', 'hadb2'] }, loggedInDatabases: ['h1:hadb'] };
+
+it('gets a plan, asks for the confirmations it needs, then runs with them and shows the progress', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  try {
+    await toSummary(haDb);
+    expect(text()).toContain('Get the plan');
+    expect(button('Start').disabled).toBe(true);
+
+    mocks.start.mockResolvedValueOnce({ uuid: 'p1', job_status: 'running' });
+    mocks.status.mockResolvedValueOnce({ uuid: 'p1', job_status: 'running', step_no: 2, step_count: 3, steps: [], output: '' });
+    await click(button('Get the plan'));
+    const planReq = mocks.start.mock.calls[0][1];
+    expect(planReq).toMatchObject({ action: 'plan', checkDbNames: ['hadb', 'hadb2'], newNodes: [{ role: 'slave', host: 'ns1' }] });
+    expect(planReq.existingNodes.map((n) => n.host)).toEqual(['hasl1', 'hareplica']);
+    expect(planReq).not.toHaveProperty('confirmNewNodeDbRestart');
+    await poll();
+    expect(container.querySelector('[data-testid="ha-plan-running"]').textContent).toContain('Step 2 / 3');
+
+    mocks.status.mockResolvedValue({
+      uuid: 'p1', job_status: 'success', phase: 'done', steps: [], output: '',
+      plan: {
+        local: { host: 'hamaster', state: 'master' }, master_host: 'hamaster', db_names: ['hadb', 'hadb2'],
+        nodes: [], convert: null, confirm_required: ['confirm_new_node_db_restart'],
+        new_node_databases: [{ host: 'ns1', running: ['old'], staying_single: ['old'] }],
+        node_paths: [], changes: [], warnings: ['Tables without a primary key: hadb2 not checked (not logged in)'],
+        steps: [{ no: 1, stage: 'S1', id: 'precheck', title: 'Check this server', node: '', db: '' }],
+      },
+    });
+    await poll();
+    expect(container.querySelector('[data-testid="ha-plan"]')).not.toBeNull();
+    expect(text()).toContain('hadb2 not checked');
+    expect(button('Start').disabled).toBe(true);
+    const agree = [...container.querySelectorAll('[data-testid="ha-plan-confirm"] input')][0];
+    await click(agree);
+    expect(button('Start').disabled).toBe(false);
+
+    mocks.start.mockResolvedValueOnce({ uuid: 'r1', job_status: 'running' });
+    mocks.status.mockResolvedValue({ uuid: 'r1', job_status: 'running', phase: 'run', step_no: 1, step_count: 1, steps: [{ no: 1, stage: 'S1', id: 'precheck', title: 'Check this server', node: '', db: '', state: 'running' }], output: 'go\n' });
+    await click(button('Start'));
+    const runReq = mocks.start.mock.calls[1][1];
+    expect(runReq).toMatchObject({ action: 'run', confirmNewNodeDbRestart: true });
+    expect(runReq).not.toHaveProperty('confirmMasterRestart');
+    expect(runReq).not.toHaveProperty('checkDbNames');
+    await poll();
+    expect(container.querySelector('[data-testid="ha-job-steps"]').textContent).toContain('Check this serverrunning');
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('shows on which node and path the plan failed', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  try {
+    await toSummary(haDb);
+    mocks.start.mockResolvedValueOnce({ uuid: 'p1', job_status: 'running' });
+    mocks.status.mockResolvedValue({
+      uuid: 'p1', job_status: 'fail', phase: 'done', error: 'precheck_failed', message: 'ns1 cannot write: /data/x (/data/x is not writable)', output: '',
+      steps: [
+        { no: 1, stage: 'S1', id: 'precheck', title: 'Check this server', node: '', db: '', state: 'done' },
+        { no: 6, stage: 'S3', id: 'preflight', title: 'Try a transfer and the folders the restore writes', node: 'ns1', db: '', state: 'failed', detail: 'ns1 cannot write: /data/x (/data/x is not writable)' },
+      ],
+    });
+    await click(button('Get the plan'));
+    await poll();
+    expect(container.querySelector('[data-testid="ha-plan-failed"]').textContent).toContain('The plan failed: precheck_failed');
+    expect(container.querySelector('[data-testid="ha-plan-failed-ns1"]').textContent)
+      .toBe('ns1 · Try a transfer and the folders the restore writes: ns1 cannot write: /data/x (/data/x is not writable)');
+    expect(button('Start').disabled).toBe(true);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('names the databases not logged in, whose tables without a primary key cannot be checked', async () => {
+  mocks.heartbeat.mockResolvedValue(heartbeat('master'));
+  await render(haDb);
+  expect(container.querySelector('[data-testid="ha-pk-login-hint"]').textContent).toContain('log in first: hadb2');
 });

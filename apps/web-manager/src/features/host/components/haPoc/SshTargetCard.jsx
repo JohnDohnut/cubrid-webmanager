@@ -33,7 +33,7 @@ export default function SshTargetCard({ hostUid, title, node, onChange, onRemove
   const callCheck = async (body) => {
     onChange({ checking: true });
     try {
-      const res = await hostApi.haAddSlaveCheck(hostUid, body);
+      const res = await hostApi.haAddNodesCheck(hostUid, body);
       onChange({ checking: false, check: res ?? {} });
       return res;
     } catch (err) {

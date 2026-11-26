@@ -1,7 +1,7 @@
 import { Body, Controller, Logger, Param, Post, Request } from '@nestjs/common';
 import { HeartbeatListClientResponse } from '@api-interfaces';
 import { HaReloadCmsResponse } from '@type/cms-response';
-import { HaAddSlaveStartDto, HaConvertMasterDto, HaSlaveCleanupDto, HaSlaveJobDto, HaSshCheckDto, HeartbeatListDto } from '@type/index';
+import { HaAddNodesCleanupDto, HaAddNodesDto, HaAddNodesJobDto, HaSshCheckDto, HeartbeatListDto } from '@type/index';
 import { HaService } from './ha.service';
 
 @Controller(':hostUid/ha')
@@ -44,67 +44,56 @@ export class HaController {
   }
 
   /**
-   * POC (HA slave add, run on the master): ssh connection check to the new slave or a replica.
+   * POC (HA node add): ssh connection check from this host to a new or an existing node.
    *
-   * @route POST /:hostUid/ha/add-slave/check-connection
+   * @route POST /:hostUid/ha/add-nodes/check-connection
    */
-  @Post('add-slave/check-connection')
+  @Post('add-nodes/check-connection')
   async checkSshConnection(@Request() req, @Param('hostUid') hostUid: string, @Body() body: HaSshCheckDto) {
-    this.logger.log(`HA slave POC: ssh check from host ${hostUid}`);
+    this.logger.log(`HA node add POC: ssh check from host ${hostUid}`);
     return await this.haService.checkSshConnection(req.user.sub, hostUid, body);
   }
 
   /**
-   * POC: turns a single database into an HA master (restarts it).
+   * POC: starts a plan (checks only) or a run of adding nodes.
    *
-   * @route POST /:hostUid/ha/add-slave/convert-master
+   * @route POST /:hostUid/ha/add-nodes/start
    */
-  @Post('add-slave/convert-master')
-  async convertMaster(@Request() req, @Param('hostUid') hostUid: string, @Body() body: HaConvertMasterDto) {
-    this.logger.log(`HA slave POC: convert to HA master on host ${hostUid}`);
-    return await this.haService.convertMaster(req.user.sub, hostUid, body);
+  @Post('add-nodes/start')
+  async addNodes(@Request() req, @Param('hostUid') hostUid: string, @Body() body: HaAddNodesDto) {
+    this.logger.log(`HA node add POC: ${body.action} on host ${hostUid}`);
+    return await this.haService.addNodes(req.user.sub, hostUid, body);
   }
 
   /**
-   * POC: starts adding a new slave from this host, the master.
+   * POC: a job's state, steps, plan and new log.
    *
-   * @route POST /:hostUid/ha/add-slave/start
+   * @route POST /:hostUid/ha/add-nodes/status
    */
-  @Post('add-slave/start')
-  async startAddSlave(@Request() req, @Param('hostUid') hostUid: string, @Body() body: HaAddSlaveStartDto) {
-    this.logger.log(`HA slave POC: add-slave start on host ${hostUid}`);
-    return await this.haService.startAddSlave(req.user.sub, hostUid, body);
-  }
-
-  /**
-   * POC: a job's state, step states and new log.
-   *
-   * @route POST /:hostUid/ha/add-slave/status
-   */
-  @Post('add-slave/status')
-  async slaveJobStatus(@Request() req, @Param('hostUid') hostUid: string, @Body() body: HaSlaveJobDto) {
-    return await this.haService.slaveJobStatus(req.user.sub, hostUid, body);
+  @Post('add-nodes/status')
+  async addNodesStatus(@Request() req, @Param('hostUid') hostUid: string, @Body() body: HaAddNodesJobDto) {
+    return await this.haService.addNodesStatus(req.user.sub, hostUid, body);
   }
 
   /**
    * POC: cancels the running job.
    *
-   * @route POST /:hostUid/ha/add-slave/cancel
+   * @route POST /:hostUid/ha/add-nodes/cancel
    */
-  @Post('add-slave/cancel')
-  async cancelSlaveJob(@Request() req, @Param('hostUid') hostUid: string, @Body() body: HaSlaveJobDto) {
-    this.logger.log(`HA slave POC: cancel on host ${hostUid}`);
-    return await this.haService.cancelSlaveJob(req.user.sub, hostUid, body);
+  @Post('add-nodes/cancel')
+  async cancelAddNodes(@Request() req, @Param('hostUid') hostUid: string, @Body() body: HaAddNodesJobDto) {
+    this.logger.log(`HA node add POC: cancel on host ${hostUid}`);
+    return await this.haService.cancelAddNodes(req.user.sub, hostUid, body);
   }
 
   /**
-   * POC: deletes the old database folders a successful slave add moved aside on the new slave.
+   * POC: deletes the old database folders a successful job moved aside on the new nodes.
    *
-   * @route POST /:hostUid/ha/add-slave/cleanup
+   * @route POST /:hostUid/ha/add-nodes/cleanup
    */
-  @Post('add-slave/cleanup')
-  async cleanupSlaveJob(@Request() req, @Param('hostUid') hostUid: string, @Body() body: HaSlaveCleanupDto) {
-    this.logger.log(`HA slave POC: cleanup on host ${hostUid}`);
-    return await this.haService.cleanupSlaveJob(req.user.sub, hostUid, body);
+  @Post('add-nodes/cleanup')
+  async cleanupAddNodes(@Request() req, @Param('hostUid') hostUid: string, @Body() body: HaAddNodesCleanupDto) {
+    this.logger.log(`HA node add POC: cleanup on host ${hostUid}`);
+    return await this.haService.cleanupAddNodes(req.user.sub, hostUid, body);
   }
 }

@@ -32,7 +32,7 @@ export default function BulkSshTools({ hostUid, nodes, setNodes, W, L, testId })
       if (!node.ssh.host.trim() || !node.ssh.osUser.trim() || isSshConfirmed(node)) continue;
       patch(node.id, { checking: true, accepted: false });
       try {
-        const res = await hostApi.haAddSlaveCheck(hostUid, sshTarget(node.ssh));
+        const res = await hostApi.haAddNodesCheck(hostUid, sshTarget(node.ssh));
         patch(node.id, { checking: false, check: res ?? {} });
       } catch (err) {
         patch(node.id, { checking: false, check: { error: errorText(err) } });

@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
+import { hostApi } from '../../hostApi';
+import { dbKey } from '../../../database/dbKey';
 import { monitoringApi } from '../../../server/monitoringApi';
 import { extractHaHeartbeatNodes, getHaDbServerModes } from '../../haPeerUtils';
 import { Checkbox } from '../../../../components/ds/forms/Checkbox';
@@ -8,9 +10,12 @@ import { Typography } from '../../../../components/ds/foundation/Typography';
 import { Steps } from '../../../../components/ds/layout/Steps';
 import { useCM } from '../../../../constants/useCM';
 import SshTargetCard from './SshTargetCard';
-import { errorText, isSshConfirmed, newSshNode } from './haPocShared';
+import { STATE_STYLE, errorText, isJobLive, isSshConfirmed, newSshNode } from './haPocShared';
 import BulkSshTools from './BulkSshTools';
-import { convertPlan, newNodesProblem, summarizeRequest } from './addNodesRequest';
+import PlanView from './PlanView';
+import HaJobProgress from './HaJobProgress';
+import { useHaJobPolling } from './useHaJobPolling';
+import { buildAddNodesRequest, convertPlan, newNodesProblem, summarizeRequest } from './addNodesRequest';
 
 // POC (HA node add), opened on a host: adds new slaves and replicas, any
 // number of each, to its HA group in one go. The host is the group's master,
@@ -21,16 +26,18 @@ import { convertPlan, newNodesProblem, summarizeRequest } from './addNodesReques
 // gets the new ones registered. A wizard: target, nodes to add, existing
 // nodes, options, summary, progress. Each step's checks must pass before
 // Next; passwords stay in this state and go only into the requests.
-// The CMS side (ha_add_nodes: a script and the API that runs it) is in
-// design: it first returns a plan (every node checked, the roles, what
-// changes, the databases that restart, the step table), shown before run.
-// Until its API is wired the summary shows the request, and Start waits.
+// CMS (ha_add_nodes: a script and the API that runs it) first makes a plan
+// (every node checked, the roles, what changes, the databases that restart,
+// the steps), changing nothing; the summary shows it with the confirmations
+// it asks for, and only then the run starts.
 
 const STEP_TARGET = 0;
 const STEP_NEW_NODES = 1;
 const STEP_EXISTING = 2;
 const STEP_OPTIONS = 3;
 const STEP_SUMMARY = 4;
+const STEP_PROGRESS = 5;
+const newJob = (res) => ({ uuid: res?.uuid, job_status: res?.job_status ?? 'running', steps: [], log: '', offset: 0 });
 const NONE = [];
 const ROLES = ['slave', 'replica'];
 
@@ -49,6 +56,7 @@ export default function HaAddNodesWizard({ hostUid }) {
   const haDbNames = useSelector((state) => state.database.haDbNamesByHost?.[hostUid]);
   const databases = useSelector((state) => state.database.databasesByHost?.[hostUid] ?? NONE);
   const activeDbs = useSelector((state) => state.database.activeDatabasesByHost?.[hostUid] ?? NONE);
+  const loggedIn = useSelector((state) => state.database.loggedInDatabases ?? NONE);
   const haKnown = haDbNames !== undefined;
   const isHaDb = haKnown && haDbNames.length > 0;
 
@@ -65,6 +73,13 @@ export default function HaAddNodesWizard({ hostUid }) {
   const [peers, setPeers] = useState([]);
   // Only what changes the behavior; folders and HA ports take CMS's defaults (each node's $CUBRID_DATABASES).
   const [options, setOptions] = useState({ startHa: true, rollbackConvert: false });
+  // The plan job, then the run's; and the confirmations given on the plan.
+  const [planJob, setPlanJob] = useState(null);
+  const [planAgreed, setPlanAgreed] = useState([]);
+  const [runJob, setRunJob] = useState(null);
+  const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState(null);
+  useHaJobPolling(hostUid, planJob, setPlanJob);
 
   useEffect(() => {
     if (!isHaDb) return undefined;
@@ -96,8 +111,8 @@ export default function HaAddNodesWizard({ hostUid }) {
 
   const allNames = databases.map((db) => db.dbname);
   // In databases.txt order, as the table shows them.
-  const plan = convertPlan({ picked: allNames.filter((name) => picked.includes(name)), running: allNames.filter((name) => activeDbs.includes(name)), all: allNames });
-  const hasOthers = plan.otherRunningDatabases.length > 0;
+  const promo = convertPlan({ picked: allNames.filter((name) => picked.includes(name)), running: allNames.filter((name) => activeDbs.includes(name)), all: allNames });
+  const hasOthers = promo.otherRunningDatabases.length > 0;
   const togglePick = (name) => (e) => {
     const on = e.target.checked;
     setPicked((prev) => (on ? [...prev, name] : prev.filter((n) => n !== name)));
@@ -123,7 +138,51 @@ export default function HaAddNodesWizard({ hostUid }) {
     [STEP_EXISTING]: peers.every(isSshConfirmed),
     [STEP_OPTIONS]: true,
   };
-  const request = { single: !isHaDb, dbNames: plan.haDatabases, newNodes, peers, options };
+  // The databases the job covers, also the ones to look for tables without a primary key in.
+  const targetDbs = isHaDb ? haDbNames : promo.haDatabases;
+  const notLoggedIn = targetDbs.filter((name) => !loggedIn.includes(dbKey(hostUid, name)));
+  const request = { single: !isHaDb, dbNames: promo.haDatabases, checkDbNames: targetDbs, newNodes, peers, options };
+
+  // The restarts agreed in the first step count for the plan's confirmations too.
+  const firstAgreed = isHaDb ? [] : [
+    ...(switchConfirmed ? ['confirm_master_restart'] : []),
+    ...(otherConfirmed ? ['confirm_other_db_restart'] : []),
+  ];
+  const agreed = [...firstAgreed, ...planAgreed];
+  const planReady = planJob?.job_status === 'success' && planJob?.phase !== 'rollback' && planJob?.plan;
+  const required = planReady && Array.isArray(planJob.plan.confirm_required) ? planJob.plan.confirm_required : [];
+  const canRun = Boolean(planReady) && required.every((key) => agreed.includes(key)) && !runJob;
+  const planFailures = planJob && !isJobLive(planJob) && !planReady
+    ? (planJob.steps ?? []).filter((s) => s.state === 'failed')
+    : [];
+
+  const startJob = async (action) => {
+    setStarting(true);
+    setStartError(null);
+    try {
+      const res = await hostApi.haAddNodesStart(hostUid, buildAddNodesRequest(request, action, agreed));
+      if (action === 'plan') {
+        setPlanAgreed([]);
+        setPlanJob(newJob(res));
+      } else {
+        setRunJob(newJob(res));
+        setStep(STEP_PROGRESS);
+      }
+    } catch (err) {
+      setStartError(errorText(err));
+    } finally {
+      setStarting(false);
+    }
+  };
+  const back = () => {
+    // Inputs may change on the way back: the plan no longer applies.
+    if (step === STEP_SUMMARY) {
+      setPlanJob(null);
+      setPlanAgreed([]);
+      setStartError(null);
+    }
+    setStep((s) => s - 1);
+  };
 
   const roleName = { master: W.roleMaster, slave: W.roleSlave, replica: W.roleReplica };
   const nodeList = (nodes) => (nodes.length ? nodes.map((node) => `${node.ssh.host.trim()} (${roleName[node.role]})`).join(', ') : W.none);
@@ -167,6 +226,7 @@ export default function HaAddNodesWizard({ hostUid }) {
                       haState
                       empty={W.noHaDatabases}
                     />
+                    {notLoggedIn.length > 0 && <span className="text-slate-500" data-testid="ha-pk-login-hint">{W.pkLoginHint(notLoggedIn.join(', '))}</span>}
                   </>
                 )
           )}
@@ -185,14 +245,15 @@ export default function HaAddNodesWizard({ hostUid }) {
                 <div className="flex flex-col gap-2 p-3 rounded border border-amber-300 bg-amber-50 dark:bg-amber-500/10" data-testid="ha-convert-plan">
                   <Typography variant="h4">{W.promoteTitle}</Typography>
                   <span className="text-amber-700 dark:text-amber-300">{W.singleWarning}</span>
-                  <span>{W.haList} <b>{plan.haDatabases.join(', ')}</b></span>
-                  <span>{W.restartList} <b>{listText(plan.restartDatabases, W.none)}</b></span>
-                  {hasOthers && <span>{W.otherRestartList} <b>{plan.otherRunningDatabases.join(', ')}</b></span>}
-                  <span>{W.singleStayList} {listText(plan.singleDatabases, W.none)}</span>
+                  <span>{W.haList} <b>{promo.haDatabases.join(', ')}</b></span>
+                  <span>{W.restartList} <b>{listText(promo.restartDatabases, W.none)}</b></span>
+                  {hasOthers && <span>{W.otherRestartList} <b>{promo.otherRunningDatabases.join(', ')}</b></span>}
+                  <span>{W.singleStayList} {listText(promo.singleDatabases, W.none)}</span>
                   <Checkbox label={W.singleConfirm} checked={switchConfirmed} onChange={(e) => setSwitchConfirmed(e.target.checked)} />
                   {hasOthers && <Checkbox label={W.otherConfirm} checked={otherConfirmed} onChange={(e) => setOtherConfirmed(e.target.checked)} />}
                 </div>
               )}
+              {notLoggedIn.length > 0 && <span className="text-slate-500" data-testid="ha-pk-login-hint">{W.pkLoginHint(notLoggedIn.join(', '))}</span>}
             </>
           )}
         </section>
@@ -275,20 +336,73 @@ export default function HaAddNodesWizard({ hostUid }) {
           <span className="text-13">{W.summaryNew(nodeList(newNodes))}</span>
           <span className="text-13">{W.summaryPeers(nodeList(peers))}</span>
           {!isHaDb && (
-            <span className="text-13 text-amber-700 dark:text-amber-300">{W.promoteTitle}: {W.singleWarning} {W.restartList} {listText(plan.restartDatabases, W.none)}</span>
+            <span className="text-13 text-amber-700 dark:text-amber-300">{W.promoteTitle}: {W.singleWarning} {W.restartList} {listText(promo.restartDatabases, W.none)}</span>
           )}
-          <pre className="font-mono text-12 bg-slate-100 dark:bg-white/5 p-3 rounded overflow-auto">
-            {JSON.stringify(summarizeRequest(request), null, 2)}
-          </pre>
-          <span className="text-13 text-slate-500">{W.apiPending}</span>
+          <details className="text-13">
+            <summary className="cursor-pointer text-slate-500">{W.requestPreview}</summary>
+            <pre className="font-mono text-12 bg-slate-100 dark:bg-white/5 p-3 rounded overflow-auto">
+              {JSON.stringify(summarizeRequest(request), null, 2)}
+            </pre>
+          </details>
+          <span className="text-13 text-slate-500">{W.planHint}</span>
+          {planJob && isJobLive(planJob) && (
+            <span className="text-13 text-amber-600" data-testid="ha-plan-running">
+              {W.planRunning}{planJob.step_no && planJob.step_count ? ` (${L.stepOf(planJob.step_no, planJob.step_count)})` : ''}
+            </span>
+          )}
+          {planJob && !isJobLive(planJob) && !planReady && (
+            <div className="flex flex-col gap-1 text-13 p-3 rounded border border-rose-300 bg-rose-50 dark:bg-rose-500/10" data-testid="ha-plan-failed">
+              <span className="text-rose-600 dark:text-rose-300">
+                {W.planFailed}: {[planJob.error, planJob.message].filter(Boolean).join(': ') || planJob.job_status}
+              </span>
+              {planFailures.map((f) => (
+                <span key={f.no} className="font-mono break-all" data-testid={`ha-plan-failed-${f.node || 'local'}`}>
+                  <b>{f.node || host?.alias || '-'}</b> · {f.title || f.id}: <span className={STATE_STYLE.failed}>{f.detail || f.state}</span>
+                </span>
+              ))}
+            </div>
+          )}
+          {planReady && (
+            <PlanView
+              plan={planJob.plan}
+              W={W}
+              L={L}
+              agreed={agreed}
+              onAgree={(key, on) => setPlanAgreed((prev) => (on ? [...prev, key] : prev.filter((k) => k !== key)))}
+            />
+          )}
+          {startError && <span className="text-13 text-rose-500">{startError}</span>}
         </section>
       )}
 
-      <div className="flex gap-2">
-        <Button variant="secondary" onClick={() => setStep((s) => s - 1)} disabled={step === STEP_TARGET}>{W.prev}</Button>
-        {step < STEP_SUMMARY && <Button onClick={() => setStep((s) => s + 1)} disabled={!stepOk[step]}>{W.next}</Button>}
-        {step === STEP_SUMMARY && <Button disabled>{L.run}</Button>}
-      </div>
+      {step === STEP_PROGRESS && runJob && (
+        <section className="flex flex-col gap-3">
+          <Typography variant="h3">{W.stepProgress}</Typography>
+          <HaJobProgress
+            hostUid={hostUid}
+            job={runJob}
+            setJob={setRunJob}
+            L={L}
+            promoting={!isHaDb}
+            cleanupNodes={buildAddNodesRequest(request).newNodes}
+          />
+        </section>
+      )}
+
+      {step !== STEP_PROGRESS && (
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={back} disabled={step === STEP_TARGET || starting || isJobLive(planJob)}>{W.prev}</Button>
+          {step < STEP_SUMMARY && <Button onClick={() => setStep((s) => s + 1)} disabled={!stepOk[step]}>{W.next}</Button>}
+          {step === STEP_SUMMARY && (
+            <>
+              <Button variant="secondary" onClick={() => startJob('plan')} disabled={starting || isJobLive(planJob)}>
+                {planJob ? W.planAgain : W.getPlan}
+              </Button>
+              <Button onClick={() => startJob('run')} disabled={starting || !canRun}>{L.run}</Button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

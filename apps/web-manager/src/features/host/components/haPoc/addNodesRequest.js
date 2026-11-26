@@ -34,7 +34,7 @@ export function convertPlan({ picked, running, all }) {
  * restart confirmations go only with run: the ones the plan asked for
  * (confirm_required) that the user agreed to (`confirmKeys`).
  */
-export function buildAddNodesRequest({ newNodes, peers, options, single, dbNames }, action = 'plan', confirmKeys = []) {
+export function buildAddNodesRequest({ newNodes, peers, options, single, dbNames, checkDbNames }, action = 'plan', confirmKeys = []) {
   const body = {
     action,
     newNodes: newNodes.map(sshNodeBody),
@@ -44,6 +44,10 @@ export function buildAddNodesRequest({ newNodes, peers, options, single, dbNames
   if (action === 'run') {
     if (confirmKeys.includes('confirm_master_restart')) body.confirmMasterRestart = true;
     if (confirmKeys.includes('confirm_other_db_restart')) body.confirmOtherDbRestart = true;
+    if (confirmKeys.includes('confirm_new_node_db_restart')) body.confirmNewNodeDbRestart = true;
+  } else if (checkDbNames?.length) {
+    // The databases to look for tables without a primary key in (the server adds the live logins).
+    body.checkDbNames = checkDbNames;
   }
   if (single) {
     body.dbNames = dbNames;

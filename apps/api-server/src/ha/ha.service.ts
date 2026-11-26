@@ -1,9 +1,9 @@
 import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.service';
 import { BaseService, HandleCmsErrors } from '@common';
 import { HostService } from '@host';
-import { CmsError } from '@error/cms/cms-error';
+import { DatabaseUserService } from '@database/user/database-user.service';
 import { Injectable } from '@nestjs/common';
-import { HaAddSlaveStartDto, HaConvertMasterDto, HaSlaveCleanupDto, HaSlaveJobDto, HaSshCheckDto, HaSshNodeDto } from '@type/index';
+import { HaAddNodesCleanupDto, HaAddNodesDto, HaAddNodesJobDto, HaNewNodeDto, HaSshCheckDto, HaSshNodeDto } from '@type/index';
 import {
   HaReloadCmsRequest,
   HaStartDatabaseCmsRequest,
@@ -21,20 +21,17 @@ import {
 import { HeartbeatListClientRequest, HeartbeatListClientResponse } from '@api-interfaces';
 
 /**
- * POC (HA slave add): CMS tasks on the master. Its CMS checks ssh to the new
- * slave and each replica, turns a single database into an HA master if
- * needed, and builds the new slave over ssh. Linux CMS builds only.
+ * POC (HA node add): CMS tasks on the host the job runs from (the master, or
+ * a single server it first promotes to one). Its CMS checks ssh to each node
+ * and runs the add-nodes script, which adds new slaves and replicas over ssh.
+ * Linux CMS builds only.
  */
-const HA_SLAVE_TASKS = {
+const HA_NODES_TASKS = {
   sshCheck: 'ha_check_ssh',
-  convertMaster: 'ha_convert_master',
-  makeSlave: 'ha_make_slave',
-  status: 'ha_make_slave_status',
-  cancel: 'ha_make_slave_cancel',
-  cleanup: 'ha_make_slave_cleanup',
+  addNodes: 'ha_add_nodes',
+  status: 'ha_add_nodes_status',
+  cancel: 'ha_add_nodes_cancel',
 } as const;
-// ha_convert_master's answers when a restart is not confirmed yet (it then does not start).
-const CONVERT_CONFIRM_NOTES = new Set(['confirm_master_restart', 'confirm_other_db_restart']);
 // ha_check_ssh answers within about 20 seconds.
 const SSH_CHECK_TIMEOUT_MS = 40_000;
 
@@ -44,7 +41,8 @@ type CmsPocRequest = { task: string } & Record<string, unknown>;
 export class HaService extends BaseService {
   constructor(
     protected readonly hostService: HostService,
-    protected readonly cmsClient: CmsHttpsClientService
+    protected readonly cmsClient: CmsHttpsClientService,
+    private readonly databaseUserService: DatabaseUserService
   ) {
     super(hostService, cmsClient);
   }
@@ -208,7 +206,7 @@ export class HaService extends BaseService {
    */
   @HandleCmsErrors()
   async checkSshConnection(userId: string, hostUid: string, request: HaSshCheckDto) {
-    return this.pocCall(userId, hostUid, this.pocRequest(HA_SLAVE_TASKS.sshCheck, {
+    return this.pocCall(userId, hostUid, this.pocRequest(HA_NODES_TASKS.sshCheck, {
       host: request.host,
       ssh_port: String(request.sshPort),
       os_user: request.osUser,
@@ -217,88 +215,84 @@ export class HaService extends BaseService {
     }), SSH_CHECK_TIMEOUT_MS);
   }
 
-  /**
-   * POC: turns this single (non-HA) host into a one-node HA master with the
-   * databases picked as its ha_db_list; every running database restarts
-   * (CMS ha_convert_master). When a restart is not confirmed yet CMS does
-   * not start: that answer (which confirmation, and the databases that
-   * restart or stay single) comes back as data with `confirm`, for the
-   * screen to show before it asks again.
-   */
-  @HandleCmsErrors()
-  async convertMaster(userId: string, hostUid: string, request: HaConvertMasterDto) {
-    const cmsRequest = this.pocRequest(HA_SLAVE_TASKS.convertMaster, {
-      db_names: request.dbNames.join(','),
-      confirm_master_restart: request.confirmMasterRestart ? 'yes' : undefined,
-      confirm_other_db_restart: request.confirmOtherDbRestart ? 'yes' : undefined,
-      master_host: request.masterHost,
-      ha_group: request.haGroup,
-      ha_port_id: request.haPortId === undefined ? undefined : String(request.haPortId),
-    });
-    try {
-      return await this.pocCall(userId, hostUid, cmsRequest);
-    } catch (err) {
-      const response = err instanceof CmsError ? err.additionalData?.response : undefined;
-      const note = typeof response?.note === 'string' ? response.note : '';
-      if (!CONVERT_CONFIRM_NOTES.has(note)) throw err;
-      return {
-        confirm: note,
-        ha_databases: response.ha_databases,
-        restart_databases: response.restart_databases,
-        other_running_databases: response.other_running_databases,
-        single_databases: response.single_databases,
-        message: response.message,
-      };
-    }
-  }
-
-  /** POC: adds a new slave from this host, the HA master, for every database in its ha_db_list (CMS ha_make_slave); returns its uuid and those databases. */
-  @HandleCmsErrors()
-  async startAddSlave(userId: string, hostUid: string, request: HaAddSlaveStartDto) {
-    // Each node as ha_check_ssh takes it; the log hides os_password at any depth.
-    const node = (n: HaSshNodeDto) => ({
+  /** A node as ha_check_ssh and ha_add_nodes take it; the log hides os_password at any depth. */
+  private nodeFields(n: HaSshNodeDto) {
+    return {
       host: n.host,
       ssh_port: String(n.sshPort),
       os_user: n.osUser,
       os_password: n.osPassword,
       hostkey_sha256: n.hostKeyFingerprint,
-    });
-    const slave = node(request.slave);
-    return this.pocCall(userId, hostUid, this.pocRequest(HA_SLAVE_TASKS.makeSlave, {
-      slave_host: slave.host,
-      ssh_port: slave.ssh_port,
-      os_user: slave.os_user,
-      os_password: slave.os_password,
-      hostkey_sha256: slave.hostkey_sha256,
-      // The existing nodes: CMS takes both keys and merges them, and tells slaves from replicas by the master's settings.
-      existing_nodes: request.existingSlaves?.length ? request.existingSlaves.map(node) : undefined,
-      replicas: request.replicas?.length ? request.replicas.map(node) : undefined,
-      master_host: request.masterHost,
-      repl_log_home: request.replLogHome,
-      master_backup_path: request.masterBackupPath,
-      slave_backup_path: request.slaveBackupPath,
+    };
+  }
+
+  private newNodeFields(n: HaNewNodeDto) {
+    return { role: n.role, ...this.nodeFields(n) };
+  }
+
+  /**
+   * The logins of the databases the user is logged in to now, for CMS to look
+   * for tables without a primary key. A database with only a saved login (not
+   * logged in, or logged out) is left out: nothing is read from it.
+   */
+  private async liveDbAccounts(userId: string, hostUid: string, dbNames: string[] = []) {
+    if (dbNames.length === 0) return undefined;
+    const host = await this.hostService.findHostInternal(userId, hostUid);
+    const accounts = dbNames
+      .filter((db) => this.databaseUserService.isDbLoginActive(userId, hostUid, db, host.token))
+      .map((db) => ({ db, profile: host.dbProfiles?.[db] }))
+      .filter(({ profile }) => profile && !profile.loggedOut && profile.id)
+      .map(({ db, profile }) => ({ db, user: profile.id, password: profile.password ?? '' }));
+    return accounts.length > 0 ? accounts : undefined;
+  }
+
+  /**
+   * POC: starts a job (CMS ha_add_nodes): `plan` checks every node and writes
+   * what run would do, changing nothing; `run` adds the new nodes. Returns its
+   * uuid; the result comes through status. The restart confirmations go only
+   * with run.
+   */
+  @HandleCmsErrors()
+  async addNodes(userId: string, hostUid: string, request: HaAddNodesDto) {
+    const run = request.action === 'run';
+    const yes = (on?: boolean) => (run && on ? 'yes' : undefined);
+    const promoting = (request.dbNames?.length ?? 0) > 0;
+    return this.pocCall(userId, hostUid, this.pocRequest(HA_NODES_TASKS.addNodes, {
+      action: request.action,
+      new_nodes: request.newNodes.map((n) => this.newNodeFields(n)),
+      existing_nodes: request.existingNodes.map((n) => this.nodeFields(n)),
+      db_names: promoting ? request.dbNames.join(',') : undefined,
+      confirm_master_restart: yes(request.confirmMasterRestart),
+      confirm_other_db_restart: yes(request.confirmOtherDbRestart),
+      confirm_new_node_db_restart: yes(request.confirmNewNodeDbRestart),
+      rollback_convert: promoting ? (request.rollbackConvert ? 'yes' : 'no') : undefined,
       start_ha: request.startHa === false ? 'no' : 'yes',
+      db_accounts: run ? undefined : await this.liveDbAccounts(userId, hostUid, request.checkDbNames),
     }));
   }
 
-  /** POC: a job's state, its steps, and the log after `offset`; conversion and slave add alike (CMS ha_make_slave_status). */
+  /** POC: a job's state, its steps, the plan and the log after `offset` (CMS ha_add_nodes_status). */
   @HandleCmsErrors()
-  async slaveJobStatus(userId: string, hostUid: string, request: HaSlaveJobDto) {
-    return this.pocCall(userId, hostUid, this.pocRequest(HA_SLAVE_TASKS.status, {
+  async addNodesStatus(userId: string, hostUid: string, request: HaAddNodesJobDto) {
+    return this.pocCall(userId, hostUid, this.pocRequest(HA_NODES_TASKS.status, {
       uuid: request.uuid,
       offset: String(request.offset ?? 0),
     }));
   }
 
-  /** POC: cancels the running job; CMS then undoes the finished steps (CMS ha_make_slave_cancel). */
+  /** POC: cancels the running job; the script then undoes what it changed (CMS ha_add_nodes_cancel). */
   @HandleCmsErrors()
-  async cancelSlaveJob(userId: string, hostUid: string, request: HaSlaveJobDto) {
-    return this.pocCall(userId, hostUid, this.pocRequest(HA_SLAVE_TASKS.cancel, { uuid: request.uuid }));
+  async cancelAddNodes(userId: string, hostUid: string, request: HaAddNodesJobDto) {
+    return this.pocCall(userId, hostUid, this.pocRequest(HA_NODES_TASKS.cancel, { uuid: request.uuid }));
   }
 
-  /** POC: deletes the old database folders a successful slave add moved aside on the new slave (CMS ha_make_slave_cleanup). */
+  /** POC: deletes the old database folders a successful job moved aside on the new nodes (CMS ha_add_nodes, action cleanup). */
   @HandleCmsErrors()
-  async cleanupSlaveJob(userId: string, hostUid: string, request: HaSlaveCleanupDto) {
-    return this.pocCall(userId, hostUid, this.pocRequest(HA_SLAVE_TASKS.cleanup, { uuid: request.uuid, os_password: request.osPassword }));
+  async cleanupAddNodes(userId: string, hostUid: string, request: HaAddNodesCleanupDto) {
+    return this.pocCall(userId, hostUid, this.pocRequest(HA_NODES_TASKS.addNodes, {
+      action: 'cleanup',
+      uuid: request.uuid,
+      new_nodes: request.newNodes.map((n) => this.newNodeFields(n)),
+    }));
   }
 }

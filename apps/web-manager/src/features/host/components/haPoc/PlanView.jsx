@@ -1,12 +1,14 @@
 import React from 'react';
 import { Checkbox } from '../../../../components/ds/forms/Checkbox';
 import { Typography } from '../../../../components/ds/foundation/Typography';
+import StageSteps from './StageSteps';
 import { isPromoteStep } from './haPocShared';
 
 // POC (HA node add): what CMS's plan (ha_add_nodes, action plan) says it
-// will do, shown before run: the nodes and their roles, the switch to HA
-// (single server), what changes in which file, the sizes, the replication
-// processes added, the warnings, and the step table run will follow.
+// will do, shown before run: the nodes and their roles, the promotion to HA
+// master (single server), the other databases on the new nodes, each new
+// node's paths, what changes in which file, the sizes, the replication
+// processes added, the warnings, and the steps run will follow.
 // Nothing has changed yet when it is shown.
 
 const cell = 'py-1 pr-6 align-top';
@@ -20,13 +22,18 @@ const megabytes = (bytes) => {
  * `plan`: the status response's plan. `agreed`: the confirmation keys the
  * user gave (here or in the first step); `onAgree(key, on)`.
  */
-export default function PlanView({ plan, W, agreed, onAgree }) {
+export default function PlanView({ plan, W, L, agreed, onAgree }) {
   const list = (names) => (Array.isArray(names) && names.length ? names.join(', ') : W.none);
   const roleName = { master: W.roleMaster, slave: W.roleSlave, replica: W.roleReplica };
   const required = Array.isArray(plan.confirm_required) ? plan.confirm_required : [];
-  const confirmLabel = { confirm_master_restart: W.singleConfirm, confirm_other_db_restart: W.otherConfirm };
-  // A host already HA has no promotion: its steps are not shown at all.
-  const steps = (plan.steps ?? []).filter((step) => plan.convert || !isPromoteStep(step));
+  const confirmLabel = {
+    confirm_master_restart: W.singleConfirm,
+    confirm_other_db_restart: W.otherConfirm,
+    confirm_new_node_db_restart: W.newNodeDbConfirm,
+  };
+  const steps = plan.steps ?? [];
+  const newNodeDbs = (plan.new_node_databases ?? []).filter((n) => (n.running?.length ?? 0) + (n.staying_single?.length ?? 0) > 0);
+  const paths = plan.node_paths ?? [];
   return (
     <div className="flex flex-col gap-4 text-13" data-testid="ha-plan">
       <span>{W.planLocal(plan.local?.host ?? '-', plan.local?.state ?? '-')} · {W.planMaster(plan.master_host ?? '-')}</span>
@@ -62,6 +69,17 @@ export default function PlanView({ plan, W, agreed, onAgree }) {
           <span>{W.singleStayList} {list(plan.convert.single_databases)}</span>
         </div>
       )}
+      {newNodeDbs.length > 0 && (
+        <div className="flex flex-col gap-1 p-3 rounded border border-amber-300 bg-amber-50 dark:bg-amber-500/10" data-testid="ha-plan-new-node-dbs">
+          <Typography variant="h4">{W.newNodeDbsTitle}</Typography>
+          <span className="text-amber-700 dark:text-amber-300">{W.newNodeDbsNote}</span>
+          {newNodeDbs.map((n) => (
+            <span key={n.host} data-testid={`ha-plan-new-node-dbs-${n.host}`}>
+              <b className="font-mono">{n.host}</b>: {W.newNodeDbsRunning} {list(n.running)} · {W.newNodeDbsSingle} {list(n.staying_single)}
+            </span>
+          ))}
+        </div>
+      )}
       {required.length > 0 && (
         <div className="flex flex-col gap-1" data-testid="ha-plan-confirm">
           {required.map((key) => (
@@ -79,6 +97,36 @@ export default function PlanView({ plan, W, agreed, onAgree }) {
       <span>{W.planSizes(megabytes(plan.backup_bytes), megabytes(plan.transfer_bytes))}</span>
       {Array.isArray(plan.process_increase) && plan.process_increase.length > 0 && (
         <span>{W.planProcesses}: {plan.process_increase.map((p) => `${p.host} +${p.copylogdb ?? 0}/+${p.applylogdb ?? 0}`).join(', ')}</span>
+      )}
+
+      {paths.length > 0 && (
+        <>
+          <Typography variant="h4">{W.planPaths}</Typography>
+          <table className="w-full border-collapse" data-testid="ha-plan-paths">
+            <thead>
+              <tr className="text-left text-slate-500">
+                <th className={`${cell} font-medium`}>{W.colNode}</th>
+                <th className={`${cell} font-medium`}>{W.colDatabase}</th>
+                <th className={`${cell} font-medium`}>{W.colVol}</th>
+                <th className={`${cell} font-medium`}>{W.colLog}</th>
+                <th className={`${cell} font-medium`}>{W.colLob}</th>
+                <th className={`${cell} font-medium`}>{W.colReplLog}</th>
+                <th className={`${cell} font-medium`}>{W.colReceive}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paths.map((p) => (
+                <tr key={`${p.host}|${p.db}`} className="border-t border-slate-100 dark:border-white/5">
+                  <td className={`${cell} font-mono`}>{p.host}</td>
+                  <td className={`${cell} font-mono`}>{p.db}</td>
+                  {['vol', 'log', 'lob', 'repl_log_home', 'receive'].map((key) => (
+                    <td key={key} className={`${cell} font-mono break-all`}>{p[key] || '-'}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
       )}
 
       <Typography variant="h4">{W.planChanges}</Typography>
@@ -105,18 +153,8 @@ export default function PlanView({ plan, W, agreed, onAgree }) {
         </tbody>
       </table>
 
-      <Typography variant="h4">{W.planSteps(steps.length)}</Typography>
-      <ol className="flex flex-col gap-1" data-testid="ha-plan-steps">
-        {steps.map((step) => (
-          <li key={step.no} className="flex gap-3">
-            <span className="w-8 shrink-0 text-slate-400">{step.no}</span>
-            <span className="w-36 shrink-0 text-amber-700 dark:text-amber-300">{isPromoteStep(step) ? W.promoteTitle : ''}</span>
-            <span className="w-72 shrink-0">{step.title || step.id}</span>
-            <span className="w-28 shrink-0 font-mono text-slate-500">{step.node || ''}</span>
-            <span className="w-28 shrink-0 font-mono text-slate-500">{step.db || ''}</span>
-          </li>
-        ))}
-      </ol>
+      <Typography variant="h4">{W.planSteps(steps.filter((step) => plan.convert || !isPromoteStep(step)).length)}</Typography>
+      <StageSteps steps={steps} groups={L.stageGroups} promoting={Boolean(plan.convert)} testId="ha-plan-steps" />
     </div>
   );
 }
