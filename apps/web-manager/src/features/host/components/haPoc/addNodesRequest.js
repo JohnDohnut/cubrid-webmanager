@@ -3,8 +3,6 @@
 // The shape follows the CMS design draft (ha_add_nodes: a script and the
 // API that runs it); the NCA server side waits for its review.
 
-const trimmed = (value) => (typeof value === 'string' ? value.trim() : value);
-
 const sshNodeBody = (node) => ({
   ...(node.role ? { role: node.role } : {}),
   host: node.ssh.host.trim(),
@@ -50,13 +48,8 @@ export function buildAddNodesRequest({ newNodes, peers, options, single, dbNames
   if (single) {
     body.dbNames = dbNames;
     body.rollbackConvert = Boolean(options.rollbackConvert);
-    if (trimmed(options.haGroup)) body.haGroup = trimmed(options.haGroup);
-    if (Number(options.haPortId) > 0) body.haPortId = Number(options.haPortId);
   }
-  for (const key of ['replLogHome', 'backupPath', 'remoteBackupPath']) {
-    const value = trimmed(options[key]);
-    if (value) body[key] = value;
-  }
+  // No folders: CMS and the script take each node's $CUBRID_DATABASES.
   return body;
 }
 

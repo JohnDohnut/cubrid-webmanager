@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { monitoringApi } from '../../../server/monitoringApi';
 import { extractHaHeartbeatNodes, getHaDbServerModes } from '../../haPeerUtils';
-import { Input } from '../../../../components/ds/forms/Input';
 import { Checkbox } from '../../../../components/ds/forms/Checkbox';
 import { Button } from '../../../../components/ds/foundation/Button';
 import { Typography } from '../../../../components/ds/foundation/Typography';
@@ -32,9 +31,6 @@ const STEP_NEW_NODES = 1;
 const STEP_EXISTING = 2;
 const STEP_OPTIONS = 3;
 const STEP_SUMMARY = 4;
-const OPTION_FIELDS = ['replLogHome', 'backupPath', 'remoteBackupPath'];
-// Only for a single server's conversion.
-const CONVERT_FIELDS = ['haGroup', 'haPortId'];
 const NONE = [];
 const ROLES = ['slave', 'replica'];
 
@@ -67,8 +63,8 @@ export default function HaAddNodesWizard({ hostUid }) {
   const [newNodes, setNewNodes] = useState(() => [{ ...newSshNode(), role: 'slave' }]);
   // The existing nodes the new ones are registered on: { ...ssh node, role: 'master' | 'slave' | 'replica' }.
   const [peers, setPeers] = useState([]);
-  const [options, setOptions] = useState({ replLogHome: '', backupPath: '', remoteBackupPath: '', haGroup: '', haPortId: '', startHa: true, rollbackConvert: false });
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  // Only what changes the behavior; folders and HA ports take CMS's defaults (each node's $CUBRID_DATABASES).
+  const [options, setOptions] = useState({ startHa: true, rollbackConvert: false });
 
   useEffect(() => {
     if (!isHaDb) return undefined;
@@ -97,7 +93,6 @@ export default function HaAddNodesWizard({ hostUid }) {
   }, [hostUid, isHaDb]);
 
   const patchIn = (setter, id) => (patch) => setter((prev) => prev.map((node) => (node.id === id ? { ...node, ...patch } : node)));
-  const setOption = (key) => (e) => setOptions((prev) => ({ ...prev, [key]: e.target.value }));
 
   const allNames = databases.map((db) => db.dbname);
   // In databases.txt order, as the table shows them.
@@ -270,16 +265,6 @@ export default function HaAddNodesWizard({ hostUid }) {
           <Checkbox label={L.startHa} checked={options.startHa} onChange={(e) => setOptions((prev) => ({ ...prev, startHa: e.target.checked }))} />
           {!isHaDb && (
             <Checkbox label={W.rollbackConvert} checked={options.rollbackConvert} onChange={(e) => setOptions((prev) => ({ ...prev, rollbackConvert: e.target.checked }))} />
-          )}
-          <div>
-            <Button size="sm" variant="ghost" onClick={() => setShowAdvanced((v) => !v)}>{showAdvanced ? W.hideAdvanced : W.showAdvanced}</Button>
-          </div>
-          {showAdvanced && (
-            <div className="grid grid-cols-2 gap-3">
-              {[...OPTION_FIELDS, ...(isHaDb ? [] : CONVERT_FIELDS)].map((key) => (
-                <Input key={key} label={W[key]} value={options[key]} onChange={setOption(key)} type={key === 'haPortId' ? 'number' : 'text'} />
-              ))}
-            </div>
           )}
         </section>
       )}
