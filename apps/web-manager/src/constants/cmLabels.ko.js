@@ -1652,6 +1652,7 @@ export const CM_KO = {
     modeSingle: '단독(HA 아님)',
     readingHa: 'HA 노드를 읽는 중...',
     haRole: '이 호스트의 HA 역할',
+    replicaHostNotYet: 'Replica 호스트에서 실행은 아직 지원하지 않음(선택 구현 예정). Master나 Slave 호스트에서 여세요.',
     roleNotAllowed: 'HA의 Master나 Slave 호스트, 또는 HA가 아닌 호스트에서 실행하세요.',
     slaveHostNote: (master) => `이 호스트는 Slave임. 새 노드는 이 HA 그룹(Master ${master})에 추가됨.`,
     haNodes: 'HA 노드',

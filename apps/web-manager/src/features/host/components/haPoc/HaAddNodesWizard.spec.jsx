@@ -72,7 +72,7 @@ it('lists every database of ha_db_list on an HA master, with its running and HA 
 it('keeps Next off on a replica host', async () => {
   mocks.heartbeat.mockResolvedValue(heartbeat('replica'));
   await render({ haDbNamesByHost: { h1: ['hadb'] }, databasesByHost: { h1: [{ dbname: 'hadb' }] }, activeDatabasesByHost: { h1: ['hadb'] } });
-  expect(text()).toContain('Run this on the HA master or a slave host');
+  expect(text()).toContain('Running on a replica host is not supported yet (optional, planned).');
   expect(nextButton().disabled).toBe(true);
 });
 

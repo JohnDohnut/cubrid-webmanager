@@ -152,7 +152,7 @@ export default function HaAddNodesWizard({ hostUid }) {
                 : (
                   <>
                     <span>{W.mode}: {W.modeHa} · {W.haRole}: {ha.role || '-'}</span>
-                    {!runsOnHa && <span className="text-rose-500">{W.roleNotAllowed}</span>}
+                    {!runsOnHa && <span className="text-rose-500">{ha.role === 'replica' ? W.replicaHostNotYet : W.roleNotAllowed}</span>}
                     {ha.role === 'slave' && <span className="text-amber-700 dark:text-amber-300">{W.slaveHostNote(masterName || '-')}</span>}
                     <Typography variant="h4">{W.haNodes}</Typography>
                     <NodeTable

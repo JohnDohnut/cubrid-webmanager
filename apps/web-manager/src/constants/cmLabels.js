@@ -1581,6 +1581,7 @@ export const CM = {
     modeSingle: 'Single (not HA)',
     readingHa: 'Reading the HA nodes...',
     haRole: 'This host\'s HA role',
+    replicaHostNotYet: 'Running on a replica host is not supported yet (optional, planned). Open this on the master or a slave host.',
     roleNotAllowed: 'Run this on the HA master or a slave host, or on a host that is not HA.',
     slaveHostNote: (master) => `This host is a slave. The new nodes join its HA group (master ${master}).`,
     haNodes: 'HA nodes',
