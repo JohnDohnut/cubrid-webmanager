@@ -10,7 +10,7 @@ import { Typography } from '../../../../components/ds/foundation/Typography';
 import { Steps } from '../../../../components/ds/layout/Steps';
 import { useCM } from '../../../../constants/useCM';
 import SshTargetCard from './SshTargetCard';
-import { STATE_STYLE, errorText, isJobLive, isSshConfirmed, newSshNode } from './haPocShared';
+import { STATE_STYLE, errorText, isJobLive, isSshConfirmed, newSshNode, pathProblems } from './haPocShared';
 import BulkSshTools from './BulkSshTools';
 import PlanView from './PlanView';
 import HaJobProgress from './HaJobProgress';
@@ -353,13 +353,32 @@ export default function HaAddNodesWizard({ hostUid }) {
           {planJob && !isJobLive(planJob) && !planReady && (
             <div className="flex flex-col gap-1 text-13 p-3 rounded border border-rose-300 bg-rose-50 dark:bg-rose-500/10" data-testid="ha-plan-failed">
               <span className="text-rose-600 dark:text-rose-300">
-                {W.planFailed}: {[planJob.error, planJob.message].filter(Boolean).join(': ') || planJob.job_status}
+                {W.planFailed}: {planJob.error || planJob.job_status}
+                {/* The failed step's own detail says it per node below; the message only when no step does. */}
+                {planFailures.length === 0 && planJob.message ? `: ${planJob.message}` : ''}
               </span>
-              {planFailures.map((f) => (
-                <span key={f.no} className="font-mono break-all" data-testid={`ha-plan-failed-${f.node || 'local'}`}>
-                  <b>{f.node || host?.alias || '-'}</b> · {f.title || f.id}: <span className={STATE_STYLE.failed}>{f.detail || f.state}</span>
-                </span>
-              ))}
+              {planFailures.map((f) => {
+                const problems = pathProblems(f.detail);
+                return (
+                  <div key={f.no} className="flex flex-col gap-1" data-testid={`ha-plan-failed-${f.node || 'local'}`}>
+                    <span><b className="font-mono">{f.node || host?.alias || '-'}</b> · {f.title || f.id}</span>
+                    {problems ? (
+                      <table className="w-fit border-collapse">
+                        <tbody>
+                          {problems.map((p) => (
+                            <tr key={p.path}>
+                              <td className="py-0.5 pr-6 font-mono">{p.path}</td>
+                              <td className={`py-0.5 pr-6 ${STATE_STYLE.failed}`}>{p.why}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <span className={`font-mono break-all ${STATE_STYLE.failed}`}>{f.detail || f.state}</span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
           {planReady && (

@@ -326,9 +326,9 @@ it('shows on which node and path the plan failed', async () => {
     });
     await click(button('Get the plan'));
     await poll();
-    expect(container.querySelector('[data-testid="ha-plan-failed"]').textContent).toContain('The plan failed: precheck_failed');
+    expect(container.querySelector('[data-testid="ha-plan-failed"] span').textContent).toBe('The plan failed: precheck_failed');
     expect(container.querySelector('[data-testid="ha-plan-failed-ns1"]').textContent)
-      .toBe('ns1 · Try a transfer and the folders the restore writes: ns1 cannot write: /data/x (/data/x is not writable)');
+      .toBe('ns1 · Try a transfer and the folders the restore writes/data/x/data/x is not writable');
     expect(button('Start').disabled).toBe(true);
   } finally {
     vi.useRealTimers();

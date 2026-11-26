@@ -17,6 +17,19 @@ export const STATE_STYLE = {
 
 export const TERMINAL_JOB_STATES = new Set(['success', 'fail', 'cancelled', 'interrupted']);
 
+/**
+ * A plan check's failure split by path where CMS lists them ("<node> cannot
+ * write: <path> (<why>) <path> (<why>) ..."): [{ path, why }], or null when
+ * the text has another form (it is then shown as it is).
+ */
+export function pathProblems(detail) {
+  const text = String(detail ?? '');
+  const at = text.indexOf('cannot write:');
+  if (at < 0) return null;
+  const found = [...text.slice(at + 'cannot write:'.length).matchAll(/(\/\S+) \(([^)]*)\)/g)].map((m) => ({ path: m[1], why: m[2] }));
+  return found.length > 0 ? found : null;
+}
+
 /** The steps that promote a single server to an HA master (the convert_* ids). */
 export const isPromoteStep = (step) => String(step?.id ?? '').startsWith('convert_');
 

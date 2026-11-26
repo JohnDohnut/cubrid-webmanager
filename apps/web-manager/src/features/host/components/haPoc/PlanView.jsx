@@ -34,6 +34,9 @@ export default function PlanView({ plan, W, L, agreed, onAgree }) {
   const steps = plan.steps ?? [];
   const newNodeDbs = (plan.new_node_databases ?? []).filter((n) => (n.running?.length ?? 0) + (n.staying_single?.length ?? 0) > 0);
   const paths = plan.node_paths ?? [];
+  const pkChecks = plan.primary_key_check ?? [];
+  const pkStatus = { ok: W.pkOk, partial: W.pkPartial, failed: W.pkFailed, not_logged_in: W.pkNotLoggedIn };
+  const pkStyle = { ok: 'text-emerald-600', partial: 'text-amber-600', failed: 'text-rose-500', not_logged_in: 'text-slate-500' };
   return (
     <div className="flex flex-col gap-4 text-13" data-testid="ha-plan">
       <span>{W.planLocal(plan.local?.host ?? '-', plan.local?.state ?? '-')} · {W.planMaster(plan.master_host ?? '-')}</span>
@@ -88,6 +91,26 @@ export default function PlanView({ plan, W, L, agreed, onAgree }) {
         </div>
       )}
 
+      {pkChecks.length > 0 && (
+        <div className="flex flex-col gap-1" data-testid="ha-plan-pk">
+          <Typography variant="h4">{W.pkTitle}</Typography>
+          <span className="text-slate-500">{W.pkNote}</span>
+          <table className="w-fit border-collapse">
+            <tbody>
+              {pkChecks.map((c) => (
+                <tr key={c.db} className="border-t border-slate-100 dark:border-white/5" data-testid={`ha-plan-pk-${c.db}`}>
+                  <td className={`${cell} font-mono`}>{c.db}</td>
+                  <td className={`${cell} ${pkStyle[c.status] ?? ''}`}>{pkStatus[c.status] ?? c.status}</td>
+                  <td className={`${cell} font-mono break-all`}>
+                    {Array.isArray(c.tables) && c.tables.length > 0 ? W.pkTables(c.tables.join(', ')) : (c.status === 'ok' ? W.pkNone : '')}
+                    {c.message ? ` ${c.message}` : ''}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       {Array.isArray(plan.warnings) && plan.warnings.length > 0 && (
         <div className="flex flex-col gap-1 text-amber-700 dark:text-amber-300" data-testid="ha-plan-warnings">
           {plan.warnings.map((text) => <span key={text}>{text}</span>)}

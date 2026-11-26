@@ -39,6 +39,11 @@ const plan = {
   transfer_bytes: 64 * 1024 * 1024,
   process_increase: [{ host: 'nodeA', copylogdb: 1, applylogdb: 1 }],
   warnings: ['log_max_archives is 0 on nodeA'],
+  primary_key_check: [
+    { db: 'hadb', status: 'ok', tables: [], message: '' },
+    { db: 'hadb2', status: 'partial', tables: ['PUB.t9'], message: '' },
+    { db: 'hadb3', status: 'not_logged_in', tables: [], message: '' },
+  ],
   steps: [
     { no: 1, stage: 'S1', id: 'precheck', title: 'Check this server', node: '', db: '', actor: 'script' },
     { no: 4, stage: 'S4', id: 'convert_stop', title: 'Stop the running databases', node: '', db: '', actor: 'script' },
@@ -57,6 +62,9 @@ it('shows what the plan will do, and asks only for the confirmations not given y
   expect(text).toContain('Backup 64.0 MB, transfer 64.0 MB');
   expect(text).toContain('nodeA +1/+1');
   expect(text).toContain('log_max_archives is 0 on nodeA');
+  expect(container.querySelector('[data-testid="ha-plan-pk-hadb"]').textContent).toBe('hadbcheckednone');
+  expect(container.querySelector('[data-testid="ha-plan-pk-hadb2"]').textContent).toBe('hadb2partly checked (not a dba account)not replicated: PUB.t9');
+  expect(container.querySelector('[data-testid="ha-plan-pk-hadb3"]').textContent).toBe('hadb3not checked (not logged in)');
   expect(container.querySelector('[data-testid="ha-plan-changes"]').textContent).toContain('cubrid@nodeA:nodeX1');
   expect(container.querySelector('[data-testid="ha-stage-group-backup"]').textContent).toBe('Backup and transfer10S10Send the backupnodeX1hadb');
   expect(container.querySelector('[data-testid="ha-stage-group-promote"]').textContent).toBe('Promote to HA master4S4Stop the running databases');
