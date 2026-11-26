@@ -155,6 +155,8 @@ export default function HaAddNodesWizard({ hostUid }) {
   const planFailures = planJob && !isJobLive(planJob) && !planReady
     ? (planJob.steps ?? []).filter((s) => s.state === 'failed')
     : [];
+  // CMS's own list of the plan checks that failed, by node and path; older answers only have the text.
+  const preflight = planJob && !planReady && Array.isArray(planJob.preflight_failures) ? planJob.preflight_failures : [];
 
   const startJob = async (action) => {
     setStarting(true);
@@ -357,7 +359,21 @@ export default function HaAddNodesWizard({ hostUid }) {
                 {/* The failed step's own detail says it per node below; the message only when no step does. */}
                 {planFailures.length === 0 && planJob.message ? `: ${planJob.message}` : ''}
               </span>
-              {planFailures.map((f) => {
+              {preflight.length > 0 && (
+                <table className="w-fit border-collapse" data-testid="ha-plan-preflight">
+                  <tbody>
+                    {preflight.map((p) => (
+                      <tr key={`${p.node}|${p.path}|${p.reason}`} data-testid={`ha-plan-preflight-${p.node}`}>
+                        <td className="py-0.5 pr-6 font-mono font-bold">{p.node || host?.alias || '-'}</td>
+                        <td className="py-0.5 pr-6 font-mono break-all">{p.path || '-'}</td>
+                        <td className={`py-0.5 pr-6 ${STATE_STYLE.failed}`}>{W.preflightReason[p.reason] ?? p.reason}</td>
+                        <td className="py-0.5 pr-6 text-slate-500 break-all">{p.detail}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              {preflight.length === 0 && planFailures.map((f) => {
                 const problems = pathProblems(f.detail);
                 return (
                   <div key={f.no} className="flex flex-col gap-1" data-testid={`ha-plan-failed-${f.node || 'local'}`}>

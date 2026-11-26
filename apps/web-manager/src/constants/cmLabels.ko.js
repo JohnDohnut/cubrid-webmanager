@@ -1733,6 +1733,7 @@ export const CM_KO = {
     planAgain: '계획 다시 받기',
     planRunning: '계획을 만드는 중',
     planFailed: '계획 실패',
+    preflightReason: { not_writable: '쓰기 안 됨', no_room: '공간 부족', cannot_create: '만들 수 없음', transfer_failed: '전송 시험 실패' },
     pkLoginHint: (names) => `기본 키 없는 표(HA가 복제하지 않음)는 로그인한 데이터베이스만 확인함. 확인하려면 먼저 로그인: ${names}`,
     rollbackConvert: '실패하거나 취소하면 HA Master 승격까지 되돌림(싱글로 돌아가며 데이터베이스가 한 번 더 다시 시작됨). 끄면 노드 1개짜리 HA Master로 남음',
     bulkHint: '노드가 많으면 같은 OS 계정을 한 번에 넣고 모두 연결 확인할 수 있음. 키는 노드마다 확인함.',

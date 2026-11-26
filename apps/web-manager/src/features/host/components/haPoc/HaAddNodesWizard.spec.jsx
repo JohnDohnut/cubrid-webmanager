@@ -335,6 +335,29 @@ it('shows on which node and path the plan failed', async () => {
   }
 });
 
+it('lists the failed plan checks by node, path and reason when CMS gives them', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  try {
+    await toSummary(haDb);
+    mocks.start.mockResolvedValueOnce({ uuid: 'p1', job_status: 'running' });
+    mocks.status.mockResolvedValue({
+      uuid: 'p1', job_status: 'fail', phase: 'done', error: 'precheck_failed', message: 'ns1 cannot write: ...', output: '',
+      steps: [{ no: 6, stage: 'S3', id: 'preflight', title: 'Try the folders', node: 'ns1', db: '', state: 'failed', detail: 'ns1 cannot write: ...' }],
+      preflight_failures: [
+        { node: 'ns1', path: '/d/hadb', reason: 'not_writable', detail: '/d is not writable' },
+        { node: 'ns1', path: '/d/ha_add_nodes_backup', reason: 'no_room', detail: '10 bytes free, about 99 needed' },
+      ],
+    });
+    await click(button('Get the plan'));
+    await poll();
+    const rows = [...container.querySelectorAll('[data-testid="ha-plan-preflight-ns1"]')].map((r) => r.textContent);
+    expect(rows).toEqual(['ns1/d/hadbnot writable/d is not writable', 'ns1/d/ha_add_nodes_backupnot enough room10 bytes free, about 99 needed']);
+    expect(container.querySelector('[data-testid="ha-plan-failed-ns1"]')).toBeNull();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 it('names the databases not logged in, whose tables without a primary key cannot be checked', async () => {
   mocks.heartbeat.mockResolvedValue(heartbeat('master'));
   await render(haDb);

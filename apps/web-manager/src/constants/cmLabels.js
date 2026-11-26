@@ -1662,6 +1662,7 @@ export const CM = {
     planAgain: 'Get the plan again',
     planRunning: 'Making the plan',
     planFailed: 'The plan failed',
+    preflightReason: { not_writable: 'not writable', no_room: 'not enough room', cannot_create: 'cannot be created', transfer_failed: 'test transfer failed' },
     pkLoginHint: (names) => `Tables without a primary key (HA does not replicate them) are checked only in the databases you are logged in to. To check, log in first: ${names}`,
     rollbackConvert: 'On a failure or cancel, undo the promotion to HA master too (back to single; the databases restart once more). Off: it stays a one-node HA master',
     bulkHint: 'With many nodes, put one OS account into all of them and check them all at once. Each key is still confirmed on its node.',
