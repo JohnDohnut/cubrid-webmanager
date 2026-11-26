@@ -3,14 +3,15 @@ import * as os from 'os';
 import * as path from 'path';
 import { HaJobRegistry } from './ha-job-registry';
 
-jest.mock('@util', () => ({ getStoragePath: () => (global as any).__haJobDir }));
+let mockDir = '';
+jest.mock('@util', () => ({ getStoragePath: () => mockDir }));
 
 describe('HaJobRegistry', () => {
   beforeEach(() => {
-    (global as any).__haJobDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ha-job-registry-'));
+    mockDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ha-job-registry-'));
   });
   afterEach(() => {
-    fs.rmSync((global as any).__haJobDir, { recursive: true, force: true });
+    fs.rmSync(mockDir, { recursive: true, force: true });
   });
 
   const record = (uuid: string) => ({ uuid, action: 'run', startedAt: 't', newNodes: [], existingNodes: [] });

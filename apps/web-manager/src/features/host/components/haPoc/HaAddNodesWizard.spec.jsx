@@ -447,3 +447,18 @@ it('shows no unfinished runs when every one ended', async () => {
   await render(haDb);
   expect(container.querySelector('[data-testid="ha-unfinished"]')).toBeNull();
 });
+
+it('shows per node why CMS could not log in, when the plan does not start', async () => {
+  await toSummary(haDb);
+  mocks.start.mockResolvedValueOnce({
+    login_failed: true, error: 'hostkey_mismatch', message: 'hareplica: host key differs', action: 'Check why the key changed',
+    node_checks: [{ node: 'hareplica', code: 'hostkey_mismatch', message: 'hareplica: host key differs', action: 'Check why the key changed' }, { node: 'ns1', code: 'ok' }],
+  });
+  await click(button('Get the plan'));
+  expect(container.querySelector('[data-testid="ha-login-failed"] span').textContent).toBe('Could not log in to every node: nothing started');
+  expect(container.querySelector('[data-testid="ha-login-failed-hareplica"]').textContent)
+    .toBe('hareplica · Cause: The host key differs from the one confirmedTo do: Check why the key changedDetail: hareplica: host key differs');
+  expect(container.querySelector('[data-testid="ha-login-failed-ns1"]')).toBeNull();
+  expect(mocks.status).not.toHaveBeenCalled();
+  expect(button('Start').disabled).toBe(true);
+});

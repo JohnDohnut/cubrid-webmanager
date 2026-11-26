@@ -12,7 +12,7 @@ import { useCM } from '../../../../constants/useCM';
 import SshTargetCard from './SshTargetCard';
 import { STATE_STYLE, UNDO_ON_REQUEST, errorText, isJobLive, isSshConfirmed, newSshNode, pathProblems } from './haPocShared';
 import BulkSshTools from './BulkSshTools';
-import SshProblem from './SshProblem';
+import SshProblem, { NodeLoginFailure } from './SshProblem';
 import PlanView from './PlanView';
 import HaJobProgress from './HaJobProgress';
 import { useHaJobPolling } from './useHaJobPolling';
@@ -82,6 +82,8 @@ export default function HaAddNodesWizard({ hostUid }) {
   const [runJob, setRunJob] = useState(null);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState(null);
+  // CMS could not log in to every node for the plan or the run (nothing started).
+  const [loginFailure, setLoginFailure] = useState(null);
   useHaJobPolling(hostUid, planJob, setPlanJob);
   // Runs started on this host earlier (another tab, a closed browser) that are still going or
   // can be undone: { record, status }. A run opened from here holds no password (`resumed`).
@@ -203,7 +205,13 @@ export default function HaAddNodesWizard({ hostUid }) {
     setStarting(true);
     setStartError(null);
     try {
+      setLoginFailure(null);
       const res = await hostApi.haAddNodesStart(hostUid, buildAddNodesRequest(request, action, agreed));
+      if (res?.login_failed) {
+        setLoginFailure(res);
+        if (action === 'plan') setPlanJob(null);
+        return;
+      }
       if (action === 'plan') {
         setPlanAgreed([]);
         setPlanJob(newJob(res));
@@ -226,6 +234,7 @@ export default function HaAddNodesWizard({ hostUid }) {
       setPlanJob(null);
       setPlanAgreed([]);
       setStartError(null);
+      setLoginFailure(null);
     }
     setStep((s) => s - 1);
   };
@@ -489,6 +498,9 @@ export default function HaAddNodesWizard({ hostUid }) {
                 );
               })}
             </div>
+          )}
+          {loginFailure && (
+            <NodeLoginFailure failure={loginFailure} causes={W.sshCauses} labels={W.sshLabels} title={W.loginFailedTitle} testId="ha-login-failed" />
           )}
           {planReady && (
             <PlanView

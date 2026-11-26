@@ -129,3 +129,26 @@ it('asks again only for the passwords of the nodes it lost before undoing, and k
   });
   expect(document.querySelector('[data-testid="ha-relog-modal"]')).toBeNull();
 });
+
+it('shows a failed node login on undo per node and asks those passwords again', async () => {
+  mocks.rollback.mockReset();
+  mocks.rollback.mockResolvedValueOnce({
+    login_failed: true, error: 'auth_failed', message: 'hasl1: Permission denied', action: 'Check the password',
+    node_checks: [{ node: 'hasl1', code: 'auth_failed', message: 'hasl1: Permission denied', action: 'Check the password' }, { node: 'haxs1', code: 'ok' }],
+  });
+  let job = { uuid: 'u1', job_status: 'interrupted', phase: 'done', steps: [], log: '' };
+  const setJob = (fn) => { job = typeof fn === 'function' ? fn(job) : fn; };
+  const nodes = { newNodes: [{ role: 'slave', host: 'haxs1', osPassword: 'a' }], existingNodes: [{ host: 'hasl1', osPassword: 'b' }] };
+  const { Provider } = await import('react-redux');
+  const { configureStore } = await import('@reduxjs/toolkit');
+  const store = configureStore({ reducer: { user: () => ({ preferences: { uiLocale: 'en' } }) } });
+  const W = CM.haAddSlave;
+  await act(async () => root.render(<Provider store={store}><HaJobProgress hostUid="h1" job={job} setJob={setJob} L={CM.haSlavePoc} rollbackNodes={nodes} causes={W.sshCauses} sshLabels={W.sshLabels} /></Provider>));
+  await act(async () => [...container.querySelectorAll('button')].find((b) => b.textContent === 'Undo').click());
+  expect(container.querySelector('[data-testid="ha-undo-login-failed-hasl1"]').textContent)
+    .toBe('hasl1 · Cause: Wrong user or passwordTo do: Check the passwordDetail: hasl1: Permission denied');
+  expect(container.querySelector('[data-testid="ha-undo-login-failed-haxs1"]')).toBeNull();
+  expect(job.job_status).toBe('interrupted');
+  const dialog = document.querySelector('[data-testid="ha-relog-modal"]');
+  expect([...dialog.querySelectorAll('label')].map((l) => l.textContent.trim())).toEqual(['hasl1 OS password']);
+});

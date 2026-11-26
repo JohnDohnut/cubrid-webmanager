@@ -97,6 +97,25 @@ describe('HaService HA node add POC', () => {
     expect(JSON.stringify(registry.add.mock.calls[0][2])).not.toContain('pw');
   });
 
+  it('gives a failed node login back per node, with no job and no record, and keeps other failures as errors', async () => {
+    cmsClient.postAuthenticated.mockResolvedValue({
+      status: 'failure', note: 'ns1: port 22 refused', task: 'ha_add_nodes',
+      error: 'port_refused', message: 'ns1: port 22 refused', action: 'Start sshd on ns1',
+      node_checks: [{ node: 'ns1', code: 'port_refused', message: 'ns1: port 22 refused', action: 'Start sshd on ns1' }, { node: 'hasl1', code: 'ok' }],
+    });
+    const res = await service.addNodes('user', 'h1', { action: 'run', newNodes: [{ ...node('ns1'), role: 'slave' }], existingNodes: [node('hasl1')] });
+    expect(res).toEqual({
+      login_failed: true, error: 'port_refused', message: 'ns1: port 22 refused', action: 'Start sshd on ns1',
+      node_checks: [{ node: 'ns1', code: 'port_refused', message: 'ns1: port 22 refused', action: 'Start sshd on ns1' }, { node: 'hasl1', code: 'ok' }],
+    });
+    expect(registry.add).not.toHaveBeenCalled();
+    const rb = await service.rollbackAddNodes('user', 'h1', { uuid: 'u1', newNodes: [{ ...node('ns1'), role: 'slave' }], existingNodes: [] });
+    expect(rb).toMatchObject({ login_failed: true, error: 'port_refused' });
+
+    cmsClient.postAuthenticated.mockResolvedValue({ status: 'failure', note: 'another job is running: u0', task: 'ha_add_nodes' });
+    await expect(service.addNodes('user', 'h1', { action: 'plan', newNodes: [{ ...node('ns1'), role: 'slave' }], existingNodes: [] })).rejects.toBeTruthy();
+  });
+
   it('keeps no record of a plan', async () => {
     await service.addNodes('user', 'h1', { action: 'plan', newNodes: [{ ...node('nx1'), role: 'slave' }], existingNodes: [] });
     expect(registry.add).not.toHaveBeenCalled();

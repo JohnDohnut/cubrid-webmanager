@@ -43,8 +43,8 @@ export class HaJobRegistry {
       const raw = await fs.readFile(this.file(userId, hostUid), 'utf8');
       const records = JSON.parse(raw);
       return Array.isArray(records) ? records : [];
-    } catch (err: any) {
-      if (err?.code === 'ENOENT') return [];
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return [];
       throw err;
     }
   }

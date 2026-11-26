@@ -2,6 +2,7 @@ import { CmsHttpsClientService } from '@cms-https-client/cms-https-client.servic
 import { BaseService, HandleCmsErrors } from '@common';
 import { HostService } from '@host';
 import { DatabaseUserService } from '@database/user/database-user.service';
+import { CmsError } from '@error/cms/cms-error';
 import { HaJobNode, HaJobRegistry } from './ha-job-registry';
 import { Injectable } from '@nestjs/common';
 import { HaAddNodesCleanupDto, HaAddNodesDto, HaAddNodesJobDto, HaAddNodesRollbackDto, HaNewNodeDto, HaSshCheckDto, HaSshNodeDto } from '@type/index';
@@ -217,6 +218,28 @@ export class HaService extends BaseService {
     }), SSH_CHECK_TIMEOUT_MS);
   }
 
+  /**
+   * ha_add_nodes answers failure itself, with no job, when CMS could not log
+   * in to every node (C3): that answer (error, message, action and each
+   * node's result) goes to the screen as data with `login_failed`, for it to
+   * show per node. Any other failure stays an error.
+   */
+  private async withLoginFailure(call: () => Promise<unknown>) {
+    try {
+      return await call();
+    } catch (err) {
+      const response = err instanceof CmsError ? err.additionalData?.response : undefined;
+      if (!response || !Array.isArray(response.node_checks)) throw err;
+      return {
+        login_failed: true,
+        error: response.error ?? response.note,
+        message: response.message,
+        action: response.action,
+        node_checks: response.node_checks,
+      };
+    }
+  }
+
   /** A node as ha_check_ssh and ha_add_nodes take it; the log hides os_password at any depth. */
   private nodeFields(n: HaSshNodeDto) {
     return {
@@ -259,7 +282,8 @@ export class HaService extends BaseService {
     const run = request.action === 'run';
     const yes = (on?: boolean) => (run && on ? 'yes' : undefined);
     const promoting = (request.dbNames?.length ?? 0) > 0;
-    const res = await this.pocCall(userId, hostUid, this.pocRequest(HA_NODES_TASKS.addNodes, {
+    const accounts = run ? undefined : await this.liveDbAccounts(userId, hostUid, request.checkDbNames);
+    const res = await this.withLoginFailure(() => this.pocCall(userId, hostUid, this.pocRequest(HA_NODES_TASKS.addNodes, {
       action: request.action,
       new_nodes: request.newNodes.map((n) => this.newNodeFields(n)),
       existing_nodes: request.existingNodes.map((n) => this.nodeFields(n)),
@@ -269,8 +293,8 @@ export class HaService extends BaseService {
       confirm_new_node_db_restart: yes(request.confirmNewNodeDbRestart),
       rollback_convert: promoting ? (request.rollbackConvert ? 'yes' : 'no') : undefined,
       start_ha: request.startHa === false ? 'no' : 'yes',
-      db_accounts: run ? undefined : await this.liveDbAccounts(userId, hostUid, request.checkDbNames),
-    }));
+      db_accounts: accounts,
+    })));
     // A run is kept (without passwords) so it can be found again after the browser closed.
     const uuid = (res as { uuid?: unknown })?.uuid;
     if (run && typeof uuid === 'string' && uuid) {
@@ -309,21 +333,21 @@ export class HaService extends BaseService {
   /** POC: undoes what an interrupted job changed, from its undo record (CMS ha_add_nodes, action rollback, same uuid). */
   @HandleCmsErrors()
   async rollbackAddNodes(userId: string, hostUid: string, request: HaAddNodesRollbackDto) {
-    return this.pocCall(userId, hostUid, this.pocRequest(HA_NODES_TASKS.addNodes, {
+    return this.withLoginFailure(() => this.pocCall(userId, hostUid, this.pocRequest(HA_NODES_TASKS.addNodes, {
       action: 'rollback',
       uuid: request.uuid,
       new_nodes: request.newNodes.map((n) => this.newNodeFields(n)),
       existing_nodes: request.existingNodes.map((n) => this.nodeFields(n)),
-    }));
+    })));
   }
 
   /** POC: deletes the old database folders a successful job moved aside on the new nodes (CMS ha_add_nodes, action cleanup). */
   @HandleCmsErrors()
   async cleanupAddNodes(userId: string, hostUid: string, request: HaAddNodesCleanupDto) {
-    return this.pocCall(userId, hostUid, this.pocRequest(HA_NODES_TASKS.addNodes, {
+    return this.withLoginFailure(() => this.pocCall(userId, hostUid, this.pocRequest(HA_NODES_TASKS.addNodes, {
       action: 'cleanup',
       uuid: request.uuid,
       new_nodes: request.newNodes.map((n) => this.newNodeFields(n)),
-    }));
+    })));
   }
 }

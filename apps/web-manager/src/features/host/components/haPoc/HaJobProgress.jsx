@@ -5,7 +5,7 @@ import { Typography } from '../../../../components/ds/foundation/Typography';
 import { STATE_STYLE, UNDO_ON_REQUEST, errorText, isJobLive, isPromoteStep } from './haPocShared';
 import { useHaJobPolling } from './useHaJobPolling';
 import StageSteps from './StageSteps';
-import SshProblem from './SshProblem';
+import SshProblem, { NodeLoginFailure } from './SshProblem';
 import RelogModal from './RelogModal';
 
 /**
@@ -19,6 +19,10 @@ export default function HaJobProgress({
 }) {
   const [cleanup, setCleanup] = useState(null);
   const [relogOpen, setRelogOpen] = useState(false);
+  // CMS could not log in to every node for the undo: shown per node, and the passwords asked again.
+  const [undoLoginFailure, setUndoLoginFailure] = useState(null);
+  // The nodes CMS could not log in to on the last undo: their passwords are asked (again) too.
+  const [retryHosts, setRetryHosts] = useState([]);
   const logRef = useRef(null);
   useHaJobPolling(hostUid, job, setJob);
 
@@ -39,7 +43,7 @@ export default function HaJobProgress({
   const cleanupOld = async () => {
     try {
       const res = await hostApi.haAddNodesCleanup(hostUid, job.uuid, cleanupNodes);
-      setCleanup({ done: true, res });
+      setCleanup(res?.login_failed ? { loginFailed: res } : { done: true, res });
     } catch (err) {
       setCleanup({ error: errorText(err) });
     }
@@ -54,16 +58,26 @@ export default function HaJobProgress({
   const jobHosts = rollbackNodes ? [...rollbackNodes.newNodes, ...rollbackNodes.existingNodes].map((n) => n.host) : [];
   // Only the passwords the wizard does not hold are asked: the lost nodes' in this tab; after the
   // browser was closed (no password held) those of every node with undo left.
-  const askHosts = passwordsKnown
-    ? lostNodes
-    : (unrestoredNodes.length > 0 ? unrestoredNodes : jobHosts);
+  const askHosts = [...new Set([
+    ...(passwordsKnown ? lostNodes : (unrestoredNodes.length > 0 ? unrestoredNodes : jobHosts)),
+    ...retryHosts,
+  ])];
   // An interrupted or blocked job is undone from its record on request, and one whose undo
   // left lines to do; then it is polled again.
   const canUndo = Boolean(rollbackNodes)
     && (UNDO_ON_REQUEST.has(job?.job_status) || (job?.job_status === 'rollback_failed' && (unrestoredNodes.length > 0 || lostNodes.length > 0)));
   const rollback = async (nodes = rollbackNodes) => {
     try {
-      await hostApi.haAddNodesRollback(hostUid, job.uuid, nodes);
+      const res = await hostApi.haAddNodesRollback(hostUid, job.uuid, nodes);
+      if (res?.login_failed) {
+        setUndoLoginFailure(res);
+        const failed = (Array.isArray(res.node_checks) ? res.node_checks : []).filter((c) => c.code && c.code !== 'ok').map((c) => c.node);
+        setRetryHosts(failed);
+        if (askHosts.length > 0 || failed.length > 0) setRelogOpen(true);
+        return;
+      }
+      setUndoLoginFailure(null);
+      setRetryHosts([]);
       setJob((prev) => ({ ...prev, job_status: 'running', phase: 'rollback', requestError: null }));
     } catch (err) {
       setJob((prev) => ({ ...prev, requestError: errorText(err) }));
@@ -110,6 +124,9 @@ export default function HaJobProgress({
         <span className="text-13">{L.nodes}: {job.nodes.map((n) => `${n.host} (${n.role}${n.new ? `, ${L.newNode}` : ''})`).join(', ')}</span>
       )}
       {job.requestError && <span className="text-13 text-rose-500">{job.requestError}</span>}
+      {undoLoginFailure && sshLabels && (
+        <NodeLoginFailure failure={undoLoginFailure} causes={causes} labels={sshLabels} title={L.loginFailedTitle} testId="ha-undo-login-failed" />
+      )}
 
       {relogOpen && (
         <RelogModal
@@ -152,6 +169,9 @@ export default function HaJobProgress({
               <Button size="sm" variant="secondary" onClick={cleanupOld} disabled={Boolean(cleanup?.done) || cleanupNodes.length === 0}>{L.cleanup}</Button>
               {cleanup?.done && <span className="text-emerald-600">{L.cleanedUp}</span>}
               {cleanup?.error && <span className="text-rose-500">{cleanup.error}</span>}
+              {cleanup?.loginFailed && sshLabels && (
+                <NodeLoginFailure failure={cleanup.loginFailed} causes={causes} labels={sshLabels} title={L.loginFailedTitle} testId="ha-cleanup-login-failed" />
+              )}
             </div>
           )}
         </div>

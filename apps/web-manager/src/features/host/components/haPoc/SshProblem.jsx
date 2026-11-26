@@ -21,3 +21,22 @@ export default function SshProblem({ node, code, message, hint, causes, labels, 
     </div>
   );
 }
+
+/**
+ * CMS could not log in to every node, so the request (plan, run, undo,
+ * cleanup) did not start: the nodes that failed, each with its cause and what
+ * to do. `failure`: { error, message, action, node_checks }.
+ */
+export function NodeLoginFailure({ failure, causes, labels, title, testId }) {
+  const failed = (Array.isArray(failure.node_checks) ? failure.node_checks : []).filter((c) => c.code && c.code !== 'ok');
+  return (
+    <div className="flex flex-col gap-2 p-3 rounded border border-rose-300 bg-rose-50 dark:bg-rose-500/10" data-testid={testId}>
+      <span className="text-13 font-medium text-rose-600 dark:text-rose-300">{title}</span>
+      {failed.length > 0
+        ? failed.map((c) => (
+          <SshProblem key={c.node} node={c.node} code={c.code} message={c.message} hint={c.action} causes={causes} labels={labels} testId={`${testId}-${c.node}`} />
+        ))
+        : <SshProblem code={failure.error} message={failure.message} hint={failure.action} causes={causes} labels={labels} />}
+    </div>
+  );
+}
