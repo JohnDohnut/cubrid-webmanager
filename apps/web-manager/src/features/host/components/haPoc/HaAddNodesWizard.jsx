@@ -469,7 +469,7 @@ export default function HaAddNodesWizard({ hostUid }) {
                       node={f.node}
                       code={sshCode}
                       message={f.detail}
-                      hint={f.action ?? planJob.action}
+                      hint={planJob.error_action}
                       causes={W.sshCauses}
                       labels={W.sshLabels}
                       testId={`ha-plan-failed-${f.node || 'local'}`}

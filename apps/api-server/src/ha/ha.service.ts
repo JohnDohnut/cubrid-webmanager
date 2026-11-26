@@ -34,8 +34,9 @@ const HA_NODES_TASKS = {
   status: 'ha_add_nodes_status',
   cancel: 'ha_add_nodes_cancel',
 } as const;
-// ha_check_ssh answers within about 20 seconds.
-const SSH_CHECK_TIMEOUT_MS = 40_000;
+// ha_check_ssh: a key scan, the login methods and the login, about 50 s at most (v5); under the
+// browser's 60 s.
+const SSH_CHECK_TIMEOUT_MS = 55_000;
 
 type CmsPocRequest = { task: string } & Record<string, unknown>;
 
@@ -220,7 +221,7 @@ export class HaService extends BaseService {
 
   /**
    * ha_add_nodes answers failure itself, with no job, when CMS could not log
-   * in to every node (C3): that answer (error, message, action and each
+   * in to every node (C3): that answer (error, message, error_action and each
    * node's result) goes to the screen as data with `login_failed`, for it to
    * show per node. Any other failure stays an error.
    */
@@ -234,7 +235,7 @@ export class HaService extends BaseService {
         login_failed: true,
         error: response.error ?? response.note,
         message: response.message,
-        action: response.action,
+        error_action: response.error_action,
         node_checks: response.node_checks,
       };
     }

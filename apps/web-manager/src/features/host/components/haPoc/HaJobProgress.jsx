@@ -112,8 +112,9 @@ export default function HaJobProgress({
         <span className="text-13">{L.databases}: {job.db_names.join(', ')}</span>
       )}
       {/* A known cause (or CMS's own action line): the node, the cause and what to do; otherwise CMS's text. */}
-      {job.error && sshLabels && (causes[job.error] || job.action) ? (
-        <SshProblem node={job.step_node} code={job.error} message={job.message} hint={job.action} causes={causes} labels={sshLabels} testId="ha-job-problem" />
+      {/* (The top-level `action` is plan/run; what to do is `error_action`.) */}
+      {job.error && sshLabels && (causes[job.error] || job.error_action) ? (
+        <SshProblem node={job.step_node} code={job.error} message={job.message} hint={job.error_action} causes={causes} labels={sshLabels} testId="ha-job-problem" />
       ) : (job.error || job.message) && (
         <span className="text-13 text-rose-500">{[job.error, job.message].filter(Boolean).join(': ')}</span>
       )}

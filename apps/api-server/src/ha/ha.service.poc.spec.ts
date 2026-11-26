@@ -100,12 +100,12 @@ describe('HaService HA node add POC', () => {
   it('gives a failed node login back per node, with no job and no record, and keeps other failures as errors', async () => {
     cmsClient.postAuthenticated.mockResolvedValue({
       status: 'failure', note: 'ns1: port 22 refused', task: 'ha_add_nodes',
-      error: 'port_refused', message: 'ns1: port 22 refused', action: 'Start sshd on ns1',
+      error: 'port_refused', message: 'ns1: port 22 refused', error_action: 'Start sshd on ns1',
       node_checks: [{ node: 'ns1', code: 'port_refused', message: 'ns1: port 22 refused', action: 'Start sshd on ns1' }, { node: 'hasl1', code: 'ok' }],
     });
     const res = await service.addNodes('user', 'h1', { action: 'run', newNodes: [{ ...node('ns1'), role: 'slave' }], existingNodes: [node('hasl1')] });
     expect(res).toEqual({
-      login_failed: true, error: 'port_refused', message: 'ns1: port 22 refused', action: 'Start sshd on ns1',
+      login_failed: true, error: 'port_refused', message: 'ns1: port 22 refused', error_action: 'Start sshd on ns1',
       node_checks: [{ node: 'ns1', code: 'port_refused', message: 'ns1: port 22 refused', action: 'Start sshd on ns1' }, { node: 'hasl1', code: 'ok' }],
     });
     expect(registry.add).not.toHaveBeenCalled();

@@ -47,7 +47,7 @@ it('names the node, the cause and what to do for a failed check, not just "faile
 });
 
 it('takes CMS\'s own action line, and shows an unknown code as it is', async () => {
-  await render({ result: 'brand_new_code', message: 'x', action: 'do this' });
+  await render({ result: 'brand_new_code', message: 'x', error_action: 'do this' });
   expect(problem().textContent).toBe('haxs1 · Cause: brand_new_codeTo do: do thisDetail: x');
 });
 

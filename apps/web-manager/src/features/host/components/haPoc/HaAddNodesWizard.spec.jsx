@@ -367,7 +367,7 @@ it('says per node why the plan could not reach it over ssh', async () => {
     await toSummary(haDb);
     mocks.start.mockResolvedValueOnce({ uuid: 'p1', job_status: 'running' });
     mocks.status.mockResolvedValue({
-      uuid: 'p1', job_status: 'fail', phase: 'done', error: 'name_unresolved', message: 'ns1: no such host', output: '',
+      uuid: 'p1', action: 'plan', job_status: 'fail', phase: 'done', error: 'name_unresolved', message: 'ns1: no such host', output: '',
       steps: [{ no: 2, stage: 'S2', id: 'node_check', title: 'Check a new node', node: 'ns1', db: '', state: 'failed', detail: 'getent hosts ns1: not found' }],
     });
     await click(button('Get the plan'));
@@ -451,7 +451,7 @@ it('shows no unfinished runs when every one ended', async () => {
 it('shows per node why CMS could not log in, when the plan does not start', async () => {
   await toSummary(haDb);
   mocks.start.mockResolvedValueOnce({
-    login_failed: true, error: 'hostkey_mismatch', message: 'hareplica: host key differs', action: 'Check why the key changed',
+    login_failed: true, error: 'hostkey_mismatch', message: 'hareplica: host key differs', error_action: 'Check why the key changed',
     node_checks: [{ node: 'hareplica', code: 'hostkey_mismatch', message: 'hareplica: host key differs', action: 'Check why the key changed' }, { node: 'ns1', code: 'ok' }],
   });
   await click(button('Get the plan'));

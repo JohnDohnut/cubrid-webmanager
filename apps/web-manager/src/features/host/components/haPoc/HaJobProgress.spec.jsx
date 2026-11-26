@@ -91,7 +91,7 @@ it('takes an undone job as ended, and offers Undo again after a blocked one', as
 });
 
 it('says the cause and what to do when the run fails on a node', async () => {
-  const job = { uuid: 'u1', job_status: 'fail', phase: 'done', error: 'no_answer', message: 'haxs1: no answer in 30 s', step_node: 'haxs1', action: 'Check haxs1', steps: [], log: '' };
+  const job = { uuid: 'u1', job_status: 'fail', phase: 'done', error: 'no_answer', message: 'haxs1: no answer in 30 s', step_node: 'haxs1', action: 'run', error_action: 'Check haxs1', steps: [], log: '' };
   await act(async () => root.render(<HaJobProgress hostUid="h1" job={job} setJob={() => {}} L={CM.haSlavePoc} causes={CM.haAddSlave.sshCauses} sshLabels={CM.haAddSlave.sshLabels} />));
   expect(container.querySelector('[data-testid="ha-job-problem"]').textContent)
     .toBe('haxs1 · Cause: The node did not answer in timeTo do: Check haxs1Detail: haxs1: no answer in 30 s');
@@ -133,7 +133,7 @@ it('asks again only for the passwords of the nodes it lost before undoing, and k
 it('shows a failed node login on undo per node and asks those passwords again', async () => {
   mocks.rollback.mockReset();
   mocks.rollback.mockResolvedValueOnce({
-    login_failed: true, error: 'auth_failed', message: 'hasl1: Permission denied', action: 'Check the password',
+    login_failed: true, error: 'auth_failed', message: 'hasl1: Permission denied', error_action: 'Check the password',
     node_checks: [{ node: 'hasl1', code: 'auth_failed', message: 'hasl1: Permission denied', action: 'Check the password' }, { node: 'haxs1', code: 'ok' }],
   });
   let job = { uuid: 'u1', job_status: 'interrupted', phase: 'done', steps: [], log: '' };
